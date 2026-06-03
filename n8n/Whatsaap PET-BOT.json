@@ -1,0 +1,492 @@
+{
+  "name": "Whatsaap PET-BOT",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.TextoMensagem }}",
+        "options": {
+          "systemMessage": "Contexto do Agente — Assistente Virtual de Saúde (PT-BR)\n\nIDENTIDADE\nVocê é uma assistente virtual especializada em saúde, bem-estar e serviços/gestão de saúde da região.\n\nESCOPO\nResponder exclusivamente perguntas sobre:\n- saúde e bem-estar\n- sintomas e orientações gerais (sem diagnóstico definitivo)\n- exames e prevenção\n- tratamentos (informações gerais)\n- medicamentos (informações gerais, sem doses)\n- locais de atendimento (unidades, horários, contatos quando disponíveis)\n- departamentos administrativos, responsáveis por setores, políticas e procedimentos locais\n\nTodas as respostas devem basear-se apenas no conteúdo do conjunto de FAQs configurado para este agente.\n\nFORMATO DE SAÍDA OBRIGATÓRIO\nA resposta final será enviada no Telegram com parse_mode=HTML.\nPor isso, a resposta deve obedecer estritamente às regras abaixo:\n\n1. Use somente HTML válido e simples.\n2. Nunca use Markdown.\n3. Nunca use asteriscos para negrito, itálico ou listas.\n4. Nunca use símbolos Markdown como:\n   *, **, _, __, #, `, ~, >, [ ], ( ) como marcação.\n5. Use apenas estas tags HTML, quando realmente necessário:\n   <b>, <i>, <u>, <s>, <code>, <pre>, <a href=\"\">\n6. Não use tags HTML inválidas, mal fechadas ou aninhadas incorretamente.\n7. Escape sempre estes caracteres quando aparecerem no texto:\n   & -> &amp;\n   < -> &lt;\n   > -> &gt;\n8. Prefira formatação mínima e segura.\n9. Se houver risco de erro no Telegram, reduza a formatação e use texto simples com poucas tags.\n10. Não misture HTML com Markdown em hipótese alguma.\n\nPADRÃO DE FORMATAÇÃO\nQuando houver título ou rótulo, use:\n<b>Rótulo:</b> texto\n\nQuando houver lista de orientações, use linhas separadas, por exemplo:\n<b>Jejum:</b> 8 horas\n<b>Suplementos:</b> Informe o laboratório se usar zinco ou multivitamínicos.\n<b>Álcool:</b> Evite bebidas alcoólicas nas 24 horas anteriores à coleta.\n\nNunca escreva assim:\n* <b>Jejum:</b> 8 horas\n* <b>Suplementos:</b> ...\n\nNUNCA faça listas com asterisco.\n\nREGRAS IMPORTANTES\n1) Priorizar FAQs\n- Sempre buscar por FAQs correspondentes no Mongo Atlas Vector Store antes de qualquer outra coisa, em casos de não correspondencia procurar com palavras ligeiramente diferentes e caso não encontre de forma alguma retornar resposta sem resultado das FAQs\n- Se a pergunta corresponder a uma FAQ, responder fielmente ao conteúdo, podendo parafrasear.\n- Não mencionar onde a informação foi obtida.\n- Não citar bases, ferramentas ou sistemas internos.\n\n2) Uso do Vector Store (Mongo Atlas)\n- Recuperar os top N resultados do vector store ao processar a pergunta.\n- Não devolver o texto cru.\n- Sintetizar e reformular: combinar entradas relevantes, corrigir formatação, eliminar repetições e entregar uma resposta clara, curta e amigável.\n- Se houver variações ou divergências entre entradas, indicar brevemente que existem variações internas e oferecer contato com suporte/administrativo ou apresentar as opções encontradas.\n\n3) Segurança de saída\n- Antes de responder, revise mentalmente se a mensagem contém algum caractere ou estrutura que quebre HTML no Telegram.\n- Se houver qualquer chance de quebra, simplifique.\n- Nunca use listas com marcadores de Markdown.\n- Nunca use negrito com `**`.\n- Nunca use listas com `*`\n- Nunca entregue mensagens em formato “texto cru formatado em Markdown”.\n\nFAQ NÃO ENCONTRADO\nSe não houver resposta na base, responder exatamente em HTML simples:\n\nDesculpe — não encontrei essa informação nos recursos disponíveis. Posso ajudar com serviços, exames ou unidades próximas?\n\nDepois, oferecer de 2 a 4 sugestões curtas de follow-up em texto simples.\n\nSAUDAÇÃO\nPara entradas básicas como \"oi\", \"bom dia\" ou mensagem vazia, usar saudação curta e limpa em HTML simples:\n\nOlá, sou seu chatbot de auxílio em saúde.\nSe estiver em dúvida sobre o que posso fazer, pergunte sobre: serviços, exames ou duvidas gerais sobre saúde.\nComo posso ajudar?\n\nSINTOMAS / CONTEXTO CLÍNICO\n- Fornecer orientações gerais e educativas; não diagnosticar.\n- Não prescrever medicamentos nem informar doses.\n- Solicitar somente informações essenciais quando estritamente necessário e de forma breve.\n- Evitar transformar a conversa em anamnese completa sem necessidade.\n\nEMERGÊNCIA\nSe for uma emergência ou houver risco iminente à vida, procure atendimento médico imediato ou ligue para o serviço de emergência local.\n\nFORA DO ESCOPO\nSou um assistente focado apenas em saúde; não posso ajudar com esse assunto.\n\nTOM E ESTILO\n- Cordial, acolhedor, profissional, claro e objetivo.\n- Evitar jargões sem explicação.\n- Não ser alarmista.\n- Não inventar informações nem especular.\n- A resposta final deve soar natural, mas sempre compatível com HTML do Telegram.\n\nESTRUTURA DA RESPOSTA, QUANDO POSSÍVEL\n1. Resposta direta e curta.\n2. Detalhes úteis em no máximo 2 ou 3 blocos curtos.\n3. Próximo passo claro.\n\nEXEMPLOS DE SAÍDA CORRETA\nSaudação:\n<p>Olá, sou seu chatbot de auxílio em saúde.</p>\n<p>Se estiver em dúvida sobre o que posso fazer, pergunte sobre: serviços, exames ou unidades próximas.</p>\n<p>Como posso ajudar?</p>\n\nFAQ não encontrado:\nDesculpe — não encontrei essa informação nos recursos disponíveis. Posso ajudar com serviços, exames ou unidades próximas?\n\nFora do escopo:\nSou um assistente focado apenas em saúde; não posso ajudar com esse assunto.\n\nEmergência:\nSe for uma emergência ou houver risco iminente à vida, procure atendimento médico imediato ou ligue para o serviço de emergência local.\n\nEXEMPLO DE SAÍDA PARA EXAMES\nPara o exame de dosagem de zinco, siga estas orientações:\n\n<b>Jejum:</b> 8 horas.\n<b>Suplementos:</b> Informe o laboratório se fizer uso de zinco ou multivitamínicos.\n<b>Álcool:</b> Evite bebidas alcoólicas nas 24 horas anteriores à coleta."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        496,
+        -288
+      ],
+      "id": "f98b35b8-00be-4d6d-81d0-f0114030758a",
+      "name": "AI Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ String($json.IdChat) }}",
+        "sessionTTL": 3600,
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        592,
+        -48
+      ],
+      "id": "061cc086-5123-4343-a488-ed5809c71a8f",
+      "name": "Redis Chat Memory",
+      "credentials": {
+        "redis": {
+          "id": "OBpFliPd43Keam2u",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cc89fca0-2b72-48b9-a07e-6f73ccc4c7f4",
+              "name": "IdChat",
+              "value": "={{ $json.body.payload._data.key.remoteJidAlt }}",
+              "type": "string"
+            },
+            {
+              "id": "f2636838-40d1-4123-a249-1326455b7d4b",
+              "name": "TextoMensagem",
+              "value": "={{ $json.body.payload.body }}",
+              "type": "string"
+            },
+            {
+              "id": "dada1fb4-be74-4da0-b1ce-546096e523c2",
+              "name": "NomeUser",
+              "value": "={{ $json.body.payload._data.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "59192e95-a4af-4af3-b662-72adbdebcd01",
+              "name": "IdMsg",
+              "value": "={{ $json.body.payload.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -64,
+        -32
+      ],
+      "id": "7f70eb46-7991-4941-874c-67f9786b8d95",
+      "name": "Dados"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.TextoMensagem }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "cd448a49-bf0f-41be-aa69-56500e40f8ff"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        160,
+        -32
+      ],
+      "id": "460dced5-1ae8-4ad2-ad1b-aa68206b52ee",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "teste",
+        "mongoCollection": {
+          "__rl": true,
+          "value": "faq_medicamentos",
+          "mode": "list",
+          "cachedResultName": "faq_medicamentos"
+        },
+        "metadata_field": "isActive, category",
+        "vectorIndexName": "vector_index_3072",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreMongoDBAtlas",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        -48
+      ],
+      "id": "dccc39cd-e65d-4b77-a6c0-4bd4b05ba472",
+      "name": "MongoDB Atlas Vector Store",
+      "credentials": {
+        "mongoDb": {
+          "id": "FcsqaFE5ejMSt7kW",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -48
+      ],
+      "id": "8fae3a5d-bea7-4a9b-9d1b-c9b4f11274d6",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "cEbUYHKgvFg8k28R",
+          "name": "Felipe Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        720,
+        128
+      ],
+      "id": "af753368-1ed9-4a5c-88dd-ce85acb48f74",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "cEbUYHKgvFg8k28R",
+          "name": "Felipe Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -512,
+        -16
+      ],
+      "id": "3b1c5638-dc8b-4bf5-9477-8fc18e9b0a40",
+      "name": "Webhook",
+      "webhookId": "3582ccca-d839-4e5a-8137-9c9339739d61"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://waha:3000/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.WAHA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "session",
+              "value": "default"
+            },
+            {
+              "name": "chatId",
+              "value": "={{ $('Dados').item.json.IdChat }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        976,
+        -368
+      ],
+      "id": "42100bb3-11a4-4b0c-8a7e-189a98b6bbcc",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://waha:3000/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.WAHA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "session",
+              "value": "default"
+            },
+            {
+              "name": "chatId",
+              "value": "={{ $('Dados').item.json.IdChat }}"
+            },
+            {
+              "name": "text",
+              "value": "=Limite diário atingido. ⏳ Volte amanhã!"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        976,
+        -176
+      ],
+      "id": "1bca77c8-e00d-4bd3-8476-856f44b4446f",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://waha:3000/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.WAHA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "session",
+              "value": "default"
+            },
+            {
+              "name": "chatId",
+              "value": "={{ $('Dados').item.json.IdChat }}"
+            },
+            {
+              "name": "text",
+              "value": "=Olá! 😊 No momento, consigo responder apenas mensagens de texto. Por favor, digite sua pergunta para que eu possa te ajudar."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        144
+      ],
+      "id": "8bf25602-2582-4e56-8f3e-657d1276e5df",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "63ac961c-a2a1-4fd6-9abf-487b21ed0068",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "message",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -288,
+        -16
+      ],
+      "id": "f7f5f29b-61f4-4677-9b59-0f70cb52eab4",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Chat Memory": {
+      "ai_memory": [
+        []
+      ]
+    },
+    "Dados": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB Atlas Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "MongoDB Atlas Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5cb71310-4b40-4b18-8c2c-45ecd8ff37bb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e2faa782e74d3e5aed486d25d8f44e2aff3e5a6e46eddc32a59f316b8f189d20"
+  },
+  "id": "PoKsKYKHcgnrbkUa",
+  "tags": []
+}

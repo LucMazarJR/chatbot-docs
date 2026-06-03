@@ -1,0 +1,18 @@
+# Credenciais e segredos
+.env
+credentials.json
+scripts/credentials.json
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+scripts/__pycache__/
+scripts/.venv/
+
+# Arquivos Word temporários
+*.docx
+~$*.docx
