@@ -1,32 +1,78 @@
 services:
   redis:
-    image: redis:latest
-    platform: linux/amd64
-    command: redis-server --requirepass default
+    image: redis:7-alpine
+    restart: unless-stopped
+    # A senha vem do .env; antes era o literal "default" no compose.
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}", "--appendonly", "yes"]
+    volumes:
+      # Sem volume, reiniciar o Redis apagava a memória de todas as conversas.
+      - redis_data:/data
+    # A porta não é mais publicada no host: só n8n e gateway precisam dela,
+    # e ambos estão na mesma rede do compose.
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  whatsapp-gateway:
+    build:
+      context: ./backend
+    restart: unless-stopped
     environment:
-      REDIS_USER: default
-      REDIS_PASSWORD: default
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      GATEWAY_API_KEY: ${GATEWAY_API_KEY:?defina GATEWAY_API_KEY no .env}
+
+      WA_SESSION_ID: ${WA_SESSION_ID:-default}
+      WA_AUTH_DIR: /app/.sessions
+      WA_AUTO_START: ${WA_AUTO_START:-true}
+      WA_MARK_AS_READ: ${WA_MARK_AS_READ:-true}
+      WA_SEND_MIN_DELAY_MS: ${WA_SEND_MIN_DELAY_MS:-1200}
+      WA_SEND_MAX_DELAY_MS: ${WA_SEND_MAX_DELAY_MS:-3000}
+      WA_MAX_MSG_PER_MINUTE: ${WA_MAX_MSG_PER_MINUTE:-20}
+      WA_MAX_TYPING_MS: ${WA_MAX_TYPING_MS:-4000}
+
+      # Nome do serviço na rede do compose — não passa pelo Cloudflare Tunnel.
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://n8n:5678/webhook/whatsapp}
+      N8N_WEBHOOK_TOKEN: ${N8N_WEBHOOK_TOKEN:?defina N8N_WEBHOOK_TOKEN no .env}
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:?defina N8N_WEBHOOK_SECRET no .env}
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # db 1 isola o gateway da memória de chat do n8n (db 0).
+      REDIS_DB: 1
     ports:
-      - "6379:6379"
+      # Exposto no host só para ler o QR code e o Swagger durante o setup.
+      - "3000:3000"
+    volumes:
+      - wa_sessions:/app/.sessions
+    depends_on:
+      redis:
+        condition: service_healthy
 
   n8n:
     image: n8nio/n8n:latest
-    platform: linux/amd64
+    restart: unless-stopped
     environment:
       WEBHOOK_URL: ${CLOUDFLARE_URL:-http://localhost:5678}
       N8N_HOST: 0.0.0.0
       GENERIC_TIMEZONE: America/Sao_Paulo
-      N8N_LOG_LEVEL: debug
+      N8N_LOG_LEVEL: ${N8N_LOG_LEVEL:-info}
       N8N_SECURE_COOKIE: false
       N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
-      N8N_DISABLE_PRODUCTION_MAIN_PROCESS: false
       N8N_HIDE_USAGE_PAGE: true
-      WAHA_API_KEY: ${WAHA_API_KEY}
-      QUEUE_BULL_REDIS_HOST: redis
-      QUEUE_BULL_REDIS_PORT: 6379
-      QUEUE_BULL_REDIS_PASSWORD: default
+      # Usadas pelos nós HTTP do fluxo para falar com o gateway.
+      GATEWAY_API_KEY: ${GATEWAY_API_KEY}
+      GATEWAY_URL: ${GATEWAY_URL:-http://whatsapp-gateway:3000}
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     volumes:
       - n8n_data:/home/node/.n8n
     ports:
@@ -34,7 +80,6 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    platform: linux/amd64
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
@@ -42,26 +87,11 @@ services:
     depends_on:
       - n8n
 
-  waha:
-    image: devlikeapro/waha:noweb
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - waha_data:/app/.sessions
-    environment:
-      WHATSAPP_DEFAULT_ENGINE: NOWEB
-      WAHA_API_KEY: ${WAHA_API_KEY}
-      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME}
-      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
-      WHATSAPP_SWAGGER_USERNAME: ${WHATSAPP_SWAGGER_USERNAME}
-      WHATSAPP_SWAGGER_PASSWORD: ${WHATSAPP_SWAGGER_PASSWORD}
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
 volumes:
   n8n_data:
+  redis_data:
+  # Credenciais da sessão do WhatsApp. Apagar este volume exige novo QR code.
+  wa_sessions:
+  # Mantido até a migração ser validada em produção — permite voltar ao WAHA
+  # sem perder a sessão antiga. Pode ser removido depois.
   waha_data:

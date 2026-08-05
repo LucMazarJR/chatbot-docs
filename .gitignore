@@ -6,6 +6,17 @@ scripts/credentials.json
 # Logs
 *.log
 
+# Node / backend
+node_modules/
+backend/dist/
+backend/coverage/
+backend/.sessions/
+backend/.sessions-test/
+*.tsbuildinfo
+
+# Credenciais de sessão do WhatsApp — nunca versionar
+.sessions/
+
 # Python
 __pycache__/
 *.pyc

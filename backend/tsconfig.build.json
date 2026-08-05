@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  // O tsconfig principal inclui `test/` para o editor e o lint enxergarem os
+  // testes. No build isso faria o TypeScript inferir a raiz comum como a pasta
+  // do projeto, emitindo em `dist/src/` — e o `node dist/main.js` do Dockerfile
+  // quebraria. Excluindo os testes, a raiz volta a ser `src/`.
+  "exclude": ["node_modules", "dist", "coverage", "test", "**/*.spec.ts"]
+}

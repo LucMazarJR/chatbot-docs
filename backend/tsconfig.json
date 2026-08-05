@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    // node16 (e não commonjs) porque o Baileys 6.7+ é ESM puro: este modo
+    // mantém o `import()` dinâmico intacto em vez de rebaixá-lo para
+    // `require()`, que quebraria em runtime. A aplicação continua CommonJS.
+    "module": "node16",
+    "moduleResolution": "node16",
+    "declaration": false,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    // Exigido pelo ts-jest no modo de módulo node16.
+    "isolatedModules": true,
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": false,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*", "test/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
