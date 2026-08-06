@@ -1,0 +1,88 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { ChevronRight } from "lucide-react";
+
+import { listFaqs } from "@/lib/faq.functions";
+import { GateShell } from "@/components/gate";
+import { InsertFaqButton, faqCategories } from "@/components/faq-shared";
+
+export const Route = createFileRoute("/categorias/")({
+  head: () => ({
+    meta: [
+      { title: "Categorias de FAQs | Central de FAQs" },
+      {
+        name: "description",
+        content:
+          "Veja todas as categorias de perguntas frequentes em saúde e quantas perguntas cada uma possui.",
+      },
+      { property: "og:title", content: "Categorias de FAQs" },
+      {
+        property: "og:description",
+        content: "Navegue pelas categorias e abra as perguntas frequentes de cada tema.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: CategoriesPage,
+});
+
+function CategoriesPage() {
+  const faqsQuery = useQuery({ queryKey: ["faqs"], queryFn: () => listFaqs() });
+  const faqs = faqsQuery.data ?? [];
+
+  const categories = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const faq of faqs) {
+      const list = faqCategories(faq);
+      const keys = list.length ? list : ["Sem categoria"];
+      for (const key of keys) map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "pt-BR"));
+  }, [faqs]);
+
+  return (
+    <GateShell>
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">Categorias</h2>
+            <p className="text-sm text-muted-foreground">
+              {categories.length} {categories.length === 1 ? "categoria" : "categorias"} cadastradas
+            </p>
+          </div>
+          <InsertFaqButton />
+        </div>
+
+        {faqsQuery.isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando categorias…</p>
+        ) : categories.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            Nenhuma categoria cadastrada.
+          </p>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {categories.map(([category, count]) => (
+              <li key={category}>
+                <Link
+                  to="/categorias/$categoria"
+                  params={{ categoria: category }}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-border panel-surface p-5 transition-colors hover:border-primary/50 hover:bg-accent/40"
+                >
+                  <span>
+                    <span className="block text-base font-semibold">{category}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {count} {count === 1 ? "pergunta" : "perguntas"}
+                    </span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </GateShell>
+  );
+}
