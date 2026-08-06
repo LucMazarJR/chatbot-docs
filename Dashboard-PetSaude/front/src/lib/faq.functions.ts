@@ -35,7 +35,7 @@ const faqInput = z.object({
   source: z.string().optional(),
 });
 
-const API_BASE = process.env.API_BASE_URL || "http://127.0.0.1:3333";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:3333";
 
 export const getGateStatus = createServerFn({ method: "GET" }).handler(async () => {
   const rs = await fetch(`${API_BASE}/gate/status`);
