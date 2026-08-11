@@ -43,6 +43,12 @@ export class Faq {
     @Prop({ default: () => new Date() })
     updatedAt: Date;
 
+    @Prop()
+    created_by?: string;
+
+    @Prop()
+    updated_by?: string;
+
     @Prop({ type: [Number], default: [] })
     embedding: number[];
 }

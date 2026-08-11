@@ -61,6 +61,8 @@ export class FaqsService {
                 source: doc.source || "",
                 isActive: doc.isActive,
                 updatedAt: doc.updatedAt,
+                created_by: doc.created_by || null,
+                updated_by: doc.updated_by || null,
             };
         });
     }
@@ -104,7 +106,9 @@ export class FaqsService {
             content_hash: contentHash,
             isActive: true,
             updatedAt: new Date(),
-            embedding: embeddingVector
+            embedding: embeddingVector,
+            created_by: actor,
+            updated_by: actor
         });
 
         const saved = await newFaq.save();
@@ -151,6 +155,7 @@ export class FaqsService {
         faq.content_hash = newContentHash;
         faq.embedding = newEmbedding;
         faq.updatedAt = new Date();
+        faq.updated_by = actor;
 
         await faq.save();
         this.activityService.logActivity(actor, 'editar', faq.question);
