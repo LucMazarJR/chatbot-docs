@@ -5,18 +5,8 @@ import { GateService } from './gate.service';
 export class GateController {
     constructor(private gateService: GateService) { }
 
-    @Get('status')
-    getStatus() {
-        return this.gateService.getStatus();
-    }
-
     @Post('unlock')
     unlock(@Body() body: { name: string; password: string }) {
         return this.gateService.unlock(body.name, body.password);
-    }
-
-    @Post('lock')
-    lock() {
-        return this.gateService.lock();
     }
 }
