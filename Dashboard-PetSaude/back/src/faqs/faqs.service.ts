@@ -48,7 +48,7 @@ export class FaqsService {
     }
 
     async listFaqs(): Promise<any[]> {
-        const faqs = await this.faqModel.find({ isActive: true }).sort({ updatedAt: -1 }).exec();
+        const faqs = await this.faqModel.find({ isActive: true }).select('-embedding').sort({ updatedAt: -1 }).exec();
         return faqs.map(f => {
             const doc = f.toObject();
             return {
