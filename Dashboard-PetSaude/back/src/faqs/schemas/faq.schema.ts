@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type FaqDocument = Faq & Document;
 
-@Schema({ collection: 'faq_medicamentos', timestamps: false })
+@Schema({ collection: 'chatbot', timestamps: false })
 // LÓGICA DO LUCIANO: O Schema do Mongoose abaixo possui tipagem 1:1 com os dados
 // enviados ao Mongo pelo script 'enviar_dados.py'.
 export class Faq {
