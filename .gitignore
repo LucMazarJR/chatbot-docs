@@ -1,5 +1,8 @@
 # Credenciais e segredos
 .env
+# Pega variações como .env.local e .env.bak.waha — só o exemplo é versionado.
+.env.*
+!.env.example
 credentials.json
 scripts/credentials.json
 
