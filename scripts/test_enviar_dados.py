@@ -11,6 +11,8 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
+from lib.drive import MIME_DOCX, MIME_GOOGLE_DOCS, listar_arquivos_faq
+
 load_dotenv()
 
 # ============================================================================
@@ -50,9 +52,10 @@ def processar_faqs_drive():
     service = get_drive_service()
     total_geral = 0
 
-    query = f"'{ID_PASTA_DRIVE}' in parents and name contains '.docx' and mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'"
-    results = service.files().list(q=query, fields="files(id, name)").execute()
-    arquivos = results.get('files', [])
+    # Mesma varredura do enviar_dados.py: subpastas, paginação e Google Docs.
+    # Se este teste usasse a consulta antiga, ele mentiria sobre o que a
+    # sincronização de verdade enxerga.
+    arquivos = listar_arquivos_faq(service, ID_PASTA_DRIVE)
 
     if not arquivos:
         print("⚠️ Nenhum arquivo encontrado na pasta do Drive.")
@@ -65,8 +68,11 @@ def processar_faqs_drive():
         if nome_arquivo.startswith('~$'): continue
 
         print(f"\n📄 Lendo arquivo: {nome_arquivo}")
-        
-        request = service.files().get_media(fileId=file_id)
+
+        if arquivo['mimeType'] == MIME_GOOGLE_DOCS:
+            request = service.files().export_media(fileId=file_id, mimeType=MIME_DOCX)
+        else:
+            request = service.files().get_media(fileId=file_id)
         fh = io.BytesIO()
         downloader = MediaIoBaseDownload(fh, request)
         done = False

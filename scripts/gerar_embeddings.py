@@ -9,7 +9,9 @@ load_dotenv()
 URI_MONGO = os.getenv("MONGODB_URI")
 DB_NAME = "ministerio_saude"
 COL_DADOS = "faq_medicamentos"
-LIMITE_EMBEDDINGS = 200
+# Teto por execução. `0` (padrão) = processa todos os pendentes; quem interrompe
+# é o 429 da API, tratado no laço. Defina LIMITE_EMBEDDINGS no .env para limitar.
+LIMITE_EMBEDDINGS = int(os.getenv("LIMITE_EMBEDDINGS", "0"))
 
 def main():
     client = MongoClient(URI_MONGO)
@@ -30,7 +32,7 @@ def main():
             print("✅ Todos os documentos já possuem embedding!")
             return
         
-        limite_atual = min(LIMITE_EMBEDDINGS, total_sem_embedding)
+        limite_atual = min(LIMITE_EMBEDDINGS, total_sem_embedding) if LIMITE_EMBEDDINGS else total_sem_embedding
         print(f"🎯 Serão processados: {limite_atual} embeddings")
         
         confirmacao = input("\n▶️  Deseja continuar? (sim/não): ")
@@ -44,7 +46,7 @@ def main():
         embeddings_gerados = 0
         erros = 0
         
-        for idx, doc in enumerate(docs_sem_embedding[:LIMITE_EMBEDDINGS], 1):
+        for idx, doc in enumerate(docs_sem_embedding[:limite_atual], 1):
             try:
                 texto = f"{doc['question']} {doc['answer']}"
                 print(f"   🔄 [{idx}/{limite_atual}] Gerando embedding...")

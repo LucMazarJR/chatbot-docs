@@ -19,6 +19,7 @@ from googleapiclient.http import MediaIoBaseDownload
 
 # Módulos locais
 from lib.gemini_embendding import gerarEmbedding
+from lib.drive import MIME_DOCX, MIME_GOOGLE_DOCS, listar_arquivos_faq
 
 # ============================================================================
 # 1. CONFIGURAÇÕES E LOGGING
@@ -101,9 +102,16 @@ def carregar_embeddings_existentes(collection, file_id: str) -> Dict[str, List[f
 # ============================================================================
 
 def criar_indice_vetorial(collection):
-    """Cria o índice vetorial no MongoDB Atlas para busca semântica."""
-    INDEX_NAME = "vector_index"
-    
+    """Cria o índice vetorial no MongoDB Atlas para busca semântica.
+
+    O nome precisa ser exatamente o que o nó Vector Store do n8n consulta
+    (`vectorIndexName` em n8n/whatsapp-chatbot.json). Enquanto este script
+    criava `vector_index` e o fluxo consultava `vector_index_3072`, recriar o
+    ambiente do zero deixava a busca apontando para um índice inexistente e
+    exigia criar o certo à mão no painel do Atlas.
+    """
+    INDEX_NAME = "vector_index_3072"
+
     # Verifica se o índice já existe
     existing_indexes = list(collection.list_search_indexes())
     if any(idx.get("name") == INDEX_NAME for idx in existing_indexes):
@@ -143,8 +151,11 @@ def criar_indice_vetorial(collection):
 # 4. LÓGICA DE SINCRONIZAÇÃO INTELIGENTE
 # ============================================================================
 
-# Limite máximo de embeddings novos gerados por execução (após atingir, envia sem embedding)
-LIMITE_EMBEDDINGS = 700
+# Teto de embeddings por execução. `0` (padrão) = sem teto: quem interrompe é a
+# própria API, com o 429 que o laço abaixo já detecta e trata. O teto fixo de 700
+# parava a geração antes da cota real e obrigava execuções extras à toa.
+LIMITE_EMBEDDINGS = int(os.getenv("LIMITE_EMBEDDINGS", "0"))
+
 
 def processar_faqs_drive(db) -> Tuple[int, int]:
     col_dados = db[COL_DADOS]
@@ -154,9 +165,7 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
         FILE_CREDENTIALS, scopes=['https://www.googleapis.com/auth/drive.readonly'])
     service = build('drive', 'v3', credentials=creds)
 
-    query = f"'{ID_PASTA_DRIVE}' in parents and name contains '.docx' and mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'"
-    results = service.files().list(q=query, fields="files(id, name, modifiedTime)").execute()
-    arquivos = results.get('files', [])
+    arquivos = listar_arquivos_faq(service, ID_PASTA_DRIVE, log=logger.info)
 
     itens_novos_total = 0
     arquivos_pulados = 0
@@ -180,7 +189,12 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
             embeddings_reutilizados = 0
             embeddings_gerados = 0
             
-            request = service.files().get_media(fileId=file_id)
+            # Google Docs nativo não tem bytes de .docx para baixar: precisa ser
+            # convertido na exportação. O resto do pipeline não vê diferença.
+            if arq['mimeType'] == MIME_GOOGLE_DOCS:
+                request = service.files().export_media(fileId=file_id, mimeType=MIME_DOCX)
+            else:
+                request = service.files().get_media(fileId=file_id)
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, request)
             done = False
@@ -256,14 +270,15 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                             # Gerar novo embedding apenas se o conteúdo mudou
                             texto_para_embedding = f"{pergunta} {resposta}"
                             try:
-                                logger.info(f"   🔄 [{total_ate_agora}] Gerando embedding ({embeddings_gerados_global + 1}/{LIMITE_EMBEDDINGS})...")
+                                teto = LIMITE_EMBEDDINGS or "sem teto"
+                                logger.info(f"   🔄 [{total_ate_agora}] Gerando embedding ({embeddings_gerados_global + 1}/{teto})...")
                                 embedding_result = gerarEmbedding(texto_para_embedding)
                                 embedding_vector = embedding_result.embeddings[0].values
                                 embeddings_gerados += 1
                                 embeddings_gerados_global += 1
                                 
                                 # Verificar se atingiu o limite
-                                if embeddings_gerados_global >= LIMITE_EMBEDDINGS:
+                                if LIMITE_EMBEDDINGS and embeddings_gerados_global >= LIMITE_EMBEDDINGS:
                                     embedding_desativado = True
                                     logger.warning(f"\n  🛑 LIMITE DE {LIMITE_EMBEDDINGS} EMBEDDINGS ATINGIDO!")
                                     logger.warning(f"  ⏭️  Restante será enviado SEM embedding para o banco.\n")

@@ -70,6 +70,10 @@ services:
       # Usadas pelos nós HTTP do fluxo para falar com o gateway.
       GATEWAY_API_KEY: ${GATEWAY_API_KEY}
       GATEWAY_URL: ${GATEWAY_URL:-http://whatsapp-gateway:3000}
+      # Sem isto o n8n recusa `{{ $env.* }}` nas expressões ("access to env vars
+      # denied") e os nós HTTP saem com URL e X-Api-Key vazios — o fluxo executa
+      # até o fim sem erro visível e nenhuma mensagem chega ao cidadão.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: false
     depends_on:
       redis:
         condition: service_healthy
