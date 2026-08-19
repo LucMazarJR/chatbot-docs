@@ -11,10 +11,16 @@
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
-      "position": [832, -288],
+      "position": [
+        832,
+        -288
+      ],
       "id": "f98b35b8-00be-4d6d-81d0-f0114030758a",
       "name": "AI Agent",
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
     },
     {
       "parameters": {
@@ -25,7 +31,10 @@
       },
       "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
       "typeVersion": 1.5,
-      "position": [928, -48],
+      "position": [
+        928,
+        -48
+      ],
       "id": "061cc086-5123-4343-a488-ed5809c71a8f",
       "name": "Redis Chat Memory",
       "credentials": {
@@ -93,7 +102,10 @@
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [-64, -32],
+      "position": [
+        -64,
+        -32
+      ],
       "id": "7f70eb46-7991-4941-874c-67f9786b8d95",
       "name": "Dados"
     },
@@ -132,7 +144,10 @@
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
-      "position": [160, -32],
+      "position": [
+        160,
+        -32
+      ],
       "id": "460dced5-1ae8-4ad2-ad1b-aa68206b52ee",
       "name": "Switch"
     },
@@ -140,7 +155,7 @@
       "parameters": {
         "mode": "load",
         "prompt": "={{ $json.TextoMensagem }}",
-        "topK": 5,
+        "topK": 10,
         "mongoCollection": {
           "__rl": true,
           "value": "faq_medicamentos",
@@ -153,7 +168,10 @@
       },
       "type": "@n8n/n8n-nodes-langchain.vectorStoreMongoDBAtlas",
       "typeVersion": 1.3,
-      "position": [400, -160],
+      "position": [
+        400,
+        -160
+      ],
       "id": "dccc39cd-e65d-4b77-a6c0-4bd4b05ba472",
       "name": "Buscar FAQs",
       "alwaysOutputData": true,
@@ -166,22 +184,28 @@
     },
     {
       "parameters": {
-        "jsCode": "// Junta os trechos recuperados da base de FAQs num único item.\n//\n// Este nó existe por dois motivos, e ambos quebram o fluxo se ele sair:\n//\n// 1. FAN-OUT. O vector store em modo \"load\" emite UM ITEM POR DOCUMENTO.\n//    Sem esta agregação, o AI Agent rodaria uma vez por documento e o cidadão\n//    receberia várias mensagens para a mesma pergunta.\n//\n// 2. PERDA DE CAMPOS. A saída do vector store substitui o formato do item e\n//    derruba IdChat, EventId, SessionId e CorrelationId — que os nós de envio\n//    e o sessionKey da memória precisam. Aqui eles voltam, lidos do nó \"Dados\".\n\nconst dados = $('Dados').first().json;\n\nconst trechos = [];\n\nfor (const item of $input.all()) {\n  // O formato do documento muda entre versões do nó: às vezes vem em\n  // json.document, às vezes direto em json. Aceita os dois.\n  const doc = item.json?.document ?? item.json ?? {};\n  const texto = doc.pageContent ?? doc.text ?? '';\n\n  if (typeof texto === 'string' && texto.trim() !== '') {\n    trechos.push(texto.trim());\n  }\n}\n\nconst contexto = trechos\n  .map((texto, i) => `[Trecho ${i + 1}]\\n${texto}`)\n  .join('\\n\\n');\n\nreturn [\n  {\n    json: {\n      ...dados,\n      ContextoFaq: contexto,\n      TemContexto: trechos.length > 0,\n      QtdTrechos: trechos.length,\n    },\n  },\n];\n"
+        "jsCode": "// Junta os trechos recuperados da base de FAQs num único item.\n//\n// Este nó existe por três motivos, e todos quebram o fluxo se ele sair:\n//\n// 1. FAN-OUT. O vector store em modo \"load\" emite UM ITEM POR DOCUMENTO.\n//    Sem esta agregação, o AI Agent rodaria uma vez por documento e o cidadão\n//    receberia várias mensagens para a mesma pergunta.\n//\n// 2. PERDA DE CAMPOS. A saída do vector store substitui o formato do item e\n//    derruba IdChat, EventId, SessionId e CorrelationId — que os nós de envio\n//    e o sessionKey da memória precisam. Aqui eles voltam, lidos do \"Dados\".\n//\n// 3. TEXTO VAZIO. O nó devolve `pageContent: \"\"` (string vazia, não null) e\n//    joga o documento inteiro em `metadata`. Ler com `??` não resolve, porque\n//    `\"\" ?? x` devolve `\"\"` — a busca acertava os documentos e o agente\n//    recebia zero trechos, respondendo \"não encontrei\" sem erro nenhum.\n\nconst dados = $('Dados').first().json;\n\nconst trechos = [];\n\nfor (const item of $input.all()) {\n  const doc = item.json?.document ?? item.json ?? {};\n  const meta = doc.metadata ?? {};\n\n  // `||` e não `??`: string vazia precisa cair para a próxima fonte.\n  let texto = (doc.pageContent || '').trim();\n\n  if (!texto) {\n    texto = (meta.text || '').trim();\n  }\n\n  // Última defesa: remonta o trecho a partir dos campos crus. O assunto entra\n  // junto porque muitas perguntas são idênticas entre exames (\"Como me\n  // preparar para o Exame?\") — sem ele o agente não sabe de qual exame o\n  // trecho fala e pode responder sobre o exame errado.\n  if (!texto && (meta.question || meta.answer)) {\n    texto = [\n      meta.category ? `Assunto: ${meta.category}` : null,\n      meta.question ? `Pergunta: ${meta.question}` : null,\n      meta.answer ? `Resposta: ${meta.answer}` : null,\n    ]\n      .filter(Boolean)\n      .join('\\n');\n  }\n\n  if (texto) {\n    trechos.push(texto);\n  }\n}\n\nconst contexto = trechos\n  .map((texto, i) => `[Trecho ${i + 1}]\\n${texto}`)\n  .join('\\n\\n');\n\nreturn [\n  {\n    json: {\n      ...dados,\n      ContextoFaq: contexto,\n      TemContexto: trechos.length > 0,\n      QtdTrechos: trechos.length,\n    },\n  },\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [608, -160],
+      "position": [
+        608,
+        -160
+      ],
       "id": "3d81f0a6-4c27-4b93-9e5a-0a7c61d2f8b4",
       "name": "Montar contexto"
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash-lite",
+        "modelName": "models/gemini-3.6-flash",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [768, -48],
+      "position": [
+        768,
+        -48
+      ],
       "id": "8fae3a5d-bea7-4a9b-9d1b-c9b4f11274d6",
       "name": "Google Gemini Chat Model",
       "credentials": {
@@ -197,7 +221,10 @@
       },
       "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
       "typeVersion": 1,
-      "position": [400, 32],
+      "position": [
+        400,
+        32
+      ],
       "id": "af753368-1ed9-4a5c-88dd-ce85acb48f74",
       "name": "Embeddings Google Gemini",
       "credentials": {
@@ -217,7 +244,10 @@
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [-512, -16],
+      "position": [
+        -512,
+        -16
+      ],
       "id": "3b1c5638-dc8b-4bf5-9477-8fc18e9b0a40",
       "name": "Webhook",
       "webhookId": "9c2f47b1-58ea-4d3c-b7a6-1e0f83d5c4a2",
@@ -274,7 +304,10 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [1200, -368],
+      "position": [
+        1200,
+        -368
+      ],
       "id": "42100bb3-11a4-4b0c-8a7e-189a98b6bbcc",
       "name": "Enviar resposta",
       "retryOnFail": true,
@@ -327,7 +360,10 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [1200, -176],
+      "position": [
+        1200,
+        -176
+      ],
       "id": "1bca77c8-e00d-4bd3-8476-856f44b4446f",
       "name": "Enviar aviso de indisponibilidade",
       "retryOnFail": true,
@@ -380,7 +416,10 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [448, 176],
+      "position": [
+        448,
+        176
+      ],
       "id": "8bf25602-2582-4e56-8f3e-657d1276e5df",
       "name": "Enviar aviso de somente texto",
       "retryOnFail": true,
@@ -414,7 +453,10 @@
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [-288, -16],
+      "position": [
+        -288,
+        -16
+      ],
       "id": "f7f5f29b-61f4-4677-9b59-0f70cb52eab4",
       "name": "If"
     }

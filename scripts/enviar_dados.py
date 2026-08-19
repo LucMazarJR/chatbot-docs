@@ -62,9 +62,17 @@ def normalizar_para_busca(texto: str) -> str:
     return re.sub(r'\s+', ' ', limpo).strip().lower()
 
 def converter_para_markdown(p) -> str:
-    """Preserva a formatação de listas do Word para o Chatbot."""
+    """Preserva a formatação de listas do Word para o Chatbot.
+
+    `p.style` é `None` quando o parágrafo aponta para um estilo que não está
+    definido no documento — comum em `.docx` gerado por ferramenta em vez de
+    digitado no Word. Sem a guarda, um único parágrafo assim derrubava o
+    arquivo inteiro com `'NoneType' object has no attribute 'name'`, e todas as
+    FAQs dele ficavam de fora sem que ninguém percebesse.
+    """
     texto = p.text.strip()
-    if p.style.name.startswith('List') or texto.startswith(('•', '-', '*', '➢')):
+    estilo = p.style.name if p.style is not None else ""
+    if estilo.startswith('List') or texto.startswith(('•', '-', '*', '➢')):
         texto_limpo = re.sub(r'^[•\-*➢]\s*', '', texto)
         return f"- {texto_limpo}"
     return texto
@@ -296,6 +304,19 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                             "question": pergunta,
                             "question_normalized": normalizar_para_busca(pergunta),
                             "answer": resposta,
+                            # Campo lido pelo nó Vector Store do n8n para montar o
+                            # `pageContent`. Sem ele o nó encontra o documento e
+                            # devolve texto vazio — a busca "funciona" e o agente
+                            # responde "não encontrei", sem erro em lugar nenhum.
+                            # O assunto entra no texto porque muitas perguntas são
+                            # idênticas entre exames ("Como me preparar para o
+                            # Exame?"): sem ele, o agente não sabe de qual exame
+                            # cada trecho fala.
+                            "text": (
+                                f"Assunto: {categoria_atual}\n"
+                                f"Pergunta: {pergunta}\n"
+                                f"Resposta: {resposta}"
+                            ),
                             "category": categoria_atual,
                             "tags": tags,
                             "source": fonte,
