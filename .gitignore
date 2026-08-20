@@ -30,3 +30,6 @@ scripts/.venv/
 # Arquivos Word temporários
 *.docx
 ~$*.docx
+
+# Backups das FAQs — podem conter a base inteira, incluindo embeddings
+scripts/backups/
