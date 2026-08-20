@@ -61,3 +61,16 @@ export class Faq {
 }
 
 export const FaqSchema = SchemaFactory.createForClass(Faq);
+
+// LÓGICA DO LUCIANO: caminhos da listagem paginada. O primeiro cobre a home
+// (ativas, mais recentes primeiro) e o segundo o filtro por categoria.
+//
+// A busca por texto continua varrendo: um $regex não ancorado não usa índice.
+// Com ~2500 documentos isso são milissegundos, e um índice $text não
+// resolveria — ele faz prefixo e radical, não trecho, e viraria uma segunda
+// semântica de busca para manter em sincronia com o enviar_dados.py.
+//
+// NÃO confundir com o vector_index_3072: aquele é um Atlas Search index,
+// criado pelo script Python e consumido pelo n8n. Namespaces independentes.
+FaqSchema.index({ isActive: 1, updatedAt: -1 });
+FaqSchema.index({ isActive: 1, category: 1, updatedAt: -1 });

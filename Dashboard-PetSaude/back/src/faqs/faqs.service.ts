@@ -90,24 +90,113 @@ export class FaqsService {
         return crypto.createHash('md5').update(conteudo, 'utf8').digest('hex');
     }
 
-    async listFaqs(): Promise<any[]> {
-        const faqs = await this.faqModel.find({ isActive: true }).select('-embedding -text').sort({ updatedAt: -1 }).exec();
-        return faqs.map(f => {
-            const doc = f.toObject();
-            return {
-                id: doc._id.toString(), // Map _id to id for frontend compatibility
-                question: doc.question,
-                answer: doc.answer,
-                category: doc.category,
-                tags: doc.tags || [],
-                categories: doc.category ? [doc.category] : [],
-                source: doc.source || "",
-                isActive: doc.isActive,
-                updatedAt: doc.updatedAt,
-                created_by: doc.created_by || null,
-                updated_by: doc.updated_by || null,
-            };
-        });
+    /** Sentinela usada pelo front para pedir as FAQs sem categoria. */
+    static readonly SEM_CATEGORIA = '__sem_categoria__';
+
+    // LÓGICA DO LUCIANO: escapa os metacaracteres antes de virar RegExp. Sem
+    // isso, um cidadão digitando "(" na busca derruba a requisição com erro de
+    // regex inválida — e padrões patológicos viram um jeito barato de fazer o
+    // Mongo varrer a coleção inteira.
+    private escaparRegex(termo: string): string {
+        return termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    private montarFiltro(busca?: string, categoria?: string): Record<string, any> {
+        const filtro: Record<string, any> = { isActive: true };
+
+        if (categoria) {
+            // "Sem categoria" não é o nome de uma categoria: é a ausência dela.
+            filtro.category =
+                categoria === FaqsService.SEM_CATEGORIA ? { $in: [null, ''] } : categoria;
+        }
+
+        if (busca && busca.trim()) {
+            // question_normalized é gravado tanto por este service quanto pelo
+            // enviar_dados.py, com a mesma normalização — por isso a busca aqui
+            // ignora acento sem precisar de nenhuma máquina nova.
+            const termo = this.escaparRegex(this.normalizeForSearch(busca));
+            const padrao = new RegExp(termo, 'i');
+            filtro.$or = [
+                { question_normalized: padrao },
+                { category: padrao },
+                { tags: padrao },
+            ];
+        }
+
+        return filtro;
+    }
+
+    private mapearFaq(doc: any) {
+        return {
+            id: doc._id.toString(), // Map _id to id for frontend compatibility
+            question: doc.question,
+            answer: doc.answer,
+            category: doc.category,
+            tags: doc.tags || [],
+            categories: doc.category ? [doc.category] : [],
+            source: doc.source || "",
+            isActive: doc.isActive,
+            updatedAt: doc.updatedAt,
+            created_by: doc.created_by || null,
+            updated_by: doc.updated_by || null,
+        };
+    }
+
+    async listFaqs(params: { page?: number; limit?: number; search?: string; category?: string } = {}) {
+        const page = Math.max(1, params.page ?? 1);
+        // Teto repetido aqui de proposito: o DTO ja limita, mas o service e
+        // chamado de outros lugares e nao deveria confiar em quem chama.
+        const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+        const filtro = this.montarFiltro(params.search, params.category);
+
+        const [docs, total] = await Promise.all([
+            this.faqModel
+                .find(filtro)
+                .select('-embedding -text')
+                // _id como criterio de desempate: a ingestao grava lotes inteiros
+                // com o mesmo updatedAt, e sem ele a ordenacao varia entre
+                // paginas, duplicando ou pulando linhas na virada.
+                .sort({ updatedAt: -1, _id: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .exec(),
+            this.faqModel.countDocuments(filtro).exec(),
+        ]);
+
+        const totalPages = Math.max(1, Math.ceil(total / limit));
+
+        return {
+            items: docs.map((d) => this.mapearFaq(d.toObject())),
+            total,
+            page,
+            limit,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1,
+        };
+    }
+
+    /** Contagem por categoria — substitui o agrupamento que o front fazia em memória. */
+    async getCategories() {
+        const grupos = await this.faqModel.aggregate([
+            { $match: { isActive: true } },
+            { $group: { _id: { $ifNull: ['$category', ''] }, count: { $sum: 1 } } },
+        ]).exec();
+
+        const categorias = grupos
+            .map((g) => ({
+                category: g._id === '' ? 'Sem categoria' : g._id,
+                count: g.count,
+            }))
+            // localeCompare pt-BR e nao $sort do Mongo: a ordenacao do banco e
+            // por bytes e colocaria as categorias acentuadas em outro lugar.
+            .sort((a, b) => a.category.localeCompare(b.category, 'pt-BR'));
+
+        return {
+            categories: categorias,
+            totalFaqs: categorias.reduce((soma, c) => soma + c.count, 0),
+            totalCategories: categorias.length,
+        };
     }
 
     async createFaq(data: any, actor: string) {

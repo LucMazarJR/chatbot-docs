@@ -13,9 +13,16 @@ export class FaqsController {
         private readonly gateService: GateService
     ) { }
 
+    // Declarado ANTES de qualquer rota com parametro: se um dia existir um
+    // @Get(':id'), o Nest casaria "categories" como se fosse um id.
+    @Get('categories')
+    getCategories() {
+        return this.faqsService.getCategories();
+    }
+
     @Get()
-    listFaqs() {
-        return this.faqsService.listFaqs();
+    listFaqs(@Query() query: ListFaqsQueryDto) {
+        return this.faqsService.listFaqs(query);
     }
 
     private getActor(headers: any): string {
