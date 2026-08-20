@@ -1,8 +1,16 @@
 # Proposta: RAG determinístico
 
-> **Status: proposta, para discussão do grupo.** Nada aqui está ativo.
-> O fluxo atual ([n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json)) **não foi alterado**.
-> A proposta vive num arquivo separado, [n8n/whatsapp-chatbot-rag-deterministico.json](../n8n/whatsapp-chatbot-rag-deterministico.json), que pode ser importado e testado lado a lado.
+> **Status: adotada em 20/08/2026.** Este é o fluxo em produção, e o único.
+> Ele vive em [n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json), na rota
+> `/webhook/whatsapp`. O fluxo anterior — com a busca ligada ao agente como
+> ferramenta opcional — foi aposentado; o histórico do git guarda a versão dele.
+>
+> A rodada comparativa entre os dois **não chegou a acontecer**: a decisão foi
+> tomada pela previsibilidade (busca garantida por estrutura, e observável
+> quando falha) em vez de pela economia de uma chamada de embedding por
+> mensagem. Vale registrar que a hipótese do "bot viciado" nunca foi medida
+> contra o `gemini-3.6-flash` — é possível que a troca de modelo já a
+> resolvesse sozinha.
 
 Este documento existe para embasar a conversa: o que está errado hoje, por que, o que muda, e o que fica de fora de propósito.
 
