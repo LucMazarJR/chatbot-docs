@@ -8,6 +8,11 @@ export class Activity {
     @Prop({ required: true })
     actor_name: string;
 
+    // Id do usuário autenticado, quando houver. O nome continua gravado ao lado
+    // porque o log precisa ser legível sem consultar outro banco.
+    @Prop()
+    actor_id?: string;
+
     @Prop({ required: true })
     action: string;
 
@@ -19,3 +24,6 @@ export class Activity {
 }
 
 export const ActivitySchema = SchemaFactory.createForClass(Activity);
+
+// A coleção agora cresce (o log parou de se apagar) e é sempre ordenada por data.
+ActivitySchema.index({ created_at: -1 });
