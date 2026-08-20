@@ -17,6 +17,31 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-petsaude}
+      POSTGRES_USER: ${POSTGRES_USER:-petsaude}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      # Fixa a codificação no initdb: a locale do container é C, e sem UTF8
+      # explícito nomes com acento entram truncados já na primeira carga.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      # Sem volume, derrubar o container apaga todos os usuários do dashboard.
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # Publicado no host porque o backend do dashboard roda FORA deste compose
+      # (pnpm start:dev local, Render em produção) e não enxerga a rede interna.
+      # Preso a 127.0.0.1 para não expor o banco na rede local.
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-petsaude} -d ${POSTGRES_DB:-petsaude}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   whatsapp-gateway:
     build:
       context: ./backend
@@ -93,6 +118,8 @@ services:
 
 volumes:
   n8n_data:
+  # Usuários, papéis e sessões do dashboard. As FAQs continuam no MongoDB Atlas.
+  postgres_data:
   redis_data:
   # Credenciais da sessão do WhatsApp. Apagar este volume exige novo QR code.
   wa_sessions:
