@@ -11,10 +11,29 @@ export type Faq = {
   tags: string[];
   created_by: string | null;
   updated_by: string | null;
-  updated_at: string;
+  updatedAt: string;
   source?: string;
-  deleted_at?: string;
 };
+
+/** Envelope devolvido pelos endpoints paginados do backend. */
+export type Paginated<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNext?: boolean;
+  hasPrev?: boolean;
+};
+
+export type CategoryStats = {
+  categories: { category: string; count: number }[];
+  totalFaqs: number;
+  totalCategories: number;
+};
+
+/** Pedido ao backend quando o usuário quer as FAQs sem categoria. */
+export const SEM_CATEGORIA = "__sem_categoria__";
 
 export type Activity = {
   id: string;
@@ -80,17 +99,58 @@ export const lockDashboard = createServerFn({ method: "POST" }).handler(async ()
   return { ok: true };
 });
 
-export const listFaqs = createServerFn({ method: "GET" }).handler(async (): Promise<Faq[]> => {
-  const rs = await fetch(`${API_BASE}/faqs`);
-  return rs.json();
+const listFaqsQuery = z.object({
+  page: z.number().int().min(1).default(1),
+  limit: z.number().int().min(1).max(100).default(20),
+  search: z.string().trim().max(120).optional(),
+  category: z.string().trim().max(120).optional(),
 });
 
-export const listActivity = createServerFn({ method: "GET" }).handler(
-  async (): Promise<Activity[]> => {
-    const rs = await fetch(`${API_BASE}/activity`);
+/** Monta a querystring omitindo valores vazios: `?search=` casaria com tudo. */
+function montarQuery(params: Record<string, string | number | undefined>): string {
+  const busca = new URLSearchParams();
+  for (const [chave, valor] of Object.entries(params)) {
+    if (valor !== undefined && valor !== null && String(valor).trim() !== "") {
+      busca.set(chave, String(valor));
+    }
+  }
+  return busca.toString();
+}
+
+export const listFaqs = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => listFaqsQuery.parse(data ?? {}))
+  .handler(async ({ data }: { data: z.infer<typeof listFaqsQuery> }): Promise<Paginated<Faq>> => {
+    const rs = await fetch(`${API_BASE}/faqs?${montarQuery(data)}`);
+    if (!rs.ok) throw new Error("Erro ao carregar as FAQs");
+    return rs.json();
+  });
+
+/**
+ * Contagens por categoria. Substitui o agrupamento que as páginas faziam
+ * baixando a coleção inteira — com 2451 FAQs, só para exibir ~18 números.
+ */
+export const getFaqCategories = createServerFn({ method: "GET" }).handler(
+  async (): Promise<CategoryStats> => {
+    const rs = await fetch(`${API_BASE}/faqs/categories`);
+    if (!rs.ok) throw new Error("Erro ao carregar as categorias");
     return rs.json();
   }
 );
+
+export const listActivity = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        page: z.number().int().min(1).default(1),
+        limit: z.number().int().min(1).max(100).default(15),
+      })
+      .parse(data ?? {}),
+  )
+  .handler(async ({ data }: { data: { page: number; limit: number } }): Promise<Paginated<Activity>> => {
+    const rs = await fetch(`${API_BASE}/activity?${montarQuery(data)}`);
+    if (!rs.ok) throw new Error("Erro ao carregar o histórico");
+    return rs.json();
+  });
 
 export const createFaq = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => faqInput.parse(data))

@@ -1,19 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
-import { listFaqs } from "@/lib/faq.functions";
+import { listFaqs, SEM_CATEGORIA } from "@/lib/faq.functions";
 import { GateShell } from "@/components/gate";
-import {
-  FaqCard,
-  InsertFaqButton,
-  SearchField,
-  faqCategories,
-  useSearchableFaqs,
-} from "@/components/faq-shared";
+import { FaqPagination } from "@/components/faq-pagination";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
+
+const POR_PAGINA = 20;
+
+type Busca = { page?: number; search?: string };
 
 export const Route = createFileRoute("/categorias/$categoria")({
+  validateSearch: (search: Record<string, unknown>): Busca => ({
+    page: Number(search.page ?? 1) || 1,
+    search: typeof search.search === "string" ? search.search : "",
+  }),
   head: ({ params }) => ({
     meta: [
       { title: `${params.categoria} | Central de FAQs` },
@@ -35,18 +39,34 @@ export const Route = createFileRoute("/categorias/$categoria")({
 
 function CategoryPage() {
   const { categoria } = Route.useParams();
-  const faqsQuery = useQuery({ queryKey: ["faqs"], queryFn: () => listFaqs() });
-  const [term, setTerm] = useState("");
+  const { page = 1, search = "" } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
-  const inCategory = useMemo(() => {
-    return (faqsQuery.data ?? []).filter((faq) => {
-      const list = faqCategories(faq);
-      if (categoria === "Sem categoria") return list.length === 0;
-      return list.some((item) => item.toLowerCase() === categoria.toLowerCase());
-    });
-  }, [faqsQuery.data, categoria]);
+  const [termo, setTermo] = useState(search);
+  const termoAtrasado = useDebouncedValue(termo, 300);
 
-  const filtered = useSearchableFaqs(inCategory, term);
+  // "Sem categoria" não é o nome de uma categoria, é a ausência dela. Sem a
+  // sentinela, o backend procuraria por uma categoria literalmente chamada
+  // "Sem categoria" e devolveria zero linhas.
+  const categoriaConsulta = categoria === "Sem categoria" ? SEM_CATEGORIA : categoria;
+
+  const faqsQuery = useQuery({
+    queryKey: ["faqs", { page, search: termoAtrasado, category: categoriaConsulta }],
+    queryFn: () =>
+      listFaqs({
+        data: { page, limit: POR_PAGINA, search: termoAtrasado, category: categoriaConsulta },
+      }),
+    placeholderData: keepPreviousData,
+  });
+
+  const faqs = faqsQuery.data?.items ?? [];
+  const total = faqsQuery.data?.total ?? 0;
+  const totalPaginas = faqsQuery.data?.totalPages ?? 1;
+
+  const aplicarBusca = (valor: string) => {
+    setTermo(valor);
+    navigate({ search: (atual) => ({ ...atual, search: valor, page: 1 }) });
+  };
 
   return (
     <GateShell>
@@ -62,7 +82,8 @@ function CategoryPage() {
           <div>
             <h2 className="text-xl font-semibold">{categoria}</h2>
             <p className="text-sm text-muted-foreground">
-              {inCategory.length} {inCategory.length === 1 ? "pergunta" : "perguntas"}
+              {total} {total === 1 ? "pergunta" : "perguntas"}
+              {totalPaginas > 1 ? ` · página ${page} de ${totalPaginas}` : ""}
             </p>
           </div>
           <InsertFaqButton
@@ -71,24 +92,30 @@ function CategoryPage() {
         </div>
 
         <SearchField
-          value={term}
-          onChange={setTerm}
+          value={termo}
+          onChange={aplicarBusca}
           placeholder="Pesquisar nesta categoria por pergunta ou tag…"
         />
 
-        {faqsQuery.isLoading ? (
+        {faqsQuery.isLoading && !faqsQuery.data ? (
           <p className="text-sm text-muted-foreground">Carregando perguntas…</p>
-        ) : filtered.length === 0 ? (
+        ) : faqs.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             Nenhuma pergunta nesta categoria.
           </p>
         ) : (
           <ul className="space-y-3">
-            {filtered.map((faq) => (
+            {faqs.map((faq) => (
               <FaqCard key={faq.id} faq={faq} />
             ))}
           </ul>
         )}
+
+        <FaqPagination
+          page={page}
+          totalPages={totalPaginas}
+          onPageChange={(destino) => navigate({ search: (atual) => ({ ...atual, page: destino }) })}
+        />
       </div>
     </GateShell>
   );

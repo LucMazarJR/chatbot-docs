@@ -149,8 +149,11 @@ function IdentifyCard() {
 }
 
 export function ActivityFeed() {
-  const activity = useQuery({ queryKey: ["activity"], queryFn: () => listActivity() });
-  const items = activity.data ?? [];
+  const activity = useQuery({
+    queryKey: ["activity", { limit: 15 }],
+    queryFn: () => listActivity({ data: { page: 1, limit: 15 } }),
+  });
+  const items = activity.data?.items ?? [];
   if (items.length === 0) return null;
 
   return (

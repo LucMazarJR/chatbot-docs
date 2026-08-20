@@ -40,35 +40,6 @@ export function faqCategories(faq: Faq) {
   return list.map((item) => item.trim()).filter(Boolean);
 }
 
-function scoreFaq(faq: Faq, term: string) {
-  const q = normalize(term.trim());
-  if (!q) return 1;
-  const tokens = q.split(/\s+/);
-  const haystacks = [
-    normalize(faq.question),
-    normalize(faqCategories(faq).join(" ")),
-    normalize(faq.tags.join(" ")),
-  ];
-  let score = 0;
-  for (const token of tokens) {
-    if (haystacks[0].includes(token)) score += 3;
-    if (haystacks[1].includes(token)) score += 2;
-    if (haystacks[2].includes(token)) score += 2;
-  }
-  return score;
-}
-
-export function useSearchableFaqs(faqs: Faq[], term: string) {
-  return useMemo(() => {
-    if (!term.trim()) return faqs;
-    return faqs
-      .map((faq) => ({ faq, score: scoreFaq(faq, term) }))
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .map((item) => item.faq);
-  }, [faqs, term]);
-}
-
 export function SearchField({
   value,
   onChange,

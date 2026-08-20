@@ -1,11 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 
-import { listFaqs } from "@/lib/faq.functions";
+import { getFaqCategories } from "@/lib/faq.functions";
 import { GateShell } from "@/components/gate";
-import { InsertFaqButton, faqCategories } from "@/components/faq-shared";
+import { InsertFaqButton } from "@/components/faq-shared";
 
 export const Route = createFileRoute("/categorias/")({
   head: () => ({
@@ -29,18 +28,15 @@ export const Route = createFileRoute("/categorias/")({
 });
 
 function CategoriesPage() {
-  const faqsQuery = useQuery({ queryKey: ["faqs"], queryFn: () => listFaqs() });
-  const faqs = faqsQuery.data ?? [];
+  // Esta página só precisa de ~18 números. Antes ela baixava as 2451 FAQs
+  // inteiras, com embeddings já removidos mas ainda assim a coleção completa,
+  // para contá-las no navegador.
+  const categoriasQuery = useQuery({
+    queryKey: ["faq-categories"],
+    queryFn: () => getFaqCategories(),
+  });
 
-  const categories = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const faq of faqs) {
-      const list = faqCategories(faq);
-      const keys = list.length ? list : ["Sem categoria"];
-      for (const key of keys) map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "pt-BR"));
-  }, [faqs]);
+  const categories = categoriasQuery.data?.categories ?? [];
 
   return (
     <GateShell>
@@ -55,7 +51,7 @@ function CategoriesPage() {
           <InsertFaqButton />
         </div>
 
-        {faqsQuery.isLoading ? (
+        {categoriasQuery.isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando categorias…</p>
         ) : categories.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -63,7 +59,7 @@ function CategoriesPage() {
           </p>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
-            {categories.map(([category, count]) => (
+            {categories.map(({ category, count }) => (
               <li key={category}>
                 <Link
                   to="/categorias/$categoria"

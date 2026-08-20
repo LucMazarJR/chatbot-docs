@@ -1,20 +1,37 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { FolderOpen } from "lucide-react";
 
-import { listFaqs, type Faq } from "@/lib/faq.functions";
+import { getFaqCategories, listFaqs, SEM_CATEGORIA } from "@/lib/faq.functions";
 import { GateShell } from "@/components/gate";
+import { FaqPagination } from "@/components/faq-pagination";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import {
-  FaqCard,
-  InsertFaqButton,
-  SearchField,
-  faqCategories,
-  useSearchableFaqs,
-} from "@/components/faq-shared";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
+
+const POR_PAGINA = 20;
+const TODAS = "__todas__";
+
+// Campos opcionais de proposito: com eles obrigatorios, todo <Link to="/">
+// no app passaria a exigir a querystring completa.
+type Busca = { page?: number; search?: string; category?: string };
 
 export const Route = createFileRoute("/")({
+  // Página, busca e categoria moram na URL: sobrevivem ao refresh e ao botão
+  // voltar, e tornam o link compartilhável.
+  validateSearch: (search: Record<string, unknown>): Busca => ({
+    page: Number(search.page ?? 1) || 1,
+    search: typeof search.search === "string" ? search.search : "",
+    category: typeof search.category === "string" ? search.category : "",
+  }),
   head: () => ({
     meta: [
       { title: "Central de FAQs | Perguntas frequentes em saúde" },
@@ -47,79 +64,113 @@ function DashboardPage() {
 }
 
 function BrowsePanel() {
-  const faqsQuery = useQuery({ queryKey: ["faqs"], queryFn: () => listFaqs() });
-  const faqs = faqsQuery.data ?? [];
-  const [term, setTerm] = useState("");
-  const filtered = useSearchableFaqs(faqs, term);
+  const { page = 1, search = "", category = "" } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
-  const groups = useMemo(() => {
-    const map = new Map<string, Faq[]>();
-    for (const faq of filtered) {
-      const categories = faqCategories(faq);
-      const keys = categories.length ? categories : ["Sem categoria"];
-      for (const key of keys) map.set(key, [...(map.get(key) ?? []), faq]);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "pt-BR"));
-  }, [filtered]);
+  const [termo, setTermo] = useState(search);
+  const termoAtrasado = useDebouncedValue(termo, 300);
 
-  const categoryCount = useMemo(() => {
-    const set = new Set<string>();
-    for (const faq of faqs) {
-      const categories = faqCategories(faq);
-      if (categories.length === 0) set.add("Sem categoria");
-      for (const category of categories) set.add(category);
-    }
-    return set.size;
-  }, [faqs]);
+  const faqsQuery = useQuery({
+    queryKey: ["faqs", { page, search: termoAtrasado, category }],
+    queryFn: () =>
+      listFaqs({ data: { page, limit: POR_PAGINA, search: termoAtrasado, category } }),
+    placeholderData: keepPreviousData,
+  });
 
-  if (faqsQuery.isLoading)
+  // Os totais do cabeçalho vêm da agregação, não da página atual: usar o total
+  // filtrado faria o número dançar a cada tecla digitada.
+  const categoriasQuery = useQuery({
+    queryKey: ["faq-categories"],
+    queryFn: () => getFaqCategories(),
+  });
+
+  const faqs = faqsQuery.data?.items ?? [];
+  const totalFiltrado = faqsQuery.data?.total ?? 0;
+  const totalPaginas = faqsQuery.data?.totalPages ?? 1;
+  const categorias = categoriasQuery.data?.categories ?? [];
+
+  // Trocar filtro sempre volta para a primeira página: sem isso, filtrar
+  // estando na página 8 mostra "nenhuma pergunta encontrada" num resultado que
+  // tem 2 páginas.
+  const aplicarBusca = (valor: string) => {
+    setTermo(valor);
+    navigate({ search: (atual) => ({ ...atual, search: valor, page: 1 }) });
+  };
+
+  const aplicarCategoria = (valor: string) => {
+    const escolhida = valor === TODAS ? "" : valor;
+    navigate({ search: (atual) => ({ ...atual, category: escolhida, page: 1 }) });
+  };
+
+  const irParaPagina = (destino: number) => {
+    navigate({ search: (atual) => ({ ...atual, page: destino }) });
+  };
+
+  if (faqsQuery.isLoading && !faqsQuery.data)
     return <p className="text-sm text-muted-foreground">Carregando perguntas…</p>;
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-5xl font-semibold text-primary">{faqs.length}</p>
+        <p className="text-5xl font-semibold text-primary">
+          {categoriasQuery.data?.totalFaqs ?? "—"}
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">FAQs cadastradas</p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex-1">
           <SearchField
-            value={term}
-            onChange={setTerm}
+            value={termo}
+            onChange={aplicarBusca}
             placeholder="Pesquisar por pergunta, categoria ou tag…"
           />
         </div>
+
+        <Select value={category || TODAS} onValueChange={aplicarCategoria}>
+          <SelectTrigger className="w-full sm:w-56">
+            <SelectValue placeholder="Todas as categorias" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={TODAS}>Todas as categorias</SelectItem>
+            {categorias.map((c) => (
+              <SelectItem
+                key={c.category}
+                value={c.category === "Sem categoria" ? SEM_CATEGORIA : c.category}
+              >
+                {c.category} ({c.count})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Button asChild variant="outline">
           <Link to="/categorias">
-            <FolderOpen className="size-4" /> Categorias ({categoryCount})
+            <FolderOpen className="size-4" /> Categorias (
+            {categoriasQuery.data?.totalCategories ?? 0})
           </Link>
         </Button>
         <InsertFaqButton />
       </div>
 
+      <p className="text-sm text-muted-foreground">
+        {totalFiltrado} {totalFiltrado === 1 ? "resultado" : "resultados"}
+        {totalPaginas > 1 ? ` · página ${page} de ${totalPaginas}` : ""}
+      </p>
 
-      {groups.length === 0 ? (
+      {faqs.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           Nenhuma pergunta encontrada.
         </p>
       ) : (
-        groups.map(([category, items]) => (
-          <section key={category} className="space-y-3">
-            <h2 className="flex items-baseline gap-2 text-base font-semibold">
-              {category}
-              <span className="text-xs font-normal text-muted-foreground">
-                {items.length} {items.length === 1 ? "pergunta" : "perguntas"}
-              </span>
-            </h2>
-            <ul className="space-y-3">
-              {items.map((faq) => (
-                <FaqCard key={faq.id} faq={faq} />
-              ))}
-            </ul>
-          </section>
-        ))
+        <ul className="space-y-3">
+          {faqs.map((faq) => (
+            <FaqCard key={faq.id} faq={faq} />
+          ))}
+        </ul>
       )}
+
+      <FaqPagination page={page} totalPages={totalPaginas} onPageChange={irParaPagina} />
     </div>
   );
 }
