@@ -117,7 +117,13 @@ def main() -> int:
         return 0
 
     processados = erros = 0
+    falhas_seguidas = 0
     interrompido = False
+
+    # Erros de rede (TLS, conexão abortada) são intermitentes e não têm nada a
+    # ver com a API: repetir o mesmo documento resolve na maioria das vezes.
+    TENTATIVAS_POR_DOC = 3
+    LIMITE_FALHAS_SEGUIDAS = 30
 
     try:
         for doc in col.find(filtro, {"text": 1, "question": 1, "answer": 1, "category": 1}):
@@ -126,7 +132,18 @@ def main() -> int:
                 break
 
             try:
-                resultado = gerarEmbedding(montar_texto(doc), model=args.modelo)
+                resultado = None
+                for tentativa in range(TENTATIVAS_POR_DOC):
+                    try:
+                        resultado = gerarEmbedding(montar_texto(doc), model=args.modelo)
+                        break
+                    except CotaEsgotadaError:
+                        raise
+                    except Exception:
+                        if tentativa == TENTATIVAS_POR_DOC - 1:
+                            raise
+                        time.sleep(2 ** tentativa)
+
                 vetor = resultado.embeddings[0].values
 
                 # O índice do Atlas é fixo em 3072 dimensões. Gravar vetor de
@@ -151,6 +168,7 @@ def main() -> int:
                     },
                 )
                 processados += 1
+                falhas_seguidas = 0
 
                 # Espaça as chamadas: sem isso a rajada bate no limite por
                 # minuto da API e o rodízio gasta tempo esperando.
@@ -167,9 +185,12 @@ def main() -> int:
                 break
             except Exception as erro:
                 erros += 1
+                falhas_seguidas += 1
                 print(f"   Falha em {doc['_id']}: {str(erro)[:120]}")
-                if erros >= 20:
-                    print("   20 falhas seguidas — interrompendo para não gastar cota à toa.")
+                # Só desiste quando as falhas são SEGUIDAS: erros de rede
+                # espalhados ao longo de horas não deveriam parar a execução.
+                if falhas_seguidas >= LIMITE_FALHAS_SEGUIDAS:
+                    print(f"   {LIMITE_FALHAS_SEGUIDAS} falhas seguidas — algo está errado, interrompendo.")
                     interrompido = True
                     break
 
