@@ -1,9 +1,20 @@
-"""
-Script para limpar todos os dados do banco MongoDB e
-recriar o índice vetorial configurado para embeddings de 768 dimensões.
+"""Apaga TODOS os dados das FAQs e recria o índice vetorial.
+
+DESTRUTIVO E IRREVERSÍVEL. Leia antes de rodar.
+
+As FAQs criadas pelo dashboard têm `file_id: "dashboard_manual"` e NÃO existem
+no Google Drive. Rodar `enviar_dados.py` depois traz de volta apenas o que veio
+do Drive — tudo que foi digitado no dashboard some para sempre.
+
+Rode `python backup_faqs.py` antes. Sempre.
+
+Por segurança, não faz nada sem a flag `--confirmo-apagar-tudo` e sem a
+confirmação digitada.
 """
 
+import argparse
 import os
+import sys
 import time
 import logging
 from dotenv import load_dotenv
@@ -30,8 +41,12 @@ DB_NAME = "ministerio_saude"
 COL_DADOS = "faq_medicamentos"
 COL_META = "sync_metadata"
 
-INDEX_NAME = "vector_index"
-EMBEDDING_DIMENSION = 768
+# Nome e dimensão precisam bater com o que o fluxo do n8n consulta
+# (`vectorIndexName`) e com o que a ingestão gera. Já estiveram divergentes: o
+# índice era recriado com 768 dimensões contra vetores de 3072, e a busca
+# parava de funcionar sem erro nenhum aparecer.
+INDEX_NAME = "vector_index_3072"
+EMBEDDING_DIMENSION = 3072
 
 
 def limpar_dados(db):
@@ -104,33 +119,81 @@ def recriar_indice_vetorial(collection):
         logger.error(f"❌ Falha ao criar índice vetorial: {e}")
 
 
+def confirmar(col_dados) -> bool:
+    """Mostra o que será perdido e exige confirmação digitada."""
+    total = col_dados.count_documents({})
+    do_dashboard = col_dados.count_documents({"file_id": "dashboard_manual"})
+
+    print()
+    print("!" * 60)
+    print("ATENÇÃO — ESTA OPERAÇÃO É IRREVERSÍVEL")
+    print("!" * 60)
+    print(f"  FAQs que serão apagadas:     {total}")
+    print(f"  ...criadas pelo dashboard:   {do_dashboard}  <-- NÃO voltam numa reingestão")
+    print("  Metadados de sincronização:  serão zerados (força reprocessar tudo)")
+    print(f"  Índice '{INDEX_NAME}':       será removido e recriado")
+    print("!" * 60)
+
+    if do_dashboard:
+        print()
+        print(f"  {do_dashboard} FAQ(s) só existem neste banco. Já rodou backup_faqs.py?")
+
+    print()
+    return input("Digite APAGAR TUDO para confirmar: ").strip() == "APAGAR TUDO"
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Apaga todas as FAQs e recria o índice vetorial")
+    parser.add_argument(
+        "--confirmo-apagar-tudo",
+        action="store_true",
+        help="Obrigatória. Sem ela o script não executa nada.",
+    )
+    args = parser.parse_args()
+
+    if not args.confirmo_apagar_tudo:
+        print()
+        print("Nada foi feito.")
+        print("Este script apaga TODAS as FAQs, inclusive as criadas pelo dashboard,")
+        print("que não existem no Drive e não voltam numa reingestão.")
+        print()
+        print("Se é mesmo isso que você quer:")
+        print("  1. python backup_faqs.py")
+        print("  2. python limpar_banco.py --confirmo-apagar-tudo")
+        print()
+        return 1
+
     client = MongoClient(URI_MONGO)
     try:
         db = client[DB_NAME]
         col_dados = db[COL_DADOS]
 
-        print("\n" + "═" * 60)
-        print("🧹 LIMPEZA DO BANCO E RECONFIGURAÇÃO DO ÍNDICE VETORIAL")
-        print("═" * 60)
+        if not confirmar(col_dados):
+            logger.info("Operação cancelada — nada foi apagado.")
+            return 1
 
-        # Passo 1: Limpar dados
+        print()
+        print("=" * 60)
+        print("LIMPEZA DO BANCO E RECONFIGURAÇÃO DO ÍNDICE VETORIAL")
+        print("=" * 60)
+
         logger.info("Etapa 1/2 — Limpando dados...")
         limpar_dados(db)
 
-        # Passo 2: Recriar índice vetorial (768 dims)
         logger.info("Etapa 2/2 — Verificando/recriando índice vetorial...")
         recriar_indice_vetorial(col_dados)
 
-        print("═" * 60)
-        logger.info("✅ Limpeza concluída com sucesso!")
-        print("═" * 60 + "\n")
+        print("=" * 60)
+        logger.info("Limpeza concluída.")
+        print("=" * 60)
+        return 0
 
     except Exception as e:
-        logger.critical(f"❌ Falha crítica: {e}")
+        logger.critical(f"Falha crítica: {e}")
+        return 1
     finally:
         client.close()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
