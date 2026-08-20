@@ -78,7 +78,8 @@ Dois detalhes quebram o fluxo se passarem despercebidos — e são a razão de e
 
 ### O nó Code, na íntegra
 
-Já validado contra os dois formatos de documento, contra a busca vazia e contra o fan-out de 5 documentos:
+Versão corrigida após o teste de 18/08/2026 — a anterior lia `pageContent` com
+`??` e perdia 100% dos trechos (ver "O que o teste real mostrou", no fim):
 
 ```js
 const dados = $('Dados').first().json;
@@ -86,13 +87,33 @@ const dados = $('Dados').first().json;
 const trechos = [];
 
 for (const item of $input.all()) {
-  // O formato do documento muda entre versões do nó: às vezes vem em
-  // json.document, às vezes direto em json. Aceita os dois.
   const doc = item.json?.document ?? item.json ?? {};
-  const texto = doc.pageContent ?? doc.text ?? '';
+  const meta = doc.metadata ?? {};
 
-  if (typeof texto === 'string' && texto.trim() !== '') {
-    trechos.push(texto.trim());
+  // `||` e não `??`: o nó devolve `pageContent: ""` (string vazia, não null),
+  // e `"" ?? x` devolve `""`. Com `??` a busca acertava os documentos e o
+  // agente recebia zero trechos.
+  let texto = (doc.pageContent || '').trim();
+
+  if (!texto) {
+    texto = (meta.text || '').trim();
+  }
+
+  // Última defesa: remonta o trecho dos campos crus, com o assunto junto —
+  // muitas perguntas são idênticas entre exames ("Como me preparar para o
+  // Exame?") e sem ele o agente não sabe de qual exame o trecho fala.
+  if (!texto && (meta.question || meta.answer)) {
+    texto = [
+      meta.category ? `Assunto: ${meta.category}` : null,
+      meta.question ? `Pergunta: ${meta.question}` : null,
+      meta.answer ? `Resposta: ${meta.answer}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  if (texto) {
+    trechos.push(texto);
   }
 }
 
@@ -218,3 +239,57 @@ Para voltar ao fluxo atual, é só devolver `N8N_WEBHOOK_URL` para `.../webhook/
 | 6 | Uma pergunta e depois "e quanto tempo?" | Aqui é onde o trade-off aparece. Se falhar com frequência, é o sinal para implementar condensação de query |
 
 O teste 4 é o mais importante da lista: é o único que valida a hipótese central desta proposta.
+
+---
+
+## O que o teste real mostrou — 18/08/2026
+
+Primeira execução do fluxo em máquina real, com a base completa (2451 FAQs).
+Nada aqui é hipótese: são medições.
+
+### Quatro defeitos encontrados, todos corrigidos
+
+| # | Defeito | Efeito | Correção |
+|---|---|---|---|
+| 1 | O nó Code lia `doc.pageContent ?? doc.text`. O nó devolve `pageContent: ""` e joga tudo em `metadata` | `QtdTrechos: 0` **em toda pergunta**. A busca acertava os documentos e o agente respondia "não encontrei", sem erro em lugar nenhum | `\|\|` no lugar de `??`, com fallback para `metadata.text` e para os campos crus |
+| 2 | Os documentos não tinham campo de texto — só `question`/`answer` | O nó não tinha de onde montar o `pageContent` | Campo `text` (`Assunto/Pergunta/Resposta`) gravado nos 2451 documentos e passou a ser gerado na ingestão |
+| 3 | `topK: 5` (e **4**, o padrão, no fluxo atual) | Conteúdo certo ficava fora do corte: numa pergunta sobre Farmácia Popular, o documento correto estava em 5º e 6º | `topK: 10` nos dois fluxos |
+| 4 | `gemini-2.5-flash-lite` foi descontinuado para projetos novos | 404 em toda mensagem | `gemini-3.6-flash` + `retryOnFail` (3 tentativas, 3s) contra sobrecarga |
+
+### Duas medições que mudam a discussão
+
+**Os scores não discriminam.** Para *"onde retiro medicamento da farmácia popular?"*,
+do 1º ao 20º colocado: **0.9501 → 0.9410**. Nove milésimos separando o mais
+relevante do vigésimo. Em outra busca, dois exames diferentes (zinco e
+paratormônio) deram score **idêntico até a última casa** — porque o embedding é
+gerado só de `pergunta + resposta`, sem a categoria, e os textos dos dois são
+iguais.
+
+Duas causas, ambas na ingestão:
+
+1. A categoria fica **fora** do texto embedado ([enviar_dados.py](../scripts/enviar_dados.py))
+2. `task_type` divergente — a ingestão usa `SEMANTIC_SIMILARITY`
+   ([lib/gemini_embendding.py](../scripts/lib/gemini_embendding.py)) e o nó do n8n
+   embeda a pergunta com o padrão dele. O Google recomenda `RETRIEVAL_DOCUMENT`
+   para documentos e `RETRIEVAL_QUERY` para consultas
+
+Corrigir exige **reindexar os 2451 documentos**. `topK: 10` é o paliativo até lá.
+
+**A busca obrigatória tem teto diário.** A cota gratuita de embeddings é de
+**1000 requisições/dia por chave** (`EmbedContentRequestsPerDayPerUserPerProjectPerModel-FreeTier`).
+Como o fluxo determinístico embeda **toda** mensagem, o teto vira ~1000
+mensagens/dia — enquanto o fluxo atual só gasta quando o agente decide buscar.
+É o custo concreto da previsibilidade, e entra na decisão do grupo junto com o
+billing discutido em [depende-de-voce.md](depende-de-voce.md).
+
+### O que o fluxo determinístico provou valer
+
+Os defeitos 1 e 2 **existiam nos dois fluxos** — a credencial, o índice e os
+documentos são compartilhados. No fluxo atual eles ficariam invisíveis: quando a
+busca volta vazia, o agente responde por conhecimento próprio e a resposta soa
+plausível. Foi o que aconteceu antes do teste, e chegou a ser lido como "o RAG
+está funcionando".
+
+No fluxo determinístico o `QtdTrechos: 0` denuncia na hora. Independente do
+resultado da comparação de qualidade, **a busca no fluxo principal é
+observável** — e essa é uma vantagem que não estava no documento original.
