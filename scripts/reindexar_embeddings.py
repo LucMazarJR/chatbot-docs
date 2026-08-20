@@ -25,6 +25,7 @@ Uso:
 import argparse
 import os
 import sys
+import time
 from datetime import datetime, timezone
 
 from dotenv import find_dotenv, load_dotenv
@@ -67,6 +68,12 @@ def main() -> int:
     parser.add_argument("--aplicar", action="store_true", help="Grava de verdade. Sem isto, só simula.")
     parser.add_argument("--modelo", default=MODELO_ALVO, help=f"Modelo alvo (padrão: {MODELO_ALVO})")
     parser.add_argument("--limite", type=int, default=0, help="Processa no máximo N documentos (0 = sem teto)")
+    parser.add_argument(
+        "--pausa",
+        type=float,
+        default=0.35,
+        help="Segundos entre documentos. Espaça as chamadas para não bater no limite por minuto (padrão: 0.35)",
+    )
     args = parser.parse_args()
 
     cliente = MongoClient(URI_MONGO)
@@ -144,6 +151,11 @@ def main() -> int:
                     },
                 )
                 processados += 1
+
+                # Espaça as chamadas: sem isso a rajada bate no limite por
+                # minuto da API e o rodízio gasta tempo esperando.
+                if args.pausa:
+                    time.sleep(args.pausa)
 
                 if processados % 50 == 0:
                     print(f"   {processados}/{pendentes} — {chaves_disponiveis()} chave(s) com saldo", flush=True)
