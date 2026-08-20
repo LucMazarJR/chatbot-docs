@@ -18,7 +18,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
 # Módulos locais
-from lib.gemini_embendding import gerarEmbedding
+from lib.gemini_embendding import MODELO_PADRAO as MODELO_EMBEDDING, gerarEmbedding
 from lib.drive import MIME_DOCX, MIME_GOOGLE_DOCS, listar_arquivos_faq
 
 # ============================================================================
@@ -88,6 +88,20 @@ def extrair_tags_e_fonte(paragrafos: List[str], i: int) -> Tuple[List[str], str]
     tags = [t.strip().lower() for t in re.split(r'[,\s]+', t_match.group(1).replace('#', '')) if t.strip()] if t_match else []
     
     return tags, fonte
+
+def montar_texto_faq(categoria: str, pergunta: str, resposta: str) -> str:
+    """Texto canonico da FAQ: vira o campo `text` e a entrada do embedding.
+
+    Os dois precisam ser a mesma string. O campo alimenta o `pageContent` do
+    no Vector Store no n8n; o embedding define o ranqueamento da busca. Se
+    divergirem, o bot recupera um trecho e pontua por outro.
+    """
+    return (
+        f"Assunto: {categoria}" + chr(10)
+        + f"Pergunta: {pergunta}" + chr(10)
+        + f"Resposta: {resposta}"
+    )
+
 
 def gerar_hash_conteudo(pergunta: str, resposta: str) -> str:
     """Gera hash MD5 do conteúdo para detectar mudanças."""
@@ -276,7 +290,11 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                             embedding_vector = None
                         else:
                             # Gerar novo embedding apenas se o conteúdo mudou
-                            texto_para_embedding = f"{pergunta} {resposta}"
+                            # O assunto entra no texto embedado: sem ele, exames
+                            # diferentes que compartilham pergunta e resposta
+                            # ("Como me preparar para o Exame?") viravam vetores
+                            # identicos, e o ranqueamento virava sorteio.
+                            texto_para_embedding = montar_texto_faq(categoria_atual, pergunta, resposta)
                             try:
                                 teto = LIMITE_EMBEDDINGS or "sem teto"
                                 logger.info(f"   🔄 [{total_ate_agora}] Gerando embedding ({embeddings_gerados_global + 1}/{teto})...")
@@ -312,11 +330,7 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                             # idênticas entre exames ("Como me preparar para o
                             # Exame?"): sem ele, o agente não sabe de qual exame
                             # cada trecho fala.
-                            "text": (
-                                f"Assunto: {categoria_atual}\n"
-                                f"Pergunta: {pergunta}\n"
-                                f"Resposta: {resposta}"
-                            ),
+                            "text": montar_texto_faq(categoria_atual, pergunta, resposta),
                             "category": categoria_atual,
                             "tags": tags,
                             "source": fonte,
@@ -326,7 +340,10 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                             "content_hash": content_hash,  # Hash para cache de embeddings
                             "isActive": True,
                             "updatedAt": datetime.now(timezone.utc),
-                            "embedding": embedding_vector
+                            "embedding": embedding_vector,
+                            # Marca qual modelo gerou o vetor: e o que permite ao
+                            # reindexar_embeddings.py saber o que ja esta em dia.
+                            "embedding_model": MODELO_EMBEDDING if embedding_vector else None,
                         })
 
                 except Exception as line_error:
