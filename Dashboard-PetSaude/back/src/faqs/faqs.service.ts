@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as crypto from 'crypto';
@@ -8,21 +8,52 @@ import { Faq, FaqDocument } from './schemas/faq.schema';
 
 @Injectable()
 export class FaqsService {
+    private readonly logger = new Logger(FaqsService.name);
+
     constructor(
         @InjectModel(Faq.name) private faqModel: Model<FaqDocument>,
         private activityService: ActivityService,
         private geminiService: GeminiService
     ) {
-        // Daily cleanup of inactive FAQs older than 7 days
-        setInterval(() => {
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        // LÓGICA DO LUCIANO: a exclusão definitiva de FAQs desativadas roda a cada
+        // 24h e é IRREVERSÍVEL. FAQs criadas aqui têm file_id "dashboard_manual" e
+        // não existem no Google Drive — a reingestão do enviar_dados.py não as traz
+        // de volta. Por isso passou a ser opt-in: só roda com FAQ_PURGE_ENABLED=true,
+        // e agora registra o que apagou em vez de engolir o erro em silêncio.
+        if (process.env.FAQ_PURGE_ENABLED === 'true') {
+            this.logger.warn(
+                'FAQ_PURGE_ENABLED=true — FAQs desativadas há mais de 7 dias serão apagadas definitivamente a cada 24h.'
+            );
+            setInterval(() => void this.purgarFaqsDesativadas(), 1000 * 60 * 60 * 24);
+        }
+    }
 
-            this.faqModel.deleteMany({
-                isActive: false,
-                updatedAt: { $lte: sevenDaysAgo }
-            }).exec().catch(() => { });
-        }, 1000 * 60 * 60 * 24);
+    /** Apaga de vez as FAQs desativadas há mais de 7 dias. Sem volta. */
+    private async purgarFaqsDesativadas(): Promise<void> {
+        const seteDiasAtras = new Date();
+        seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+
+        const filtro = { isActive: false, updatedAt: { $lte: seteDiasAtras } };
+
+        try {
+            const alvos = await this.faqModel.find(filtro).select('question file_id').exec();
+            if (alvos.length === 0) return;
+
+            const doDashboard = alvos.filter((f) => f.file_id === 'dashboard_manual').length;
+            const resultado = await this.faqModel.deleteMany(filtro).exec();
+
+            this.logger.warn(
+                `Purge: ${resultado.deletedCount} FAQ(s) apagadas definitivamente (${doDashboard} criadas no dashboard, sem cópia no Drive).`
+            );
+
+            for (const faq of alvos) {
+                await this.activityService
+                    .logActivity('sistema (purge)', 'excluir', faq.question)
+                    .catch(() => { });
+            }
+        } catch (erro) {
+            this.logger.error(`Purge falhou: ${erro instanceof Error ? erro.message : erro}`);
+        }
     }
 
     // LÓGICA DO LUCIANO: Equivalente a 'normalizar_para_busca(texto)' de 'enviar_dados.py'.
