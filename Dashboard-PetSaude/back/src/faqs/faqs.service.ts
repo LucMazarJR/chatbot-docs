@@ -71,6 +71,18 @@ export class FaqsService {
         return limpo.replace(/\s+/g, " ").trim().toLowerCase();
     }
 
+    // LÓGICA DO LUCIANO: mesmo formato do campo "text" gravado por 'enviar_dados.py'.
+    // O assunto entra junto porque muitas perguntas são idênticas entre si
+    // ("Como me preparar para o Exame?") — sem ele o agente não sabe de qual
+    // assunto o trecho fala e pode responder sobre o errado.
+    private montarTexto(categoria: string, pergunta: string, resposta: string): string {
+        return [
+            `Assunto: ${categoria}`,
+            `Pergunta: ${pergunta}`,
+            `Resposta: ${resposta}`,
+        ].join('\n');
+    }
+
     // LÓGICA DO LUCIANO: Parecida com 'gerar_hash_conteudo(pergunta, resposta)' em 'enviar_dados.py'.
     // Gera um MD5 para saber se o texto da resposta/pergunta foi adulterado e se é preciso recriar o embedding.
     private generateHash(pergunta: string, resposta: string): string {
@@ -79,7 +91,7 @@ export class FaqsService {
     }
 
     async listFaqs(): Promise<any[]> {
-        const faqs = await this.faqModel.find({ isActive: true }).select('-embedding').sort({ updatedAt: -1 }).exec();
+        const faqs = await this.faqModel.find({ isActive: true }).select('-embedding -text').sort({ updatedAt: -1 }).exec();
         return faqs.map(f => {
             const doc = f.toObject();
             return {
@@ -138,6 +150,7 @@ export class FaqsService {
             isActive: true,
             updatedAt: new Date(),
             embedding: embeddingVector,
+            text: this.montarTexto(cat, question, answer),
             created_by: actor,
             updated_by: actor
         });
@@ -185,6 +198,7 @@ export class FaqsService {
         faq.source = newSource;
         faq.content_hash = newContentHash;
         faq.embedding = newEmbedding;
+        faq.text = this.montarTexto(cat, newQuestion, newAnswer);
         faq.updatedAt = new Date();
         faq.updated_by = actor;
 

@@ -51,6 +51,13 @@ export class Faq {
 
     @Prop({ type: [Number], default: [] })
     embedding: number[];
+
+    // LÓGICA DO LUCIANO: campo lido pelo nó Vector Store do n8n para montar o
+    // `pageContent` do trecho. Sem ele o nó encontra o documento e devolve texto
+    // vazio — a busca "funciona", o agente recebe nada e responde "não
+    // encontrei", sem erro em lugar nenhum. Mesmo formato do enviar_dados.py.
+    @Prop()
+    text?: string;
 }
 
 export const FaqSchema = SchemaFactory.createForClass(Faq);
