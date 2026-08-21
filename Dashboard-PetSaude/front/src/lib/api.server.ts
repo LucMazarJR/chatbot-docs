@@ -1,6 +1,22 @@
 import { getAccessToken } from "./auth.server";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:3333";
+/**
+ * Endereço do backend.
+ *
+ * LÓGICA DO LUCIANO: o `import.meta.env` do Vite é substituído por texto no
+ * MOMENTO DO BUILD. Numa imagem Docker isso significa que o endereço fica
+ * gravado dentro do bundle: a mesma imagem não serve para local e para
+ * produção, e mudar a variável no compose não teria efeito nenhum.
+ *
+ * Como este arquivo é `.server.ts` e roda só no servidor, `process.env` está
+ * disponível em tempo de execução — e vem primeiro. O valor do build fica como
+ * reserva, para o `vite dev`, onde `process.env` não é populado pelo `.env` do
+ * Vite.
+ */
+const API_BASE =
+  process.env.API_BASE_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://127.0.0.1:3333";
 
 export class ApiError extends Error {
   constructor(
