@@ -123,6 +123,61 @@ services:
     depends_on:
       - n8n
 
+  # --- Dashboard de gestão de FAQs -------------------------------------------
+  # Vive em outro repositório (LucMazarJR/Dashboard-PetSaude), clonado dentro
+  # desta pasta. Por isso os dois serviços ficam no profile `dashboard`: sem
+  # ele, `docker compose up -d` continua funcionando para quem clonou só este
+  # repositório e não tem a pasta.
+  #
+  # Para subir tudo junto, defina COMPOSE_PROFILES=dashboard no .env — aí o
+  # `docker compose up -d` normal já inclui os dois.
+  dashboard-api:
+    profiles: ["dashboard"]
+    build:
+      context: ./Dashboard-PetSaude/back
+      dockerfile: dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      # Rede interna do compose: `postgres` na porta 5432, não a porta publicada
+      # no host. O POSTGRES_HOST_PORT só existe para acesso de fora.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-petsaude}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-petsaude}
+      DATABASE_SSL: "false"
+      # Cria as tabelas no primeiro boot, sem precisar rodar migration à mão.
+      DB_RUN_MIGRATIONS: "true"
+      MONGODB_URI: ${MONGODB_URI:?defina MONGODB_URI no .env}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?defina GEMINI_API_KEY no .env}
+      # Precisa ser o MESMO modelo da base e do nó do n8n. Ver docs/handoff-notebook.md.
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-2}
+      GEMINI_TASK_TYPE: ${GEMINI_TASK_TYPE:-SEMANTIC_SIMILARITY}
+      JWT_SECRET: ${DASHBOARD_JWT_SECRET:?defina DASHBOARD_JWT_SECRET no .env}
+      JWT_EXPIRES_IN_SECONDS: ${DASHBOARD_JWT_EXPIRES_IN_SECONDS:-28800}
+      CORS_ORIGINS: ${DASHBOARD_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      FAQ_PURGE_ENABLED: "false"
+    ports:
+      - "127.0.0.1:${DASHBOARD_API_PORT:-3333}:3333"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  dashboard-front:
+    profiles: ["dashboard"]
+    build:
+      context: ./Dashboard-PetSaude/front
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Nome do serviço na rede do compose. O front chama a API pelo SERVIDOR
+      # (server functions), então o navegador nunca precisa alcançar este nome.
+      API_BASE_URL: http://dashboard-api:3333
+      # Criptografa o cookie que guarda o JWT. Trocar derruba todas as sessões.
+      SESSION_SECRET: ${DASHBOARD_SESSION_SECRET:?defina DASHBOARD_SESSION_SECRET no .env}
+    ports:
+      - "127.0.0.1:${DASHBOARD_FRONT_PORT:-5173}:3000"
+    depends_on:
+      - dashboard-api
+
 volumes:
   n8n_data:
   # Usuários, papéis e sessões do dashboard. As FAQs continuam no MongoDB Atlas.
