@@ -199,7 +199,7 @@ export class FaqsService {
         };
     }
 
-    async createFaq(data: any, actor: string) {
+    async createFaq(data: any, actor: { id?: string; name: string }) {
         let cat = "";
         if (data.category) {
             cat = data.category;
@@ -240,16 +240,18 @@ export class FaqsService {
             updatedAt: new Date(),
             embedding: embeddingVector,
             text: this.montarTexto(cat, question, answer),
-            created_by: actor,
-            updated_by: actor
+            created_by: actor.name,
+            updated_by: actor.name,
+            created_by_id: actor.id,
+            updated_by_id: actor.id
         });
 
         const saved = await newFaq.save();
-        this.activityService.logActivity(actor, 'inserir', saved.question);
+        this.activityService.logActivity(actor.name, 'inserir', saved.question, actor.id);
         return { ok: true, id: saved._id.toString() };
     }
 
-    async updateFaq(id: string, data: any, actor: string) {
+    async updateFaq(id: string, data: any, actor: { id?: string; name: string }) {
         const faq = await this.faqModel.findById(id).exec();
         if (!faq) throw new NotFoundException('Not found');
 
@@ -289,14 +291,15 @@ export class FaqsService {
         faq.embedding = newEmbedding;
         faq.text = this.montarTexto(cat, newQuestion, newAnswer);
         faq.updatedAt = new Date();
-        faq.updated_by = actor;
+        faq.updated_by = actor.name;
+        faq.updated_by_id = actor.id;
 
         await faq.save();
-        this.activityService.logActivity(actor, 'editar', faq.question);
+        this.activityService.logActivity(actor.name, 'editar', faq.question, actor.id);
         return { ok: true };
     }
 
-    async deleteFaq(id: string, actor: string) {
+    async deleteFaq(id: string, actor: { id?: string; name: string }) {
         const faq = await this.faqModel.findById(id).exec();
         if (!faq) throw new NotFoundException('Not found');
 
@@ -305,7 +308,7 @@ export class FaqsService {
         faq.updatedAt = new Date();
         await faq.save();
 
-        this.activityService.logActivity(actor, 'excluir', faq.question);
+        this.activityService.logActivity(actor.name, 'excluir', faq.question, actor.id);
         return { ok: true };
     }
 }

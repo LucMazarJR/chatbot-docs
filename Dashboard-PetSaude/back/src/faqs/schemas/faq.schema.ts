@@ -49,6 +49,15 @@ export class Faq {
     @Prop()
     updated_by?: string;
 
+    // LÓGICA DO LUCIANO: o NOME continua gravado ao lado do id de propósito.
+    // Esta coleção é lida pelo n8n e pela ingestão Python, e nenhum dos dois
+    // alcança o Postgres — um uuid solto ali não diria nada a ninguém.
+    @Prop()
+    created_by_id?: string;
+
+    @Prop()
+    updated_by_id?: string;
+
     @Prop({ type: [Number], default: [] })
     embedding: number[];
 
