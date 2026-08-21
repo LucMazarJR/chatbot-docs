@@ -48,6 +48,8 @@ export class OutboundService {
       throw new BadRequestException('A mensagem ficou vazia após a formatação.');
     }
 
+    await this.assertRecipientExists(sessionId, dto.to, to);
+
     const messageId = await this.queue
       .enqueue(sessionId, async () => {
         await this.simulateTyping(sessionId, to, text.length);
@@ -65,6 +67,38 @@ export class OutboundService {
     this.logger.info({ messageId, to, textLength: text.length, sessionId }, 'Mensagem enviada');
 
     return { id: messageId, status: 'sent', sessionId, to };
+  }
+
+  /**
+   * Recusa envio para número que não existe no WhatsApp.
+   *
+   * Sem isto, um número malformado recebia `messageId` normalmente e a mensagem
+   * simplesmente sumia — sem erro para quem chamou, sem entrega para ninguém.
+   *
+   * Só verifica quando o destinatário chegou como NÚMERO SOLTO, que é o caminho
+   * de teste manual e de digitação errada. Respostas do fluxo chegam como JID
+   * (`@lid` ou `@s.whatsapp.net`) vindo do próprio webhook: já são
+   * comprovadamente válidos, e verificar cada um custaria uma consulta ao
+   * WhatsApp por mensagem respondida.
+   */
+  private async assertRecipientExists(
+    sessionId: string,
+    original: string,
+    jid: string,
+  ): Promise<void> {
+    if (original.includes('@')) {
+      return;
+    }
+
+    const existe = await this.provider.isRegistered(sessionId, jid);
+
+    // `null` = não foi possível verificar. Segue o envio: bloquear uma mensagem
+    // legítima por causa de uma consulta que falhou é pior que o problema.
+    if (existe === false) {
+      throw new BadRequestException(
+        `O número ${original} não tem conta no WhatsApp.`,
+      );
+    }
   }
 
   private async simulateTyping(sessionId: string, to: string, textLength: number): Promise<void> {

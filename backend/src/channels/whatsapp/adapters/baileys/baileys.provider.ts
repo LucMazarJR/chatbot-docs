@@ -173,6 +173,28 @@ export class BaileysProvider extends WhatsAppProvider implements OnModuleDestroy
     return sent.key.id;
   }
 
+  async isRegistered(sessionId: string, jid: string): Promise<boolean | null> {
+    try {
+      const socket = this.requireSocket(sessionId);
+      const resultado = await socket.onWhatsApp(jid);
+
+      // A consulta devolve lista vazia para número inexistente. Um resultado
+      // sem `exists` explícito é tratado como existente: na dúvida, envia.
+      if (!resultado || resultado.length === 0) {
+        return false;
+      }
+
+      return resultado[0]?.exists !== false;
+    } catch (error) {
+      this.logger.warn(
+        { sessionId, err: (error as Error)?.message },
+        'Não foi possível verificar o número no WhatsApp; seguindo com o envio.',
+      );
+
+      return null;
+    }
+  }
+
   async sendTyping(sessionId: string, chatId: string, durationMs: number): Promise<void> {
     const socket = this.requireSocket(sessionId);
 

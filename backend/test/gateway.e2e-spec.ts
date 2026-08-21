@@ -35,6 +35,7 @@ describe('WhatsApp Gateway (e2e)', () => {
       getSnapshot: jest.fn().mockReturnValue(CONNECTED),
       getQrCode: jest.fn().mockReturnValue(null),
       sendText: jest.fn().mockResolvedValue('MSG-ENVIADA-1'),
+      isRegistered: jest.fn().mockResolvedValue(true),
       sendTyping: jest.fn().mockResolvedValue(undefined),
       markAsRead: jest.fn().mockResolvedValue(undefined),
       onEvent: jest.fn(),

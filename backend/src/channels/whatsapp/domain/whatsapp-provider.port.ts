@@ -31,6 +31,16 @@ export abstract class WhatsAppProvider {
   /** Envia texto e devolve o id da mensagem no WhatsApp. */
   abstract sendText(message: OutboundTextMessage): Promise<string>;
 
+  /**
+   * Confirma se o JID corresponde a uma conta de WhatsApp existente.
+   *
+   * Devolve `null` quando não foi possível verificar (socket fora do ar, erro
+   * na consulta). Quem chama decide o que fazer com a incerteza — aqui a
+   * escolha é seguir com o envio, porque bloquear uma mensagem legítima é pior
+   * do que deixar passar um número errado.
+   */
+  abstract isRegistered(sessionId: string, jid: string): Promise<boolean | null>;
+
   /** Presença "digitando..." — parte da estratégia anti-ban. */
   abstract sendTyping(sessionId: string, chatId: string, durationMs: number): Promise<void>;
 
