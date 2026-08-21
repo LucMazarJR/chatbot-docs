@@ -74,6 +74,11 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       # db 1 isola o gateway da memória de chat do n8n (db 0).
       REDIS_DB: 1
+      # Existiam no env.schema.ts mas nunca chegavam ao container: defini-las no
+      # .env não tinha efeito nenhum, e valiam sempre os defaults do schema.
+      N8N_WEBHOOK_TIMEOUT_MS: ${N8N_WEBHOOK_TIMEOUT_MS:-10000}
+      N8N_WEBHOOK_MAX_RETRIES: ${N8N_WEBHOOK_MAX_RETRIES:-3}
+      DEDUPE_TTL_SECONDS: ${DEDUPE_TTL_SECONDS:-86400}
     ports:
       # Exposto no host só para ler o QR code e o Swagger durante o setup.
       - "3000:3000"
