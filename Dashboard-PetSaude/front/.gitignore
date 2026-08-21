@@ -30,3 +30,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Segredos locais: SESSION_SECRET e a URL da API.
+# Sem esta regra o .env do front era commitavel — e ele guarda a chave que
+# criptografa o cookie de sessao, ou seja, o JWT de todo mundo.
+.env
+.env.*
+!.env.example
