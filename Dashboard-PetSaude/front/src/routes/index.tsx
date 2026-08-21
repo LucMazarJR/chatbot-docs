@@ -27,11 +27,21 @@ type Busca = { page?: number; search?: string; category?: string };
 export const Route = createFileRoute("/")({
   // Página, busca e categoria moram na URL: sobrevivem ao refresh e ao botão
   // voltar, e tornam o link compartilhável.
-  validateSearch: (search: Record<string, unknown>): Busca => ({
-    page: Number(search.page ?? 1) || 1,
-    search: typeof search.search === "string" ? search.search : "",
-    category: typeof search.category === "string" ? search.category : "",
-  }),
+  validateSearch: (search: Record<string, unknown>): Busca => {
+    const page = Number(search.page ?? 1) || 1;
+    const termo = typeof search.search === "string" ? search.search : "";
+    const categoria = typeof search.category === "string" ? search.category : "";
+
+    // Só devolve o que difere do padrão. Devolvendo sempre os três, o roteador
+    // considera a URL "não canônica" e responde 307 para
+    // `/?page=1&search=&category=` — um redirect em toda visita à home, e a
+    // barra de endereços poluída de parâmetros vazios.
+    return {
+      ...(page > 1 ? { page } : {}),
+      ...(termo ? { search: termo } : {}),
+      ...(categoria ? { category: categoria } : {}),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Central de FAQs | Perguntas frequentes em saúde" },

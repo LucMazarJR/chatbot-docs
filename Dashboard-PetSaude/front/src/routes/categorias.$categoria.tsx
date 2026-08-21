@@ -14,10 +14,16 @@ const POR_PAGINA = 20;
 type Busca = { page?: number; search?: string };
 
 export const Route = createFileRoute("/categorias/$categoria")({
-  validateSearch: (search: Record<string, unknown>): Busca => ({
-    page: Number(search.page ?? 1) || 1,
-    search: typeof search.search === "string" ? search.search : "",
-  }),
+  validateSearch: (search: Record<string, unknown>): Busca => {
+    const page = Number(search.page ?? 1) || 1;
+    const termo = typeof search.search === "string" ? search.search : "";
+    // Ver o comentário em routes/index.tsx: devolver os padrões faz o roteador
+    // redirecionar 307 em toda visita.
+    return {
+      ...(page > 1 ? { page } : {}),
+      ...(termo ? { search: termo } : {}),
+    };
+  },
   head: ({ params }) => ({
     meta: [
       { title: `${params.categoria} | Central de FAQs` },
