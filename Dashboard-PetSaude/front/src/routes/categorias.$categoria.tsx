@@ -8,12 +8,14 @@ import { GateShell } from "@/components/gate";
 import { FaqPagination } from "@/components/faq-pagination";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
+import { exigirSessao } from "@/lib/guardas";
 
 const POR_PAGINA = 20;
 
 type Busca = { page?: number; search?: string };
 
 export const Route = createFileRoute("/categorias/$categoria")({
+  beforeLoad: () => exigirSessao(),
   validateSearch: (search: Record<string, unknown>): Busca => {
     const page = Number(search.page ?? 1) || 1;
     const termo = typeof search.search === "string" ? search.search : "";

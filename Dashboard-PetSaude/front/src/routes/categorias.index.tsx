@@ -5,8 +5,10 @@ import { ChevronRight } from "lucide-react";
 import { getFaqCategories } from "@/lib/faq.functions";
 import { GateShell } from "@/components/gate";
 import { InsertFaqButton } from "@/components/faq-shared";
+import { exigirSessao } from "@/lib/guardas";
 
 export const Route = createFileRoute("/categorias/")({
+  beforeLoad: () => exigirSessao(),
   head: () => ({
     meta: [
       { title: "Categorias de FAQs | Central de FAQs" },

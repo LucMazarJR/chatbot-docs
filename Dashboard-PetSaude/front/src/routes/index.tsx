@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
+import { exigirSessao } from "@/lib/guardas";
 
 const POR_PAGINA = 20;
 const TODAS = "__todas__";
@@ -27,6 +28,7 @@ type Busca = { page?: number; search?: string; category?: string };
 export const Route = createFileRoute("/")({
   // Página, busca e categoria moram na URL: sobrevivem ao refresh e ao botão
   // voltar, e tornam o link compartilhável.
+  beforeLoad: () => exigirSessao(),
   validateSearch: (search: Record<string, unknown>): Busca => {
     const page = Number(search.page ?? 1) || 1;
     const termo = typeof search.search === "string" ? search.search : "";
