@@ -16,7 +16,7 @@ Configuração no `.env`:
     GEMINI_API_KEY_2=...          # opcionais, de projetos DIFERENTES
     GEMINI_API_KEY_3=...
     GEMINI_API_KEY_4=...
-    GEMINI_EMBEDDING_MODEL=...    # padrão: gemini-embedding-001
+    GEMINI_EMBEDDING_MODEL=...    # padrão: gemini-embedding-2
     GEMINI_TASK_TYPE=...          # padrão: SEMANTIC_SIMILARITY
 
 Chaves do mesmo projeto dividem o mesmo balde de cota — rotacionar entre elas
@@ -33,7 +33,7 @@ from google.genai import types
 
 load_dotenv(find_dotenv(usecwd=True))
 
-MODELO_PADRAO = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+MODELO_PADRAO = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2")
 TASK_TYPE_PADRAO = os.getenv("GEMINI_TASK_TYPE", "SEMANTIC_SIMILARITY")
 DIMENSOES = 3072
 
