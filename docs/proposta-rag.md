@@ -45,6 +45,12 @@ Os dois problemas se retroalimentam: quando a busca não acontece (problema 1), 
 
 ### 3. FAQs desativadas continuam sendo respondidas
 
+> **Corrigido em 21/08/2026** — o nó do Atlas expõe `preFilter` em `options`, e
+> o índice já tinha `isActive` como campo filtrável desde a criação. O fluxo
+> agora usa `preFilter: {"isActive": true}`. Medição numa FAQ recém-excluída no
+> dashboard: sem o filtro ela voltava em **primeiro lugar**; com o filtro,
+> desaparece da busca.
+
 Achado da análise, não relatado no teste:
 
 ```json
@@ -343,3 +349,13 @@ padrão do nó enquanto a base já estava no `gemini-embedding-2`. A instância
 também tinha dois fluxos ativos, com modelos de chat diferentes entre si. Os
 dois problemas foram corrigidos alinhando a instância ao arquivo versionado em
 [n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json).
+
+### Por que isso era mais grave do que parecia
+
+O `deleteFaq` do dashboard é **soft delete**: marca `isActive: false` e mantém o
+documento — com embedding — na coleção indexada. Excluir uma FAQ na interface
+não a tirava do índice, e sem pré-filtro ela seguia disponível para o agente.
+
+Uma FAQ errada, desatualizada ou removida de propósito continuaria em
+circulação, com a equipe convencida de que a tinha excluído. É a diferença
+entre um botão que faz o que promete e um que só parece fazer.
