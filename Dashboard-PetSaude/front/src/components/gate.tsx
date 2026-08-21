@@ -9,6 +9,7 @@ import { getSession, logout, type UserRole } from "@/lib/auth.functions";
 import { listActivity } from "@/lib/faq.functions";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
+import { TrocarSenhaObrigatoria } from "@/components/trocar-senha";
 
 const ROTULO_PAPEL: Record<UserRole, string> = {
   admin: "Administrador",
@@ -43,7 +44,7 @@ export function GateShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const sair = useServerFn(logout);
-  const { carregando, autenticado, usuario } = useSession();
+  const { carregando, autenticado, usuario, precisaTrocarSenha } = useSession();
 
   // A proteção real está no backend: o guard rejeita qualquer requisição sem
   // token válido. Este redirecionamento é conveniência de navegação, não
@@ -108,10 +109,14 @@ export function GateShell({ children }: { children: React.ReactNode }) {
       <div className="mx-auto max-w-5xl px-6 py-10">
         {carregando ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
-        ) : autenticado ? (
-          children
-        ) : (
+        ) : !autenticado ? (
           <p className="text-sm text-muted-foreground">Redirecionando para o login…</p>
+        ) : precisaTrocarSenha ? (
+          // Bloqueia o conteudo inteiro: sem isto, a marcacao no banco seria
+          // decorativa e a senha escolhida por outra pessoa valeria para sempre.
+          <TrocarSenhaObrigatoria />
+        ) : (
+          children
         )}
       </div>
     </main>
