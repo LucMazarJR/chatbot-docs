@@ -110,11 +110,18 @@ export class FaqsService {
                 categoria === FaqsService.SEM_CATEGORIA ? { $in: [null, ''] } : categoria;
         }
 
-        if (busca && busca.trim()) {
+        // A normalização remove pontuação, então um termo só de sinais — "(" ,
+        // "..." — vira string vazia. Testar o termo CRU deixava passar um
+        // `new RegExp('')`, que casa com tudo: buscar "(" devolvia a coleção
+        // inteira como se nenhum filtro tivesse sido aplicado. Por isso a
+        // verificação é feita sobre o termo já normalizado.
+        const termoNormalizado = busca ? this.normalizeForSearch(busca).trim() : '';
+
+        if (termoNormalizado) {
             // question_normalized é gravado tanto por este service quanto pelo
             // enviar_dados.py, com a mesma normalização — por isso a busca aqui
             // ignora acento sem precisar de nenhuma máquina nova.
-            const termo = this.escaparRegex(this.normalizeForSearch(busca));
+            const termo = this.escaparRegex(termoNormalizado);
             const padrao = new RegExp(termo, 'i');
             filtro.$or = [
                 { question_normalized: padrao },
