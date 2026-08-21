@@ -209,9 +209,7 @@ cd scripts; python -c "import os;from dotenv import load_dotenv;from pymongo imp
 
 | # | Dívida | Onde | Impacto |
 |---|---|---|---|
-| 1 | 🟡 O log da desvinculação não registra o motivo | baileys.provider.ts | O evento que apaga credenciais não diz por quê |
-| 2 | 🟡 Envio não valida se o número existe no WhatsApp | outbound.service.ts | Número malformado devolve `messageId` e a mensagem some |
-| 3 | 🟡 `task_type` da busca no n8n não é controlado | nó Embeddings | A ingestão usa `SEMANTIC_SIMILARITY`; o nó usa o padrão dele. Alinhar exigiria reindexar |
+| 1 | 🟡 `task_type` da busca no n8n não é controlado | nó Embeddings | A ingestão usa `SEMANTIC_SIMILARITY`; o nó usa o padrão dele. Alinhar exigiria reindexar as 2451 |
 
 Resolvidas em 21/08/2026:
 
@@ -224,6 +222,19 @@ Resolvidas em 21/08/2026:
   `N8N_WEBHOOK_MAX_RETRIES` e `DEDUPE_TTL_SECONDS` agora são repassadas pelo compose
 - ~~FAQs desativadas continuavam sendo recuperadas~~ — o fluxo usa
   `preFilter: {"isActive": true}`
+- ~~O log da desvinculação não registrava o motivo~~ — agora sai com `statusCode`
+  e a mensagem do erro, o que distingue desvinculação real de conflito de aparelhos
+- ~~Envio não validava se o número existe~~ — número solto passa por
+  `onWhatsApp()` e devolve 400 quando não há conta. JIDs vindos do webhook pulam
+  a checagem
+
+E uma descoberta de segurança em 21/08/2026: o range `^6.7.0` do
+`@whiskeysockets/baileys` alcançava a versão **6.17.16**, que está
+descontinuada por uma falha que permite **falsificação de mensagens**
+([GHSA-qvv5-jq5g-4cgg](https://github.com/WhiskeySockets/Baileys/security/advisories/GHSA-qvv5-jq5g-4cgg)).
+A armadilha é de semver: 6.17.16 é *maior* que 6.7.24, então o caret resolvia
+justamente para a vulnerável. O lockfile segurava em 6.7.24, mas um
+`npm install` sem lockfile traria a falha. O range foi fechado em `~6.7.24`.
 
 ---
 
