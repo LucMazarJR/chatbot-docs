@@ -1,21 +1,58 @@
-import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link } from "@tanstack/react-router";
-import { Lock, LogOut, Stethoscope } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { LogOut, Stethoscope, Users } from "lucide-react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 
-import { getGateStatus, listActivity, lockDashboard, unlockDashboard } from "@/lib/faq.functions";
+import { getSession, logout, type UserRole } from "@/lib/auth.functions";
+import { listActivity } from "@/lib/faq.functions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Toaster } from "@/components/ui/sonner";
+
+const ROTULO_PAPEL: Record<UserRole, string> = {
+  admin: "Administrador",
+  editor: "Editor",
+  leitor: "Leitor",
+};
+
+/**
+ * Estado da sessão para os componentes.
+ *
+ * Uma única query compartilhada (`["session"]`) em vez de cada tela consultar
+ * por conta própria — o react-query dedupe, então a checagem custa uma
+ * requisição por sessão, não uma por componente.
+ */
+export function useSession() {
+  const query = useQuery({ queryKey: ["session"], queryFn: () => getSession() });
+  return {
+    carregando: query.isLoading,
+    autenticado: query.data?.authenticated ?? false,
+    usuario: query.data?.user ?? null,
+    precisaTrocarSenha: query.data?.mustChangePassword ?? false,
+  };
+}
+
+/** True quando o papel permite criar, editar e excluir FAQs. */
+export function usePodeEscrever() {
+  const { usuario } = useSession();
+  return usuario?.role === "admin" || usuario?.role === "editor";
+}
 
 export function GateShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const gate = useQuery({ queryKey: ["gate"], queryFn: () => getGateStatus() });
-  const unlocked = gate.data?.unlocked ?? false;
-  const actorName = gate.data?.name ?? null;
+  const navigate = useNavigate();
+  const sair = useServerFn(logout);
+  const { carregando, autenticado, usuario } = useSession();
+
+  // A proteção real está no backend: o guard rejeita qualquer requisição sem
+  // token válido. Este redirecionamento é conveniência de navegação, não
+  // segurança — por isso um redirect simples resolve.
+  useEffect(() => {
+    if (!carregando && !autenticado) {
+      navigate({ to: "/login" });
+    }
+  }, [carregando, autenticado, navigate]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -33,118 +70,51 @@ export function GateShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
           </Link>
-          {unlocked ? (
+
+          {autenticado && usuario && (
             <div className="flex items-center gap-3">
               <span className="hidden text-xs text-muted-foreground sm:inline">
-                Conectado como <strong className="text-foreground">{actorName}</strong>
+                {usuario.name}
+                <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide">
+                  {ROTULO_PAPEL[usuario.role]}
+                </span>
               </span>
+
+              {usuario.role === "admin" && (
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/usuarios">
+                    <Users className="size-4" /> Usuários
+                  </Link>
+                </Button>
+              )}
+
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={async () => {
-                  await lockDashboard();
+                  await sair({});
                   await queryClient.invalidateQueries();
                   toast.success("Sessão encerrada");
+                  navigate({ to: "/login" });
                 }}
               >
                 <LogOut className="size-4" /> Sair
               </Button>
             </div>
-          ) : (
-            <span className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Lock className="size-3.5" /> Bloqueado
-            </span>
           )}
         </div>
       </header>
 
       <div className="mx-auto max-w-5xl px-6 py-10">
-        {gate.isLoading ? (
+        {carregando ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
-        ) : unlocked ? (
+        ) : autenticado ? (
           children
         ) : (
-          <IdentifyCard />
+          <p className="text-sm text-muted-foreground">Redirecionando para o login…</p>
         )}
       </div>
     </main>
-  );
-}
-
-function IdentifyCard() {
-  const queryClient = useQueryClient();
-  const unlock = useServerFn(unlockDashboard);
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-
-  async function onSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-    try {
-      const result = await unlock({ data: { name, password } });
-      if (result.ok) {
-        await queryClient.invalidateQueries();
-        toast.success(`Bem-vindo(a), ${name.trim()}`);
-        return;
-      }
-      setError(
-        result.reason === "not_configured"
-          ? "A senha de acesso ainda não foi configurada no projeto."
-          : "Senha incorreta.",
-      );
-    } catch (err) {
-      console.error("[Login catch Exception]:", err);
-      setError("Não foi possível validar a senha. Tente novamente.");
-    } finally {
-      setPending(false);
-      setPassword("");
-    }
-  }
-
-  return (
-    <div className="mx-auto max-w-md rounded-2xl border border-border panel-surface p-8">
-      <h2 className="text-xl font-semibold">Identifique-se</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Informe seu nome e a senha da equipe. Seu nome fica registrado em cada alteração.
-      </p>
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Seu nome</Label>
-          <Input
-            id="name"
-            autoComplete="name"
-            value={name}
-            maxLength={60}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ex.: Dra. Ana Souza"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Senha de acesso</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-          />
-        </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={pending || password.length === 0 || name.trim().length < 2}
-        >
-          {pending ? "Verificando…" : "Entrar no painel"}
-        </Button>
-      </form>
-    </div>
   );
 }
 
