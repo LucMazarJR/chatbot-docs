@@ -33,3 +33,9 @@ scripts/.venv/
 
 # Backups das FAQs — podem conter a base inteira, incluindo embeddings
 scripts/backups/
+
+# Repositorio proprio, versionado em separado:
+#   https://github.com/LucMazarJR/Dashboard-PetSaude
+# Sem esta regra ele aparece como untracked a cada git status, e um `git add .`
+# distraido o commitaria como diretorio comum, perdendo o historico dele.
+Dashboard-PetSaude/
