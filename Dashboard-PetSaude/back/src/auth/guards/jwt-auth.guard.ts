@@ -7,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, MoreThan, Repository } from 'typeorm';
 
 import { User } from '../../users/entities/user.entity';
 import { UserSession } from '../../users/entities/user-session.entity';
@@ -54,7 +54,10 @@ export class JwtAuthGuard implements CanActivate {
         // "desativar usuário" ter efeito imediato em vez de esperar o token
         // expirar — até 8 horas depois.
         const sessao = await this.sessionsRepo.findOne({
-            where: { jti: payload.jti, revokedAt: IsNull() },
+            // `expiresAt` é redundante com a verificação do JWT, e é de
+            // propósito: se um dia o segredo vazar e alguém forjar um token com
+            // validade longa, a linha da sessão continua sendo o limite real.
+            where: { jti: payload.jti, revokedAt: IsNull(), expiresAt: MoreThan(new Date()) },
         });
         if (!sessao) {
             throw new UnauthorizedException('Sessão encerrada');
