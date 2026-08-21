@@ -59,7 +59,12 @@ export class N8nDispatcherService {
 
         if (isLastAttempt || !isRetryable(error)) {
           this.logger.error(
-            { err: error, eventId: envelope.eventId, type: envelope.type, attempt },
+            {
+              erro: resumirErro(error),
+              eventId: envelope.eventId,
+              type: envelope.type,
+              attempt,
+            },
             'Evento NÃO entregue ao n8n',
           );
 
@@ -107,6 +112,30 @@ function isRetryable(error: unknown): boolean {
   }
 
   return status === 429 || status >= 500;
+}
+
+/**
+ * Resumo do erro seguro para log.
+ *
+ * O objeto de erro do axios carrega `config.headers` — ou seja, o
+ * `X-Webhook-Token` e a assinatura HMAC em texto claro. Serializado inteiro
+ * pelo pino, cada falha de entrega imprimia o segredo do webhook no log, que
+ * costuma ser exatamente o artefato que se compartilha ao pedir ajuda.
+ *
+ * Aqui sai só o que serve para diagnosticar: mensagem, status, código e a URL
+ * de destino. Nunca cabeçalhos, nunca corpo.
+ */
+function resumirErro(error: unknown): Record<string, unknown> {
+  if (!(error instanceof AxiosError)) {
+    return { message: error instanceof Error ? error.message : String(error) };
+  }
+
+  return {
+    message: error.message,
+    code: error.code,
+    status: error.response?.status,
+    url: error.config?.url,
+  };
 }
 
 function statusOf(error: unknown): number | undefined {
