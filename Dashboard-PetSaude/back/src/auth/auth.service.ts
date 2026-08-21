@@ -17,6 +17,13 @@ import { UserSession } from '../users/entities/user-session.entity';
 export class AuthService {
     private readonly logger = new Logger(AuthService.name);
 
+    /**
+     * Hash de uma senha que ninguém tem, usado só para gastar o mesmo tempo de
+     * bcrypt quando o e-mail não existe. Custo 10, igual ao das senhas reais.
+     */
+    private static readonly HASH_DESCARTAVEL =
+        '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+
     constructor(
         private readonly jwtService: JwtService,
         @InjectRepository(User) private readonly usersRepo: Repository<User>,
@@ -36,9 +43,16 @@ export class AuthService {
 
         // Mesma resposta para e-mail inexistente e senha errada: responder
         // diferente entrega quais e-mails existem no sistema.
-        const senhaConfere = usuario
-            ? await bcrypt.compare(senha, usuario.passwordHash)
-            : false;
+        //
+        // A comparação roda MESMO sem usuário, contra um hash descartável. Sem
+        // isso, e-mail inexistente respondia na hora e e-mail real levava os
+        // ~100ms do bcrypt — diferença suficiente para descobrir quais e-mails
+        // estão cadastrados sem precisar acertar nenhuma senha. A mensagem
+        // igual não adianta se o relógio entrega a resposta.
+        const senhaConfere = await bcrypt.compare(
+            senha,
+            usuario?.passwordHash ?? AuthService.HASH_DESCARTAVEL,
+        );
 
         if (!usuario || !senhaConfere) {
             throw new UnauthorizedException('E-mail ou senha inválidos');
