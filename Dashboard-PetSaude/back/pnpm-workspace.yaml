@@ -1,4 +1,10 @@
+# Aprovacao explicita dos scripts de instalacao das dependencias.
+#
+# O pnpm 11 recusa rodar QUALQUER script do projeto enquanto houver pacote
+# pendente de decisao (ERR_PNPM_IGNORED_BUILDS) — inclusive migrations e o
+# build de producao. Os tres abaixo sao dependencias legitimas do projeto:
+# @google/genai e protobufjs vem do SDK do Gemini, e o unrs-resolver do ESLint.
 allowBuilds:
-  '@google/genai': set this to true or false
-  protobufjs: set this to true or false
+  '@google/genai': true
+  protobufjs: true
   unrs-resolver: true
