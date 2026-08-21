@@ -164,7 +164,9 @@
         },
         "metadata_field": "isActive, category",
         "vectorIndexName": "vector_index_3072",
-        "options": {}
+        "options": {
+          "preFilter": "{\"isActive\": true}"
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.vectorStoreMongoDBAtlas",
       "typeVersion": 1.3,
