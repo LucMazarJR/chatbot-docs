@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut, Stethoscope, Users } from "lucide-react";
-import { useEffect } from "react";
 import { toast } from "sonner";
 
 import { getSession, logout, type UserRole } from "@/lib/auth.functions";
@@ -46,14 +45,9 @@ export function GateShell({ children }: { children: React.ReactNode }) {
   const sair = useServerFn(logout);
   const { carregando, autenticado, usuario, precisaTrocarSenha } = useSession();
 
-  // A proteção real está no backend: o guard rejeita qualquer requisição sem
-  // token válido. Este redirecionamento é conveniência de navegação, não
-  // segurança — por isso um redirect simples resolve.
-  useEffect(() => {
-    if (!carregando && !autenticado) {
-      navigate({ to: "/login" });
-    }
-  }, [carregando, autenticado, navigate]);
+  // Quem não tem sessão nem chega aqui: o `beforeLoad` da rota redireciona
+  // antes de renderizar (ver lib/guardas.ts). Este componente cuida só do
+  // cabeçalho e da troca de senha obrigatória.
 
   return (
     <main className="min-h-screen bg-background">
@@ -109,8 +103,6 @@ export function GateShell({ children }: { children: React.ReactNode }) {
       <div className="mx-auto max-w-5xl px-6 py-10">
         {carregando ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
-        ) : !autenticado ? (
-          <p className="text-sm text-muted-foreground">Redirecionando para o login…</p>
         ) : precisaTrocarSenha ? (
           // Bloqueia o conteudo inteiro: sem isto, a marcacao no banco seria
           // decorativa e a senha escolhida por outra pessoa valeria para sempre.
