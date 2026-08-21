@@ -209,12 +209,21 @@ cd scripts; python -c "import os;from dotenv import load_dotenv;from pymongo imp
 
 | # | Dívida | Onde | Impacto |
 |---|---|---|---|
-| 1 | 🔴 `limpar_banco.py` recria o índice com **768** dimensões | [limpar_banco.py:34](../scripts/limpar_banco.py#L34) | Rodar quebra a busca **em silêncio**. **Não rode.** |
-| 2 | 🟠 O gateway loga o `X-Webhook-Token` em texto claro quando a entrega ao n8n falha | dispatcher do gateway | Segredo em log |
-| 3 | 🟡 Três variáveis do schema não chegam ao container | [docker-compose.yml](../docker-compose.yml) | `N8N_WEBHOOK_TIMEOUT_MS`, `N8N_WEBHOOK_MAX_RETRIES` e `DEDUPE_TTL_SECONDS` não têm efeito |
-| 4 | 🟡 O log da desvinculação não registra o motivo | baileys.provider.ts | O evento que apaga credenciais não diz por quê |
-| 5 | 🟡 Envio não valida se o número existe no WhatsApp | outbound.service.ts | Número malformado devolve `messageId` e a mensagem some |
-| 6 | 🟡 `task_type` da busca no n8n não é controlado | nó Embeddings | A ingestão usa `SEMANTIC_SIMILARITY`; o nó usa o padrão dele |
+| 1 | 🟡 O log da desvinculação não registra o motivo | baileys.provider.ts | O evento que apaga credenciais não diz por quê |
+| 2 | 🟡 Envio não valida se o número existe no WhatsApp | outbound.service.ts | Número malformado devolve `messageId` e a mensagem some |
+| 3 | 🟡 `task_type` da busca no n8n não é controlado | nó Embeddings | A ingestão usa `SEMANTIC_SIMILARITY`; o nó usa o padrão dele. Alinhar exigiria reindexar |
+
+Resolvidas em 21/08/2026:
+
+- ~~`limpar_banco.py` recriava o índice com 768 dimensões~~ — hoje usa 3072 e o
+  nome certo, exige `--confirmo-apagar-tudo` **e** confirmação digitada, e
+  aponta para o `backup_faqs.py` antes de apagar
+- ~~O gateway logava o `X-Webhook-Token` em texto claro~~ — o log de falha de
+  entrega passou a sair sanitizado (mensagem, código, status e URL)
+- ~~Três variáveis do schema não chegavam ao container~~ — `N8N_WEBHOOK_TIMEOUT_MS`,
+  `N8N_WEBHOOK_MAX_RETRIES` e `DEDUPE_TTL_SECONDS` agora são repassadas pelo compose
+- ~~FAQs desativadas continuavam sendo recuperadas~~ — o fluxo usa
+  `preFilter: {"isActive": true}`
 
 ---
 
