@@ -1,0 +1,14 @@
+# Sem isto o build copia node_modules e .output da máquina para dentro da
+# imagem antes de descartá-los — contexto gigante e build lento, e pior: um
+# node_modules compilado para Windows entrando numa imagem Alpine.
+node_modules
+.output
+.nitro
+.wrangler
+.vinxi
+dist
+.env
+.env.*
+!.env.example
+.git
+*.log
