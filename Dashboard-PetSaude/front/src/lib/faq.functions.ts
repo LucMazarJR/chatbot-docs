@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { gateSession } from "./faq-gate.server";
+import { apiFetch } from "./api.server";
 
 export type Faq = {
   id: string;
@@ -55,50 +55,6 @@ const faqInput = z.object({
   source: z.string().optional(),
 });
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:3333";
-
-export const getGateStatus = createServerFn({ method: "GET" }).handler(async () => {
-  const session = await gateSession();
-  return {
-    unlocked: session.data.unlocked ?? false,
-    name: session.data.name ?? null
-  };
-});
-
-export const unlockDashboard = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    z
-      .object({
-        name: z.string().trim().min(2, "Informe seu nome").max(60),
-        password: z.string().min(1),
-      })
-      .parse(data),
-  )
-  .handler(async ({ data }: { data: any }) => {
-    try {
-      const rs = await fetch(`${API_BASE}/gate/unlock`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const result = await rs.json();
-      if (result.ok) {
-        const session = await gateSession();
-        await session.update({ unlocked: true, name: data.name });
-      }
-      return result;
-    } catch (e) {
-      console.error("[unlockDashboard Error]:", e);
-      throw e;
-    }
-  });
-
-export const lockDashboard = createServerFn({ method: "POST" }).handler(async () => {
-  const session = await gateSession();
-  await session.clear();
-  return { ok: true };
-});
-
 const listFaqsQuery = z.object({
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(100).default(20),
@@ -120,9 +76,7 @@ function montarQuery(params: Record<string, string | number | undefined>): strin
 export const listFaqs = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => listFaqsQuery.parse(data ?? {}))
   .handler(async ({ data }: { data: z.infer<typeof listFaqsQuery> }): Promise<Paginated<Faq>> => {
-    const rs = await fetch(`${API_BASE}/faqs?${montarQuery(data)}`);
-    if (!rs.ok) throw new Error("Erro ao carregar as FAQs");
-    return rs.json();
+    return apiFetch<Paginated<Faq>>(`/faqs?${montarQuery(data)}`);
   });
 
 /**
@@ -131,9 +85,7 @@ export const listFaqs = createServerFn({ method: "GET" })
  */
 export const getFaqCategories = createServerFn({ method: "GET" }).handler(
   async (): Promise<CategoryStats> => {
-    const rs = await fetch(`${API_BASE}/faqs/categories`);
-    if (!rs.ok) throw new Error("Erro ao carregar as categorias");
-    return rs.json();
+    return apiFetch<CategoryStats>("/faqs/categories");
   }
 );
 
@@ -147,61 +99,32 @@ export const listActivity = createServerFn({ method: "GET" })
       .parse(data ?? {}),
   )
   .handler(async ({ data }: { data: { page: number; limit: number } }): Promise<Paginated<Activity>> => {
-    const rs = await fetch(`${API_BASE}/activity?${montarQuery(data)}`);
-    if (!rs.ok) throw new Error("Erro ao carregar o histórico");
-    return rs.json();
+    return apiFetch<Paginated<Activity>>(`/activity?${montarQuery(data)}`);
   });
 
 export const createFaq = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => faqInput.parse(data))
   .handler(async ({ data }: { data: any }) => {
-    const session = await gateSession();
-    const actor = session.data.name || "";
-
-    const rs = await fetch(`${API_BASE}/faqs`, {
+    return apiFetch<{ ok?: boolean }>("/faqs", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-actor-name": actor
-      },
       body: JSON.stringify(data),
     });
-    if (!rs.ok) throw new Error("Erro ao criar FAQ");
-    return rs.json();
   });
 
 export const updateFaq = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => faqInput.extend({ id: z.string() }).parse(data))
   .handler(async ({ data }: { data: any }) => {
-    const session = await gateSession();
-    const actor = session.data.name || "";
-
-    const rs = await fetch(`${API_BASE}/faqs`, {
+    return apiFetch<{ ok?: boolean }>("/faqs", {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-actor-name": actor
-      },
       body: JSON.stringify(data),
     });
-    if (!rs.ok) throw new Error("Erro ao editar FAQ");
-    return rs.json();
   });
 
 export const deleteFaq = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ id: z.string() }).parse(data))
   .handler(async ({ data }: { data: any }) => {
-    const session = await gateSession();
-    const actor = session.data.name || "";
-
-    const rs = await fetch(`${API_BASE}/faqs`, {
+    return apiFetch<{ ok?: boolean }>("/faqs", {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        "x-actor-name": actor
-      },
       body: JSON.stringify(data),
     });
-    if (!rs.ok) throw new Error("Erro ao excluir FAQ");
-    return rs.json();
   });
