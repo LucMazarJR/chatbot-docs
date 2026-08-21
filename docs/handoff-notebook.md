@@ -174,6 +174,24 @@ Cada uma custou tempo. Não repita.
 
 **pnpm 11 recusa rodar scripts com builds pendentes.** Migrations, seed e build falham com `ERR_PNPM_IGNORED_BUILDS`, que não menciona nenhum dos três. A aprovação vive no `pnpm-workspace.yaml`.
 
+**Trocar o `N8N_WEBHOOK_TOKEN` exige mexer em dois lugares.** O `.env` alimenta
+o gateway, mas o n8n valida contra a credencial `Header Auth account`, que é
+independente. Mudar só um dos dois faz toda entrega voltar 403. O caminho
+verificado:
+
+```powershell
+# 1. gerar e gravar no .env
+$novo = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
+
+# 2. atualizar a credencial do n8n pelo CLI (a tela nem sempre cola — ver abaixo)
+# 3. docker compose up -d whatsapp-gateway   (recriar, não reiniciar: a variável
+#    é injetada na criação do container)
+# 4. docker compose restart n8n
+```
+
+Depois, confirme que o token antigo passou a ser rejeitado (403) e o novo aceito
+(200) — só assim se sabe que os dois lados foram atualizados.
+
 **Credencial gravada pela tela do n8n pode não colar.** Aconteceu com o Header Auth: a tela salvava, e o webhook continuava devolvendo 403. O caminho confiável é o CLI:
 
 ```powershell
