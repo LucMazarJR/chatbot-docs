@@ -301,7 +301,17 @@ export class BaileysProvider extends WhatsAppProvider implements OnModuleDestroy
     if (statusCode === baileys.DisconnectReason.loggedOut) {
       await this.authState.clear(sessionId);
       await this.setStatus(sessionId, 'LOGGED_OUT');
-      this.logger.error({ sessionId }, 'Sessão desvinculada no aparelho. É preciso ler o QR code.');
+
+      // Este é o evento mais destrutivo do sistema: apaga as credenciais e
+      // obriga alguém a ler um QR code novo. Logar só o sessionId deixava a
+      // pessoa sem saber SE foi desvinculação de verdade no celular ou o
+      // `Stream Errored (conflict)` de outro aparelho pendurado em "Aparelhos
+      // conectados" — que o Baileys também reporta como loggedOut, e cuja
+      // solução é completamente diferente.
+      this.logger.error(
+        { sessionId, statusCode, motivo: error?.message ?? 'sem detalhe' },
+        'Sessão desvinculada no aparelho. É preciso ler o QR code.',
+      );
 
       return;
     }
