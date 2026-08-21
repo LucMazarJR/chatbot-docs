@@ -1,10 +1,10 @@
-# Handoff — continuar o projeto em outra máquina
+# Handoff — estado do projeto e como retomar
 
-> **Como usar:** clone o repositório no notebook, abra o Claude Code na pasta do projeto e cole:
+> **Como usar:** abra o Claude Code na pasta do projeto e cole:
 >
-> *"Leia `docs/handoff-notebook.md`. Estou retomando este projeto numa máquina nova, do zero. Me guie a partir da seção 'Passo a passo no notebook'. Modo mentor: me explique o caminho e deixe eu executar, não implemente por mim."*
+> *"Leia `docs/handoff-notebook.md`. Estou retomando este projeto. Me guie a partir da seção 'Subir tudo do zero'. Modo mentor: me explique o caminho e deixe eu executar, não implemente por mim."*
 >
-> Última sessão: 12/08/2026. Máquina anterior: Windows 11 + PowerShell 5.1 + Docker Desktop.
+> Última sessão: **21/08/2026**. Máquina: Windows 11 + PowerShell 5.1 + Docker Desktop.
 
 ---
 
@@ -14,265 +14,218 @@ Chatbot de saúde no WhatsApp do **PET-SAÚDE** (Programa de Educação pelo Tra
 
 **Situação:** fase de teste interna. O grupo testa antes de qualquer atendimento real.
 
-**Arquitetura:**
-
 ```
 WhatsApp ──> whatsapp-gateway (NestJS + Baileys) ──webhook──> n8n ──> AI Agent (Gemini)
                     ▲                                                      │
                     └──────── POST /api/v1/messages ───────────────────────┘
-                                                                    MongoDB Atlas (RAG)
-                                                                    Redis (memória)
+                                                              MongoDB Atlas (FAQs + vetores)
+                                                              Redis (memória de conversa)
+
+Dashboard-PetSaude (repositório separado)
+   front (TanStack Start) ──> back (NestJS) ──> MongoDB Atlas  (mesmas FAQs)
+                                            └─> PostgreSQL     (usuários e sessões)
 ```
 
 O gateway é um backend próprio que **substituiu o WAHA**. Ele isola o Baileys atrás da porta `WhatsAppProvider`, entrega ao n8n um envelope canônico estável, e aplica política anti-ban (atraso aleatório, "digitando" simulado, teto por minuto).
 
-Serviços no `docker-compose.yml`: `whatsapp-gateway`, `n8n`, `redis`, `cloudflared`.
+Serviços no `docker-compose.yml`: `whatsapp-gateway`, `n8n`, `redis`, `cloudflared`, `postgres`.
 
-Documentação de referência: [chatbot.md](chatbot.md) (arquitetura + setup), [depende-de-voce.md](depende-de-voce.md) (pendências), [proposta-rag.md](proposta-rag.md) (proposta de RAG determinístico).
+Documentação: [chatbot.md](chatbot.md) (arquitetura do gateway), [depende-de-voce.md](depende-de-voce.md) (decisões pendentes), [proposta-rag.md](proposta-rag.md) (o RAG determinístico, já adotado, com as medições), [faq-scripts.md](faq-scripts.md) (ingestão).
 
 ---
 
-## 2. O que já foi validado e funciona
+## 2. Estado atual
 
-Tudo abaixo foi testado de verdade na máquina anterior, com evidência em log. Não precisa reinvestigar — só reconfirmar depois de subir.
+### A base de FAQs
 
-| Camada | O que foi provado |
+| | |
 |---|---|
-| **Config** | Fail-fast do `env.schema.ts` — a aplicação recusa subir com segredo faltando ou URL malformada |
-| **Boot** | `/health/live` público (fora do prefixo `/api/v1`); `/health/ready` devolve 503 sem sessão e 200 com sessão + Redis |
-| **Auth** | Guard global de `X-Api-Key`: 401 sem header, 200 com. O header aparece `[REDACTED]` no log |
-| **Pareamento** | Sessão `CONNECTED`, número `+5516992286134`. Credenciais persistidas em `wa_sessions` — restart não pede QR |
-| **Envio** | `POST /api/v1/messages` devolve `messageId` real. "Digitando..." aparece no celular antes da mensagem (fila anti-ban funcionando) |
-| **Recepção** | Envelope canônico montado corretamente. **O texto da mensagem nunca vai pro log** — só `textLength` |
-| **Dedupe** | `Mensagem duplicada descartada` aconteceu na prática, sem forçar — o Redis (db 1) pegou uma reentrega do WhatsApp |
-| **Ciclo fechado** | Enviar de volta usando o `chatId` recebido (`2353725993202@lid`) **funciona** — a mensagem chegou |
-| **Retry** | Backoff exponencial visto ao vivo (500→1000→2000ms) quando o n8n devolvia 404 |
-| **Base RAG** | Índice `vector_index_3072` criado no Atlas, 3072 dimensões, cosine, na collection `faq_medicamentos` com ~1000 documentos com `embedding` populado |
+| Documentos | **2451**, todos ativos |
+| Origem | 55 arquivos do Google Drive (pasta `FAQ VALIDADO`) + inserções pelo dashboard |
+| Modelo de embedding | **`gemini-embedding-2`**, 3072 dimensões |
+| Índice no Atlas | `vector_index_3072`, cosine, na collection `ministerio_saude.faq_medicamentos` |
+| Texto embedado | `Assunto: … / Pergunta: … / Resposta: …` — o assunto entra no vetor |
 
-**Não testado ainda:** formatação HTML→WhatsApp, idempotência via `idempotencyKey`, rejeição 400 de campo desconhecido, e **toda a integração com o n8n** (credenciais, importar fluxo, ativar, roteiro de conteúdo).
+### O fluxo do chatbot
+
+Existe **um fluxo só**: o RAG determinístico, em [n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json), na rota `/webhook/whatsapp`.
+
+```
+Webhook → Dados → Switch → Buscar FAQs → Montar contexto → AI Agent → Enviar resposta
+                            (mode: load)     (Code)
+```
+
+- Chat: `gemini-3.1-flash-lite` (cota gratuita de 500/dia)
+- Embeddings: `gemini-embedding-2` — **precisa ser o mesmo da base**
+- `topK: 10`, `preFilter: {"isActive": true}`
+- Memória: Redis db 0, janela de 4 mensagens, TTL 1h
+
+### O dashboard
+
+Repositório **separado**: `Dashboard-PetSaude/`, com git e remote próprios ([LucMazarJR/Dashboard-PetSaude](https://github.com/LucMazarJR/Dashboard-PetSaude)). O `.gitignore` da raiz o ignora de propósito.
+
+- **back** — NestJS na porta 3333. FAQs no Mongo, identidade no Postgres
+- **front** — TanStack Start na 5173 (a 3000 é do gateway)
+- Login individual com JWT em cookie httpOnly, três papéis: `admin`, `editor`, `leitor`
+- Paginação no servidor em todas as listagens
 
 ---
 
-## 3. O que NÃO sobrevive à troca de máquina
+## 3. Subir tudo do zero
 
-Os volumes Docker ficam na máquina antiga. No notebook você recomeça:
-
-| Volume | Conteúdo | Consequência |
-|---|---|---|
-| `wa_sessions` | Credenciais do WhatsApp | **Precisa parear de novo** (QR novo) |
-| `n8n_data` | Fluxos e credenciais do n8n | Recadastrar as 4 credenciais e reimportar o fluxo (o JSON está no repo) |
-| `redis_data` | Memória de conversa + dedupe | Irrelevante, se reconstrói sozinho |
-
-**Persiste na nuvem, não se perde:** o MongoDB Atlas com o índice `vector_index_3072` e os ~1000 documentos com embeddings. Essa foi a parte mais trabalhosa e ela **já está pronta** — não precisa rodar `enviar_dados.py` de novo.
-
-**Leve à mão:** o arquivo `.env` da raiz (não é versionado). Ele tem os 4 segredos gerados e os valores do Cloudflare. Não leve o `.env.bak.waha` — é backup da configuração antiga do WAHA, é lixo.
-
----
-
-## 4. Passo a passo no notebook
-
-### 0. Antes de sair da máquina antiga
+### 3.1 Infraestrutura
 
 ```powershell
-git add .env.example .gitignore docs/handoff-notebook.md
-git commit -m "docs: handoff + env vars faltantes no example"
-git push
-```
-
-Sem isso, este documento e as correções não chegam no notebook. E copie o `.env` para um lugar seguro (pendrive, gerenciador de senhas — **não** por e-mail ou chat).
-
-### 1. Preparar o ambiente
-
-- Docker Desktop instalado **e rodando** (o daemon precisa estar ativo, não só instalado)
-- `git clone` do repositório
-- Colocar o `.env` na raiz do projeto
-- Node **não é necessário** — o build acontece dentro do container. Só instale (v22) se quiser rodar `npm test` localmente; o CI já roda lint, typecheck, unitários e e2e a cada push
-
-### 2. Validar a configuração antes de subir
-
-```powershell
-docker compose config --quiet
-```
-
-Silêncio = passou. Se faltar variável obrigatória, o compose reclama aqui em 1 segundo, em vez de você descobrir com container reiniciando em loop.
-
-### 3. Subir
-
-```powershell
-docker compose up -d --build
+docker compose up -d
 docker compose ps
 curl.exe http://localhost:3000/health/live
 ```
 
-### 4. ⚠️ Antes de parear: limpar os aparelhos conectados
+⚠️ Se o Postgres não subir com erro de *"socket forbidden"*, a porta 5432 está ocupada por uma instalação nativa. Troque `POSTGRES_HOST_PORT` no `.env` (ex.: `55432`) e ajuste o `DATABASE_URL` do dashboard.
 
-No celular: **WhatsApp → Configurações → Aparelhos conectados → desconectar todos.**
+### 3.2 Sessão do WhatsApp
 
-Isso não é opcional. Na sessão anterior, aparelhos antigos pendurados causaram um `Stream Errored (conflict)` que derrubou a sessão **93 milissegundos depois de conectar** — e o gateway apagou as credenciais automaticamente. Ver a seção 5.
+As credenciais vivem no volume `wa_sessions` e sobrevivem a restart. Se precisar parear de novo:
 
-### 5. Parear
+1. **No celular: WhatsApp → Aparelhos conectados → desconectar todos.** Não é opcional — ver armadilha na seção 5
+2. Pegue o QR: o ASCII **não** sai no log com `NODE_ENV=production`. Use o PNG:
 
-O QR **não aparece desenhado no log** com `NODE_ENV=production` (que é o padrão do compose). Duas opções:
-
-**Opção A — QR no terminal (mais confortável):** troque `NODE_ENV: production` por `development` no [docker-compose.yml](../docker-compose.yml), suba de novo, e o QR sai em ASCII, redesenhando sozinho a cada renovação:
-```powershell
-docker compose up -d whatsapp-gateway
-docker compose logs -f whatsapp-gateway
-```
-Esse flag só afeta duas coisas: o QR ASCII e o `pino-pretty` (log legível). Nada de segurança ou comportamento. **Volte para `production` depois de parear.**
-
-**Opção B — PNG:**
 ```powershell
 $KEY = ((Get-Content .env | Select-String '^GATEWAY_API_KEY=') -split '=',2)[1].Trim()
 curl.exe -sS -f -H "X-Api-Key: $KEY" "http://localhost:3000/api/v1/sessions/default/qr?format=png" -o qr.png
 if ($?) { (Get-Item qr.png).Length; start qr.png }
 ```
-Se o arquivo tiver ~200 bytes, é JSON de erro com extensão `.png`, não imagem. QR real tem alguns KB.
 
-O QR expira em segundos — tenha o celular na mão antes.
+Alguns KB = QR real. ~200 bytes = JSON de erro com extensão `.png`.
 
-### 6. Confirmar que a conexão *sustenta*
-
-Não basta ver `CONNECTED` uma vez. Espere ~30 segundos e cheque:
+3. Confirme que **sustenta** (espere ~30s):
 
 ```powershell
 curl.exe -s -H "X-Api-Key: $KEY" http://localhost:3000/api/v1/sessions/default
 curl.exe -s -o nul -w "ready: HTTP %{http_code}" http://localhost:3000/health/ready
 ```
 
-Quer `"status":"CONNECTED"` **e** `ready: HTTP 200`.
-
-### 7. Revalidar envio e recepção (rápido)
-
-Helper para PowerShell — o `GetBytes` evita que acento vire `jejum`:
-
-```powershell
-function Send-Wa($to, $text, $extra = @{}) {
-  $KEY = ((Get-Content .env | Select-String '^GATEWAY_API_KEY=') -split '=',2)[1].Trim()
-  $json = (@{ to = $to; text = $text } + $extra) | ConvertTo-Json -Compress
-  Invoke-RestMethod -Uri 'http://localhost:3000/api/v1/messages' -Method Post `
-    -Headers @{ 'X-Api-Key' = $KEY } -ContentType 'application/json; charset=utf-8' `
-    -Body ([System.Text.Encoding]::UTF8.GetBytes($json))
-}
-```
-
-| Teste | Comando | Esperado |
-|---|---|---|
-| Envio | `Send-Wa '55DDNUMERO' 'Teste'` | `status: sent`, mensagem chega |
-| Formatação | `Send-Wa '55DDNUMERO' '**negrito** e <b>tag</b> e # Titulo'` | Chega `*negrito*`, `*tag*`, `*Titulo*` — **nenhuma tag literal** |
-| Idempotência | Mesmo comando 2× com `@{ idempotencyKey = 'teste-1' }` | 2ª volta `status: duplicate`, sem mensagem nova |
-| Contrato | `Send-Wa '55DDNUMERO' 'oi' @{ foo = 'bar' }` | **400** |
-| Recepção | Mandar mensagem de outro celular | Log com `Mensagem recebida` e `textLength` (sem o texto) |
-
 > ⚠️ **Nunca** use `DELETE /api/v1/sessions/default` — apaga as credenciais e exige QR novo.
 
-### 8. Camada 7 — n8n (é aqui que a sessão anterior parou)
+### 3.3 Dashboard
 
-Pegue os segredos:
 ```powershell
-((Get-Content .env | Select-String '^N8N_WEBHOOK_TOKEN=') -split '=',2)[1].Trim()
-((Get-Content .env | Select-String '^REDIS_PASSWORD=') -split '=',2)[1].Trim()
+cd Dashboard-PetSaude/back
+# copie .env.example para .env e preencha
+pnpm install
+pnpm run migration:run
+pnpm run seed:admin      # usa ADMIN_NAME, ADMIN_EMAIL e ADMIN_PASSWORD do .env
+pnpm run start:dev
 ```
 
-Em `http://localhost:5678`, cadastre 4 credenciais:
+```powershell
+cd Dashboard-PetSaude/front
+# copie .env.example para .env (VITE_API_BASE_URL e SESSION_SECRET)
+npx vite dev --port 5173
+```
 
-| Credencial | Valores |
+O seed é **idempotente**: se já houver usuário, ele não faz nada. A senha do admin é provisória — a troca é exigida no primeiro acesso.
+
+### 3.4 Ingestão de novas FAQs
+
+Só é necessária quando entram arquivos novos no Drive. A base atual já está completa.
+
+```powershell
+cd scripts
+python enviar_dados.py
+# quantos ficaram sem vetor:
+python -c "import os;from dotenv import load_dotenv;from pymongo import MongoClient;load_dotenv();c=MongoClient(os.getenv('MONGODB_URI'))['ministerio_saude']['faq_medicamentos'];print('sem vetor:',c.count_documents({'embedding':None}))"
+python gerar_embeddings.py   # repita até zerar
+```
+
+---
+
+## 4. A regra que quebra tudo em silêncio
+
+**O modelo de embedding precisa ser idêntico em três lugares.** Divergir não gera erro em lugar nenhum — a busca simplesmente devolve resultado ruim, ou a FAQ nunca aparece.
+
+| Onde | Configuração |
 |---|---|
-| **Header Auth** | Name: `X-Webhook-Token` · Value: o `N8N_WEBHOOK_TOKEN` |
-| **Redis** | host `redis` · porta `6379` · senha do `.env` · **database `0`** |
-| **MongoDB** | connection string do Atlas |
-| **Google Gemini** | chave de API |
+| Ingestão | `GEMINI_EMBEDDING_MODEL` no `.env` da raiz → [lib/gemini_embendding.py](../scripts/lib/gemini_embendding.py) |
+| Dashboard | `GEMINI_EMBEDDING_MODEL` no `Dashboard-PetSaude/back/.env` |
+| n8n | nó `Embeddings Google Gemini` do fluxo |
 
-> O **db 0** importa: o gateway usa o **db 1** para o dedupe. Mesmo db faz a memória de conversa e a deduplicação se atropelarem.
+Hoje os três estão em `gemini-embedding-2` com `SEMANTIC_SIMILARITY` e 3072 dimensões.
 
-Depois: **Workflows → Import from File** → [n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json). Vincule as credenciais, confirme que **Redis Chat Memory** está ligado ao **AI Agent**, confirme `vectorIndexName: vector_index_3072` e collection `faq_medicamentos` no nó do Vector Store, e **ative** o workflow.
-
-Os nós HTTP usam `{{ $env.GATEWAY_URL }}` e `{{ $env.GATEWAY_API_KEY }}` — o compose já injeta as duas no container do n8n.
-
-### 9. Primeiro teste: "oi"
-
-Mande **"oi"** de outro celular. A saudação está no system prompt e **não passa pelo vector store**, então isola fluxo/credenciais do RAG:
-
-- **Respondeu** → webhook + Header Auth + agente + Gemini + resposta pelo `@lid`: tudo de pé
-- **Não respondeu** → problema é fluxo ou credencial; nem olhe pro Mongo ainda
-
-```powershell
-docker compose logs --tail 30 whatsapp-gateway | Select-String 'Evento entregue ao n8n|NÃO entregue'
-```
-Quer ver `Evento entregue ao n8n`. Se aparecer **404**, o workflow não está ativo. Se **401**, o Header Auth está com nome ou valor errado.
-
-### 10. Roteiro de conteúdo
-
-| # | Mandar | Esperado |
-|---|---|---|
-| 1 | Pergunta que existe na base | Resposta correta, sem tag HTML |
-| 2 | Pergunta fora do escopo | "não encontrei essa informação..." |
-| 3 | **3 perguntas seguidas sobre exames diferentes** | As 3 respostas **diferentes entre si** |
-| 4 | Qualquer pergunta | **Uma única** mensagem de volta |
-| 5 | Áudio ou foto | Aviso de "somente texto" |
-
-O **teste 3** é o mais importante: é o único que valida a hipótese central da [proposta-rag.md](proposta-rag.md) (o "bot viciado") contra a base real.
-
-No teste 1, abra a execução no n8n e veja **se o nó do Vector Store foi realmente chamado**. Ele está em `mode: retrieve-as-tool` — quem decide chamar é o agente, e ele nem sempre chama. Isso é o problema nº 1 da proposta acontecendo ao vivo.
+Trocar de modelo exige **reindexar as 2451 FAQs** ([reindexar_embeddings.py](../scripts/reindexar_embeddings.py)) e atualizar os três lugares. Não é uma troca de uma linha.
 
 ---
 
 ## 5. Armadilhas já descobertas
 
-Cada uma dessas custou tempo na sessão anterior. Não repita.
+Cada uma custou tempo. Não repita.
 
-**QR ASCII não sai no log em produção.** O [baileys.provider.ts:256](../backend/src/channels/whatsapp/adapters/baileys/baileys.provider.ts#L256) só desenha o ASCII `if (!this.config.isProduction)`, e o compose fixa `NODE_ENV: production`. O [chatbot.md:201-204](chatbot.md#L201-L204) promete o contrário — **a documentação está errada nesse ponto.**
+**URI do Mongo sem nome de banco.** `mongodb+srv://...mongodb.net/?appName=x` faz o driver assumir `test` — e existe um `test.faq_medicamentos` com 2 documentos de lixo. A aplicação funciona, mostra 2 FAQs em vez de 2451, e não dá erro. Já derrubou o n8n e quase derrubou o dashboard.
 
-**`curl --output` grava erro como imagem.** Um 401 vira um `qr.png` de 234 bytes com JSON dentro, que nenhum visualizador abre. Sempre cheque o tamanho.
+**QR ASCII não sai no log em produção.** O [baileys.provider.ts:256](../backend/src/channels/whatsapp/adapters/baileys/baileys.provider.ts#L256) só desenha o ASCII `if (!this.config.isProduction)`.
 
-**Conflito de aparelhos apaga as credenciais.** Se houver mais de uma sessão pendurada em "Aparelhos conectados", o WhatsApp derruba uma com `Stream Errored (conflict)`. O gateway classifica isso como `loggedOut`, chama `authState.clear()` e **apaga as credenciais** ([baileys.provider.ts:301-307](../backend/src/channels/whatsapp/adapters/baileys/baileys.provider.ts#L301-L307)). Sintoma: `CONNECTED` seguido de "Sessão desvinculada" em menos de 1 segundo.
+**`curl --output` grava erro como imagem.** Um 401 vira um `qr.png` de 234 bytes que nenhum visualizador abre. Cheque o tamanho.
 
-**LID: `phoneE164` e `pushName` vêm `null`.** O WhatsApp migrou para endereçamento LID (`...@lid`) e o número real não vem mais no evento. O mapper já previu isso (`pickPhoneJid` procura em `remoteJidAlt`), mas o Baileys não manda o campo. **Isso não quebra o fluxo** — foi verificado que o n8n não usa nenhum dos dois. E enviar de volta para um `@lid` funciona.
+**Conflito de aparelhos apaga as credenciais.** Mais de uma sessão pendurada em "Aparelhos conectados" faz o WhatsApp derrubar uma com `Stream Errored (conflict)`. O gateway classifica como `loggedOut` e **apaga as credenciais**. Sintoma: `CONNECTED` seguido de "Sessão desvinculada" em menos de 1 segundo.
 
-**PowerShell 5.1 e acentos.** `Invoke-RestMethod` com `-Body` string manda em ANSI; acento vira mojibake no celular. Use `[System.Text.Encoding]::UTF8.GetBytes($json)`.
+**LID: `phoneE164` e `pushName` vêm `null`.** O WhatsApp migrou para endereçamento LID (`...@lid`). Não quebra nada — responder para o `@lid` funciona.
 
-**A função `Send-Wa` some ao fechar o terminal.** Ela vive só na sessão do PowerShell onde foi colada, e lê o `.env` por caminho relativo — precisa estar em `c:\projetos\chatbot`.
+**`N8N_BLOCK_ENV_ACCESS_IN_NODE` bloqueia `$env` nos nós.** Com ele ligado, o fluxo executa, o agente responde, gasta cota — e a resposta morre no nó HTTP, sem erro visível no gateway. O compose já define `false`.
+
+**pnpm 11 recusa rodar scripts com builds pendentes.** Migrations, seed e build falham com `ERR_PNPM_IGNORED_BUILDS`, que não menciona nenhum dos três. A aprovação vive no `pnpm-workspace.yaml`.
+
+**Credencial gravada pela tela do n8n pode não colar.** Aconteceu com o Header Auth: a tela salvava, e o webhook continuava devolvendo 403. O caminho confiável é o CLI:
+
+```powershell
+docker compose exec -T n8n n8n import:credentials --input=/tmp/cred.json
+```
+
+**Importar workflow pelo CLI o desativa.** O `import:workflow` respeita o campo `active` do JSON, e depois é preciso `publish:workflow` **e reiniciar o n8n** para a rota voltar a responder.
 
 ---
 
-## 6. Dívidas técnicas abertas
+## 6. Como verificar que está tudo certo
 
-Nenhuma bloqueia o teste. Todas foram descobertas na sessão anterior e ainda **não foram corrigidas**.
+Nenhum destes gasta cota do Gemini:
+
+```powershell
+# fluxo ativo e rota registrada (403 = existe e está protegida)
+docker compose exec -T n8n n8n list:workflow --active=true
+curl.exe -s -o nul -w "%{http_code}" -X POST http://localhost:5678/webhook/whatsapp
+
+# modelos gravados no fluxo
+docker compose exec -T n8n sh -c "n8n export:workflow --id=VsDU20sSLz8DRHqk --output=/tmp/v.json >/dev/null 2>&1; grep -o 'modelName\":\"[^\"]*\"' /tmp/v.json"
+
+# para onde o gateway entrega
+docker compose exec -T whatsapp-gateway printenv N8N_WEBHOOK_URL
+
+# integridade da base
+cd scripts; python -c "import os;from dotenv import load_dotenv;from pymongo import MongoClient;load_dotenv();c=MongoClient(os.getenv('MONGODB_URI'))['ministerio_saude']['faq_medicamentos'];print('total',c.count_documents({}),'| modelo 2:',c.count_documents({'embedding_model':'gemini-embedding-2'}),'| sem vetor:',c.count_documents({'embedding':None}))"
+```
+
+---
+
+## 7. Dívidas técnicas abertas
 
 | # | Dívida | Onde | Impacto |
 |---|---|---|---|
-| 1 | 🔴 `limpar_banco.py` recria o índice com **768** dimensões, incompatível com os vetores de 3072 | [limpar_banco.py:34](../scripts/limpar_banco.py#L34) | Rodar o script quebra a busca **em silêncio**. **Não rode.** |
-| 2 | 🟠 Nome do índice divergente: o n8n consulta `vector_index_3072`, os scripts criam `vector_index` | [enviar_dados.py:105](../scripts/enviar_dados.py#L105) | Recriar o ambiente do zero exige criar o índice à mão. Foi o que aconteceu |
-| 3 | 🟡 Três variáveis do schema não são repassadas ao container | [docker-compose.yml:24-49](../docker-compose.yml#L24-L49) | `N8N_WEBHOOK_TIMEOUT_MS`, `N8N_WEBHOOK_MAX_RETRIES` e `DEDUPE_TTL_SECONDS` no `.env` não têm efeito — valem os defaults |
-| 4 | 🟡 O log da desvinculação não registra o motivo | [baileys.provider.ts:304](../backend/src/channels/whatsapp/adapters/baileys/baileys.provider.ts#L304) | O evento mais destrutivo do sistema (apaga credenciais) não diz por que aconteceu. Loga só `{ sessionId }` |
-| 5 | 🟡 Envio não valida se o número existe no WhatsApp | [outbound.service.ts](../backend/src/outbound/outbound.service.ts) | Número malformado devolve `messageId` normalmente e a mensagem some. O Baileys tem `onWhatsApp()` para checar |
-| 6 | 🟡 Documentação do QR incorreta | [chatbot.md:201-204](chatbot.md#L201-L204) | Ver seção 5 |
-
-Sugestão: resolver 1 e 2 juntos, num commit só, depois que o bot estiver respondendo.
+| 1 | 🔴 `limpar_banco.py` recria o índice com **768** dimensões | [limpar_banco.py:34](../scripts/limpar_banco.py#L34) | Rodar quebra a busca **em silêncio**. **Não rode.** |
+| 2 | 🟠 O gateway loga o `X-Webhook-Token` em texto claro quando a entrega ao n8n falha | dispatcher do gateway | Segredo em log |
+| 3 | 🟡 Três variáveis do schema não chegam ao container | [docker-compose.yml](../docker-compose.yml) | `N8N_WEBHOOK_TIMEOUT_MS`, `N8N_WEBHOOK_MAX_RETRIES` e `DEDUPE_TTL_SECONDS` não têm efeito |
+| 4 | 🟡 O log da desvinculação não registra o motivo | baileys.provider.ts | O evento que apaga credenciais não diz por quê |
+| 5 | 🟡 Envio não valida se o número existe no WhatsApp | outbound.service.ts | Número malformado devolve `messageId` e a mensagem some |
+| 6 | 🟡 `task_type` da busca no n8n não é controlado | nó Embeddings | A ingestão usa `SEMANTIC_SIMILARITY`; o nó usa o padrão dele |
 
 ---
 
-## 7. Decisões que dependem de você
+## 8. Decisões que dependem de você
 
-Detalhamento completo em [depende-de-voce.md](depende-de-voce.md).
+Detalhamento em [depende-de-voce.md](depende-de-voce.md).
 
 | Decisão | Por que agora |
 |---|---|
-| **Nome canônico do índice vetorial** | A plataforma de gestão de FAQs que o grupo está construindo vai precisar criar e consultar esse índice. Fixar o nome agora evita que ela nasça com a mesma divergência |
-| **Cota / billing do Gemini** | O modelo é `gemini-2.5-flash-lite` na cota gratuita. Com o grupo inteiro testando, ela acaba — e o bot simplesmente para de responder. A credencial cadastrada no n8n é a chave pessoal de outra pessoa ("Felipe Gemini") |
-| **Tier do MongoDB Atlas** | Se for M0 (gratuito), há limite de conexões simultâneas |
+| **Billing do Gemini** | A cota gratuita de embeddings é de **1000/dia por projeto**. O fluxo determinístico gasta 1 embedding por mensagem, então esse é o teto diário de conversas. Reindexar exige 2451 chamadas |
+| **Condensação de query** | "e quanto tempo?" busca com a frase crua e recupera lixo. A correção dobra as chamadas de LLM por mensagem — só vale se o teste mostrar que acontece com frequência |
+| **Tier do MongoDB Atlas** | Se for M0, há limite de conexões simultâneas e de índices de busca |
 
-Itens de prazo longo (número institucional, API oficial da Meta, hospedagem em VPS, LGPD das conversas) estão em [depende-de-voce.md](depende-de-voce.md#quando-sair-do-teste) — nenhum bloqueia o teste, mas a verificação da Meta leva semanas.
-
----
-
-## 8. Alterações feitas na sessão anterior
-
-Commitadas (ou a commitar antes de migrar):
-
-- **`.env.example`** — documentadas 3 variáveis que existiam no `env.schema.ts` mas não no exemplo, com a nota de que o compose ainda não as repassa; e a nota sobre apontar `N8N_WEBHOOK_URL` para o fluxo RAG
-- **`.gitignore`** — `.env.*` com exceção `!.env.example`. Antes, um backup `.env.bak.waha` ficava como untracked e podia ir para o commit com segredo dentro
-
-Não versionado:
-
-- **`.env`** — reescrito por completo. O anterior ainda era da era WAHA (`WAHA_API_KEY`, `WHATSAPP_SWAGGER_*`) e não tinha nenhuma variável nova, então `docker compose up` falharia de imediato. Os 4 segredos foram gerados novos e os valores do Cloudflare preservados
+Itens de prazo longo (número institucional, API oficial da Meta, hospedagem, LGPD das conversas) estão em [depende-de-voce.md](depende-de-voce.md#quando-sair-do-teste). A verificação da Meta leva semanas.
