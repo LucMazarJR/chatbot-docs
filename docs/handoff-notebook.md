@@ -109,22 +109,42 @@ curl.exe -s -o nul -w "ready: HTTP %{http_code}" http://localhost:3000/health/re
 
 ### 3.3 Dashboard
 
-```powershell
-cd Dashboard-PetSaude/back
-# copie .env.example para .env e preencha
-pnpm install
-pnpm run migration:run
-pnpm run seed:admin      # usa ADMIN_NAME, ADMIN_EMAIL e ADMIN_PASSWORD do .env
-pnpm run start:dev
-```
+Duas formas. A escolha é entre conveniência e velocidade de iteração.
+
+**No compose** — sobe junto com o resto, sem terminal separado:
 
 ```powershell
+# no .env: COMPOSE_PROFILES=dashboard
+docker compose up -d
+# API em 127.0.0.1:3333, painel em 127.0.0.1:5173
+```
+
+As migrations rodam sozinhas no boot (`DB_RUN_MIGRATIONS=true`). O primeiro
+administrador ainda precisa ser criado uma vez:
+
+```powershell
+docker compose exec dashboard-api node dist/database/seeds/create-admin.js
+```
+
+**Localmente** — o que você quer ao mexer no código, porque tem hot reload:
+
+```powershell
+cd Dashboard-PetSaude/back
+pnpm install
+pnpm run migration:run
+pnpm run seed:admin
+pnpm run start:dev
+
+# noutro terminal
 cd Dashboard-PetSaude/front
-# copie .env.example para .env (VITE_API_BASE_URL e SESSION_SECRET)
 npx vite dev --port 5173
 ```
 
-O seed é **idempotente**: se já houver usuário, ele não faz nada. A senha do admin é provisória — a troca é exigida no primeiro acesso.
+⚠️ **As duas formas disputam as portas 3333 e 5173.** Se o container estiver de
+pé, o `pnpm start:dev` falha com porta ocupada — pare um antes de subir o outro.
+
+O seed é **idempotente**: se já houver usuário, não faz nada. A senha do admin é
+provisória — a troca é exigida no primeiro acesso.
 
 ### 3.4 Ingestão de novas FAQs
 
