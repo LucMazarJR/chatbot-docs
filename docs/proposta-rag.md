@@ -301,3 +301,45 @@ está funcionando".
 No fluxo determinístico o `QtdTrechos: 0` denuncia na hora. Independente do
 resultado da comparação de qualidade, **a busca no fluxo principal é
 observável** — e essa é uma vantagem que não estava no documento original.
+
+---
+
+## Resultado da reindexação — 21/08/2026
+
+As 2451 FAQs foram reindexadas com **`gemini-embedding-2`**, com o assunto
+dentro do texto embedado. Medições antes e depois, nas mesmas duas consultas:
+
+**"preciso de jejum para o exame de zinco?"**
+
+| | Antes (`embedding-001`, sem assunto) | Depois (`embedding-2`, com assunto) |
+|---|---|---|
+| 1º colocado | `dosagem de zinco` | `dosagem de zinco` |
+| Top 5 | 5 exames diferentes, todos com a mesma pergunta | **3 dos 5 são do zinco** |
+| Zinco vs paratormônio | score **idêntico**: 0.9391 e 0.9391 | 0.9004 e 0.8631 |
+| Faixa 1º→5º | 0.0084 | **0.0524** |
+
+**"onde retiro medicamento da farmácia popular?"**
+
+| | Antes | Depois |
+|---|---|---|
+| Posição do conteúdo correto | 5º e 6º — fora do `topK: 5` de então | **2º, 3º e 4º** |
+
+O ganho decisivo é a **discriminação**: a faixa entre o primeiro e o quinto
+colocado ficou 6× mais larga. Antes o índice não distinguia zinco de
+paratormônio porque o embedding era gerado só de `pergunta + resposta`, e os
+textos dos dois exames são idênticos — o desempate era arbitrário. Com o
+assunto dentro do texto, exames diferentes deixam de colidir.
+
+### Consistência entre os três lugares
+
+O modelo de embedding precisa ser o mesmo na ingestão, no dashboard e no nó do
+n8n. Uma divergência aqui não gera erro: a busca simplesmente devolve
+resultados ruins, porque pergunta e documentos caem em espaços vetoriais
+diferentes.
+
+Foi o que se encontrou na instância local depois da reindexação: o nó
+`Embeddings Google Gemini` estava com os parâmetros **vazios**, usando o modelo
+padrão do nó enquanto a base já estava no `gemini-embedding-2`. A instância
+também tinha dois fluxos ativos, com modelos de chat diferentes entre si. Os
+dois problemas foram corrigidos alinhando a instância ao arquivo versionado em
+[n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json).
