@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as crypto from 'crypto';
@@ -88,6 +88,19 @@ export class FaqsService {
     private generateHash(pergunta: string, resposta: string): string {
         const conteudo = `${pergunta}|${resposta}`;
         return crypto.createHash('md5').update(conteudo, 'utf8').digest('hex');
+    }
+
+    // LÓGICA DO LUCIANO: guarda de sanidade mínima. Pergunta e resposta iguais
+    // não são um FAQ, por definição — mas nada aqui verificava isso. Foi assim
+    // que uma FAQ de teste (pergunta, resposta e categoria literalmente
+    // "teste") criada pelo dashboard chegou a ser indexada e citada como
+    // trecho numa conversa real com um cidadão. Fica antes da chamada ao
+    // Gemini nos dois métodos, para também não gastar embedding com conteúdo
+    // que vai ser rejeitado.
+    private assertConteudoValido(question: string, answer: string): void {
+        if (question.trim().toLowerCase() === answer.trim().toLowerCase()) {
+            throw new BadRequestException('A pergunta e a resposta não podem ser iguais.');
+        }
     }
 
     /** Sentinela usada pelo front para pedir as FAQs sem categoria. */
@@ -216,6 +229,7 @@ export class FaqsService {
 
         const question = data.question || "";
         const answer = data.answer || "";
+        this.assertConteudoValido(question, answer);
         const contentHash = this.generateHash(question, answer);
 
         let embeddingVector: number[] = [];
@@ -275,6 +289,7 @@ export class FaqsService {
         const newTags = data.tags !== undefined ? data.tags : (data.metadata?.tags !== undefined ? data.metadata.tags : faq.tags);
         const newSource = data.source !== undefined ? data.source : (data.metadata?.source !== undefined ? data.metadata.source : faq.source);
 
+        this.assertConteudoValido(newQuestion, newAnswer);
         const newContentHash = this.generateHash(newQuestion, newAnswer);
 
         let newEmbedding = faq.embedding;

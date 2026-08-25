@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 
@@ -137,5 +138,94 @@ describe('FaqsService — listagem paginada', () => {
 
     // `?search=` casaria com tudo e mascararia o filtro de categoria.
     expect(ultimaConsulta.$or).toBeUndefined();
+  });
+});
+
+/**
+ * Guarda de conteúdo: pergunta e resposta iguais não são um FAQ.
+ *
+ * LÓGICA DO LUCIANO: não havia NENHUMA validação de conteúdo antes desta
+ * guarda — foi assim que uma FAQ com pergunta, resposta e categoria
+ * literalmente "teste" foi criada pelo dashboard, indexada, e citada como
+ * trecho numa conversa real com um cidadão.
+ */
+describe('FaqsService — validação de conteúdo', () => {
+  let service: FaqsService;
+  let gerarEmbedding: jest.Mock;
+  let FakeFaqModel: any;
+
+  beforeEach(async () => {
+    gerarEmbedding = jest.fn().mockResolvedValue([0.1, 0.2, 0.3]);
+
+    // `new this.faqModel(...)` em createFaq exige um construtor, não um objeto
+    // plano — por isso este mock é uma função, diferente do usado na
+    // descrição acima (que só precisa de `find`/`countDocuments`).
+    FakeFaqModel = jest.fn().mockImplementation(function (this: any, doc: any) {
+      Object.assign(this, doc);
+      this._id = { toString: () => 'faq-nova' };
+      this.save = jest.fn().mockResolvedValue(this);
+    });
+    FakeFaqModel.findById = jest.fn();
+
+    const modulo: TestingModule = await Test.createTestingModule({
+      providers: [
+        FaqsService,
+        { provide: getModelToken(Faq.name), useValue: FakeFaqModel },
+        { provide: ActivityService, useValue: { logActivity: jest.fn() } },
+        { provide: GeminiService, useValue: { gerarEmbedding } },
+      ],
+    }).compile();
+
+    service = modulo.get(FaqsService);
+  });
+
+  it('createFaq rejeita quando pergunta e resposta sao iguais', async () => {
+    await expect(
+      service.createFaq({ question: 'teste', answer: 'teste' }, { name: 'Alguem' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('createFaq rejeita ignorando espacos e maiusculas/minusculas', async () => {
+    await expect(
+      service.createFaq({ question: '  Teste  ', answer: 'teste' }, { name: 'Alguem' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('createFaq nao gasta embedding quando o conteudo e rejeitado', async () => {
+    await service
+      .createFaq({ question: 'teste', answer: 'teste' }, { name: 'Alguem' })
+      .catch(() => {});
+
+    // A guarda fica ANTES da chamada ao Gemini nos dois metodos, de proposito.
+    expect(gerarEmbedding).not.toHaveBeenCalled();
+  });
+
+  it('createFaq aceita pergunta e resposta diferentes normalmente', async () => {
+    const resultado = await service.createFaq(
+      { question: 'Qual o horario da UBS?', answer: 'Das 7h as 19h.' },
+      { name: 'Alguem' },
+    );
+
+    expect(resultado.ok).toBe(true);
+    expect(gerarEmbedding).toHaveBeenCalledTimes(1);
+  });
+
+  it('updateFaq rejeita quando a edicao deixaria pergunta e resposta iguais', async () => {
+    FakeFaqModel.findById.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({
+        question: 'Qual o horario da UBS?',
+        answer: 'Das 7h as 19h.',
+        category: 'unidades',
+        tags: [],
+        source: '',
+        content_hash: 'hash-antigo',
+        embedding: [],
+        save: jest.fn(),
+      }),
+    });
+
+    await expect(
+      service.updateFaq('id-existente', { answer: 'Qual o horario da UBS?' }, { name: 'Alguem' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
