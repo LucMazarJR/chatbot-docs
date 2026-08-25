@@ -359,3 +359,76 @@ não a tirava do índice, e sem pré-filtro ela seguia disponível para o agente
 Uma FAQ errada, desatualizada ou removida de propósito continuaria em
 circulação, com a equipe convencida de que a tinha excluído. É a diferença
 entre um botão que faz o que promete e um que só parece fazer.
+
+---
+
+## Teste real pelo WhatsApp e o incidente do "15 dias" — 21/08/2026
+
+Primeiro roteiro completo (`oi` → zinco → farmácia popular → consulta
+odontológica → `"e quanto tempo?"` → pergunta fora de escopo → áudio) contra a
+configuração atual (`gemini-3.1-flash-lite`, `gemini-embedding-2`,
+`preFilter: isActive`, base já reindexada). A maior parte foi bem: as três
+perguntas de conteúdo recuperaram e responderam corretamente, a pergunta fora
+de escopo foi recusada com educação, e o áudio caiu no aviso de "somente
+texto" sem gastar cota.
+
+**Um resultado expôs um problema real.** Na pergunta sobre "quanto tempo"
+(deliberadamente sem assunto explícito, para depender só da memória), o bot
+respondeu:
+
+> *"Desculpe — não encontrei essa informação... O tempo de espera pode variar
+> dependendo do serviço solicitado, pois alguns possuem prazos definidos
+> (como 15 dias para certos processos administrativos)..."*
+
+O "15 dias" é real — existe uma FAQ sobre prazo de resposta de **recurso
+contra auto da Vigilância Sanitária** cuja resposta cita esse número. A
+pergunta era sobre agendamento odontológico. O bot não inventou o número; ele
+pegou um fato verdadeiro de um trecho sobre outro assunto e o apresentou como
+se fosse pertinente, na mesma resposta em que admitia não saber. Isso é mais
+perigoso que uma alucinação óbvia: um número real e verossímil, fora de
+contexto, não dá ao cidadão nenhum sinal de alerta.
+
+### A causa, com números
+
+Nas perguntas que foram bem, o top 4 de trechos recuperados ficou entre
+**0.85 e 0.93** de score. Na pergunta problemática e na fora de escopo, o top
+4 ficou em **0.75–0.79**. O nó `Montar contexto` não olhava `score` em nenhum
+momento — todo trecho que a busca devolvia entrava no prompt, bom ou ruim. A
+única barreira era uma instrução de texto no system prompt ("Ignore trechos
+que não tenham relação com a pergunta"), que o `gemini-3.1-flash-lite` — modelo
+pequeno, escolhido pela cota gratuita de 500/dia — não seguiu de forma
+confiável neste caso.
+
+### A correção
+
+1. **Filtro de score no `Montar contexto`.** Cada trecho é descartado
+   individualmente se `score < 0.82` (limiar no meio do intervalo observado,
+   com folga para os dois lados — estimativa de 5 consultas, não calibração
+   rigorosa; ajustar observando o campo `score` na aba de execução do n8n).
+   Quando todos os trechos caem abaixo do limiar, `TemContexto` vira `false` e
+   o prompt já sabe responder "não encontrei" — sem nenhum outro ajuste.
+2. **Reforço no system prompt.** Novo item em USO DOS TRECHOS proibindo
+   misturar o texto de "não encontrei" com um fragmento de trecho que fala de
+   outro assunto — defesa em profundidade, para o caso de um modelo pequeno
+   voltar a falhar em ignorar um trecho irrelevante mesmo com o filtro de
+   score no lugar.
+3. **Guarda de conteúdo no dashboard.** O mesmo teste revelou uma FAQ com
+   pergunta, resposta e categoria literalmente `"teste"`, criada pela
+   plataforma sem nenhuma validação, indexada e citada como trecho numa
+   conversa real. `FaqsService.createFaq`/`updateFaq` agora rejeitam
+   (`400 Bad Request`) quando pergunta e resposta normalizadas são iguais —
+   checagem de sanidade mínima, antes mesmo de gastar embedding com conteúdo
+   que vai ser recusado.
+
+### O que fica pendente
+
+- O limiar `0.82` precisa de mais dados reais para ser validado — foi
+  estimado com 5 consultas de um único teste manual.
+- `task_type` assimétrico (`RETRIEVAL_DOCUMENT`/`RETRIEVAL_QUERY`) continua
+  não investigado: não dá para confirmar, sem checar a versão do nó, se
+  `embeddingsGoogleGemini` do n8n expõe essa opção.
+- Um fluxo de revisão para FAQs criadas pelo dashboard (ex.: só valer para o
+  bot após aprovação de um segundo usuário) é decisão de processo da equipe,
+  não uma correção técnica — a guarda de conteúdo fecha o buraco concreto que
+  já causou o incidente, não substitui uma política de revisão se o grupo
+  quiser uma.
