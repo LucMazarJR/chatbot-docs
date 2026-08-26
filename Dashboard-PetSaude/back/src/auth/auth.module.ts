@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { User } from '../users/entities/user.entity';
@@ -28,15 +29,25 @@ import { RolesGuard } from './guards/roles.guard';
                 },
             }),
         }),
+        // LÓGICA DO LUCIANO: limite GLOBAL generoso — paginação e busca com
+        // debounce da tela de FAQs fazem várias chamadas por minuto em uso
+        // normal, e um teto apertado aqui bloquearia gente trabalhando, não
+        // um ataque. A proteção de verdade contra força bruta é o @Throttle
+        // específico no /auth/login (ver auth.controller.ts).
+        ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
     ],
     controllers: [AuthController],
     providers: [
         AuthService,
         // A ORDEM IMPORTA: o RolesGuard lê request.user, que só existe depois
         // que o JwtAuthGuard rodou. Inverter faz toda checagem de papel
-        // acontecer contra undefined.
+        // acontecer contra undefined. O ThrottlerGuard roda antes dos dois —
+        // ele nem olha para request.user — mas por ordem de registro dos
+        // APP_GUARD ele entra depois; NestJS aplica todos, a ordem entre um
+        // rate-limit e uma checagem de token não importa aqui.
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
+        { provide: APP_GUARD, useClass: ThrottlerGuard },
     ],
     exports: [AuthService],
 })
