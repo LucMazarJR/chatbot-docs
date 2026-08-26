@@ -51,6 +51,19 @@ import { UserSession } from './users/entities/user-session.entity';
             ? { rejectUnauthorized: false }
             : false,
         retryAttempts: 3,
+        // LÓGICA DO LUCIANO: pool pequeno de propósito. O padrão do driver pg
+        // é max: 10 — para um dashboard admin com poucos usuários simultâneos
+        // isso é sobra, e cada conexão ociosa é uma conexão que Neon (ou
+        // qualquer Postgres serverless que hiberna por inatividade) tem que
+        // encerrar sozinho ou manter viva sem necessidade. idleTimeoutMillis
+        // fecha o que não está em uso; connectionTimeoutMillis falha rápido
+        // em vez de travar a requisição inteira esperando o compute acordar
+        // além do razoável.
+        extra: {
+          max: 5,
+          idleTimeoutMillis: 30_000,
+          connectionTimeoutMillis: 10_000,
+        },
       }),
       inject: [ConfigService],
     }),
