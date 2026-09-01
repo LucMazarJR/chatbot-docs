@@ -13,10 +13,15 @@ import { getAccessToken } from "./auth.server";
  * reserva, para o `vite dev`, onde `process.env` não é populado pelo `.env` do
  * Vite.
  */
-const API_BASE =
+const API_BASE = (
   process.env.API_BASE_URL ||
   import.meta.env.VITE_API_BASE_URL ||
-  "http://127.0.0.1:3333";
+  "http://127.0.0.1:3333"
+  // Remove a barra final. Sem isto, uma variável de ambiente configurada como
+  // "https://api.exemplo.com/" (barra sobrando) produz "...com//auth/login" —
+  // o Nest não reconhece a rota e devolve "Cannot POST //auth/login", um erro
+  // que não tem nada a ver com o /auth/login em si.
+).replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(
