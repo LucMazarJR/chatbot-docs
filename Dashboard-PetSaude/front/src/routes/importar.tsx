@@ -9,6 +9,8 @@ import { GateShell, usePodeEscrever, useSession } from "@/components/gate";
 import { ModeloBotoes } from "@/components/modelo-botoes";
 import { PreviaImportacao, type FaqEditavel } from "@/components/previa-importacao";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
@@ -174,10 +176,21 @@ function Andamento({ job, ehAdmin, aoParar }: { job: Job; ehAdmin: boolean; aoPa
         </details>
       )}
 
-      {job.estado === "rodando" && (
+      {job.estado === "rodando" ? (
         <Button type="button" variant="outline" size="sm" className="mt-4" onClick={aoParar}>
           <X className="size-4" /> Parar
         </Button>
+      ) : (
+        (job.contadores.inseridas ?? 0) > 0 && (
+          // Terminada a importacao nao havia para onde ir: a pessoa ficava
+          // presa na tela, sem confirmacao visivel de que as perguntas
+          // entraram mesmo na base.
+          <Button asChild variant="outline" size="sm" className="mt-4">
+            <Link to="/" search={{ situacao: "todas" }}>
+              Ver as perguntas na listagem
+            </Link>
+          </Button>
+        )
       )}
     </section>
   );
@@ -203,6 +216,7 @@ function PainelImportacao() {
   const [lendo, setLendo] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [assuntoLote, setAssuntoLote] = useState("");
 
   // Uma importação que já estava rodando quando a tela abriu — inclusive
   // iniciada em outro aparelho. Sem isto, a pessoa tentaria começar outra e
@@ -275,6 +289,9 @@ function PainelImportacao() {
       }
 
       const resultado = await revalidar(saida.faqs);
+      // Propõe o assunto que veio do arquivo, para a pessoa conferir antes de
+      // gravar. Ver o comentário do bloco de assunto na prévia.
+      setAssuntoLote(resultado.itens[0]?.faq.category ?? "");
       toast.success(
         `${resultado.resumo.ok} nova(s), ${resultado.resumo.duplicadas} já existente(s), ` +
           `${resultado.resumo.invalidas} com problema.`,
@@ -303,6 +320,21 @@ function PainelImportacao() {
       return revalidar(comEdicao);
     },
     onError: (erro: Error) => toast.error(erro.message || "Não foi possível revalidar"),
+  });
+
+  const mutAssunto = useMutation({
+    mutationFn: async (assunto: string) => {
+      // Revalida o conjunto inteiro: trocar o assunto pode transformar uma
+      // linha em duplicata de outra, e essa relação só aparece olhando todas.
+      const comAssunto = itens.map((item) => ({
+        ...item.faq,
+        category: assunto,
+        linha: item.linha,
+      }));
+      return revalidar(comAssunto);
+    },
+    onSuccess: () => toast.success("Assunto aplicado a todas as linhas."),
+    onError: (erro: Error) => toast.error(erro.message || "Não foi possível aplicar"),
   });
 
   const mutCommit = useMutation({
@@ -402,6 +434,41 @@ function PainelImportacao() {
             >
               Importar {totalSelecionado > 0 ? `${totalSelecionado} pergunta(s)` : ""}
             </Button>
+          </div>
+
+          {/*
+            LÓGICA DO LUCIANO: o assunto do lote é editável aqui porque, quando
+            o documento não diz qual é, ele vem do NOME DO ARQUIVO. No arquivo
+            real que motivou isto, um .docx baixado duas vezes, o assunto saiu
+            como "violencia contra as mulheres (1)" — com o "(1)" do download
+            duplicado. Isso entraria na base e viraria uma categoria permanente,
+            visível para sempre na tela de assuntos, e ninguém repararia até
+            alguém estranhar a lista.
+          */}
+          <div className="rounded-lg border border-border panel-surface p-4">
+            <Label htmlFor="assunto-do-lote">Assunto de todas estas perguntas</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Quando o documento não indica o assunto, ele é deduzido do nome do arquivo. Confira
+              antes de importar.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Input
+                id="assunto-do-lote"
+                value={assuntoLote}
+                maxLength={60}
+                autoComplete="off"
+                className="w-full sm:w-72"
+                onChange={(e) => setAssuntoLote(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={assuntoLote.trim().length < 2 || rodando || mutEditar.isPending}
+                onClick={() => mutAssunto.mutate(assuntoLote.trim().toLowerCase())}
+              >
+                Aplicar a todas
+              </Button>
+            </div>
           </div>
 
           <PreviaImportacao
