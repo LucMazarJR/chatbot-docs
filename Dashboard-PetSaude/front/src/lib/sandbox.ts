@@ -115,7 +115,7 @@ ${prepararCodigo(codigo)}
 } catch (erro) {
   self.postMessage({
     tipo: "erro",
-    mensagem: "O script nao pode ser carregado.",
+    mensagem: "A regra de leitura tem um erro e nao pode ser aplicada.",
     detalhe: String((erro && erro.stack) || erro),
   });
 }
@@ -125,14 +125,14 @@ self.onmessage = function (evento) {
   try {
     if (pedido.acao === "modelo") {
       if (typeof modelo === "undefined") {
-        throw new Error("O script nao exporta 'modelo'.");
+        throw new Error("A regra de leitura nao descreve o formato dos modelos.");
       }
       self.postMessage({ tipo: "resultado", dados: modelo });
       return;
     }
 
     if (typeof gerarFaqs !== "function") {
-      throw new Error("O script nao exporta a funcao 'gerarFaqs'.");
+      throw new Error("A regra de leitura esta incompleta.");
     }
 
     var saida = gerarFaqs(pedido.entrada) || {};
@@ -176,8 +176,8 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
       encerrar();
       reject(
         new ErroDeScript(
-          `O script passou de ${Math.round(timeoutMs / 1000)}s sem responder e foi interrompido.`,
-          "Procure por um laco que nao termina, ou reduza o tamanho do arquivo.",
+          `A leitura passou de ${Math.round(timeoutMs / 1000)}s sem responder e foi interrompida.`,
+          "Tente um arquivo menor. Se persistir, avise um administrador.",
         ),
       );
     }, timeoutMs);
@@ -190,7 +190,7 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
       encerrar();
       reject(
         new ErroDeScript(
-          "Nao foi possivel iniciar o ambiente de execucao do script.",
+          "Nao foi possivel preparar a leitura do arquivo.",
           erro instanceof Error ? erro.message : String(erro),
         ),
       );
@@ -201,7 +201,7 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
       const dados = evento.data ?? {};
       encerrar();
       if (dados.tipo === "resultado") resolve(dados.dados as T);
-      else reject(new ErroDeScript(dados.mensagem ?? "Falha no script.", dados.detalhe));
+      else reject(new ErroDeScript(dados.mensagem ?? "Falha ao ler o arquivo.", dados.detalhe));
     };
 
     // Erro de sintaxe no script chega por aqui, antes de qualquer mensagem: o
@@ -211,8 +211,8 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
       encerrar();
       reject(
         new ErroDeScript(
-          evento.message || "O script tem um erro que impede a execucao.",
-          evento.lineno ? `Linha ${evento.lineno} do script.` : undefined,
+          evento.message || "A regra de leitura tem um erro que impede a execucao.",
+          evento.lineno ? `Linha ${evento.lineno} da regra.` : undefined,
         ),
       );
     };

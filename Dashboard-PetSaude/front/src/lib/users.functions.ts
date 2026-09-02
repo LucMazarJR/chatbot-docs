@@ -21,8 +21,9 @@ export const createUser = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }: { data: { name: string; email: string; password: string; role: UserRole } }) =>
-    apiFetch<SessionUser>("/users", { method: "POST", body: JSON.stringify(data) }),
+  .handler(
+    async ({ data }: { data: { name: string; email: string; password: string; role: UserRole } }) =>
+      apiFetch<SessionUser>("/users", { method: "POST", body: JSON.stringify(data) }),
   );
 
 export const updateUser = createServerFn({ method: "POST" })

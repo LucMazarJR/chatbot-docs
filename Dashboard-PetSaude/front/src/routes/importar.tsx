@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileUp, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { GateShell, usePodeEscrever } from "@/components/gate";
+import { GateShell, usePodeEscrever, useSession } from "@/components/gate";
 import { ModeloBotoes } from "@/components/modelo-botoes";
 import { PreviaImportacao, type FaqEditavel } from "@/components/previa-importacao";
 import { Button } from "@/components/ui/button";
@@ -50,10 +50,10 @@ function ImportarPage() {
 
 const ROTULO_ESTADO: Record<Job["estado"], string> = {
   rodando: "Gravando…",
-  concluido: "Concluido",
+  concluido: "Concluído",
   parado: "Interrompido",
-  cota_esgotada: "Cota da API esgotada",
-  erro: "Falhou",
+  cota_esgotada: "Limite diário atingido",
+  erro: "Não foi possível concluir",
 };
 
 function AreaDeArquivo({
@@ -90,7 +90,7 @@ function AreaDeArquivo({
         {arquivo ? arquivo.name : "Arraste o arquivo aqui"}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Planilha .xlsx ou documento .docx, ate 10 MB
+        Planilha do Excel ou documento do Word, até 10 MB
       </p>
 
       <input
@@ -120,7 +120,7 @@ function AreaDeArquivo({
   );
 }
 
-function Andamento({ job, aoParar }: { job: Job; aoParar: () => void }) {
+function Andamento({ job, ehAdmin, aoParar }: { job: Job; ehAdmin: boolean; aoParar: () => void }) {
   const pct = job.total > 0 ? Math.round((job.processados / job.total) * 100) : 0;
   const semVetor = job.contadores.semEmbedding ?? 0;
 
@@ -148,11 +148,14 @@ function Andamento({ job, aoParar }: { job: Job; aoParar: () => void }) {
         // so apareceria semanas depois, quando alguem notasse que uma pergunta
         // nunca e respondida.
         <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-          {semVetor} FAQ(s) entraram <strong>sem vetor</strong> e o chatbot nao vai encontra-las.{" "}
-          <Link to="/configuracoes" className="underline underline-offset-2">
-            Gere os vetores em Configuracoes
-          </Link>
-          .
+          {semVetor} pergunta(s) foram salvas, mas{" "}
+          <strong>o chatbot ainda não consegue encontrá-las</strong>.{" "}
+          {ehAdmin ? "" : "Avise um administrador para concluir. "}
+          {ehAdmin ? (
+            <Link to="/configuracoes" className="underline underline-offset-2">
+              Concluir em Configurações
+            </Link>
+          ) : null}
         </p>
       )}
 
@@ -182,6 +185,9 @@ function Andamento({ job, aoParar }: { job: Job; aoParar: () => void }) {
 
 function PainelImportacao() {
   const podeEscrever = usePodeEscrever();
+  // O link para /configuracoes so aparece para quem consegue abrir a tela: ela
+  // exige admin, e um editor que clicasse era jogado na home sem explicacao.
+  const ehAdmin = useSession().usuario?.role === "admin";
   const queryClient = useQueryClient();
 
   const validar = useServerFn(validarImportacao);
@@ -240,7 +246,7 @@ function PainelImportacao() {
 
   const processar = async (escolhido: File) => {
     if (!script.data) {
-      toast.error("Nenhum script de geracao ativo. Fale com um administrador.");
+      toast.error("A leitura de documentos não está configurada. Fale com um administrador.");
       return;
     }
 
@@ -262,22 +268,25 @@ function PainelImportacao() {
       ]);
 
       if (!saida.faqs || saida.faqs.length === 0) {
-        toast.warning("O script nao encontrou nenhuma FAQ neste arquivo.", {
-          description: "Confira se o arquivo segue o modelo.",
+        toast.warning("Nenhuma pergunta foi encontrada neste arquivo.", {
+          description: "Confira se o arquivo segue o modelo em branco.",
         });
         return;
       }
 
       const resultado = await revalidar(saida.faqs);
       toast.success(
-        `${resultado.resumo.ok} nova(s), ${resultado.resumo.duplicadas} ja existente(s), ` +
+        `${resultado.resumo.ok} nova(s), ${resultado.resumo.duplicadas} já existente(s), ` +
           `${resultado.resumo.invalidas} com problema.`,
       );
     } catch (erro) {
       // ErroDeScript traz `detalhe` com a pilha de dentro do worker; ErroDeArquivo
       // ja vem com uma mensagem escrita para quem enviou o arquivo.
-      const detalhe = erro instanceof ErroDeScript ? erro.detalhe : undefined;
-      toast.error(erro instanceof Error ? erro.message : String(erro), { description: detalhe });
+      // O `detalhe` do ErroDeScript e a pilha de dentro do worker. Serve para
+      // quem edita a regra, em /configuracoes, e nao para quem so esta enviando
+      // uma planilha: aqui ele virava um stack trace de JavaScript num toast.
+      if (erro instanceof ErroDeScript && erro.detalhe) console.error(erro.detalhe);
+      toast.error(erro instanceof Error ? erro.message : String(erro));
     } finally {
       setLendo(false);
     }
@@ -293,12 +302,12 @@ function PainelImportacao() {
       );
       return revalidar(comEdicao);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Nao foi possivel revalidar"),
+    onError: (erro: Error) => toast.error(erro.message || "Não foi possível revalidar"),
   });
 
   const mutCommit = useMutation({
     mutationFn: async () => {
-      if (!script.data) throw new Error("Sem script ativo.");
+      if (!script.data) throw new Error("A leitura de documentos não está configurada.");
       const escolhidas = itens
         .filter((i) => selecionadas.has(i.linha))
         .map((i) => ({ ...i.faq, linha: i.linha }));
@@ -315,11 +324,11 @@ function PainelImportacao() {
     onSuccess: (resultado) => {
       setConfirmando(false);
       setJobId(resultado.jobId);
-      toast.success(`Gravando ${resultado.total} FAQ(s).`);
+      toast.success(`Salvando ${resultado.total} pergunta(s).`);
     },
     onError: (erro: Error) => {
       setConfirmando(false);
-      toast.error(erro.message || "Nao foi possivel iniciar a importacao");
+      toast.error(erro.message || "Não foi possível iniciar a importação");
     },
   });
 
@@ -336,7 +345,7 @@ function PainelImportacao() {
   if (!podeEscrever) {
     return (
       <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-        Seu perfil e apenas de leitura. Peca a um editor ou administrador para importar.
+        Seu perfil é apenas de leitura. Peça a um editor ou administrador para importar.
       </p>
     );
   }
@@ -344,18 +353,18 @@ function PainelImportacao() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Importar FAQs</h1>
+        <h1 className="text-2xl font-semibold">Importar perguntas</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Envie uma planilha ou um documento no formato do modelo. Nada e gravado antes de voce
-          conferir a previa.
+          Envie uma planilha ou um documento no formato do modelo. Nada é salvo antes de você
+          conferir a prévia.
         </p>
       </div>
 
       <section className="rounded-lg border border-border p-4 sm:p-5">
-        <h2 className="text-base font-semibold">Nao tem o modelo?</h2>
+        <h2 className="text-base font-semibold">Não tem o modelo?</h2>
         <p className="mt-1 mb-3 text-sm text-muted-foreground">
-          Baixe o arquivo vazio, preencha e envie de volta. Ele e gerado a partir do script de
-          geracao ativo, entao esta sempre no formato que a leitura espera.
+          Baixe o arquivo em branco, preencha e envie de volta. Ele já vem com um exemplo preenchido
+          e sempre no formato que a leitura espera.
         </p>
         <ModeloBotoes codigo={script.data?.code} desabilitado={script.isLoading} />
       </section>
@@ -385,13 +394,13 @@ function PainelImportacao() {
       {itens.length > 0 && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">Previa · {totalSelecionado} selecionada(s)</h2>
+            <h2 className="text-base font-semibold">Prévia · {totalSelecionado} selecionada(s)</h2>
             <Button
               type="button"
               disabled={totalSelecionado === 0 || rodando || mutCommit.isPending}
               onClick={() => setConfirmando(true)}
             >
-              Importar {totalSelecionado > 0 ? `${totalSelecionado} FAQ(s)` : ""}
+              Importar {totalSelecionado > 0 ? `${totalSelecionado} pergunta(s)` : ""}
             </Button>
           </div>
 
@@ -405,15 +414,16 @@ function PainelImportacao() {
         </section>
       )}
 
-      {job.data && <Andamento job={job.data} aoParar={() => mutParar.mutate()} />}
+      {job.data && <Andamento job={job.data} ehAdmin={ehAdmin} aoParar={() => mutParar.mutate()} />}
 
       <AlertDialog open={confirmando} onOpenChange={setConfirmando}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Importar {totalSelecionado} FAQ(s)?</AlertDialogTitle>
+            <AlertDialogTitle>Importar {totalSelecionado} pergunta(s)?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cada FAQ gera um vetor de busca, entao isso leva alguns segundos por linha. Voce pode
-              fechar a aba: o trabalho continua e o andamento reaparece quando voltar.
+              Cada pergunta precisa ser preparada para a busca do chatbot, o que leva alguns
+              segundos por linha. Você pode fechar a aba: o trabalho continua e o andamento
+              reaparece quando voltar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

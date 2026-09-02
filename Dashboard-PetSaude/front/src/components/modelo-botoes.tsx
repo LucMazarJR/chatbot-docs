@@ -26,7 +26,7 @@ export function ModeloBotoes({
 
   const gerar = async (formato: "xlsx" | "docx") => {
     if (!codigo) {
-      toast.error("Nenhum script de geracao ativo.");
+      toast.error("A leitura de documentos nao esta configurada.");
       return;
     }
 
@@ -39,7 +39,7 @@ export function ModeloBotoes({
         // Script sem `modelo` ainda deve conseguir gerar um arquivo: as colunas
         // padrão cobrem o caso, e um aviso é melhor que um botão que não faz
         // nada. Quem editou o script vai querer saber que esqueceu do export.
-        toast.warning("O script nao exporta 'modelo'. Gerando com o formato padrao.", {
+        toast.warning("A regra nao descreve o formato. Gerando com o modelo padrao.", {
           description: erro instanceof Error ? erro.message : undefined,
         });
       }

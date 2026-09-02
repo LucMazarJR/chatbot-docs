@@ -334,7 +334,7 @@ function DialogoPapel({
             <SelectContent>
               {PAPEIS.map((p) => (
                 <SelectItem key={p.valor} value={p.valor}>
-                  {p.rotulo} — {p.descricao}
+                  {p.rotulo} ({p.descricao})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -539,7 +539,7 @@ function FormularioNovoUsuario({ aoCriar }: { aoCriar: (dados: NovoUsuario) => P
           <SelectContent>
             {PAPEIS.map((p) => (
               <SelectItem key={p.valor} value={p.valor}>
-                {p.rotulo} — {p.descricao}
+                {p.rotulo} ({p.descricao})
               </SelectItem>
             ))}
           </SelectContent>

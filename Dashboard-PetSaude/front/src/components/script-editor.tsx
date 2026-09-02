@@ -115,8 +115,8 @@ function PainelTeste({ codigo }: { codigo: string }) {
         <FlaskConical className="size-4" /> Testar antes de salvar
       </h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        Roda o script de verdade, no mesmo ambiente isolado que a importacao usa. E aqui que se ve o
-        resultado antes de ele valer para todo mundo.
+        Aplica a regra a um trecho de exemplo, do mesmo jeito que a importação faz. É aqui que você
+        confere o resultado antes de ele valer para todo mundo.
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -126,7 +126,7 @@ function PainelTeste({ codigo }: { codigo: string }) {
           variant={tipo === "docx" ? "default" : "outline"}
           onClick={() => trocarTipo("docx")}
         >
-          Paragrafos do Word
+          Parágrafos do Word
         </Button>
         <Button
           type="button"
@@ -148,8 +148,7 @@ function PainelTeste({ codigo }: { codigo: string }) {
       />
       {tipo === "xlsx" && (
         <p className="mt-1 text-xs text-muted-foreground">
-          Cole direto do Excel: as colunas vem separadas por tabulacao. A primeira linha e o
-          cabecalho.
+          Cole direto do Excel. A primeira linha é o cabeçalho.
         </p>
       )}
 
@@ -242,18 +241,18 @@ export function ScriptEditor() {
     mutationFn: () => salvar({ data: { name: nome, code: codigo, notes: notas || undefined } }),
     onSuccess: async (resumo) => {
       setNotas("");
-      await aoConcluir(`Gravado como versao ${resumo.version}.`);
+      await aoConcluir(`Salvo como versão ${resumo.version}.`);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Nao foi possivel salvar"),
+    onError: (erro: Error) => toast.error(erro.message || "Não foi possível salvar"),
   });
 
   const mutAtivar = useMutation({
     mutationFn: (id: string) => ativar({ data: { id } }),
     onSuccess: async (resumo) => {
       carregado.current = false;
-      await aoConcluir(`Versao ${resumo.version} reativada.`);
+      await aoConcluir(`Versão ${resumo.version} reativada.`);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Nao foi possivel reativar"),
+    onError: (erro: Error) => toast.error(erro.message || "Não foi possível reativar"),
   });
 
   const mutRestaurar = useMutation({
@@ -261,9 +260,9 @@ export function ScriptEditor() {
     onSuccess: async (resumo) => {
       carregado.current = false;
       setConfirmandoRestauro(false);
-      await aoConcluir(`Padrao gravado como versao ${resumo.version}.`);
+      await aoConcluir(`Formato padrão salvo como versão ${resumo.version}.`);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Nao foi possivel restaurar"),
+    onError: (erro: Error) => toast.error(erro.message || "Não foi possível restaurar"),
   });
 
   const carregarDeArquivo = async (arquivo: File | undefined) => {
@@ -272,11 +271,11 @@ export function ScriptEditor() {
     // clicar em salvar — e é isso que dá espaço para testar antes.
     setCodigo(await arquivo.text());
     setNome((atual) => atual || arquivo.name.replace(/\.js$/i, ""));
-    toast.success("Arquivo carregado no editor. Teste antes de salvar.");
+    toast.success("Arquivo carregado. Teste antes de salvar.");
   };
 
   if (ativo.isLoading) {
-    return <p className="text-sm text-muted-foreground">Carregando o script…</p>;
+    return <p className="text-sm text-muted-foreground">Carregando…</p>;
   }
 
   const alterado = ativo.data ? codigo !== ativo.data.code || nome !== ativo.data.name : true;
@@ -284,24 +283,23 @@ export function ScriptEditor() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Script de geracao de FAQs</h2>
+        <h2 className="text-lg font-semibold">Como os documentos viram FAQs</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          E este script que transforma o documento enviado em perguntas e respostas, e e dele que
-          saem os modelos vazios. Salvar cria uma versao nova — a anterior continua guardada e pode
-          ser reativada.
+          Esta regra transforma o documento enviado em perguntas e respostas, e é dela que saem os
+          modelos em branco. Salvar cria uma versão nova. A anterior continua guardada e pode ser
+          reativada a qualquer momento.
         </p>
       </div>
 
       {ativo.data ? (
         <p className="text-sm text-muted-foreground">
-          Em uso: <strong className="text-foreground">{ativo.data.name}</strong>, versao{" "}
-          {ativo.data.version}
-          {ativo.data.createdByName ? `, por ${ativo.data.createdByName}` : ""} em{" "}
+          Em uso: versão {ativo.data.version}
+          {ativo.data.createdByName ? `, salva por ${ativo.data.createdByName}` : ""} em{" "}
           {new Date(ativo.data.createdAt).toLocaleDateString("pt-BR")}
         </p>
       ) : (
         <p className="text-sm text-destructive">
-          Nenhum script ativo. A importacao fica indisponivel ate um ser salvo.
+          Nenhuma regra ativa. A importação fica indisponível até uma ser salva.
         </p>
       )}
 
@@ -309,16 +307,16 @@ export function ScriptEditor() {
         <p className="flex items-start gap-2 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
           <span>
-            <strong>Este script vale so para a importacao pelo dashboard.</strong> A ingestao que le
-            o Google Drive (<code>scripts/enviar_dados.py</code>) continua com os marcadores fixos
-            no codigo. Se os dois divergirem, o Drive para de render FAQs sem dar erro nenhum.
+            <strong>Esta regra vale apenas para os arquivos enviados por aqui.</strong> As FAQs que
+            chegam automaticamente pelo Google Drive seguem um formato próprio, definido fora do
+            painel. Se você mudar os marcadores aqui, o formato do Drive continua o mesmo.
           </span>
         </p>
       </div>
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label htmlFor="codigo-script">Codigo</Label>
+          <Label htmlFor="codigo-script">Regra de leitura</Label>
           <div className="flex flex-wrap gap-2">
             <input
               ref={inputArquivo}
@@ -333,7 +331,7 @@ export function ScriptEditor() {
               size="sm"
               onClick={() => inputArquivo.current?.click()}
             >
-              <Upload className="size-4" /> Carregar .js
+              <Upload className="size-4" /> Carregar de um arquivo
             </Button>
             <Button
               type="button"
@@ -341,7 +339,7 @@ export function ScriptEditor() {
               size="sm"
               onClick={() => setConfirmandoRestauro(true)}
             >
-              <RotateCcw className="size-4" /> Restaurar padrao
+              <RotateCcw className="size-4" /> Restaurar o padrão
             </Button>
           </div>
         </div>
@@ -359,23 +357,23 @@ export function ScriptEditor() {
       <PainelTeste codigo={codigo} />
 
       <div className="rounded-lg border border-border p-4">
-        <h3 className="text-sm font-semibold">Modelos vazios gerados por este script</h3>
+        <h3 className="text-sm font-semibold">Modelos em branco</h3>
         <p className="mt-1 mb-3 text-sm text-muted-foreground">
-          Baixe para conferir se o formato bate com o que o script espera. Sai do codigo que esta no
-          editor, nao do que esta salvo.
+          Baixe para conferir se o formato bate com o que a regra espera. Sai do que está no editor
+          agora, não do que está salvo.
         </p>
         <ModeloBotoes codigo={codigo} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="nome-script">Nome</Label>
+          <Label htmlFor="nome-script">Nome desta versão</Label>
           <Input
             id="nome-script"
             value={nome}
             maxLength={120}
             onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: Padrao P/R com marcador novo"
+            placeholder="Ex.: formato com marcador PERG:"
           />
         </div>
         <div className="space-y-2">
@@ -385,7 +383,7 @@ export function ScriptEditor() {
             value={notas}
             maxLength={500}
             onChange={(e) => setNotas(e.target.value)}
-            placeholder="Ex.: aceita PERG: alem de P:"
+            placeholder="Ex.: passou a aceitar PERG: além de P:"
           />
         </div>
       </div>
@@ -396,12 +394,12 @@ export function ScriptEditor() {
         onClick={() => mutSalvar.mutate()}
       >
         <Save className="size-4" />
-        {mutSalvar.isPending ? "Salvando…" : alterado ? "Salvar nova versao" : "Sem alteracoes"}
+        {mutSalvar.isPending ? "Salvando…" : alterado ? "Salvar nova versão" : "Sem alterações"}
       </Button>
 
       <div className="rounded-lg border border-border p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <History className="size-4" /> Versoes
+          <History className="size-4" /> Versões anteriores
         </h3>
         <ul className="mt-3 space-y-2">
           {(versoes.data ?? []).map((v) => (
@@ -415,7 +413,7 @@ export function ScriptEditor() {
                 <span className="w-full text-xs text-muted-foreground sm:w-auto">{v.notes}</span>
               )}
               <span className="text-xs text-muted-foreground">
-                {v.createdByName ?? "—"} · {new Date(v.createdAt).toLocaleDateString("pt-BR")}
+                {v.createdByName ?? ""} · {new Date(v.createdAt).toLocaleDateString("pt-BR")}
               </span>
               {v.isActive ? (
                 <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[10px] uppercase tracking-wide text-primary">
@@ -440,10 +438,10 @@ export function ScriptEditor() {
       <AlertDialog open={confirmandoRestauro} onOpenChange={setConfirmandoRestauro}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restaurar o script padrao?</AlertDialogTitle>
+            <AlertDialogTitle>Restaurar o formato padrão?</AlertDialogTitle>
             <AlertDialogDescription>
-              O padrao embutido no codigo vira uma versao nova e passa a ser o ativo. Nada e
-              apagado: as versoes anteriores continuam na lista e podem ser reativadas.
+              O formato padrão vira uma versão nova e passa a valer. Nada é apagado: as versões
+              anteriores continuam na lista e podem ser reativadas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

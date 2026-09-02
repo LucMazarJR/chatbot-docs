@@ -69,8 +69,8 @@ const DESTINOS: Destino[] = [
   { para: "/", rotulo: "FAQs", Icone: ListChecks },
   { para: "/categorias", rotulo: "Categorias", Icone: FolderOpen },
   { para: "/importar", rotulo: "Importar", Icone: Upload, papeis: ["admin", "editor"] },
-  { para: "/usuarios", rotulo: "Usuarios", Icone: Users, papeis: ["admin"] },
-  { para: "/configuracoes", rotulo: "Configuracoes", Icone: Settings, papeis: ["admin"] },
+  { para: "/usuarios", rotulo: "Usuários", Icone: Users, papeis: ["admin"] },
+  { para: "/configuracoes", rotulo: "Configurações", Icone: Settings, papeis: ["admin"] },
 ];
 
 function destinosDe(papel: UserRole | undefined): Destino[] {

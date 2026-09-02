@@ -26,25 +26,25 @@ import {
 const MODOS: { valor: ModoBackfill; rotulo: string; descricao: string }[] = [
   {
     valor: "faltantes",
-    rotulo: "Sem vetor",
-    descricao: "FAQs que estao na base mas o chatbot nunca encontra",
+    rotulo: "Fora da busca",
+    descricao: "Perguntas salvas que o chatbot nunca encontra",
   },
   {
     valor: "desatualizados",
-    rotulo: "Vetor desatualizado",
-    descricao: "O texto foi editado depois que o vetor foi gerado",
+    rotulo: "Desatualizadas",
+    descricao: "O texto mudou depois da última preparação",
   },
   {
     valor: "nao_registrados",
-    rotulo: "Modelo nao registrado",
-    descricao: "Nao ha registro de qual modelo gerou o vetor",
+    rotulo: "Sem registro",
+    descricao: "Não dá para saber como foram preparadas",
   },
   {
     valor: "divergentes",
-    rotulo: "Modelo divergente",
-    descricao: "Registrado num modelo diferente do configurado",
+    rotulo: "Fora do padrão atual",
+    descricao: "Preparadas de um jeito diferente do que se usa hoje",
   },
-  { valor: "tudo", rotulo: "Tudo", descricao: "Toda a base ativa. Gasta muita cota" },
+  { valor: "tudo", rotulo: "Tudo", descricao: "A base inteira. Demora e consome o limite diário" },
 ];
 
 const LIMITES = [50, 200, 500, 1000];
@@ -99,9 +99,8 @@ function ResultadoDiagnostico({ dados }: { dados: Diagnostico }) {
         <span>{dados.explicacao}</span>
       </p>
       <p className="mt-2 text-xs text-muted-foreground">
-        {dados.amostradas} FAQ(s) amostradas · semelhanca media{" "}
-        {(dados.similaridadeMedia * 100).toFixed(1)}% em relacao ao que {dados.modeloConfigurado}{" "}
-        gera agora
+        {dados.amostradas} pergunta(s) conferidas · {(dados.similaridadeMedia * 100).toFixed(1)}% de
+        semelhança com o preparo atual
       </p>
     </div>
   );
@@ -143,20 +142,20 @@ export function SaudeEmbeddings() {
   const mutDiagnostico = useMutation({
     mutationFn: () => diagnosticar({ data: { quantidade: 10 } }),
     onSuccess: (dados) => setDiagnostico(dados),
-    onError: (erro: Error) => toast.error(erro.message || "Nao foi possivel diagnosticar"),
+    onError: (erro: Error) => toast.error(erro.message || "Não foi possível conferir"),
   });
 
   const mutBackfill = useMutation({
     mutationFn: () => iniciar({ data: { modo, limite } }),
     onSuccess: async (resultado) => {
       if (resultado.total === 0) {
-        toast.info("Nada a fazer neste modo — nenhuma FAQ se encaixa.");
+        toast.info("Nada a fazer: nenhuma pergunta se encaixa.");
       } else {
-        toast.success(`Geracao iniciada para ${resultado.total} FAQ(s).`);
+        toast.success(`Preparando ${resultado.total} pergunta(s).`);
       }
       await queryClient.invalidateQueries({ queryKey: ["embeddings-job"] });
     },
-    onError: (erro: Error) => toast.error(erro.message || "Nao foi possivel iniciar"),
+    onError: (erro: Error) => toast.error(erro.message || "Não foi possível iniciar"),
   });
 
   const dados = saude.data;
@@ -175,63 +174,65 @@ export function SaudeEmbeddings() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Saude dos vetores</h2>
+        <h2 className="text-lg font-semibold">Perguntas encontradas pelo chatbot</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Uma FAQ sem vetor esta na base e aparece na listagem, mas o chatbot nunca a encontra. Nao
-          ha erro em lugar nenhum — so a pergunta que nunca e respondida.
+          Toda pergunta salva precisa ser preparada para a busca. Se a preparação falhar, ela
+          continua aparecendo na listagem daqui, mas o chatbot nunca a encontra, e nada indica isso:
+          é só uma pergunta que nunca é respondida.
         </p>
       </div>
 
       {saude.isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : !dados ? (
-        <p className="text-sm text-destructive">Nao foi possivel ler a saude da base.</p>
+        <p className="text-sm text-destructive">Não foi possível ler o estado da base.</p>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Metrica
               rotulo="FAQs ativas"
               valor={dados.totalAtivas}
-              explicacao={`Modelo configurado: ${dados.modeloConfigurado}, ${dados.dimensaoEsperada} dimensoes.`}
+              explicacao={`Preparadas com o padrão atual do sistema: ${dados.modeloConfigurado}.`}
             />
             <Metrica
-              rotulo="Sem vetor"
+              rotulo="Fora da busca"
               valor={dados.semVetor}
               alerta
-              explicacao="Invisiveis para a busca do chatbot."
+              explicacao="O chatbot não consegue encontrá-las."
             />
             <Metrica
-              rotulo="Dimensao errada"
+              rotulo="Preparadas de forma incompatível"
               valor={dados.dimensaoErrada}
               alerta
-              explicacao="O indice do Atlas nao casa com o tamanho do vetor."
+              explicacao="Foram preparadas num formato que a busca atual não lê."
             />
             <Metrica
-              rotulo="Vetor desatualizado"
+              rotulo="Desatualizadas"
               valor={dados.vetorDesatualizado}
               alerta
-              explicacao="O texto mudou depois que o vetor foi gerado: o chatbot acha pelo texto antigo e mostra o novo."
+              explicacao="O texto mudou depois da preparação: o chatbot acha pelo texto antigo e mostra o novo."
             />
             <Metrica
-              rotulo="Modelo divergente"
+              rotulo="Fora do padrão atual"
               valor={dados.modeloDivergente}
               alerta
               explicacao="Registrado num modelo diferente do que esta configurado."
             />
             <Metrica
-              rotulo="Modelo nao registrado"
+              rotulo="Sem registro"
               valor={dados.modeloNaoRegistrado}
-              explicacao="Nao da para saber qual modelo gerou. Nao e o mesmo que estar errado — use o diagnostico abaixo."
+              explicacao="Preparadas antes de o sistema registrar isso. Não quer dizer que estão erradas."
             />
           </div>
 
           <div className="rounded-lg border border-border p-4">
-            <h3 className="text-sm font-semibold">Em que modelo a base esta, afinal?</h3>
+            <h3 className="text-sm font-semibold">
+              As perguntas antigas foram preparadas do mesmo jeito?
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Os dados nao respondem: o registro do modelo so passou a ser gravado recentemente, e a
-              dimensao nao distingue — o gemini-embedding-001 tambem produz 3072 quando pedido. O
-              jeito de descobrir e gerar vetores novos para uma amostra e comparar com os guardados.
-              Custa 10 chamadas a API.
+              A base não guarda esse registro para as perguntas mais antigas, e não dá para deduzir
+              olhando os dados. O jeito de descobrir é preparar de novo algumas perguntas e comparar
+              com o que está salvo. São cerca de 10 perguntas, e não altera nada.
             </p>
             <Button
               type="button"
@@ -242,22 +243,22 @@ export function SaudeEmbeddings() {
               onClick={() => mutDiagnostico.mutate()}
             >
               <Activity className="size-4" />
-              {mutDiagnostico.isPending ? "Comparando…" : "Diagnosticar por amostragem"}
+              {mutDiagnostico.isPending ? "Conferindo…" : "Conferir por amostragem"}
             </Button>
             {diagnostico && <ResultadoDiagnostico dados={diagnostico} />}
           </div>
 
           <div className="rounded-lg border border-border p-4">
-            <h3 className="text-sm font-semibold">Gerar vetores</h3>
+            <h3 className="text-sm font-semibold">Preparar perguntas para a busca</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              A cota gratuita do Gemini e de 1000 requisicoes por dia <strong>por projeto</strong> —
-              chaves extras do mesmo projeto dividem a mesma cota. Reindexar a base inteira leva
-              dias. O trabalho retoma de onde parou a cada execucao.
+              A preparação usa um serviço externo com limite diário. Preparar a base inteira leva
+              alguns dias, e não tem problema: o trabalho retoma de onde parou a cada vez que você
+              começa de novo.
             </p>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">O que gerar</label>
+                <label className="text-xs font-medium text-muted-foreground">O que preparar</label>
                 <Select value={modo} onValueChange={(v) => setModo(v as ModoBackfill)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
@@ -265,7 +266,7 @@ export function SaudeEmbeddings() {
                   <SelectContent>
                     {MODOS.map((m) => (
                       <SelectItem key={m.valor} value={m.valor}>
-                        {m.rotulo} — {m.descricao}
+                        {m.rotulo}, {m.descricao}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -274,7 +275,7 @@ export function SaudeEmbeddings() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">
-                  Maximo nesta execucao
+                  Máximo desta vez
                 </label>
                 <Select value={String(limite)} onValueChange={(v) => setLimite(Number(v))}>
                   <SelectTrigger className="w-full">
@@ -298,7 +299,7 @@ export function SaudeEmbeddings() {
               onClick={() => mutBackfill.mutate()}
             >
               <Play className="size-4" />
-              {emAndamento ? "Ja ha um trabalho rodando" : "Comecar"}
+              {emAndamento ? "Já há um trabalho em andamento" : "Começar"}
             </Button>
 
             {job.data && <AndamentoBackfill job={job.data} />}
@@ -313,11 +314,11 @@ function AndamentoBackfill({ job }: { job: Job }) {
   const pct = job.total > 0 ? Math.round((job.processados / job.total) * 100) : 0;
 
   const rotulo: Record<string, string> = {
-    rodando: "Gerando…",
-    concluido: "Concluido",
+    rodando: "Preparando…",
+    concluido: "Concluído",
     parado: "Interrompido",
-    cota_esgotada: "Cota da API esgotada",
-    erro: "Falhou",
+    cota_esgotada: "Limite diário atingido",
+    erro: "Não foi possível concluir",
   };
 
   return (

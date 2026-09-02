@@ -86,7 +86,7 @@ export const listFaqs = createServerFn({ method: "GET" })
 export const getFaqCategories = createServerFn({ method: "GET" }).handler(
   async (): Promise<CategoryStats> => {
     return apiFetch<CategoryStats>("/faqs/categories");
-  }
+  },
 );
 
 export const listActivity = createServerFn({ method: "GET" })
@@ -98,9 +98,11 @@ export const listActivity = createServerFn({ method: "GET" })
       })
       .parse(data ?? {}),
   )
-  .handler(async ({ data }: { data: { page: number; limit: number } }): Promise<Paginated<Activity>> => {
-    return apiFetch<Paginated<Activity>>(`/activity?${montarQuery(data)}`);
-  });
+  .handler(
+    async ({ data }: { data: { page: number; limit: number } }): Promise<Paginated<Activity>> => {
+      return apiFetch<Paginated<Activity>>(`/activity?${montarQuery(data)}`);
+    },
+  );
 
 export const createFaq = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => faqInput.parse(data))

@@ -29,7 +29,7 @@ type Filtro = "todas" | "problemas" | "novas";
 
 const ROTULO: Record<LinhaValidada["estado"], string> = {
   ok: "Nova",
-  duplicada: "Ja existe",
+  duplicada: "Já existe",
   invalida: "Com problema",
 };
 
@@ -85,7 +85,7 @@ function DialogoEdicao({
           <DialogDescription>
             {item.motivos.length > 0
               ? item.motivos.join(" ")
-              : "A correcao vale so para esta importacao; o arquivo original nao muda."}
+              : "A correção vale só para esta importação. O arquivo original não muda."}
           </DialogDescription>
         </DialogHeader>
 
@@ -130,7 +130,7 @@ function DialogoEdicao({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-tags">Tags (separadas por virgula, minimo 3)</Label>
+            <Label htmlFor="edit-tags">Tags (separadas por vírgula, mínimo 3)</Label>
             <Input id="edit-tags" value={tags} onChange={(e) => setTags(e.target.value)} />
           </div>
         </div>
@@ -155,7 +155,7 @@ function DialogoEdicao({
               })
             }
           >
-            Aplicar e revalidar
+            Aplicar e conferir de novo
           </Button>
         </DialogFooter>
       </DialogContent>

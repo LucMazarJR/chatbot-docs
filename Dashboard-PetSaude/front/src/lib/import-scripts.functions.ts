@@ -50,10 +50,13 @@ export const salvarScript = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     z
       .object({
-        name: z.string().trim().min(3, "Dê um nome ao script").max(120),
+        name: z.string().trim().min(3, "Dê um nome a esta versão").max(120),
         // O teto casa com o do DTO no backend. Validar aqui também poupa uma
         // ida à API para receber a mesma recusa.
-        code: z.string().min(1, "O script está vazio").max(262144, "O script passa de 256 KB"),
+        code: z
+          .string()
+          .min(1, "A regra de leitura está vazia")
+          .max(262144, "A regra passa de 256 KB"),
         notes: z.string().trim().max(500).optional(),
       })
       .parse(data),

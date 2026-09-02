@@ -10,7 +10,7 @@ export const Route = createFileRoute("/configuracoes")({
   // no SSR. A barreira real continua sendo o backend, que exige papel admin nas
   // rotas de script e de embeddings.
   beforeLoad: () => exigirAdmin(),
-  head: () => ({ meta: [{ title: "Configuracoes | Central de FAQs" }] }),
+  head: () => ({ meta: [{ title: "Configurações | Central de FAQs" }] }),
   component: ConfiguracoesPage,
 });
 
@@ -19,9 +19,9 @@ function ConfiguracoesPage() {
     <GateShell>
       <div className="space-y-10">
         <div>
-          <h1 className="text-2xl font-semibold">Configuracoes</h1>
+          <h1 className="text-2xl font-semibold">Configurações</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Como os documentos viram FAQs, e a saude vetorial da base que o chatbot consulta.
+            Como os documentos viram perguntas, e a saúde da base que o chatbot consulta.
           </p>
         </div>
 

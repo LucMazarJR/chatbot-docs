@@ -270,7 +270,7 @@ export function FaqFormDialog({
 
             <ChipListField
               label="Tags (mínimo 3)"
-              hint="As tags ajudam na busca — use termos como “jejum”, “vacina”, “consulta”."
+              hint="As tags ajudam na busca. Use termos como “jejum”, “vacina”, “consulta”."
               values={tags}
               onChange={setTags}
               minCount={3}
