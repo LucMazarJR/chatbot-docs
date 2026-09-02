@@ -108,17 +108,18 @@ function fonteDoWorker(codigo: string): string {
   }
 })();
 
-var modelo, gerarFaqs;
-
-try {
+// O codigo da regra fica no NIVEL DE CIMA, sem try em volta.
+//
+// LOGICA DO LUCIANO: aqui ele era embrulhado num try/catch, com um
+// \`var modelo, gerarFaqs\` declarado antes. Nao funcionava: depois de tirar os
+// \`export\`, a regra vira \`const modelo\` e \`function gerarFaqs\`, e sob
+// "use strict" as duas coisas sao presas ao BLOCO do try. As variaveis de fora
+// continuavam undefined, e toda leitura falhava com "a regra esta incompleta"
+// mesmo com uma regra perfeitamente valida.
+//
+// Erro de sintaxe na regra nao precisa do try: ele impede o worker de iniciar e
+// chega no onerror do lado de fora, que ja informa a linha.
 ${prepararCodigo(codigo)}
-} catch (erro) {
-  self.postMessage({
-    tipo: "erro",
-    mensagem: "A regra de leitura tem um erro e nao pode ser aplicada.",
-    detalhe: String((erro && erro.stack) || erro),
-  });
-}
 
 self.onmessage = function (evento) {
   var pedido = evento.data || {};
