@@ -241,7 +241,7 @@ export function PreviaImportacao({
             return (
               <li
                 key={item.linha}
-                className="flex items-start gap-3 rounded-lg border border-border p-3 sm:p-4"
+                className="flex items-start gap-3 rounded-lg border border-border panel-surface p-3 sm:p-4"
               >
                 <Checkbox
                   className="mt-1 shrink-0"

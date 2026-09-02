@@ -222,9 +222,28 @@ function BrowsePanel() {
         // Antes, um erro de rede caía no ramo de lista vazia e a tela dizia
         // "0 resultados · nenhuma pergunta encontrada": o app afirmava que a
         // base estava vazia quando na verdade tinha caído.
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
-          Não foi possível carregar as perguntas. Verifique a conexão e tente recarregar.
-        </p>
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center sm:p-8">
+          <p className="text-sm text-destructive">
+            Não foi possível carregar as perguntas. Verifique a conexão e tente recarregar.
+          </p>
+          {/* A mensagem do servidor aparece aqui de propósito. Sem ela, uma
+              falha intermitente vira "não funciona" e não há como distinguir
+              conexão caída de consulta que passou do tempo. */}
+          {faqsQuery.error instanceof Error && faqsQuery.error.message && (
+            <p className="mt-2 break-words text-xs text-muted-foreground">
+              {faqsQuery.error.message}
+            </p>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => faqsQuery.refetch()}
+          >
+            Tentar de novo
+          </Button>
+        </div>
       ) : faqsQuery.isLoading && !faqsQuery.data ? (
         <p className="text-sm text-muted-foreground">Carregando perguntas…</p>
       ) : faqs.length === 0 ? (

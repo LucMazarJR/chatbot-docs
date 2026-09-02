@@ -225,7 +225,7 @@ export function SaudeEmbeddings() {
             />
           </div>
 
-          <div className="rounded-lg border border-border p-4">
+          <div className="rounded-lg border border-border panel-surface p-4">
             <h3 className="text-sm font-semibold">
               As perguntas antigas foram preparadas do mesmo jeito?
             </h3>
@@ -248,7 +248,7 @@ export function SaudeEmbeddings() {
             {diagnostico && <ResultadoDiagnostico dados={diagnostico} />}
           </div>
 
-          <div className="rounded-lg border border-border p-4">
+          <div className="rounded-lg border border-border panel-surface p-4">
             <h3 className="text-sm font-semibold">Preparar perguntas para a busca</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               A preparação usa um serviço externo com limite diário. Preparar a base inteira leva

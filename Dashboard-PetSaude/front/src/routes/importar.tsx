@@ -127,7 +127,7 @@ function Andamento({ job, ehAdmin, aoParar }: { job: Job; ehAdmin: boolean; aoPa
   const semVetor = job.contadores.semEmbedding ?? 0;
 
   return (
-    <section className="rounded-lg border border-border p-4 sm:p-5">
+    <section className="rounded-lg border border-border panel-surface p-4 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold">{ROTULO_ESTADO[job.estado]}</h2>
         <p className="text-xs text-muted-foreground">
@@ -392,7 +392,7 @@ function PainelImportacao() {
         </p>
       </div>
 
-      <section className="rounded-lg border border-border p-4 sm:p-5">
+      <section className="rounded-lg border border-border panel-surface p-4 sm:p-5">
         <h2 className="text-base font-semibold">Não tem o modelo?</h2>
         <p className="mt-1 mb-3 text-sm text-muted-foreground">
           Baixe o arquivo em branco, preencha e envie de volta. Ele já vem com um exemplo preenchido

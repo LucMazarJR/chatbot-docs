@@ -110,7 +110,7 @@ function PainelTeste({ codigo }: { codigo: string }) {
   };
 
   return (
-    <div className="rounded-lg border border-border p-4">
+    <div className="rounded-lg border border-border panel-surface p-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
         <FlaskConical className="size-4" /> Testar antes de salvar
       </h3>
@@ -181,7 +181,7 @@ function PainelTeste({ codigo }: { codigo: string }) {
           </p>
 
           {saida.faqs.map((faq, i) => (
-            <div key={i} className="rounded-lg border border-border p-3 text-sm">
+            <div key={i} className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
               <p className="text-xs text-muted-foreground">
                 linha {faq.linha} · assunto: {faq.category || "(vazio)"}
               </p>
@@ -356,7 +356,7 @@ export function ScriptEditor() {
 
       <PainelTeste codigo={codigo} />
 
-      <div className="rounded-lg border border-border p-4">
+      <div className="rounded-lg border border-border panel-surface p-4">
         <h3 className="text-sm font-semibold">Modelos em branco</h3>
         <p className="mt-1 mb-3 text-sm text-muted-foreground">
           Baixe para conferir se o formato bate com o que a regra espera. Sai do que está no editor
@@ -397,7 +397,7 @@ export function ScriptEditor() {
         {mutSalvar.isPending ? "Salvando…" : alterado ? "Salvar nova versão" : "Sem alterações"}
       </Button>
 
-      <div className="rounded-lg border border-border p-4">
+      <div className="rounded-lg border border-border panel-surface p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <History className="size-4" /> Versões anteriores
         </h3>

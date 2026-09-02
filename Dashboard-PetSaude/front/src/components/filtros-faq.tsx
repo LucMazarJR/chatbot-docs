@@ -41,8 +41,15 @@ const ORIGENS: { valor: Origem; rotulo: string }[] = [
   { valor: "drive", rotulo: "Vindas do Google Drive" },
 ];
 
+/**
+ * LÓGICA DO LUCIANO: "ativas" NÃO entra nesta lista, apesar de existir no
+ * contrato da API. O padrão da listagem já é mostrar só as ativas, então o item
+ * sentinela e a opção "ativas" fariam exatamente a mesma coisa, e o select
+ * aparecia com "Só as ativas" escrito duas vezes, uma marcada e outra não.
+ * Duas opções idênticas num filtro é pior que uma opção a menos: a pessoa fica
+ * procurando a diferença.
+ */
 const SITUACOES: { valor: Situacao; rotulo: string }[] = [
-  { valor: "ativas", rotulo: "Só as ativas" },
   { valor: "inativas", rotulo: "Só as excluídas" },
   { valor: "todas", rotulo: "Ativas e excluídas" },
 ];
@@ -115,7 +122,7 @@ export function FiltrosFaq({
               onValueChange={(v) => aoMudar({ category: v === TODOS ? "" : v })}
             >
               <SelectTrigger id="filtro-categoria" className="w-full">
-                <SelectValue placeholder="Todos" />
+                <SelectValue placeholder="Todos os assuntos" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={TODOS}>Todos os assuntos</SelectItem>
