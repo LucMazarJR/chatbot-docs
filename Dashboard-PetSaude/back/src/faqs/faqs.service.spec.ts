@@ -133,6 +133,69 @@ describe('FaqsService — listagem paginada', () => {
     expect(ultimaConsulta.category).toEqual({ $in: [null, ''] });
   });
 
+  it('filtra por tag em minusculas', async () => {
+    await service.listFaqs({ tag: 'Jejum' });
+
+    expect(ultimaConsulta.tags).toBe('jejum');
+  });
+
+  it('origem "drive" e tudo que nao veio do dashboard', async () => {
+    // file_id distingue a procedencia desde a primeira versao: o formulario
+    // grava dashboard_manual, o lote grava dashboard_import, e a ingestao do
+    // Drive grava o id do arquivo. Listar por igualdade nao funcionaria.
+    await service.listFaqs({ origem: 'drive' });
+
+    expect(ultimaConsulta.file_id).toEqual({
+      $nin: ['dashboard_manual', 'dashboard_import'],
+    });
+  });
+
+  it('origem "importada" e "manual" casam por igualdade', async () => {
+    await service.listFaqs({ origem: 'importada' });
+    expect(ultimaConsulta.file_id).toBe('dashboard_import');
+
+    await service.listFaqs({ origem: 'manual' });
+    expect(ultimaConsulta.file_id).toBe('dashboard_manual');
+  });
+
+  it('autor casa com quem criou OU com quem alterou por ultimo', async () => {
+    // Procurar so por um dos dois esconderia metade dos casos, e a pergunta de
+    // quem filtra e "o que essa pessoa tocou?".
+    await service.listFaqs({ autor: 'Ana' });
+
+    const clausula = ultimaConsulta.$and[0].$or;
+    expect(clausula).toHaveLength(2);
+    expect(clausula[0].updated_by).toBeInstanceOf(RegExp);
+    expect(clausula[1].created_by).toBeInstanceOf(RegExp);
+  });
+
+  it('busca e autor juntos nao se sobrescrevem', async () => {
+    // Dois $or no mesmo nivel do objeto: o segundo vence em silencio e o
+    // primeiro filtro simplesmente deixa de existir.
+    await service.listFaqs({ autor: 'Ana', search: 'jejum' });
+
+    expect(ultimaConsulta.$and).toHaveLength(2);
+    expect(ultimaConsulta.$or).toBeUndefined();
+  });
+
+  it('o intervalo de datas cobre o dia inteiro na ponta final', async () => {
+    await service.listFaqs({ de: '2026-03-01', ate: '2026-03-10' });
+
+    const fim: Date = ultimaConsulta.updatedAt.$lte;
+    expect(fim.getHours()).toBe(23);
+    expect(fim.getMinutes()).toBe(59);
+  });
+
+  it('mostra as desativadas quando pedido', async () => {
+    // Excluir e um soft delete, e ate aqui nao havia jeito nenhum de ver de
+    // novo o que foi excluido -- nem por engano.
+    await service.listFaqs({ situacao: 'inativas' });
+    expect(ultimaConsulta.isActive).toBe(false);
+
+    await service.listFaqs({ situacao: 'todas' });
+    expect(ultimaConsulta.isActive).toBeUndefined();
+  });
+
   it('ignora busca vazia em vez de filtrar por string vazia', async () => {
     await service.listFaqs({ search: '   ' });
 

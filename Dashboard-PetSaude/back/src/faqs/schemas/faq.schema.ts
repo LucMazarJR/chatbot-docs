@@ -117,3 +117,8 @@ export const FaqSchema = SchemaFactory.createForClass(Faq);
 // criado pelo script Python e consumido pelo n8n. Namespaces independentes.
 FaqSchema.index({ isActive: 1, updatedAt: -1 });
 FaqSchema.index({ isActive: 1, category: 1, updatedAt: -1 });
+
+// Filtros novos da listagem. Sem indice, cada um vira varredura da colecao
+// inteira -- e ela cresce a cada importacao em lote.
+FaqSchema.index({ isActive: 1, tags: 1, updatedAt: -1 });
+FaqSchema.index({ isActive: 1, file_id: 1, updatedAt: -1 });

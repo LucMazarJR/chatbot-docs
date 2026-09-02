@@ -23,6 +23,21 @@ export type VetorGerado = {
  * do Drive da criação pelo dashboard. A importação em lote reaproveita os dois e
  * acrescenta por qual script e versão o conteúdo passou.
  */
+/** O que a listagem aceita filtrar. Tudo opcional. */
+export type FiltroFaqs = {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    tag?: string;
+    /** Casa com quem criou ou com quem alterou por ultimo. */
+    autor?: string;
+    origem?: 'manual' | 'importada' | 'drive';
+    situacao?: 'ativas' | 'inativas' | 'todas';
+    de?: string;
+    ate?: string;
+};
+
 export type OrigemFaq = {
     /** Agrupa as linhas de uma mesma importacao no historico. */
     batch_id?: string;
@@ -211,9 +226,19 @@ export class FaqsService {
         return termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    private montarFiltro(busca?: string, categoria?: string): Record<string, any> {
-        const filtro: Record<string, any> = { isActive: true };
+    private montarFiltro(f: FiltroFaqs = {}): Record<string, any> {
+        // Desativadas ficam de fora por padrao. Elas continuam no banco (a
+        // exclusao e um soft delete), e ate aqui nao havia jeito nenhum de
+        // ve-las de novo -- o que efetivamente as tornava invisiveis para
+        // sempre, inclusive para quem excluiu por engano.
+        const filtro: Record<string, any> =
+            f.situacao === 'inativas'
+                ? { isActive: false }
+                : f.situacao === 'todas'
+                    ? {}
+                    : { isActive: true };
 
+        const categoria = f.category;
         if (categoria) {
             // "Sem categoria" não é o nome de uma categoria: é a ausência dela.
             filtro.category =
@@ -225,7 +250,46 @@ export class FaqsService {
         // `new RegExp('')`, que casa com tudo: buscar "(" devolvia a coleção
         // inteira como se nenhum filtro tivesse sido aplicado. Por isso a
         // verificação é feita sobre o termo já normalizado.
-        const termoNormalizado = busca ? this.normalizeForSearch(busca).trim() : '';
+        if (f.tag) filtro.tags = f.tag.trim().toLowerCase();
+
+        if (f.origem) {
+            // file_id ja distingue a procedencia desde a primeira versao: o
+            // formulario grava "dashboard_manual", a importacao em lote grava
+            // "dashboard_import", e a ingestao do Drive grava o id do arquivo.
+            // Qualquer outro valor, portanto, veio do Drive.
+            filtro.file_id =
+                f.origem === 'drive'
+                    ? { $nin: ['dashboard_manual', 'dashboard_import'] }
+                    : f.origem === 'importada'
+                        ? 'dashboard_import'
+                        : 'dashboard_manual';
+        }
+
+        if (f.autor) {
+            // Quem mexeu por ultimo OU quem criou: procurar so por um dos dois
+            // esconderia metade dos casos, e a pergunta de quem filtra e "o que
+            // essa pessoa tocou?".
+            const autor = new RegExp(this.escaparRegex(f.autor.trim()), 'i');
+            filtro.$and = [
+                ...((filtro.$and as unknown[]) ?? []),
+                { $or: [{ updated_by: autor }, { created_by: autor }] },
+            ];
+        }
+
+        if (f.de || f.ate) {
+            const intervalo: Record<string, Date> = {};
+            if (f.de) intervalo.$gte = new Date(f.de);
+            if (f.ate) {
+                // Ate o fim do dia: quem filtra "ate 10/03" espera incluir o
+                // dia 10, nao parar na meia-noite.
+                const fim = new Date(f.ate);
+                fim.setHours(23, 59, 59, 999);
+                intervalo.$lte = fim;
+            }
+            filtro.updatedAt = intervalo;
+        }
+
+        const termoNormalizado = f.search ? this.normalizeForSearch(f.search).trim() : '';
 
         if (termoNormalizado) {
             // question_normalized é gravado tanto por este service quanto pelo
@@ -233,11 +297,16 @@ export class FaqsService {
             // ignora acento sem precisar de nenhuma máquina nova.
             const termo = this.escaparRegex(termoNormalizado);
             const padrao = new RegExp(termo, 'i');
-            filtro.$or = [
+            const busca = [
                 { question_normalized: padrao },
                 { category: padrao },
                 { tags: padrao },
             ];
+
+            // Dentro de $and quando ha filtro de autor: dois $or no mesmo nivel
+            // se sobrescrevem, e o segundo venceria em silencio.
+            if (filtro.$and) (filtro.$and as unknown[]).push({ $or: busca });
+            else filtro.$or = busca;
         }
 
         return filtro;
@@ -259,12 +328,12 @@ export class FaqsService {
         };
     }
 
-    async listFaqs(params: { page?: number; limit?: number; search?: string; category?: string } = {}) {
+    async listFaqs(params: FiltroFaqs = {}) {
         const page = Math.max(1, params.page ?? 1);
         // Teto repetido aqui de proposito: o DTO ja limita, mas o service e
         // chamado de outros lugares e nao deveria confiar em quem chama.
         const limit = Math.min(100, Math.max(1, params.limit ?? 20));
-        const filtro = this.montarFiltro(params.search, params.category);
+        const filtro = this.montarFiltro(params);
 
         const [docs, total] = await Promise.all([
             this.faqModel
