@@ -12,6 +12,7 @@ import * as bcrypt from 'bcryptjs';
 
 import { PublicUser, toPublicUser, User } from '../users/entities/user.entity';
 import { UserSession } from '../users/entities/user-session.entity';
+import { ActivityService } from '../activity/activity.service';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +27,7 @@ export class AuthService {
 
     constructor(
         private readonly jwtService: JwtService,
+        private readonly activityService: ActivityService,
         @InjectRepository(User) private readonly usersRepo: Repository<User>,
         @InjectRepository(UserSession) private readonly sessionsRepo: Repository<UserSession>,
     ) { }
@@ -55,12 +57,43 @@ export class AuthService {
         );
 
         if (!usuario || !senhaConfere) {
+            // LÓGICA DO LUCIANO: até aqui, tentativa de acesso recusada não
+            // deixava rastro nenhum — nem no banco, nem no log do processo. A
+            // única barreira era o limite de 10 por minuto, e ninguém tinha
+            // como descobrir depois que alguém passou a madrugada tentando.
+            //
+            // O e-mail digitado vai no `target` de propósito: é o que permite
+            // distinguir "fulano errou a senha" de "alguém está varrendo
+            // e-mails". Não confirma nem nega que a conta existe, porque o
+            // registro é gravado igual nos dois casos.
+            await this.activityService.registrar({
+                actor_name: email.trim().toLowerCase() || 'desconhecido',
+                actor_id: usuario?.id,
+                action: 'login_recusado',
+                entity_type: 'sessao',
+                entity_id: usuario?.id,
+                target: email.trim().toLowerCase(),
+                status: 'negado',
+                ip: contexto.ip,
+                user_agent: contexto.userAgent,
+            });
             throw new UnauthorizedException('E-mail ou senha inválidos');
         }
 
         // Só depois da senha conferir: assim o aviso não revela nada a quem
         // não sabia a senha.
         if (!usuario.isActive) {
+            await this.activityService.registrar({
+                actor_name: usuario.name,
+                actor_id: usuario.id,
+                action: 'login_recusado',
+                entity_type: 'sessao',
+                entity_id: usuario.id,
+                target: 'conta desativada',
+                status: 'negado',
+                ip: contexto.ip,
+                user_agent: contexto.userAgent,
+            });
             throw new ForbiddenException('Usuário desativado. Fale com um administrador.');
         }
 
@@ -89,11 +122,32 @@ export class AuthService {
         usuario.lastLoginAt = new Date();
         await this.usersRepo.save(usuario);
 
+        await this.activityService.registrar({
+            actor_name: usuario.name,
+            actor_id: usuario.id,
+            action: 'login',
+            entity_type: 'sessao',
+            entity_id: usuario.id,
+            target: usuario.email,
+            ip: contexto.ip,
+            user_agent: contexto.userAgent,
+        });
+
         return { accessToken, expiresAt, user: toPublicUser(usuario) };
     }
 
-    async logout(jti: string): Promise<{ ok: true }> {
+    async logout(jti: string, ator?: { id: string; name: string }): Promise<{ ok: true }> {
         await this.sessionsRepo.update({ jti, revokedAt: IsNull() }, { revokedAt: new Date() });
+
+        if (ator) {
+            await this.activityService.registrar({
+                actor_name: ator.name,
+                actor_id: ator.id,
+                action: 'logout',
+                entity_type: 'sessao',
+                entity_id: ator.id,
+            });
+        }
         return { ok: true };
     }
 
@@ -110,6 +164,15 @@ export class AuthService {
             .getOne();
 
         if (!usuario || !(await bcrypt.compare(senhaAtual, usuario.passwordHash))) {
+            await this.activityService.registrar({
+                actor_name: usuario?.name ?? 'desconhecido',
+                actor_id: userId,
+                action: 'troca_de_senha_recusada',
+                entity_type: 'sessao',
+                entity_id: userId,
+                target: 'senha atual incorreta',
+                status: 'negado',
+            });
             throw new UnauthorizedException('Senha atual incorreta');
         }
 
@@ -120,6 +183,15 @@ export class AuthService {
         // Trocar a senha derruba as outras sessões: se alguém entrou com a
         // senha antiga, perde o acesso agora.
         await this.revogarSessoes(userId);
+
+        await this.activityService.registrar({
+            actor_name: usuario.name,
+            actor_id: userId,
+            action: 'troca_de_senha',
+            entity_type: 'sessao',
+            entity_id: userId,
+        });
+
         return { ok: true };
     }
 

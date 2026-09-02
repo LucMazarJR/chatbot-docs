@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 import { FaqsService } from '../faqs/faqs.service';
 import { JobsService } from '../jobs/jobs.service';
@@ -234,7 +235,12 @@ export class ImportService {
         dados: CommitImportacaoDto,
         actor: { id?: string; name: string },
     ): Promise<void> {
+        // LOGICA DO LUCIANO: um id para o lote inteiro. Sem ele, importar 2000
+        // linhas gravava 2000 registros de "inserir" indistinguiveis de 2000
+        // insercoes manuais, e afogava o historico de alteracoes -- justamente
+        // a tela que existe para achar o que alguem mexeu.
         const origemBase = {
+            batch_id: randomUUID(),
             file_id: 'dashboard_import',
             file_origin: dados.nomeArquivo,
             import_script_id: dados.scriptId,

@@ -24,6 +24,8 @@ export type VetorGerado = {
  * acrescenta por qual script e versão o conteúdo passou.
  */
 export type OrigemFaq = {
+    /** Agrupa as linhas de uma mesma importacao no historico. */
+    batch_id?: string;
     file_id?: string;
     file_origin?: string;
     line_reference?: number;
@@ -359,7 +361,16 @@ export class FaqsService {
         });
 
         const saved = await newFaq.save();
-        this.activityService.logActivity(actor.name, 'inserir', saved.question, actor.id);
+
+        void this.activityService.registrar({
+            actor_name: actor.name,
+            actor_id: actor.id,
+            action: 'inserir',
+            entity_type: 'faq',
+            entity_id: saved._id.toString(),
+            target: saved.question,
+            batch_id: origem?.batch_id,
+        });
         return {
             ok: true,
             id: saved._id.toString(),
@@ -384,6 +395,16 @@ export class FaqsService {
 
         const newTags = data.tags !== undefined ? data.tags : (data.metadata?.tags !== undefined ? data.metadata.tags : faq.tags);
         const newSource = data.source !== undefined ? data.source : (data.metadata?.source !== undefined ? data.metadata.source : faq.source);
+
+        // Guardado antes de sobrescrever o documento: e daqui que sai o
+        // "antes" do historico, e tambem o desfazer.
+        const antes = {
+            question: faq.question,
+            answer: faq.answer,
+            category: faq.category,
+            tags: [...(faq.tags ?? [])],
+            source: faq.source,
+        };
 
         this.assertConteudoValido(newQuestion, newAnswer);
         const newContentHash = this.generateHash(newQuestion, newAnswer);
@@ -417,7 +438,32 @@ export class FaqsService {
         faq.updated_by_id = actor.id;
 
         await faq.save();
-        this.activityService.logActivity(actor.name, 'editar', faq.question, actor.id);
+
+        // So os campos que mudaram. O documento inteiro deixaria a colecao
+        // enorme e a tela ilegivel, e a pergunta que importa e "o que essa
+        // pessoa mudou?", nao "como estava tudo".
+        const depois = {
+            question: newQuestion,
+            answer: newAnswer,
+            category: cat,
+            tags: newTags,
+            source: newSource,
+        };
+        const mudou = (Object.keys(antes) as (keyof typeof antes)[]).filter(
+            (c) => JSON.stringify(antes[c]) !== JSON.stringify(depois[c]),
+        );
+
+        void this.activityService.registrar({
+            actor_name: actor.name,
+            actor_id: actor.id,
+            action: 'editar',
+            entity_type: 'faq',
+            entity_id: id,
+            target: faq.question,
+            before: Object.fromEntries(mudou.map((c) => [c, antes[c]])),
+            after: Object.fromEntries(mudou.map((c) => [c, depois[c]])),
+        });
+
         return { ok: true };
     }
 
@@ -430,7 +476,19 @@ export class FaqsService {
         faq.updatedAt = new Date();
         await faq.save();
 
-        this.activityService.logActivity(actor.name, 'excluir', faq.question, actor.id);
+        void this.activityService.registrar({
+            actor_name: actor.name,
+            actor_id: actor.id,
+            action: 'excluir',
+            entity_type: 'faq',
+            entity_id: id,
+            target: faq.question,
+            // A FAQ some da listagem, mas nao do banco. Guardar o conteudo aqui
+            // e o que permite ver o que foi excluido depois de a purga levar o
+            // documento.
+            before: { question: faq.question, answer: faq.answer, category: faq.category },
+        });
+
         return { ok: true };
     }
 }

@@ -7,6 +7,7 @@ import * as bcrypt from 'bcryptjs';
 import { User } from '../users/entities/user.entity';
 import { UserSession } from '../users/entities/user-session.entity';
 import { AuthService } from './auth.service';
+import { ActivityService } from '../activity/activity.service';
 
 /**
  * Regras do login.
@@ -53,6 +54,7 @@ describe('AuthService — login', () => {
     const modulo: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        { provide: ActivityService, useValue: { registrar: jest.fn() } },
         {
           provide: JwtService,
           useValue: {

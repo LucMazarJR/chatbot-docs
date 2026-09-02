@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
 import { AuthService } from '../auth/auth.service';
+import { ActivityService } from '../activity/activity.service';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
@@ -51,6 +52,7 @@ describe('UsersService — travas de conta', () => {
         UsersService,
         { provide: getRepositoryToken(User), useValue: repo },
         { provide: AuthService, useValue: auth },
+        { provide: ActivityService, useValue: { registrar: jest.fn() } },
       ],
     }).compile();
 
@@ -61,7 +63,7 @@ describe('UsersService — travas de conta', () => {
     repo.findOne.mockResolvedValue({ ...ADMIN });
 
     await expect(
-      service.atualizar(ADMIN.id, { role: 'leitor' }, { id: ADMIN.id }),
+      service.atualizar(ADMIN.id, { role: 'leitor' }, { id: ADMIN.id, name: ADMIN.name }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(repo.save).not.toHaveBeenCalled();
@@ -71,7 +73,7 @@ describe('UsersService — travas de conta', () => {
     repo.findOne.mockResolvedValue({ ...ADMIN });
 
     await expect(
-      service.atualizar(ADMIN.id, { isActive: false }, { id: ADMIN.id }),
+      service.atualizar(ADMIN.id, { isActive: false }, { id: ADMIN.id, name: ADMIN.name }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -81,7 +83,7 @@ describe('UsersService — travas de conta', () => {
     repo.count.mockResolvedValue(0);
 
     await expect(
-      service.atualizar('admin-2', { role: 'editor' }, { id: ADMIN.id }),
+      service.atualizar('admin-2', { role: 'editor' }, { id: ADMIN.id, name: ADMIN.name }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -92,7 +94,7 @@ describe('UsersService — travas de conta', () => {
     const resultado = await service.atualizar(
       'admin-2',
       { role: 'editor' },
-      { id: ADMIN.id },
+      { id: ADMIN.id, name: ADMIN.name },
     );
 
     expect(resultado.role).toBe('editor');
@@ -101,7 +103,7 @@ describe('UsersService — travas de conta', () => {
   it('revoga as sessoes ao desativar, para o acesso cair na hora', async () => {
     repo.findOne.mockResolvedValue({ ...ADMIN, id: 'editor-1', role: 'editor' });
 
-    await service.desativar('editor-1', { id: ADMIN.id });
+    await service.desativar('editor-1', { id: ADMIN.id, name: ADMIN.name });
 
     // Sem isto, quem foi desativado seguiria escrevendo até o token expirar.
     expect(auth.revogarSessoes).toHaveBeenCalledWith('editor-1');
@@ -133,7 +135,7 @@ describe('UsersService — travas de conta', () => {
     repo.findOne.mockResolvedValue(null);
 
     await expect(
-      service.atualizar('nao-existe', { name: 'X' }, { id: ADMIN.id }),
+      service.atualizar('nao-existe', { name: 'X' }, { id: ADMIN.id, name: ADMIN.name }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 

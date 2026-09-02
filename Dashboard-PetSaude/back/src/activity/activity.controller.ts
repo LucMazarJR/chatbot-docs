@@ -19,6 +19,12 @@ import { ListActivityQueryDto } from './dto/list-activity-query.dto';
 export class ActivityController {
     constructor(private activityService: ActivityService) { }
 
+    /** Quem aparece no historico, para alimentar o filtro por pessoa. */
+    @Get('atores')
+    atores() {
+        return this.activityService.atores();
+    }
+
     @Get()
     getActivities(@Query() query: ListActivityQueryDto) {
         return this.activityService.getRecentActivities(query);

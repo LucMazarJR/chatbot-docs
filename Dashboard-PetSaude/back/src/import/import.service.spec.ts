@@ -286,6 +286,9 @@ describe('ImportService — gravacao do lote', () => {
       expect.anything(),
       { name: 'Ana' },
       {
+        // O batch_id e gerado por importacao: o teste confere que ele existe e
+        // e o mesmo para todas as linhas, nao qual e o valor.
+        batch_id: expect.any(String),
         file_id: 'dashboard_import',
         file_origin: 'faqs-agosto.xlsx',
         import_script_id: '11111111-2222-3333-4444-555555555555',

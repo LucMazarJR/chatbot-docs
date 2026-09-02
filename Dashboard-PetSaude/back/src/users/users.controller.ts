@@ -19,7 +19,7 @@ export class UsersController {
 
     @Post()
     criar(@Body() body: CreateUserDto, @CurrentUser() user: AuthenticatedUser) {
-        return this.usersService.criar(body, user.id);
+        return this.usersService.criar(body, { id: user.id, name: user.name });
     }
 
     @Patch(':id')
@@ -32,8 +32,15 @@ export class UsersController {
     }
 
     @Patch(':id/password')
-    definirSenha(@Param('id') id: string, @Body() body: SetPasswordDto) {
-        return this.usersService.definirSenha(id, body.newPassword);
+    definirSenha(
+        @Param('id') id: string,
+        @Body() body: SetPasswordDto,
+        @CurrentUser() user: AuthenticatedUser,
+    ) {
+        return this.usersService.definirSenha(id, body.newPassword, {
+            id: user.id,
+            name: user.name,
+        });
     }
 
     @Patch(':id/deactivate')

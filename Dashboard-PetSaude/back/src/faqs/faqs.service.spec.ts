@@ -56,7 +56,7 @@ describe('FaqsService — listagem paginada', () => {
       providers: [
         FaqsService,
         { provide: getModelToken(Faq.name), useValue: model },
-        { provide: ActivityService, useValue: { logActivity: jest.fn() } },
+        { provide: ActivityService, useValue: { logActivity: jest.fn(), registrar: jest.fn() } },
         { provide: GeminiService, useValue: { gerarEmbedding: jest.fn() } },
       ],
     }).compile();
@@ -171,7 +171,7 @@ describe('FaqsService — validação de conteúdo', () => {
       providers: [
         FaqsService,
         { provide: getModelToken(Faq.name), useValue: FakeFaqModel },
-        { provide: ActivityService, useValue: { logActivity: jest.fn() } },
+        { provide: ActivityService, useValue: { logActivity: jest.fn(), registrar: jest.fn() } },
         { provide: GeminiService, useValue: { gerarEmbedding } },
       ],
     }).compile();
@@ -261,7 +261,7 @@ describe('FaqsService — o texto embedado e o campo text', () => {
       providers: [
         FaqsService,
         { provide: getModelToken(Faq.name), useValue: FakeFaqModel },
-        { provide: ActivityService, useValue: { logActivity: jest.fn() } },
+        { provide: ActivityService, useValue: { logActivity: jest.fn(), registrar: jest.fn() } },
         {
           provide: GeminiService,
           useValue: { gerarEmbedding, modeloAtual: 'gemini-embedding-2', dimensoes: 3072 },
