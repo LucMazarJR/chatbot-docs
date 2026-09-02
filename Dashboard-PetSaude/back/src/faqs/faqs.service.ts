@@ -203,6 +203,37 @@ export class FaqsService {
      * e a base passaria a ter duas linhas com o mesmo content_hash — uma ativa
      * e uma não. Melhor a prévia dizer que a linha já existe.
      */
+    /** A mesma normalizacao usada na busca e gravada em question_normalized. */
+    normalizarPergunta(pergunta: string): string {
+        return this.normalizeForSearch(pergunta);
+    }
+
+    /**
+     * Quais destas perguntas ja existem na base ignorando pontuacao e acento.
+     *
+     * LÓGICA DO LUCIANO: o content_hash pega repetição EXATA, e é o contrato
+     * compartilhado com a ingestão Python — não dá para afrouxá-lo. Mas ele
+     * quebra com qualquer mudança de formatação: quando a regra de leitura
+     * passou a tirar os colchetes de "P: [pergunta] R: [resposta]", as mesmas
+     * FAQs que já estavam na base voltaram a aparecer como novas, e importá-las
+     * teria dobrado o conteúdo em silêncio.
+     *
+     * Esta consulta é a segunda rede. Não bloqueia nada: marca a linha para a
+     * pessoa decidir, porque às vezes reimportar o texto corrigido é justamente
+     * a intenção.
+     */
+    async perguntasParecidasExistentes(normalizadas: string[]): Promise<Set<string>> {
+        if (normalizadas.length === 0) return new Set();
+
+        const docs = await this.faqModel
+            .find({ question_normalized: { $in: normalizadas } })
+            .select('question_normalized')
+            .lean()
+            .exec();
+
+        return new Set(docs.map((d: any) => d.question_normalized as string));
+    }
+
     async hashesExistentes(hashes: string[]): Promise<Set<string>> {
         if (hashes.length === 0) return new Set();
 

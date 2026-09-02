@@ -16,6 +16,8 @@ export type FaqNormalizada = {
 export type LinhaValidada = {
   linha: number;
   estado: EstadoLinha;
+  /** A pergunta já existe na base, com o texto um pouco diferente. */
+  parecida?: boolean;
   motivos: string[];
   contentHash: string;
   faq: FaqNormalizada;

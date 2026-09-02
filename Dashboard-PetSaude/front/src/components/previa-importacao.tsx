@@ -33,7 +33,19 @@ const ROTULO: Record<LinhaValidada["estado"], string> = {
   invalida: "Com problema",
 };
 
-function Selo({ estado }: { estado: LinhaValidada["estado"] }) {
+function Selo({ item }: { item: LinhaValidada }) {
+  // "Parecida" e um estado `ok` com aviso: e importavel, mas nao deveria passar
+  // despercebida. Sem selo proprio, ela se confundiria com uma pergunta nova.
+  if (item.parecida) {
+    return (
+      <span className="inline-flex shrink-0 items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
+        <AlertCircle className="mr-1 size-3" />
+        Já existe parecida
+      </span>
+    );
+  }
+
+  const estado = item.estado;
   // Os tres estados precisam se distinguir de relance: e por eles que a pessoa
   // decide o que entra. O "ja existe" era bg-muted sem borda sobre um cartao
   // branco, ou seja, um retangulo invisivel -- dos tres, so dois apareciam.
@@ -190,8 +202,8 @@ export function PreviaImportacao({
   const [editando, setEditando] = useState<LinhaValidada | null>(null);
 
   const visiveis = useMemo(() => {
-    if (filtro === "problemas") return itens.filter((i) => i.estado !== "ok");
-    if (filtro === "novas") return itens.filter((i) => i.estado === "ok");
+    if (filtro === "problemas") return itens.filter((i) => i.estado !== "ok" || i.parecida);
+    if (filtro === "novas") return itens.filter((i) => i.estado === "ok" && !i.parecida);
     return itens;
   }, [itens, filtro]);
 
@@ -203,8 +215,8 @@ export function PreviaImportacao({
   };
 
   const contagem = {
-    ok: itens.filter((i) => i.estado === "ok").length,
-    duplicadas: itens.filter((i) => i.estado === "duplicada").length,
+    ok: itens.filter((i) => i.estado === "ok" && !i.parecida).length,
+    duplicadas: itens.filter((i) => i.estado === "duplicada" || i.parecida).length,
     invalidas: itens.filter((i) => i.estado === "invalida").length,
   };
 
@@ -254,7 +266,7 @@ export function PreviaImportacao({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-muted-foreground">linha {item.linha}</span>
-                    <Selo estado={item.estado} />
+                    <Selo item={item} />
                     {item.faq.category && (
                       <span className="truncate text-xs text-muted-foreground">
                         {item.faq.category}

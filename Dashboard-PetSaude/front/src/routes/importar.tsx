@@ -254,7 +254,12 @@ function PainelImportacao() {
     setItens(resultado.itens);
     // Só o que está pronto entra marcado. Duplicada e inválida ficam de fora e
     // nem podem ser marcadas na prévia.
-    setSelecionadas(new Set(resultado.itens.filter((i) => i.estado === "ok").map((i) => i.linha)));
+    // As "parecidas" ficam desmarcadas: passam na verificacao de repetidas por
+    // serem tecnicamente outro texto, e importar sem olhar dobraria o conteudo
+    // em silencio.
+    setSelecionadas(
+      new Set(resultado.itens.filter((i) => i.estado === "ok" && !i.parecida).map((i) => i.linha)),
+    );
     return resultado;
   };
 

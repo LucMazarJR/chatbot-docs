@@ -32,6 +32,14 @@ export type FaqNormalizada = {
 export type LinhaValidada = {
     linha: number;
     estado: EstadoLinha;
+    /**
+     * A pergunta ja existe na base, mas com o texto um pouco diferente.
+     *
+     * Nao impede a importacao: pode ser exatamente o que se quer, quando se
+     * reenvia um documento corrigido. Serve para a linha NAO vir marcada por
+     * padrao, e para a pessoa ver o que esta prestes a duplicar.
+     */
+    parecida?: boolean;
     /** Vazio quando `ok`. Uma frase por problema, para aparecer ao lado da linha. */
     motivos: string[];
     contentHash: string;
@@ -167,9 +175,12 @@ export class ImportService {
         // inválida não vai ser gravada de qualquer jeito, e a lista do $in
         // fica menor.
         const candidatos = normalizadas.filter((n) => n.motivos.length === 0);
-        const jaExistem = await this.faqsService.hashesExistentes(
-            candidatos.map((n) => n.contentHash),
-        );
+        const [jaExistem, parecidas] = await Promise.all([
+            this.faqsService.hashesExistentes(candidatos.map((n) => n.contentHash)),
+            this.faqsService.perguntasParecidasExistentes(
+                candidatos.map((n) => this.faqsService.normalizarPergunta(n.faq.question)),
+            ),
+        ]);
 
         // Duplicata dentro do PRÓPRIO arquivo. Sem isto, a mesma pergunta
         // repetida duas vezes na planilha entraria duas vezes — o banco não
@@ -179,6 +190,7 @@ export class ImportService {
 
         const itens: LinhaValidada[] = normalizadas.map((n) => {
             let estado: EstadoLinha = 'invalida';
+            let parecida = false;
             const motivos = [...n.motivos];
 
             if (motivos.length === 0) {
@@ -191,12 +203,24 @@ export class ImportService {
                 } else {
                     estado = 'ok';
                     vistosNoArquivo.add(n.contentHash);
+
+                    // Mesma pergunta, texto um pouco diferente. Nao bloqueia:
+                    // reenviar um documento corrigido e um uso legitimo, e quem
+                    // decide e quem esta olhando a previa.
+                    if (parecidas.has(this.faqsService.normalizarPergunta(n.faq.question))) {
+                        parecida = true;
+                        motivos.push(
+                            'Ja existe uma pergunta igual a esta na base, com o texto um pouco ' +
+                            'diferente. Importar vai criar uma segunda copia.',
+                        );
+                    }
                 }
             }
 
             return {
                 linha: n.linha,
                 estado,
+                parecida,
                 motivos,
                 contentHash: n.contentHash,
                 faq: n.faq,

@@ -16,6 +16,7 @@ import { ImportService } from './import.service';
 describe('ImportService — validacao', () => {
   let service: ImportService;
   let hashesNaBase: Set<string>;
+  let perguntasNaBase: Set<string>;
 
   const hash = (q: string, a: string) =>
     createHash('md5').update(`${q}|${a}`, 'utf8').digest('hex');
@@ -32,6 +33,7 @@ describe('ImportService — validacao', () => {
 
   beforeEach(async () => {
     hashesNaBase = new Set();
+    perguntasNaBase = new Set();
 
     const modulo: TestingModule = await Test.createTestingModule({
       providers: [
@@ -42,6 +44,12 @@ describe('ImportService — validacao', () => {
             hashDeConteudo: hash,
             hashesExistentes: jest.fn(async (lista: string[]) =>
               new Set(lista.filter((h) => hashesNaBase.has(h))),
+            ),
+            normalizarPergunta: (p: string) =>
+              p.normalize('NFD').replace(/[̀-ͯ]/g, '')
+                .replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim().toLowerCase(),
+            perguntasParecidasExistentes: jest.fn(async (lista: string[]) =>
+              new Set(lista.filter((q) => perguntasNaBase.has(q))),
             ),
             createFaq: jest.fn(),
           },
@@ -90,6 +98,29 @@ describe('ImportService — validacao', () => {
     expect(r.itens[0].estado).toBe('ok');
     expect(r.itens[1].estado).toBe('duplicada');
     expect(r.itens[1].motivos[0]).toContain('proprio arquivo');
+  });
+
+  it('avisa quando a pergunta ja existe com o texto um pouco diferente', async () => {
+    // O content_hash pega repeticao EXATA e quebra com qualquer mudanca de
+    // formatacao. Quando a regra de leitura passou a tirar os colchetes de
+    // "P: [pergunta] R: [resposta]", as mesmas FAQs que ja estavam na base
+    // voltaram a aparecer como novas -- importa-las teria dobrado o conteudo
+    // em silencio.
+    perguntasNaBase.add('preciso de jejum para o exame');
+
+    const r = await service.validar([boa()]);
+
+    // Nao bloqueia: reenviar um documento corrigido e uso legitimo.
+    expect(r.itens[0].estado).toBe('ok');
+    expect(r.itens[0].parecida).toBe(true);
+    expect(r.itens[0].motivos[0]).toContain('segunda copia');
+  });
+
+  it('nao marca como parecida quando a pergunta e mesmo nova', async () => {
+    const r = await service.validar([boa()]);
+
+    expect(r.itens[0].parecida).toBeFalsy();
+    expect(r.itens[0].motivos).toEqual([]);
   });
 
   it('exige as mesmas 3 tags que o formulario manual exige', async () => {
@@ -255,6 +286,8 @@ describe('ImportService — gravacao do lote', () => {
           useValue: {
             hashDeConteudo: hash,
             hashesExistentes: jest.fn(async () => new Set<string>()),
+            normalizarPergunta: (p: string) => p.toLowerCase(),
+            perguntasParecidasExistentes: jest.fn(async () => new Set<string>()),
             createFaq,
           },
         },
