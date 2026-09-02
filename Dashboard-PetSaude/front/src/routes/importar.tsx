@@ -251,10 +251,15 @@ function PainelImportacao() {
     setSelecionadas(new Set());
 
     try {
-      const entrada = await decodificarArquivo(escolhido);
+      const { entrada, avisos: avisosDaLeitura } = await decodificarArquivo(escolhido);
       const saida = await rodarScript(script.data.code, entrada);
 
-      setAvisos(saida.avisos ?? []);
+      // Aviso da leitura (aba ignorada, por exemplo) entra com linha 0 e a tela
+      // omite o prefixo. Sem isso, "linha 0" apareceria e nao significaria nada.
+      setAvisos([
+        ...avisosDaLeitura.map((mensagem) => ({ linha: 0, mensagem })),
+        ...(saida.avisos ?? []),
+      ]);
 
       if (!saida.faqs || saida.faqs.length === 0) {
         toast.warning("O script nao encontrou nenhuma FAQ neste arquivo.", {
@@ -369,7 +374,8 @@ function PainelImportacao() {
           <ul className="mt-2 space-y-1">
             {avisos.map((aviso, i) => (
               <li key={i} className="break-words text-sm text-muted-foreground">
-                linha {aviso.linha}: {aviso.mensagem}
+                {aviso.linha > 0 ? `linha ${aviso.linha}: ` : ""}
+                {aviso.mensagem}
               </li>
             ))}
           </ul>

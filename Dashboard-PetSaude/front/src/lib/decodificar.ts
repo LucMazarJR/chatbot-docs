@@ -70,27 +70,58 @@ async function lerDocx(arquivo: File): Promise<string[]> {
 /**
  * Planilha → linhas chaveadas pelo cabeçalho.
  *
+ * LÓGICA DO LUCIANO: `readXlsxFile` devolve as ABAS, não as linhas —
+ * `[{ sheet, data }]`. Tratar o retorno como matriz de linhas não dá erro de
+ * tipo em tempo de execução: `findIndex` sobre um array de objetos simplesmente
+ * não acha nada, e a importação terminaria dizendo "o script nao encontrou
+ * nenhuma FAQ neste arquivo" para uma planilha perfeitamente preenchida. O laço
+ * de ida e volta (gerar o modelo, ler de volta, parsear) foi o que expôs isso.
+ *
+ * Lê a PRIMEIRA aba. Juntar todas misturaria uma aba de anotações no meio das
+ * FAQs; ignorar as demais em silêncio esconderia conteúdo que a pessoa acha que
+ * enviou — por isso as outras viram aviso na tela.
+ *
  * A primeira linha não vazia é o cabeçalho. Coluna sem título vira "coluna N"
  * em vez de ser descartada: o script pode estar contando com a posição, e
  * sumir com a coluna em silêncio seria pior que entregá-la com nome feio.
  */
-async function lerXlsx(arquivo: File): Promise<Record<string, string>[]> {
+async function lerXlsx(
+  arquivo: File,
+): Promise<{ linhas: Record<string, string>[]; avisos: string[] }> {
   // O subcaminho /browser e explicito de proposito: o pacote nao tem export
   // raiz, e o build de Node puxaria dependencias que nao existem aqui.
   const { default: readXlsxFile } = await import("read-excel-file/browser");
-  const bruto = (await readXlsxFile(arquivo)) as unknown as unknown[][];
+  const abas = (await readXlsxFile(arquivo)) as unknown as {
+    sheet: string;
+    data: unknown[][];
+  }[];
+
+  const avisos: string[] = [];
+  if (!Array.isArray(abas) || abas.length === 0) return { linhas: [], avisos };
+
+  if (abas.length > 1) {
+    avisos.push(
+      `A planilha tem ${abas.length} abas e so a primeira ("${abas[0].sheet}") foi lida. ` +
+        `Ignoradas: ${abas
+          .slice(1)
+          .map((a) => a.sheet)
+          .join(", ")}.`,
+    );
+  }
+
+  const bruto = abas[0].data ?? [];
 
   const primeiraPreenchida = bruto.findIndex((linha) =>
     linha.some((celula) => celula !== null && String(celula).trim() !== ""),
   );
-  if (primeiraPreenchida === -1) return [];
+  if (primeiraPreenchida === -1) return { linhas: [], avisos };
 
   const cabecalho = bruto[primeiraPreenchida].map((celula, i) => {
     const nome = celula === null || celula === undefined ? "" : String(celula).trim();
     return nome || `coluna ${i + 1}`;
   });
 
-  return bruto.slice(primeiraPreenchida + 1).map((linha) => {
+  const linhas = bruto.slice(primeiraPreenchida + 1).map((linha) => {
     const objeto: Record<string, string> = {};
     cabecalho.forEach((nome, i) => {
       const celula = linha[i];
@@ -105,9 +136,14 @@ async function lerXlsx(arquivo: File): Promise<Record<string, string>[]> {
     });
     return objeto;
   });
+
+  return { linhas, avisos };
 }
 
-export async function decodificarArquivo(arquivo: File): Promise<EntradaScript> {
+/** O documento decodificado, mais o que a leitura precisou avisar. */
+export type ResultadoDecodificacao = { entrada: EntradaScript; avisos: string[] };
+
+export async function decodificarArquivo(arquivo: File): Promise<ResultadoDecodificacao> {
   const tipo = extensaoDe(arquivo.name);
   if (!tipo) {
     throw new ErroDeArquivo(
@@ -128,9 +164,13 @@ export async function decodificarArquivo(arquivo: File): Promise<EntradaScript> 
 
   try {
     if (tipo === "docx") {
-      return { tipo, nomeArquivo: arquivo.name, paragrafos: await lerDocx(arquivo) };
+      return {
+        entrada: { tipo, nomeArquivo: arquivo.name, paragrafos: await lerDocx(arquivo) },
+        avisos: [],
+      };
     }
-    return { tipo, nomeArquivo: arquivo.name, linhas: await lerXlsx(arquivo) };
+    const { linhas, avisos } = await lerXlsx(arquivo);
+    return { entrada: { tipo, nomeArquivo: arquivo.name, linhas }, avisos };
   } catch (erro) {
     if (erro instanceof ErroDeArquivo) throw erro;
     // O .doc antigo e o .xls antigo são os dois enganos mais prováveis, e o
