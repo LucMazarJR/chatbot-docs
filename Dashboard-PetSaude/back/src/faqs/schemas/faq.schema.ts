@@ -115,10 +115,22 @@ export const FaqSchema = SchemaFactory.createForClass(Faq);
 //
 // NÃO confundir com o vector_index_3072: aquele é um Atlas Search index,
 // criado pelo script Python e consumido pelo n8n. Namespaces independentes.
-FaqSchema.index({ isActive: 1, updatedAt: -1 });
-FaqSchema.index({ isActive: 1, category: 1, updatedAt: -1 });
+// O _id faz parte do indice porque faz parte da ORDENACAO.
+//
+// LOGICA DO LUCIANO: a listagem ordena por { updatedAt: -1, _id: -1 } -- o _id
+// entrou como criterio de desempate porque a ingestao grava lotes inteiros com
+// o mesmo updatedAt, e sem ele as paginas repetiam linhas. Mas os indices nao
+// tinham o _id, entao o Mongo nao conseguia satisfazer a ordenacao pelo indice
+// e caia em ordenacao EM MEMORIA da colecao inteira: 2451 documentos que
+// carregam um vetor de 3072 numeros cada.
+//
+// Numa pagina qualquer isso e so lento. Nas ultimas, com o skip somando, a
+// consulta ficava na fronteira do tempo limite e falhava de forma intermitente:
+// as perguntas apareciam, sumiam, e voltavam sozinhas na tentativa seguinte.
+FaqSchema.index({ isActive: 1, updatedAt: -1, _id: -1 });
+FaqSchema.index({ isActive: 1, category: 1, updatedAt: -1, _id: -1 });
 
 // Filtros novos da listagem. Sem indice, cada um vira varredura da colecao
 // inteira -- e ela cresce a cada importacao em lote.
-FaqSchema.index({ isActive: 1, tags: 1, updatedAt: -1 });
-FaqSchema.index({ isActive: 1, file_id: 1, updatedAt: -1 });
+FaqSchema.index({ isActive: 1, tags: 1, updatedAt: -1, _id: -1 });
+FaqSchema.index({ isActive: 1, file_id: 1, updatedAt: -1, _id: -1 });

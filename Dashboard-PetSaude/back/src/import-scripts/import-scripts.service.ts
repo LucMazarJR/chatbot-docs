@@ -47,21 +47,40 @@ export class ImportScriptsService implements OnModuleInit {
      */
     async onModuleInit(): Promise<void> {
         try {
-            const existe = await this.repo.count();
-            if (existe > 0) return;
+            const ativo = await this.repo.findOne({ where: { isActive: true } });
 
-            await this.repo.save(
-                this.repo.create({
-                    name: NOME_SCRIPT_PADRAO,
-                    code: SCRIPT_PADRAO,
-                    version: 1,
-                    isActive: true,
-                    notes: 'Versao inicial, gravada automaticamente na primeira subida.',
-                    createdById: null,
-                    createdByName: 'sistema',
-                }),
-            );
-            this.logger.log('Script de geracao padrao gravado como versao 1.');
+            if (!ativo) {
+                await this.semear(1, 'Versao inicial, gravada automaticamente na primeira subida.');
+                return;
+            }
+
+            // LÓGICA DO LUCIANO: o padrão embutido no código só era gravado na
+            // PRIMEIRA subida. Corrigir a regra padrão e publicar não mudava
+            // nada em quem já tinha o sistema no ar: o banco continuava com a
+            // versão semeada meses antes, e a correção ficava invisível.
+            //
+            // Aconteceu de verdade: a regra passou a tirar os colchetes de
+            // "P: [pergunta] R: [resposta]", a correção subiu, e a importação
+            // continuou gravando "[" no texto que o cidadão lê.
+            //
+            // A atualização só acontece se o script ativo for um padrão que
+            // NINGUÉM tocou. `createdByName === 'sistema'` só vale para a linha
+            // semeada automaticamente: salvar pelo painel grava o nome de quem
+            // salvou, e restaurar o padrão também. Regra editada fica de pé.
+            const intocado = ativo.createdByName === 'sistema' && ativo.name === NOME_SCRIPT_PADRAO;
+
+            if (intocado && ativo.code !== SCRIPT_PADRAO) {
+                const maior = await this.repo
+                    .createQueryBuilder('s')
+                    .select('MAX(s.version)', 'max')
+                    .getRawOne<{ max: number | null }>();
+
+                await this.repo.update({ isActive: true }, { isActive: false });
+                await this.semear(
+                    Number(maior?.max ?? 0) + 1,
+                    'Atualizacao automatica da regra padrao, que ninguem havia editado.',
+                );
+            }
         } catch (erro) {
             // Perder a semeadura não pode derrubar a API: sem script ativo, o
             // resto do dashboard continua funcionando e só a importação fica
@@ -104,6 +123,21 @@ export class ImportScriptsService implements OnModuleInit {
             );
         }
         throw erro;
+    }
+
+    private async semear(version: number, notes: string): Promise<void> {
+        await this.repo.save(
+            this.repo.create({
+                name: NOME_SCRIPT_PADRAO,
+                code: SCRIPT_PADRAO,
+                version,
+                isActive: true,
+                notes,
+                createdById: null,
+                createdByName: 'sistema',
+            }),
+        );
+        this.logger.log(`Regra de leitura padrao gravada como versao ${version}.`);
     }
 
     /** Metadados de todas as versões, da mais nova para a mais antiga. */
