@@ -67,7 +67,15 @@ export class GeminiService {
      * vazio — que entram no banco e o chatbot nunca encontra.
      */
     static ehErroDeCota(erro: unknown): boolean {
-        const texto = (erro instanceof Error ? erro.message : String(erro)).toLowerCase();
+        // Underscore vira espaço antes da comparação. A lista de termos veio do
+        // scripts/lib/gemini_embendding.py, que procura por "resource
+        // exhausted" com espaço — mas o que a API devolve é o código
+        // RESOURCE_EXHAUSTED, com underscore. Sem esta normalização o termo
+        // nunca casa, e o único efeito visível é o lote seguir em frente
+        // gravando FAQs sem vetor depois de a cota ter acabado.
+        const texto = (erro instanceof Error ? erro.message : String(erro))
+            .toLowerCase()
+            .replace(/_/g, ' ');
         return ['rate limit', 'quota', 'resource exhausted', '429', 'limit exceeded'].some(
             (termo) => texto.includes(termo),
         );
