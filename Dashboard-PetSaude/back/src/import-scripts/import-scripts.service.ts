@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+    Injectable,
+    Logger,
+    NotFoundException,
+    OnModuleInit,
+    ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
@@ -60,20 +66,64 @@ export class ImportScriptsService implements OnModuleInit {
             // Perder a semeadura não pode derrubar a API: sem script ativo, o
             // resto do dashboard continua funcionando e só a importação fica
             // indisponível, com uma mensagem clara na tela.
+            if (ImportScriptsService.tabelaFaltando(erro)) {
+                this.logger.warn(
+                    'A tabela import_scripts nao existe: rode `pnpm run migration:run` ' +
+                    'ou suba com DB_RUN_MIGRATIONS=true. Ate la, a importacao de FAQs ' +
+                    'fica indisponivel; o resto do dashboard funciona normalmente.',
+                );
+                return;
+            }
             this.logger.warn(
                 `Nao foi possivel semear o script padrao: ${erro instanceof Error ? erro.message : erro}`,
             );
         }
     }
 
+    /**
+     * Verdadeiro quando o erro é a tabela não existir.
+     *
+     * LÓGICA DO LUCIANO: `DB_RUN_MIGRATIONS` é `false` por padrão — as
+     * migrations são rodadas à mão, de propósito. Então o primeiro deploy que
+     * levar este módulo sobe com a tabela ainda inexistente, e o erro cru do
+     * Postgres que chega na tela é `relation "import_scripts" does not exist`.
+     * Quem estiver olhando não tem como saber que falta um comando, nem qual.
+     */
+    private static tabelaFaltando(erro: unknown): boolean {
+        // 42P01 = undefined_table. O código é estável entre versões do Postgres;
+        // a mensagem não é, e muda de idioma conforme o lc_messages do servidor.
+        return (erro as { code?: string })?.code === '42P01';
+    }
+
+    private traduzirFalta(erro: unknown): never {
+        if (ImportScriptsService.tabelaFaltando(erro)) {
+            throw new ServiceUnavailableException(
+                'A tabela import_scripts ainda nao existe neste banco. ' +
+                'Rode as migrations: `pnpm run migration:run` na pasta back, ' +
+                'ou suba a API com DB_RUN_MIGRATIONS=true.',
+            );
+        }
+        throw erro;
+    }
+
     /** Metadados de todas as versões, da mais nova para a mais antiga. */
     async listar(): Promise<ImportScriptResumo[]> {
-        const scripts = await this.repo.find({ order: { version: 'DESC' } });
-        return scripts.map(toResumo);
+        try {
+            const scripts = await this.repo.find({ order: { version: 'DESC' } });
+            return scripts.map(toResumo);
+        } catch (erro) {
+            this.traduzirFalta(erro);
+        }
     }
 
     async buscarAtivo(): Promise<ScriptAtivo> {
-        const script = await this.repo.findOne({ where: { isActive: true } });
+        let script: ImportScript | null;
+        try {
+            script = await this.repo.findOne({ where: { isActive: true } });
+        } catch (erro) {
+            this.traduzirFalta(erro);
+        }
+
         if (!script) {
             // Só acontece se a semeadura falhou e ninguém salvou nada desde
             // então. Devolver o padrão de memória aqui deixaria a importação

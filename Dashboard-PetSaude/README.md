@@ -61,4 +61,62 @@ bun run dev --port 5173   # a porta 3000 costuma estar ocupada pelo gateway do W
 
 O Postgres pode vir do `docker-compose.yml` do repositório do chatbot (serviço `postgres`).
 
+## Importação de FAQs em lote
+
+Editores e administradores podem subir uma planilha `.xlsx` ou um documento
+`.docx` em **/importar**: o arquivo é lido no navegador, passa pelo script de
+geração e vira uma prévia — nada é gravado antes de alguém conferir. Linhas que
+já existem na base são detectadas pelo `content_hash`, o mesmo MD5 da ingestão
+Python, então reenviar o mesmo arquivo depois de uma interrupção retoma de onde
+parou em vez de duplicar.
+
+O **script de geração** é um módulo JavaScript guardado no banco e editável em
+**/configuracoes** (só admin). Ele exporta duas coisas: `gerarFaqs`, que
+transforma o documento em pares pergunta/resposta, e `modelo`, de onde saem os
+arquivos de modelo vazios. As duas pontas no mesmo lugar de propósito — trocar o
+script troca o parser e o modelo baixado ao mesmo tempo, e não há como ficarem
+fora de sincronia. Cada gravação cria uma versão nova; a anterior fica guardada e
+pode ser reativada, e cada FAQ importada registra qual script e versão a geraram.
+
+O script roda no **navegador**, num Web Worker descartável com timeout e sem
+acesso a rede. O servidor guarda e devolve o código, nunca o executa.
+
+> ⚠️ **O script vale só para a importação pelo dashboard.** A ingestão que lê o
+> Google Drive (`scripts/enviar_dados.py`) continua com os marcadores fixos no
+> código. Divergir faz o Drive parar de render FAQs sem erro nenhum.
+
+### Saúde dos vetores
+
+Em **/configuracoes** há a contagem de FAQs sem vetor, com dimensão errada, com
+vetor desatualizado e com modelo divergente — e um botão para gerar os que
+faltam. Uma FAQ sem vetor está na base e aparece na listagem, mas o chatbot nunca
+a encontra: não há erro em lugar nenhum, só a pergunta que nunca é respondida.
+
+"Modelo não registrado" é uma categoria separada de "modelo divergente" porque a
+segunda não pode ser deduzida: o campo `embedding_model` só passou a ser gravado
+recentemente, e a dimensão não distingue os modelos — o `gemini-embedding-001`
+também produz 3072 quando pedido. Para saber em que modelo a base realmente
+está, use **Diagnosticar por amostragem**: ele gera vetores novos para ~10 FAQs e
+compara com os guardados. Custa 10 chamadas à API.
+
+## Deploy
+
+⚠️ **Este release inclui uma migration nova (`import_scripts`) e ela não roda
+sozinha** — `DB_RUN_MIGRATIONS` é `false` por padrão, de propósito. Depois de
+subir a API:
+
+```bash
+cd back && pnpm run migration:run
+```
+
+Ou suba uma vez com `DB_RUN_MIGRATIONS=true` no ambiente.
+
+Sem isso o dashboard continua funcionando normalmente, mas **/importar** e
+**/configuracoes** respondem com a mensagem dizendo que a tabela não existe.
+
+> O `bun.lock` do front está desatualizado: as dependências novas
+> (`read-excel-file`, `write-excel-file`, `mammoth`, `docx`) entraram pelo npm,
+> que é o que o Dockerfile e a Vercel usam. Rode `bun install` numa máquina com
+> bun para regerá-lo.
+
 > ⚠️ **O modelo de embedding precisa ser o mesmo em três lugares:** aqui, na ingestão em Python e no nó Embeddings do n8n. Divergir não gera erro em lugar nenhum — a FAQ entra no banco e simplesmente nunca aparece nas buscas do chatbot. Hoje os três usam `gemini-embedding-2` com 3072 dimensões.
