@@ -145,13 +145,37 @@ function limparResposta(bruto) {
   return texto(bruto).split(RE_METADADOS)[0].trim();
 }
 
+// Muita gente escreve "P: [pergunta] R: [resposta]" -- os colchetes sao so uma
+// marcacao visual de onde o campo comeca e termina, nao fazem parte do texto.
+// Sem tirar, eles entram na base e o cidadao recebe no WhatsApp uma resposta que
+// comeca com "[". O enviar_dados.py tambem os mantem; aqui nao.
+//
+// So tira quando o "]" do fim e o par do "[" do comeco. Uma checagem ingenua
+// de primeiro/ultimo caractere transformaria "[a] e [b]" em "a] e [b".
+function tirarColchetes(valor) {
+  var s = texto(valor);
+  if (s.length < 2) return s;
+  if (s.charAt(0) !== '[' || s.charAt(s.length - 1) !== ']') return s;
+
+  var profundidade = 0;
+  for (var i = 0; i < s.length; i++) {
+    if (s.charAt(i) === '[') profundidade++;
+    else if (s.charAt(i) === ']') {
+      profundidade--;
+      // Fechou antes do fim: o par externo nao existe.
+      if (profundidade === 0 && i < s.length - 1) return s;
+    }
+  }
+  return profundidade === 0 ? s.slice(1, -1).trim() : s;
+}
+
 // TAGS e FONTE valem numa janela de tres paragrafos: o anterior, o atual e o
 // seguinte. E o que permite escrever os metadados na linha de baixo.
 function metadadosAoRedor(linhas, i) {
   var janela = linhas.slice(Math.max(0, i - 1), Math.min(linhas.length, i + 2)).join(' ');
 
   var mFonte = janela.match(RE_FONTE);
-  var fonte = mFonte ? mFonte[1].trim().replace(/[.)]+$/, '') : '';
+  var fonte = mFonte ? tirarColchetes(mFonte[1].trim().replace(/[.)]+$/, '')) : '';
 
   var mTags = janela.match(RE_TAGS);
   var tags = [];
@@ -207,16 +231,16 @@ function gerarDeParagrafos(paragrafos, nomeArquivo) {
       // Pergunta e resposta na mesma linha.
       var antes = linha.slice(0, mR.index);
       var depois = linha.slice(mR.index + mR[0].length);
-      pergunta = antes.replace(RE_P_EM_QUALQUER_LUGAR, '').trim();
-      resposta = limparResposta(depois);
+      pergunta = tirarColchetes(antes.replace(RE_P_EM_QUALQUER_LUGAR, ''));
+      resposta = tirarColchetes(limparResposta(depois));
     } else if (RE_P_INICIO.test(linha)) {
-      perguntaPendente = linha.replace(RE_P_INICIO, '').trim();
+      perguntaPendente = tirarColchetes(linha.replace(RE_P_INICIO, ''));
       linhaDaPergunta = numero;
       continue;
     } else if (RE_R_INICIO.test(linha)) {
       if (perguntaPendente) {
         pergunta = perguntaPendente;
-        resposta = limparResposta(linha.replace(RE_R_INICIO, ''));
+        resposta = tirarColchetes(limparResposta(linha.replace(RE_R_INICIO, '')));
         perguntaPendente = '';
       } else {
         avisos.push({
@@ -301,8 +325,8 @@ function gerarDeLinhas(linhas, nomeArquivo) {
     // Cabecalho na linha 1, entao a primeira linha de dados e a 2.
     var numero = i + 2;
 
-    var pergunta = pegarColuna(bruta, colunas[0]);
-    var resposta = pegarColuna(bruta, colunas[1]);
+    var pergunta = tirarColchetes(pegarColuna(bruta, colunas[0]));
+    var resposta = tirarColchetes(pegarColuna(bruta, colunas[1]));
 
     // Linha totalmente em branco no meio da planilha e comum e nao e erro.
     if (!pergunta && !resposta) continue;
@@ -329,7 +353,7 @@ function gerarDeLinhas(linhas, nomeArquivo) {
       answer: resposta,
       category: pegarColuna(bruta, colunas[2]).toLowerCase() || padraoAssunto,
       tags: tags,
-      source: pegarColuna(bruta, colunas[4]),
+      source: tirarColchetes(pegarColuna(bruta, colunas[4])),
       linha: numero,
     });
   }

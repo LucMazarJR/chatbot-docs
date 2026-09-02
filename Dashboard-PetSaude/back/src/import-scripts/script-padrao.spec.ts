@@ -172,6 +172,42 @@ describe('script padrão — Word', () => {
     expect(r.avisos[0].mensagem).toContain('2 paragrafo(s)');
   });
 
+  it('tira os colchetes que a pessoa usa para delimitar o campo', () => {
+    // Formato real, de um documento de FAQs sobre violencia contra a mulher:
+    // "P: [pergunta] R: [resposta]". Os colchetes sao marcacao visual de onde o
+    // campo comeca e termina, nao fazem parte do texto. Sem tirar, eles entram
+    // na base e o cidadao recebe no WhatsApp uma resposta que comeca com "[".
+    const r = doDocx([
+      'P: [Quais sao os meus direitos?] R: [Medidas protetivas e apoio juridico.] TAGS: a, b, c',
+    ]);
+
+    expect(r.faqs[0].question).toBe('Quais sao os meus direitos?');
+    expect(r.faqs[0].answer).toBe('Medidas protetivas e apoio juridico.');
+  });
+
+  it('tira os colchetes tambem da fonte escrita como (Ref:[...])', () => {
+    const r = doDocx(['P: Q? R: A. (Ref:[Ministerio Publico de Sao Paulo]) TAGS: a, b, c']);
+
+    expect(r.faqs[0].source).toBe('Ministerio Publico de Sao Paulo');
+  });
+
+  it('tira os colchetes com o marcador colado no dois-pontos', () => {
+    // "P:[texto]" sem espaco depois do dois-pontos e o mais comum no documento
+    // real, e era o caso que mais facilmente escaparia.
+    const r = doDocx(['P:[ Por que reconhecer a violencia?]', 'R:[ Para romper o ciclo.]']);
+
+    expect(r.faqs[0].question).toBe('Por que reconhecer a violencia?');
+    expect(r.faqs[0].answer).toBe('Para romper o ciclo.');
+  });
+
+  it('preserva colchete que nao envolve o campo inteiro', () => {
+    // Uma checagem ingenua de primeiro e ultimo caractere transformaria
+    // "[a] e [b]" em "a] e [b", corrompendo o texto em vez de limpar.
+    const r = doDocx(['P: Onde acho a tabela? R: Veja [a tabela 3] e [a nota 5]. TAGS: a, b, c']);
+
+    expect(r.faqs[0].answer).toBe('Veja [a tabela 3] e [a nota 5].');
+  });
+
   it('nao se perde com bullet digitado a mao antes do marcador', () => {
     const r = doDocx(['• P: Q? R: A.']);
 
