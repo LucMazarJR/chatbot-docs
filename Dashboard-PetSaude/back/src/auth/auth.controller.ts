@@ -25,7 +25,7 @@ export class AuthController {
 
     @Post('logout')
     logout(@CurrentUser() user: AuthenticatedUser) {
-        return this.authService.logout(user.jti);
+        return this.authService.logout(user.jti, { id: user.id, name: user.name });
     }
 
     @Get('me')

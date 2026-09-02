@@ -59,6 +59,27 @@ export function contarFiltrosAtivos(v: ValoresFiltro): number {
 }
 
 /**
+ * Converte a data do campo (AAAA-MM-DD) no instante correspondente no fuso de
+ * quem está usando o sistema.
+ *
+ * LÓGICA DO LUCIANO: quem monta as pontas é o navegador, porque só ele sabe o
+ * fuso da pessoa. O servidor roda em UTC; se ele tentasse deduzir o dia a partir
+ * da data solta, "de 10/03 até 10/03" no Brasil viraria um intervalo que começa
+ * às 21h do dia 9.
+ */
+export function inicioDoDia(data: string): string | undefined {
+  if (!data) return undefined;
+  const [a, m, d] = data.split("-").map(Number);
+  return new Date(a, m - 1, d, 0, 0, 0, 0).toISOString();
+}
+
+export function fimDoDia(data: string): string | undefined {
+  if (!data) return undefined;
+  const [a, m, d] = data.split("-").map(Number);
+  return new Date(a, m - 1, d, 23, 59, 59, 999).toISOString();
+}
+
+/**
  * Painel de filtros da listagem.
  *
  * LÓGICA DO LUCIANO: recolhido por padrão e com a contagem de filtros ativos no

@@ -34,7 +34,7 @@ export type FiltroAuditoria = {
     entityId?: string;
     action?: string;
     status?: 'sucesso' | 'negado';
-    /** ISO. Inclusivo nas duas pontas. */
+    /** Instante ISO completo, montado no fuso de quem filtrou. Inclusivo. */
     de?: string;
     ate?: string;
 };
@@ -109,16 +109,16 @@ export class ActivityService {
         if (f.action) filtro.action = f.action;
         if (f.status) filtro.status = f.status;
 
-        // O intervalo cobre o dia inteiro nas duas pontas: quem filtra "de 10/03
-        // até 10/03" espera ver o que aconteceu naquele dia, não nada.
+        // LÓGICA DO LUCIANO: as pontas chegam como instante completo, montado
+        // no fuso de quem filtrou. Aqui havia `new Date('2026-03-10')`, que o
+        // JavaScript lê como meia-noite UTC, seguido de `setHours` LOCAL: num
+        // servidor em UTC-3 o intervalo virava 9/03 21:00 até 9/03 23:59, e
+        // filtrar "de 10/03 até 10/03" não devolvia nada do dia 10. O teste
+        // passava porque só conferia se a hora era 23.
         if (f.de || f.ate) {
             const intervalo: Record<string, Date> = {};
             if (f.de) intervalo.$gte = new Date(f.de);
-            if (f.ate) {
-                const fim = new Date(f.ate);
-                fim.setHours(23, 59, 59, 999);
-                intervalo.$lte = fim;
-            }
+            if (f.ate) intervalo.$lte = new Date(f.ate);
             filtro.created_at = intervalo;
         }
 
@@ -169,15 +169,31 @@ export class ActivityService {
 
     /** Quem aparece no histórico, para alimentar o filtro por pessoa. */
     async atores(): Promise<{ id: string | null; nome: string }[]> {
+        // Agrupa por actor_id, nao pelo par (id, nome): a mesma pessoa aparece
+        // com o nome no login e com o e-mail digitado no login recusado, e o
+        // par produzia duas entradas para o mesmo id -- chave repetida no React
+        // e dois itens identicos no filtro.
+        //
+        // E filtra quem nao tem id antes de cortar em 200. Sem isso, uma
+        // varredura de credenciais cria um grupo por e-mail tentado e empurra
+        // os usuarios de verdade para fora da lista.
         const grupos = await this.activityModel
             .aggregate([
-                { $group: { _id: { id: '$actor_id', nome: '$actor_name' } } },
+                { $match: { actor_id: { $exists: true, $ne: null } } },
+                {
+                    $group: {
+                        _id: '$actor_id',
+                        nome: { $last: '$actor_name' },
+                        visto: { $max: '$created_at' },
+                    },
+                },
+                { $sort: { visto: -1 } },
                 { $limit: 200 },
             ])
             .exec();
 
         return grupos
-            .map((g) => ({ id: g._id.id ?? null, nome: g._id.nome as string }))
+            .map((g) => ({ id: g._id as string, nome: g.nome as string }))
             .filter((a) => a.nome)
             .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     }

@@ -22,6 +22,7 @@ import {
   type TipoEntidade,
   type ValorAuditado,
 } from "@/lib/auditoria.functions";
+import { fimDoDia, inicioDoDia } from "@/components/filtros-faq";
 import { exigirAdmin } from "@/lib/guardas";
 
 const POR_PAGINA = 25;
@@ -188,8 +189,9 @@ function PainelAuditoria() {
     ...(actorId ? { actorId } : {}),
     ...(entityType ? { entityType } : {}),
     ...(status ? { status } : {}),
-    ...(de ? { de } : {}),
-    ...(ate ? { ate } : {}),
+    // Pontas do dia no fuso de quem filtra. Ver o comentario em filtros-faq.
+    ...(inicioDoDia(de) ? { de: inicioDoDia(de) } : {}),
+    ...(fimDoDia(ate) ? { ate: fimDoDia(ate) } : {}),
   };
 
   const ativos = [actorId, entityType, status, de, ate].filter(Boolean).length;

@@ -173,15 +173,19 @@ describe('ActivityService', () => {
       expect(ultimoFiltro).toEqual({});
     });
 
-    it('o intervalo cobre o dia inteiro na ponta final', async () => {
-      // "de 10/03 ate 10/03" precisa mostrar o dia 10 inteiro. Comparando com a
-      // meia-noite, devolveria zero linhas e a pessoa concluiria que nao houve
-      // alteracao nenhuma naquele dia.
-      await service.getRecentActivities({ de: '2026-03-10', ate: '2026-03-10' });
+    it('usa as pontas exatamente como recebidas, sem mexer no fuso', () => {
+      // Antes o servico fazia `new Date('2026-03-10')` -- meia-noite UTC -- e
+      // depois `setHours` LOCAL. Num servidor em UTC-3 o intervalo virava
+      // 09/03 21:00 ate 09/03 23:59, e filtrar "de 10/03 ate 10/03" nao
+      // devolvia nada do dia 10. Quem monta as pontas agora e o front, que sabe
+      // o fuso de quem esta filtrando.
+      const de = '2026-03-10T03:00:00.000Z';
+      const ate = '2026-03-11T02:59:59.999Z';
 
-      const fim: Date = ultimoFiltro.created_at.$lte;
-      expect(fim.getHours()).toBe(23);
-      expect(fim.getMinutes()).toBe(59);
+      return service.getRecentActivities({ de, ate }).then(() => {
+        expect(ultimoFiltro.created_at.$gte.toISOString()).toBe(de);
+        expect(ultimoFiltro.created_at.$lte.toISOString()).toBe(ate);
+      });
     });
   });
 });

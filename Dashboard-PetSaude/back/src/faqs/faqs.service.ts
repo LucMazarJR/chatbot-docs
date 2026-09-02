@@ -262,11 +262,16 @@ export class FaqsService {
         // exclusao e um soft delete), e ate aqui nao havia jeito nenhum de
         // ve-las de novo -- o que efetivamente as tornava invisiveis para
         // sempre, inclusive para quem excluiu por engano.
+        // `todas` usa $in em vez de nao filtrar nada. Um filtro vazio deixa a
+        // consulta sem o prefixo isActive, entao nenhum indice serve a ordenacao
+        // por { updatedAt, _id } e o Mongo volta a ordenar em memoria a colecao
+        // inteira -- exatamente a lentidao que os indices resolveram. E a tela
+        // de importacao manda para ca com situacao=todas depois de cada lote.
         const filtro: Record<string, any> =
             f.situacao === 'inativas'
                 ? { isActive: false }
                 : f.situacao === 'todas'
-                    ? {}
+                    ? { isActive: { $in: [true, false] } }
                     : { isActive: true };
 
         const categoria = f.category;
@@ -296,27 +301,28 @@ export class FaqsService {
                         : 'dashboard_manual';
         }
 
-        if (f.autor) {
+        // Trim ANTES do teste: `f.autor` com um espaco e verdadeiro, e
+        // `new RegExp('')` casa com qualquer coisa -- o filtro parecia aplicado
+        // e nao filtrava nada. E a mesma armadilha que o ramo da busca abaixo
+        // ja evitava.
+        const autorLimpo = f.autor?.trim() ?? '';
+        if (autorLimpo) {
             // Quem mexeu por ultimo OU quem criou: procurar so por um dos dois
             // esconderia metade dos casos, e a pergunta de quem filtra e "o que
             // essa pessoa tocou?".
-            const autor = new RegExp(this.escaparRegex(f.autor.trim()), 'i');
+            const autor = new RegExp(this.escaparRegex(autorLimpo), 'i');
             filtro.$and = [
                 ...((filtro.$and as unknown[]) ?? []),
                 { $or: [{ updated_by: autor }, { created_by: autor }] },
             ];
         }
 
+        // As pontas chegam como instante completo, montado no fuso de quem
+        // filtrou. Ver o comentario equivalente no activity.service.
         if (f.de || f.ate) {
             const intervalo: Record<string, Date> = {};
             if (f.de) intervalo.$gte = new Date(f.de);
-            if (f.ate) {
-                // Ate o fim do dia: quem filtra "ate 10/03" espera incluir o
-                // dia 10, nao parar na meia-noite.
-                const fim = new Date(f.ate);
-                fim.setHours(23, 59, 59, 999);
-                intervalo.$lte = fim;
-            }
+            if (f.ate) intervalo.$lte = new Date(f.ate);
             filtro.updatedAt = intervalo;
         }
 

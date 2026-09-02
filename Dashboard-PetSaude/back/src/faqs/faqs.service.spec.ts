@@ -178,12 +178,35 @@ describe('FaqsService — listagem paginada', () => {
     expect(ultimaConsulta.$or).toBeUndefined();
   });
 
-  it('o intervalo de datas cobre o dia inteiro na ponta final', async () => {
-    await service.listFaqs({ de: '2026-03-01', ate: '2026-03-10' });
+  it('usa as pontas de data exatamente como recebidas', async () => {
+    // O front manda instantes completos, montados no fuso de quem filtra. O
+    // servico nao pode mexer neles: misturar leitura UTC com setHours local
+    // deslocava o intervalo em horas.
+    const de = '2026-03-01T03:00:00.000Z';
+    const ate = '2026-03-11T02:59:59.999Z';
 
-    const fim: Date = ultimaConsulta.updatedAt.$lte;
-    expect(fim.getHours()).toBe(23);
-    expect(fim.getMinutes()).toBe(59);
+    await service.listFaqs({ de, ate });
+
+    expect(ultimaConsulta.updatedAt.$gte.toISOString()).toBe(de);
+    expect(ultimaConsulta.updatedAt.$lte.toISOString()).toBe(ate);
+  });
+
+  it('ignora autor que so tem espaco', async () => {
+    // `f.autor` com um espaco e verdadeiro, e new RegExp('') casa com tudo: o
+    // filtro parecia aplicado e nao filtrava nada.
+    await service.listFaqs({ autor: '   ' });
+
+    expect(ultimaConsulta.$and).toBeUndefined();
+  });
+
+  it('situacao "todas" mantem o prefixo isActive, para o indice servir', async () => {
+    // Filtro vazio deixa a consulta sem o prefixo isActive, nenhum indice serve
+    // a ordenacao por { updatedAt, _id }, e o Mongo volta a ordenar em memoria
+    // a colecao inteira. A tela de importacao manda para ca com situacao=todas
+    // depois de cada lote.
+    await service.listFaqs({ situacao: 'todas' });
+
+    expect(ultimaConsulta.isActive).toEqual({ $in: [true, false] });
   });
 
   it('mostra as desativadas quando pedido', async () => {
@@ -193,7 +216,9 @@ describe('FaqsService — listagem paginada', () => {
     expect(ultimaConsulta.isActive).toBe(false);
 
     await service.listFaqs({ situacao: 'todas' });
-    expect(ultimaConsulta.isActive).toBeUndefined();
+    // $in em vez de nao filtrar: o prefixo isActive precisa continuar na
+    // consulta para o indice servir a ordenacao. Ver o teste logo abaixo.
+    expect(ultimaConsulta.isActive).toEqual({ $in: [true, false] });
   });
 
   it('ignora busca vazia em vez de filtrar por string vazia', async () => {

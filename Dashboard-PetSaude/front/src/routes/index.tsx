@@ -3,7 +3,14 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { FolderOpen } from "lucide-react";
 
-import { getFaqCategories, listFaqs, type Origem, type Situacao } from "@/lib/faq.functions";
+import {
+  getFaqCategories,
+  listFaqs,
+  ORIGENS,
+  SITUACOES,
+  type Origem,
+  type Situacao,
+} from "@/lib/faq.functions";
 import { GateShell } from "@/components/gate";
 import { FaqPagination } from "@/components/faq-pagination";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -13,6 +20,8 @@ import {
   FILTRO_VAZIO,
   FiltrosFaq,
   contarFiltrosAtivos,
+  fimDoDia,
+  inicioDoDia,
   type ValoresFiltro,
 } from "@/components/filtros-faq";
 import { exigirSessao } from "@/lib/guardas";
@@ -35,14 +44,28 @@ type Busca = {
 
 const texto = (valor: unknown) => (typeof valor === "string" && valor ? valor : "");
 
+/**
+ * LÓGICA DO LUCIANO: valida em vez de só converter com `as`.
+ *
+ * O `validateSearch` aceitava qualquer texto e o repassava como se fosse um
+ * valor válido. Um `?origem=xyz` na URL, de um link velho ou de alguém mexendo
+ * na barra de endereços, passava daqui e ia estourar no `z.enum` da server
+ * function: a listagem inteira caía no painel de erro por causa de um parâmetro
+ * de filtro. Valor desconhecido agora é simplesmente ignorado.
+ */
+const umDe = <T extends string>(opcoes: readonly T[], valor: unknown): T | "" => {
+  const t = texto(valor);
+  return (opcoes as readonly string[]).includes(t) ? (t as T) : "";
+};
+
 export const Route = createFileRoute("/")({
   // Página, busca e filtros moram na URL: sobrevivem ao refresh e ao botão
   // voltar, e tornam o link compartilhável.
   beforeLoad: () => exigirSessao(),
   validateSearch: (search: Record<string, unknown>): Busca => {
     const page = Number(search.page ?? 1) || 1;
-    const origem = texto(search.origem) as Origem | "";
-    const situacao = texto(search.situacao) as Situacao | "";
+    const origem = umDe(ORIGENS, search.origem);
+    const situacao = umDe(SITUACOES, search.situacao);
 
     // Só devolve o que difere do padrão. Devolvendo sempre tudo, o roteador
     // considera a URL "não canônica" e responde 307 para a versão com os
@@ -119,8 +142,10 @@ function BrowsePanel() {
           ...(valores.autor ? { autor: valores.autor } : {}),
           ...(valores.origem ? { origem: valores.origem } : {}),
           ...(valores.situacao ? { situacao: valores.situacao } : {}),
-          ...(valores.de ? { de: valores.de } : {}),
-          ...(valores.ate ? { ate: valores.ate } : {}),
+          // O navegador monta as pontas do dia no fuso de quem esta filtrando:
+          // o servidor roda em UTC e nao tem como deduzir isso da data solta.
+          ...(inicioDoDia(valores.de) ? { de: inicioDoDia(valores.de) } : {}),
+          ...(fimDoDia(valores.ate) ? { ate: fimDoDia(valores.ate) } : {}),
         },
       }),
     placeholderData: keepPreviousData,

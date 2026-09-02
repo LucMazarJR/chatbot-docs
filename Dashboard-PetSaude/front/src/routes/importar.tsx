@@ -249,9 +249,28 @@ function PainelImportacao() {
     }
   }, [estadoJob, queryClient]);
 
-  const revalidar = async (faqs: unknown[]) => {
+  /**
+   * @param preservarSelecao mantém o que a pessoa marcou ou desmarcou à mão.
+   *
+   * LÓGICA DO LUCIANO: revalidar sempre remarcava tudo do zero. Quem tinha
+   * desmarcado dez linhas e depois aplicava o assunto do lote via as dez
+   * voltarem marcadas, sem aviso. Na primeira leitura do arquivo a remarcação é
+   * o certo, porque ainda não houve escolha nenhuma.
+   */
+  const revalidar = async (faqs: unknown[], preservarSelecao = false) => {
     const resultado = await validar({ data: { faqs } });
     setItens(resultado.itens);
+
+    if (preservarSelecao) {
+      // Uma linha que virou inválida ou duplicada sai da seleção de qualquer
+      // forma: ela não seria importada, e deixá-la marcada mentiria na contagem.
+      const importaveis = new Set(
+        resultado.itens.filter((i) => i.estado === "ok").map((i) => i.linha),
+      );
+      setSelecionadas((atual) => new Set([...atual].filter((l) => importaveis.has(l))));
+      return resultado;
+    }
+
     // Só o que está pronto entra marcado. Duplicada e inválida ficam de fora e
     // nem podem ser marcadas na prévia.
     // As "parecidas" ficam desmarcadas: passam na verificacao de repetidas por
@@ -297,8 +316,15 @@ function PainelImportacao() {
       // Propõe o assunto que veio do arquivo, para a pessoa conferir antes de
       // gravar. Ver o comentário do bloco de assunto na prévia.
       setAssuntoLote(resultado.itens[0]?.faq.category ?? "");
+      // Conta a partir dos itens, nao do resumo do servidor: o resumo trata as
+      // "parecidas" como ok, e as abas da previa as separam. Duas contagens
+      // discordando na mesma tela e pior que nenhuma.
+      const novas = resultado.itens.filter((i) => i.estado === "ok" && !i.parecida).length;
+      const repetidas = resultado.itens.filter(
+        (i) => i.estado === "duplicada" || i.parecida,
+      ).length;
       toast.success(
-        `${resultado.resumo.ok} nova(s), ${resultado.resumo.duplicadas} já existente(s), ` +
+        `${novas} nova(s), ${repetidas} já existente(s), ` +
           `${resultado.resumo.invalidas} com problema.`,
       );
     } catch (erro) {
@@ -322,7 +348,7 @@ function PainelImportacao() {
       const comEdicao = itens.map((item) =>
         item.linha === linha ? { ...faq, linha } : { ...item.faq, linha: item.linha },
       );
-      return revalidar(comEdicao);
+      return revalidar(comEdicao, true);
     },
     onError: (erro: Error) => toast.error(erro.message || "Não foi possível revalidar"),
   });
@@ -336,7 +362,7 @@ function PainelImportacao() {
         category: assunto,
         linha: item.linha,
       }));
-      return revalidar(comAssunto);
+      return revalidar(comAssunto, true);
     },
     onSuccess: () => toast.success("Assunto aplicado a todas as linhas."),
     onError: (erro: Error) => toast.error(erro.message || "Não foi possível aplicar"),
@@ -468,7 +494,7 @@ function PainelImportacao() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={assuntoLote.trim().length < 2 || rodando || mutEditar.isPending}
+                disabled={assuntoLote.trim().length < 2 || rodando || mutAssunto.isPending}
                 onClick={() => mutAssunto.mutate(assuntoLote.trim().toLowerCase())}
               >
                 Aplicar a todas
