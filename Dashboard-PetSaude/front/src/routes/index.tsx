@@ -3,45 +3,60 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { FolderOpen } from "lucide-react";
 
-import { getFaqCategories, listFaqs, SEM_CATEGORIA } from "@/lib/faq.functions";
+import { getFaqCategories, listFaqs, type Origem, type Situacao } from "@/lib/faq.functions";
 import { GateShell } from "@/components/gate";
 import { FaqPagination } from "@/components/faq-pagination";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
+import {
+  FILTRO_VAZIO,
+  FiltrosFaq,
+  contarFiltrosAtivos,
+  type ValoresFiltro,
+} from "@/components/filtros-faq";
 import { exigirSessao } from "@/lib/guardas";
 
 const POR_PAGINA = 20;
-const TODAS = "__todas__";
 
 // Campos opcionais de proposito: com eles obrigatorios, todo <Link to="/">
 // no app passaria a exigir a querystring completa.
-type Busca = { page?: number; search?: string; category?: string };
+type Busca = {
+  page?: number;
+  search?: string;
+  category?: string;
+  tag?: string;
+  autor?: string;
+  origem?: Origem;
+  situacao?: Situacao;
+  de?: string;
+  ate?: string;
+};
+
+const texto = (valor: unknown) => (typeof valor === "string" && valor ? valor : "");
 
 export const Route = createFileRoute("/")({
-  // Página, busca e categoria moram na URL: sobrevivem ao refresh e ao botão
+  // Página, busca e filtros moram na URL: sobrevivem ao refresh e ao botão
   // voltar, e tornam o link compartilhável.
   beforeLoad: () => exigirSessao(),
   validateSearch: (search: Record<string, unknown>): Busca => {
     const page = Number(search.page ?? 1) || 1;
-    const termo = typeof search.search === "string" ? search.search : "";
-    const categoria = typeof search.category === "string" ? search.category : "";
+    const origem = texto(search.origem) as Origem | "";
+    const situacao = texto(search.situacao) as Situacao | "";
 
-    // Só devolve o que difere do padrão. Devolvendo sempre os três, o roteador
-    // considera a URL "não canônica" e responde 307 para
-    // `/?page=1&search=&category=` — um redirect em toda visita à home, e a
-    // barra de endereços poluída de parâmetros vazios.
+    // Só devolve o que difere do padrão. Devolvendo sempre tudo, o roteador
+    // considera a URL "não canônica" e responde 307 para a versão com os
+    // parâmetros vazios: um redirect em toda visita à home.
     return {
       ...(page > 1 ? { page } : {}),
-      ...(termo ? { search: termo } : {}),
-      ...(categoria ? { category: categoria } : {}),
+      ...(texto(search.search) ? { search: texto(search.search) } : {}),
+      ...(texto(search.category) ? { category: texto(search.category) } : {}),
+      ...(texto(search.tag) ? { tag: texto(search.tag) } : {}),
+      ...(texto(search.autor) ? { autor: texto(search.autor) } : {}),
+      ...(origem ? { origem } : {}),
+      ...(situacao ? { situacao } : {}),
+      ...(texto(search.de) ? { de: texto(search.de) } : {}),
+      ...(texto(search.ate) ? { ate: texto(search.ate) } : {}),
     };
   },
   head: () => ({
@@ -50,13 +65,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Painel clínico protegido por senha para consultar, inserir, editar e excluir perguntas frequentes sobre saúde por categoria e tags.",
+          "Painel para consultar, inserir, editar e excluir perguntas frequentes sobre saúde por assunto e tags.",
       },
       { property: "og:title", content: "Central de FAQs" },
       {
         property: "og:description",
-        content:
-          "Consulte por categoria, pesquise por tags e gerencie as perguntas frequentes da sua equipe de saúde.",
+        content: "Consulte por assunto, pesquise por tags e gerencie as perguntas da sua equipe.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -68,23 +82,47 @@ export const Route = createFileRoute("/")({
 function DashboardPage() {
   return (
     <GateShell>
-      <div className="space-y-6">
-        <BrowsePanel />
-      </div>
+      <BrowsePanel />
     </GateShell>
   );
 }
 
 function BrowsePanel() {
-  const { page = 1, search = "", category = "" } = Route.useSearch();
+  const busca = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { page = 1, search = "" } = busca;
 
   const [termo, setTermo] = useState(search);
   const termoAtrasado = useDebouncedValue(termo, 300);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+
+  const valores: ValoresFiltro = {
+    category: busca.category ?? "",
+    tag: busca.tag ?? "",
+    autor: busca.autor ?? "",
+    origem: busca.origem ?? "",
+    situacao: busca.situacao ?? "",
+    de: busca.de ?? "",
+    ate: busca.ate ?? "",
+  };
 
   const faqsQuery = useQuery({
-    queryKey: ["faqs", { page, search: termoAtrasado, category }],
-    queryFn: () => listFaqs({ data: { page, limit: POR_PAGINA, search: termoAtrasado, category } }),
+    queryKey: ["faqs", { ...busca, search: termoAtrasado, page }],
+    queryFn: () =>
+      listFaqs({
+        data: {
+          page,
+          limit: POR_PAGINA,
+          search: termoAtrasado,
+          ...(valores.category ? { category: valores.category } : {}),
+          ...(valores.tag ? { tag: valores.tag } : {}),
+          ...(valores.autor ? { autor: valores.autor } : {}),
+          ...(valores.origem ? { origem: valores.origem } : {}),
+          ...(valores.situacao ? { situacao: valores.situacao } : {}),
+          ...(valores.de ? { de: valores.de } : {}),
+          ...(valores.ate ? { ate: valores.ate } : {}),
+        },
+      }),
     placeholderData: keepPreviousData,
   });
 
@@ -99,87 +137,113 @@ function BrowsePanel() {
   const totalFiltrado = faqsQuery.data?.total ?? 0;
   const totalPaginas = faqsQuery.data?.totalPages ?? 1;
   const categorias = categoriasQuery.data?.categories ?? [];
+  const temFiltro = contarFiltrosAtivos(valores) > 0 || Boolean(termo);
+
+  /**
+   * LÓGICA DO LUCIANO: `replace: true` na busca. Sem ele, cada tecla digitada
+   * empilhava uma entrada no histórico do navegador: escrever "vacina" exigia
+   * seis toques no botão Voltar para sair da tela. No celular essa é a queixa
+   * mais provável do app inteiro. O debounce atrasava só a consulta, não a
+   * navegação.
+   */
+  const aplicarBusca = (valor: string) => {
+    setTermo(valor);
+    navigate({
+      search: (atual) => ({ ...atual, search: valor || undefined, page: undefined }),
+      replace: true,
+    });
+  };
 
   // Trocar filtro sempre volta para a primeira página: sem isso, filtrar
   // estando na página 8 mostra "nenhuma pergunta encontrada" num resultado que
   // tem 2 páginas.
-  const aplicarBusca = (valor: string) => {
-    setTermo(valor);
-    navigate({ search: (atual) => ({ ...atual, search: valor, page: 1 }) });
+  const aplicarFiltro = (parcial: Partial<ValoresFiltro>) => {
+    navigate({
+      search: (atual) => {
+        const proximo: Record<string, unknown> = { ...atual, ...parcial, page: undefined };
+        // Valor vazio sai da URL em vez de virar `?tag=`.
+        for (const chave of Object.keys(parcial)) {
+          if (!proximo[chave]) delete proximo[chave];
+        }
+        return proximo as Busca;
+      },
+      replace: true,
+    });
   };
 
-  const aplicarCategoria = (valor: string) => {
-    const escolhida = valor === TODAS ? "" : valor;
-    navigate({ search: (atual) => ({ ...atual, category: escolhida, page: 1 }) });
+  const limparTudo = () => {
+    setTermo("");
+    navigate({ search: {}, replace: true });
   };
-
-  const irParaPagina = (destino: number) => {
-    navigate({ search: (atual) => ({ ...atual, page: destino }) });
-  };
-
-  if (faqsQuery.isLoading && !faqsQuery.data)
-    return <p className="text-sm text-muted-foreground">Carregando perguntas…</p>;
 
   return (
     <div className="space-y-6">
-      <div>
-        {/* text-5xl fixo passava de metade da altura util em 360px. */}
-        <p className="text-4xl font-semibold text-primary sm:text-5xl">
-          {categoriasQuery.data?.totalFaqs ?? "—"}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">FAQs cadastradas</p>
-      </div>
-
-      {/* A busca ocupa a linha inteira ate lg; filtro e acoes ficam numa segunda
-          linha que quebra sozinha. Antes eram quatro filhos disputando um
-          sm:flex-row, e a partir de 640px a busca encolhia ate caber tres
-          palavras. */}
-      <div className="space-y-3 lg:flex lg:items-center lg:gap-3 lg:space-y-0">
-        <div className="lg:flex-1">
-          <SearchField
-            value={termo}
-            onChange={aplicarBusca}
-            placeholder="Pesquisar por pergunta, categoria ou tag…"
-          />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Perguntas frequentes</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {categoriasQuery.data
+              ? `${categoriasQuery.data.totalFaqs} cadastradas em ${categoriasQuery.data.totalCategories} assuntos`
+              : "Carregando…"}
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={category || TODAS} onValueChange={aplicarCategoria}>
-            <SelectTrigger className="w-full sm:w-56">
-              <SelectValue placeholder="Todas as categorias" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODAS}>Todas as categorias</SelectItem>
-              {categorias.map((c) => (
-                <SelectItem
-                  key={c.category}
-                  value={c.category === "Sem categoria" ? SEM_CATEGORIA : c.category}
-                >
-                  {c.category} ({c.count})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button asChild variant="outline" className="flex-1 sm:flex-none">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
             <Link to="/categorias">
-              <FolderOpen className="size-4" /> Categorias (
-              {categoriasQuery.data?.totalCategories ?? 0})
+              <FolderOpen className="size-4" /> Assuntos
             </Link>
           </Button>
           <InsertFaqButton />
         </div>
       </div>
 
+      <SearchField
+        value={termo}
+        onChange={aplicarBusca}
+        placeholder="Pesquisar por pergunta, assunto ou tag…"
+      />
+
+      <FiltrosFaq
+        aberto={filtrosAbertos}
+        aoAlternar={() => setFiltrosAbertos((v) => !v)}
+        valores={valores}
+        aoMudar={aplicarFiltro}
+        aoLimpar={() => aplicarFiltro(FILTRO_VAZIO)}
+        categorias={categorias}
+      />
+
       <p className="text-sm text-muted-foreground">
         {totalFiltrado} {totalFiltrado === 1 ? "resultado" : "resultados"}
         {totalPaginas > 1 ? ` · página ${page} de ${totalPaginas}` : ""}
       </p>
 
-      {faqs.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
-          Nenhuma pergunta encontrada.
+      {faqsQuery.isError ? (
+        // Antes, um erro de rede caía no ramo de lista vazia e a tela dizia
+        // "0 resultados · nenhuma pergunta encontrada": o app afirmava que a
+        // base estava vazia quando na verdade tinha caído.
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
+          Não foi possível carregar as perguntas. Verifique a conexão e tente recarregar.
         </p>
+      ) : faqsQuery.isLoading && !faqsQuery.data ? (
+        <p className="text-sm text-muted-foreground">Carregando perguntas…</p>
+      ) : faqs.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-6 text-center sm:p-8">
+          <p className="text-sm text-muted-foreground">
+            {temFiltro
+              ? "Nenhuma pergunta encontrada com esta busca."
+              : "Nenhuma pergunta cadastrada ainda."}
+          </p>
+          {temFiltro ? (
+            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={limparTudo}>
+              Limpar a busca e os filtros
+            </Button>
+          ) : (
+            <div className="mt-3 flex justify-center">
+              <InsertFaqButton label="Cadastrar a primeira" />
+            </div>
+          )}
+        </div>
       ) : (
         <ul className="space-y-3">
           {faqs.map((faq) => (
@@ -188,7 +252,11 @@ function BrowsePanel() {
         </ul>
       )}
 
-      <FaqPagination page={page} totalPages={totalPaginas} onPageChange={irParaPagina} />
+      <FaqPagination
+        page={page}
+        totalPages={totalPaginas}
+        onPageChange={(destino) => navigate({ search: (atual) => ({ ...atual, page: destino }) })}
+      />
     </div>
   );
 }

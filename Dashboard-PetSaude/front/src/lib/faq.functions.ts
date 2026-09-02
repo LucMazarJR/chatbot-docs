@@ -55,12 +55,27 @@ const faqInput = z.object({
   source: z.string().optional(),
 });
 
+export const ORIGENS = ["manual", "importada", "drive"] as const;
+export const SITUACOES = ["ativas", "inativas", "todas"] as const;
+
+export type Origem = (typeof ORIGENS)[number];
+export type Situacao = (typeof SITUACOES)[number];
+
 const listFaqsQuery = z.object({
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(100).default(20),
   search: z.string().trim().max(120).optional(),
   category: z.string().trim().max(120).optional(),
+  tag: z.string().trim().max(60).optional(),
+  /** Casa com quem criou ou com quem alterou por último. */
+  autor: z.string().trim().max(120).optional(),
+  origem: z.enum(ORIGENS).optional(),
+  situacao: z.enum(SITUACOES).optional(),
+  de: z.string().trim().optional(),
+  ate: z.string().trim().optional(),
 });
+
+export type FiltroFaqs = z.infer<typeof listFaqsQuery>;
 
 /** Monta a querystring omitindo valores vazios: `?search=` casaria com tudo. */
 function montarQuery(params: Record<string, string | number | undefined>): string {
