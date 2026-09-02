@@ -11,6 +11,8 @@ import { GeminiModule } from './gemini/gemini.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ImportScriptsModule } from './import-scripts/import-scripts.module';
+import { JobsModule } from './jobs/jobs.module';
+import { ImportModule } from './import/import.module';
 import { ImportScript } from './import-scripts/entities/import-script.entity';
 import { User } from './users/entities/user.entity';
 import { UserSession } from './users/entities/user-session.entity';
@@ -69,12 +71,14 @@ import { UserSession } from './users/entities/user-session.entity';
       }),
       inject: [ConfigService],
     }),
+    JobsModule,
     GeminiModule,
     FaqsModule,
     ActivityModule,
     AuthModule,
     UsersModule,
     ImportScriptsModule,
+    ImportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

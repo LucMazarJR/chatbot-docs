@@ -165,6 +165,39 @@ export class FaqsService {
         }
     }
 
+    /**
+     * Hash do conteúdo, na mesma forma do gerar_hash_conteudo do enviar_dados.py.
+     *
+     * Público porque a importação em lote precisa dele antes de gravar, para
+     * saber quais linhas do arquivo já estão na base. Duas implementações do
+     * mesmo MD5 divergiriam em silêncio e a deduplicação pararia de funcionar
+     * sem nada indicar isso.
+     */
+    hashDeConteudo(pergunta: string, resposta: string): string {
+        return this.generateHash(pergunta, resposta);
+    }
+
+    /**
+     * Quais destes hashes já existem na base — inclusive entre as desativadas.
+     *
+     * LÓGICA DO LUCIANO: a consulta NÃO filtra por isActive de propósito. Uma
+     * FAQ excluída é desativada, não apagada; ignorá-la aqui faria a
+     * importação inserir uma segunda cópia do que alguém excluiu de propósito,
+     * e a base passaria a ter duas linhas com o mesmo content_hash — uma ativa
+     * e uma não. Melhor a prévia dizer que a linha já existe.
+     */
+    async hashesExistentes(hashes: string[]): Promise<Set<string>> {
+        if (hashes.length === 0) return new Set();
+
+        const docs = await this.faqModel
+            .find({ content_hash: { $in: hashes } })
+            .select('content_hash')
+            .lean()
+            .exec();
+
+        return new Set(docs.map((d: any) => d.content_hash as string));
+    }
+
     /** Sentinela usada pelo front para pedir as FAQs sem categoria. */
     static readonly SEM_CATEGORIA = '__sem_categoria__';
 
