@@ -40,7 +40,10 @@ export function TrocarSenhaObrigatoria() {
     setSalvando(true);
     try {
       await trocar({ data: { currentPassword: senhaAtual, newPassword: senhaNova } });
-      await queryClient.invalidateQueries();
+      // clear() e nao invalidateQueries(): trocar a senha revoga todas as
+      // sessoes, entao refazer as queries ativas so renderia 401 e seguraria o
+      // redirecionamento. Ver o comentario em components/gate.tsx.
+      queryClient.clear();
       toast.success("Senha alterada. Entre novamente com a nova senha.");
       navigate({ to: "/login" });
     } catch (erro: any) {

@@ -34,8 +34,9 @@ function LoginPage() {
     setEnviando(true);
     try {
       await entrar({ data: { email, password: senha } });
-      // A sessão mudou: o cache guardado é de outra pessoa.
-      await queryClient.invalidateQueries();
+      // A sessão mudou: o cache guardado é de outra pessoa. clear() descarta
+      // sem refazer — as queries da próxima tela buscam sozinhas ao montar.
+      queryClient.clear();
       toast.success("Bem-vindo!");
       navigate({ to: "/" });
     } catch (erro: any) {

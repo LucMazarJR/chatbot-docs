@@ -97,9 +97,28 @@ export function GateShell({ children }: { children: React.ReactNode }) {
 
   const destinos = destinosDe(usuario?.role);
 
+  /**
+   * Encerra a sessão e leva para o login.
+   *
+   * LÓGICA DO LUCIANO: aqui havia `await queryClient.invalidateQueries()` entre
+   * o logout e o `navigate`, e era o motivo de sair não funcionar.
+   *
+   * `invalidateQueries()` sem argumento não marca como obsoleto: ele refaz toda
+   * query ativa e devolve uma promessa que só resolve quando TODAS terminarem.
+   * Como o cookie acabou de ser apagado, todas passam a responder 401, cada uma
+   * com as retentativas do cliente. O `await` segurava o redirecionamento por
+   * vários segundos, e nesse meio-tempo a tela ficava num estado sem sentido: a
+   * query da sessão resolve na hora (sem token ela nem chama o backend), então o
+   * menu inteiro sumia e o conteúdo da página continuava lá. Parecia que sair
+   * não tinha feito nada, e recarregar "resolvia" porque aí a guarda da rota
+   * roda no servidor.
+   *
+   * Agora: descarta o cache sem refazer nada, e navega. `clear()` é síncrono e
+   * remove tudo, que é exatamente o que se quer ao trocar de identidade.
+   */
   const encerrarSessao = async () => {
     await sair({});
-    await queryClient.invalidateQueries();
+    queryClient.clear();
     toast.success("Sessão encerrada");
     navigate({ to: "/login" });
   };

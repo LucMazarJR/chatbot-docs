@@ -71,8 +71,18 @@ export const logout = createServerFn({ method: "POST" }).handler(async () => {
   return { ok: true as const };
 });
 
-/** Estado da sessão para a UI. Nunca devolve o token. */
-export const getSession = createServerFn({ method: "GET" }).handler(
+/**
+ * Estado da sessão para a UI. Nunca devolve o token.
+ *
+ * LÓGICA DO LUCIANO: POST, e não GET, apesar de ser uma leitura. Como server
+ * function GET sem parâmetro, a URL era constante e nenhuma resposta trazia
+ * `Cache-Control` — ou seja, nada impedia um cache intermediário, ou o bfcache
+ * do navegador ao voltar, de repetir um `{authenticated: true}` gravado antes do
+ * logout. Quem consome isto é a guarda de rota (lib/guardas.ts), que decide
+ * entre mandar para o login e deixar entrar: uma resposta velha ali devolve para
+ * dentro do app alguém que acabou de sair. POST nunca é cacheado.
+ */
+export const getSession = createServerFn({ method: "POST" }).handler(
   async (): Promise<SessionStatus> => {
     const session = await authSession();
     if (!session.data.accessToken) {
