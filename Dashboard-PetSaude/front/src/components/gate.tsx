@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   FolderOpen,
+  History,
   ListChecks,
   LogOut,
   Menu,
@@ -58,7 +59,7 @@ export function usePodeEscrever() {
 }
 
 type Destino = {
-  para: "/" | "/categorias" | "/importar" | "/usuarios" | "/configuracoes";
+  para: "/" | "/categorias" | "/importar" | "/auditoria" | "/usuarios" | "/configuracoes";
   rotulo: string;
   Icone: typeof ListChecks;
   /** Quem vê. Vazio = todo mundo autenticado. */
@@ -69,6 +70,7 @@ const DESTINOS: Destino[] = [
   { para: "/", rotulo: "FAQs", Icone: ListChecks },
   { para: "/categorias", rotulo: "Categorias", Icone: FolderOpen },
   { para: "/importar", rotulo: "Importar", Icone: Upload, papeis: ["admin", "editor"] },
+  { para: "/auditoria", rotulo: "Histórico", Icone: History, papeis: ["admin"] },
   { para: "/usuarios", rotulo: "Usuários", Icone: Users, papeis: ["admin"] },
   { para: "/configuracoes", rotulo: "Configurações", Icone: Settings, papeis: ["admin"] },
 ];
