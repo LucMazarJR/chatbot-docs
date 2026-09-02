@@ -56,7 +56,10 @@ async function lerDocx(arquivo: File): Promise<string[]> {
 
   const paragrafos: string[] = [];
   doc.body.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6").forEach((el) => {
-    const texto = (el.textContent ?? "").replace(/ /g, " ").trim();
+    // \u00a0 e o espaco inquebravel que o Word insere aos montes. Escrito como
+    // escape de proposito: literal, ele e invisivel no codigo e o proximo a ler
+    // acharia que a troca nao faz nada.
+    const texto = (el.textContent ?? "").replace(/\u00a0/g, " ").trim();
     if (!texto) return;
     paragrafos.push(el.tagName === "LI" ? `- ${texto}` : texto);
   });

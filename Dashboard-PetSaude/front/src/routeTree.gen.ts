@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as CategoriasIndexRouteImport } from './routes/categorias.index'
@@ -18,6 +20,16 @@ import { Route as CategoriasCategoriaRouteImport } from './routes/categorias.$ca
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportarRoute = ImportarRouteImport.update({
+  id: '/importar',
+  path: '/importar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -43,6 +55,8 @@ const CategoriasCategoriaRoute = CategoriasCategoriaRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -50,6 +64,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -58,6 +74,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -66,12 +84,27 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/login' | '/usuarios' | '/categorias/$categoria' | '/categorias/'
+    | '/'
+    | '/configuracoes'
+    | '/importar'
+    | '/login'
+    | '/usuarios'
+    | '/categorias/$categoria'
+    | '/categorias/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/usuarios' | '/categorias/$categoria' | '/categorias'
+  to:
+    | '/'
+    | '/configuracoes'
+    | '/importar'
+    | '/login'
+    | '/usuarios'
+    | '/categorias/$categoria'
+    | '/categorias'
   id:
     | '__root__'
     | '/'
+    | '/configuracoes'
+    | '/importar'
     | '/login'
     | '/usuarios'
     | '/categorias/$categoria'
@@ -80,6 +113,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ImportarRoute: typeof ImportarRoute
   LoginRoute: typeof LoginRoute
   UsuariosRoute: typeof UsuariosRoute
   CategoriasCategoriaRoute: typeof CategoriasCategoriaRoute
@@ -93,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/importar': {
+      id: '/importar'
+      path: '/importar'
+      fullPath: '/importar'
+      preLoaderRoute: typeof ImportarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -128,6 +177,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConfiguracoesRoute: ConfiguracoesRoute,
+  ImportarRoute: ImportarRoute,
   LoginRoute: LoginRoute,
   UsuariosRoute: UsuariosRoute,
   CategoriasCategoriaRoute: CategoriasCategoriaRoute,

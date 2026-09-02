@@ -1,7 +1,17 @@
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Stethoscope, Users } from "lucide-react";
+import {
+  FolderOpen,
+  ListChecks,
+  LogOut,
+  Menu,
+  Settings,
+  Stethoscope,
+  Upload,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { getSession, logout, type UserRole } from "@/lib/auth.functions";
@@ -9,6 +19,14 @@ import { listActivity } from "@/lib/faq.functions";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { TrocarSenhaObrigatoria } from "@/components/trocar-senha";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const ROTULO_PAPEL: Record<UserRole, string> = {
   admin: "Administrador",
@@ -39,68 +57,151 @@ export function usePodeEscrever() {
   return usuario?.role === "admin" || usuario?.role === "editor";
 }
 
+type Destino = {
+  para: "/" | "/categorias" | "/importar" | "/usuarios" | "/configuracoes";
+  rotulo: string;
+  Icone: typeof ListChecks;
+  /** Quem vê. Vazio = todo mundo autenticado. */
+  papeis?: UserRole[];
+};
+
+const DESTINOS: Destino[] = [
+  { para: "/", rotulo: "FAQs", Icone: ListChecks },
+  { para: "/categorias", rotulo: "Categorias", Icone: FolderOpen },
+  { para: "/importar", rotulo: "Importar", Icone: Upload, papeis: ["admin", "editor"] },
+  { para: "/usuarios", rotulo: "Usuarios", Icone: Users, papeis: ["admin"] },
+  { para: "/configuracoes", rotulo: "Configuracoes", Icone: Settings, papeis: ["admin"] },
+];
+
+function destinosDe(papel: UserRole | undefined): Destino[] {
+  if (!papel) return [];
+  return DESTINOS.filter((d) => !d.papeis || d.papeis.includes(papel));
+}
+
+/**
+ * Cabeçalho e moldura de toda página autenticada.
+ *
+ * LÓGICA DO LUCIANO: a navegação está aqui, e não num route layout, porque não
+ * existe um — cada página importa o GateShell e se envolve nele (ver
+ * routes/README.md). Antes eram dois botões soltos num `justify-between` sem
+ * quebra; com cinco destinos isso não cabia mais em tela nenhuma, e em 360px já
+ * não cabia antes. Agora: barra horizontal a partir de `md`, gaveta abaixo
+ * disso.
+ */
 export function GateShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const sair = useServerFn(logout);
   const { carregando, autenticado, usuario, precisaTrocarSenha } = useSession();
+  const [menuAberto, setMenuAberto] = useState(false);
+
+  const destinos = destinosDe(usuario?.role);
+
+  const encerrarSessao = async () => {
+    await sair({});
+    await queryClient.invalidateQueries();
+    toast.success("Sessão encerrada");
+    navigate({ to: "/login" });
+  };
 
   // Quem não tem sessão nem chega aqui: o `beforeLoad` da rota redireciona
-  // antes de renderizar (ver lib/guardas.ts). Este componente cuida só do
-  // cabeçalho e da troca de senha obrigatória.
+  // antes de renderizar (ver lib/guardas.ts).
 
   return (
-    <main className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <Toaster position="top-center" />
+
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-5">
-          <Link to="/" className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/12 text-primary">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 sm:py-4">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
               <Stethoscope className="size-5" />
             </span>
-            <div>
-              <h1 className="text-lg font-semibold">Central de FAQs</h1>
-              <p className="text-xs text-muted-foreground">
-                Consultar, inserir, editar e excluir perguntas frequentes
-              </p>
-            </div>
+            <span className="min-w-0">
+              <span className="block truncate text-base font-semibold leading-tight">
+                Central de FAQs
+              </span>
+              {/* O subtítulo some abaixo de sm: em 360px ele empurrava os botões
+                  para fora da tela. */}
+              <span className="hidden text-xs text-muted-foreground sm:block">
+                PET-SAÚDE · base do chatbot
+              </span>
+            </span>
           </Link>
 
-          {autenticado && usuario && (
-            <div className="flex items-center gap-3">
-              <span className="hidden text-xs text-muted-foreground sm:inline">
-                {usuario.name}
-                <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide">
-                  {ROTULO_PAPEL[usuario.role]}
-                </span>
-              </span>
+          <div className="ml-auto flex items-center gap-1">
+            {autenticado && usuario && (
+              <>
+                <nav className="hidden items-center gap-0.5 md:flex">
+                  {destinos.map(({ para, rotulo, Icone }) => (
+                    <Button key={para} asChild variant="ghost" size="sm">
+                      <Link
+                        to={para}
+                        activeOptions={{ exact: para === "/" }}
+                        activeProps={{ "data-ativo": "true" }}
+                        className="data-[ativo=true]:bg-secondary data-[ativo=true]:text-secondary-foreground"
+                      >
+                        <Icone className="size-4" /> {rotulo}
+                      </Link>
+                    </Button>
+                  ))}
+                  <span className="mx-2 hidden text-xs text-muted-foreground lg:inline">
+                    {usuario.name}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => void encerrarSessao()}>
+                    <LogOut className="size-4" />
+                    <span className="sr-only">Sair</span>
+                  </Button>
+                </nav>
 
-              {usuario.role === "admin" && (
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/usuarios">
-                    <Users className="size-4" /> Usuários
-                  </Link>
-                </Button>
-              )}
+                <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu">
+                      <Menu className="size-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-72">
+                    <SheetHeader>
+                      <SheetTitle>{usuario.name}</SheetTitle>
+                      <SheetDescription>{ROTULO_PAPEL[usuario.role]}</SheetDescription>
+                    </SheetHeader>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  await sair({});
-                  await queryClient.invalidateQueries();
-                  toast.success("Sessão encerrada");
-                  navigate({ to: "/login" });
-                }}
-              >
-                <LogOut className="size-4" /> Sair
-              </Button>
-            </div>
-          )}
+                    <nav className="flex flex-col gap-1 px-4">
+                      {destinos.map(({ para, rotulo, Icone }) => (
+                        <Button
+                          key={para}
+                          asChild
+                          variant="ghost"
+                          // h-11: alvo de toque de 44px, o mínimo confortável no
+                          // celular. O `size="sm"` padrão dá 32px.
+                          className="h-11 justify-start"
+                          onClick={() => setMenuAberto(false)}
+                        >
+                          <Link to={para} activeOptions={{ exact: para === "/" }}>
+                            <Icone className="size-4" /> {rotulo}
+                          </Link>
+                        </Button>
+                      ))}
+                      <Button
+                        variant="ghost"
+                        className="h-11 justify-start text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setMenuAberto(false);
+                          void encerrarSessao();
+                        }}
+                      >
+                        <LogOut className="size-4" /> Sair
+                      </Button>
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         {carregando ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : precisaTrocarSenha ? (
@@ -110,8 +211,8 @@ export function GateShell({ children }: { children: React.ReactNode }) {
         ) : (
           children
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
@@ -124,7 +225,7 @@ export function ActivityFeed() {
   if (items.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-border panel-surface p-6">
+    <section className="rounded-lg border border-border panel-surface p-4 sm:p-6">
       <h2 className="text-base font-semibold">Histórico de alterações</h2>
       <ul className="mt-4 space-y-3">
         {items.map((item) => (

@@ -160,15 +160,27 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
   return new Promise<T>((resolve, reject) => {
     let url: string | undefined;
     let worker: Worker | undefined;
-    let relogio: ReturnType<typeof setTimeout> | undefined;
 
     const encerrar = () => {
-      if (relogio !== undefined) clearTimeout(relogio);
+      clearTimeout(relogio);
       // terminate() antes de revokeObjectURL: a ordem inversa deixa o worker
       // vivo mais um instante com a URL já revogada, e o Firefox reclama.
       worker?.terminate();
       if (url) URL.revokeObjectURL(url);
     };
+
+    // O relógio começa ANTES de o worker existir. Além de ficar `const`, isso
+    // cobre o caso de a própria criação do worker demorar — e deixa `encerrar`
+    // seguro para ser chamado no catch logo abaixo.
+    const relogio = setTimeout(() => {
+      encerrar();
+      reject(
+        new ErroDeScript(
+          `O script passou de ${Math.round(timeoutMs / 1000)}s sem responder e foi interrompido.`,
+          "Procure por um laco que nao termina, ou reduza o tamanho do arquivo.",
+        ),
+      );
+    }, timeoutMs);
 
     try {
       const blob = new Blob([fonteDoWorker(codigo)], { type: "text/javascript" });
@@ -184,16 +196,6 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
       );
       return;
     }
-
-    relogio = setTimeout(() => {
-      encerrar();
-      reject(
-        new ErroDeScript(
-          `O script passou de ${Math.round(timeoutMs / 1000)}s sem responder e foi interrompido.`,
-          "Procure por um laco que nao termina, ou reduza o tamanho do arquivo.",
-        ),
-      );
-    }, timeoutMs);
 
     worker.onmessage = (evento: MessageEvent) => {
       const dados = evento.data ?? {};
