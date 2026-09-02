@@ -12,6 +12,47 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
+/** Tamanho mínimo do segredo. 32 hex = os 16 bytes que o .env.example manda gerar. */
+const TAMANHO_MINIMO_SEGREDO = 32;
+
+/**
+ * Devolve o JWT_SECRET, ou derruba a subida.
+ *
+ * LÓGICA DO LUCIANO: aqui havia `?? 'troque-este-segredo-no-env'`. O `??` só
+ * cobre undefined e null, então bastava a variável não chegar ao ambiente para a
+ * API subir NORMALMENTE assinando tokens com uma string que está publicada no
+ * GitHub. Quem lesse o repositório forjava um token de admin e passava pelo
+ * guard — sem erro em log nenhum, porque do ponto de vista do processo estava
+ * tudo funcionando.
+ *
+ * Um segredo ausente não tem padrão razoável: qualquer valor embutido no código
+ * é público por definição. Então falha no boot, como o env.schema.ts do gateway
+ * já faz — é preferível quebrar no deploy a descobrir depois que a autenticação
+ * inteira era decorativa.
+ */
+// Exportada para ter teste proprio: compilar o modulo inteiro num teste
+// exigiria um DataSource de verdade, e o que precisa ficar travado aqui e a
+// regra, nao a fiacao do Nest.
+export function exigirSegredoJwt(config: ConfigService): string {
+    const segredo = config.get<string>('JWT_SECRET')?.trim();
+
+    if (!segredo) {
+        throw new Error(
+            'JWT_SECRET nao esta definido. Gere um segredo e configure no ambiente — ' +
+            'sem ele nao ha como assinar os tokens de sessao com seguranca.',
+        );
+    }
+
+    if (segredo.length < TAMANHO_MINIMO_SEGREDO) {
+        throw new Error(
+            `JWT_SECRET tem ${segredo.length} caracteres; o minimo e ${TAMANHO_MINIMO_SEGREDO}. ` +
+            'Um segredo curto e adivinhavel por forca bruta.',
+        );
+    }
+
+    return segredo;
+}
+
 @Global()
 @Module({
     imports: [
@@ -20,7 +61,7 @@ import { RolesGuard } from './guards/roles.guard';
             imports: [ConfigModule],
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
-                secret: config.get<string>('JWT_SECRET') ?? 'troque-este-segredo-no-env',
+                secret: exigirSegredoJwt(config),
                 // Em segundos, não em "8h": a tipagem do expiresIn textual exige
                 // um literal específico, e o número ainda casa direto com o
                 // maxAge do cookie de sessão no front.

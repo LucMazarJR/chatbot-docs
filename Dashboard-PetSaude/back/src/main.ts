@@ -1,11 +1,28 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Tipado como NestExpressApplication por causa do `app.set` logo abaixo: o
+  // INestApplication generico nao expoe as configuracoes do Express.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // LÓGICA DO LUCIANO: sem isto, `req.ip` é o IP do proxy do Render, não o de
+  // quem chamou. Duas consequências, as duas invisíveis:
+  //
+  // 1. `user_sessions.ip` grava o endereço do proxy em toda sessão — a coluna
+  //    de auditoria existe e está registrando o valor errado desde sempre.
+  // 2. O ThrottlerGuard chaveia pelo mesmo IP, então as 10 tentativas de login
+  //    por minuto viram UM balde compartilhado pelo mundo inteiro: dez erros de
+  //    qualquer pessoa travam o login de todos, e um ataque distribuído não é
+  //    freado por nada.
+  //
+  // `1` e não `true`: confia num único salto de proxy, o do provedor. `true`
+  // confiaria na cadeia inteira de X-Forwarded-For, que o cliente pode forjar.
+  app.set('trust proxy', 1);
 
   // Cabeçalhos de segurança padrão (X-Content-Type-Options, X-Frame-Options,
   // etc). contentSecurityPolicy desligado: esta API não serve HTML, e a CSP
