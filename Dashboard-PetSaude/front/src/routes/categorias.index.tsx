@@ -53,8 +53,12 @@ function CategoriesPage() {
           <InsertFaqButton />
         </div>
 
-        {categoriasQuery.isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando categorias…</p>
+        {categoriasQuery.isError ? (
+          <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
+            Não foi possível carregar os assuntos. Verifique a conexão e tente recarregar.
+          </p>
+        ) : categoriasQuery.isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : categories.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
             Nenhuma categoria cadastrada.

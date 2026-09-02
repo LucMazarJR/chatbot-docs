@@ -39,8 +39,8 @@ function LoginPage() {
       queryClient.clear();
       toast.success("Bem-vindo!");
       navigate({ to: "/" });
-    } catch (erro: any) {
-      toast.error(erro?.message ?? "Não foi possível entrar");
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível entrar");
     } finally {
       setEnviando(false);
     }

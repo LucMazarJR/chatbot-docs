@@ -73,7 +73,12 @@ function CategoryPage() {
 
   const aplicarBusca = (valor: string) => {
     setTermo(valor);
-    navigate({ search: (atual) => ({ ...atual, search: valor, page: 1 }) });
+    // `replace: true`: sem ele, cada tecla empilhava uma entrada no historico e
+    // sair da tela exigia um toque no Voltar por letra digitada.
+    navigate({
+      search: (atual) => ({ ...atual, search: valor || undefined, page: undefined }),
+      replace: true,
+    });
   };
 
   return (
@@ -105,7 +110,11 @@ function CategoryPage() {
           placeholder="Pesquisar nesta categoria por pergunta ou tag…"
         />
 
-        {faqsQuery.isLoading && !faqsQuery.data ? (
+        {faqsQuery.isError ? (
+          <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
+            Não foi possível carregar as perguntas. Verifique a conexão e tente recarregar.
+          </p>
+        ) : faqsQuery.isLoading && !faqsQuery.data ? (
           <p className="text-sm text-muted-foreground">Carregando perguntas…</p>
         ) : faqs.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">

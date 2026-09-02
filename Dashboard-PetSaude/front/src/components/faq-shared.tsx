@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
@@ -152,7 +152,13 @@ export function FaqFormDialog({
   const [categories, setCategories] = useState<string[]>([""]);
   const [tags, setTags] = useState<string[]>(["", "", ""]);
   const [source, setSource] = useState("");
-  const [confirming, setConfirming] = useState(false);
+
+  // LÓGICA DO LUCIANO: os ids eram estáticos ("faq-question"), e este diálogo é
+  // renderizado uma vez POR CARD da lista. Numa página de 20 FAQs havia 20
+  // elementos com o mesmo id, e clicar no rótulo focava o campo do primeiro
+  // card, não o do formulário aberto. `useId` dá um prefixo único por instância.
+  const uid = useId();
+  const idDe = (campo: string) => `${uid}-${campo}`;
 
   useEffect(() => {
     if (!open) return;
@@ -163,7 +169,6 @@ export function FaqFormDialog({
     const initialTags = faq?.tags ?? [];
     setTags(initialTags.length >= 3 ? initialTags : [...initialTags, "", "", ""].slice(0, 3));
     setSource(faq?.source ?? "");
-    setConfirming(false);
   }, [open, faq, defaultCategory]);
 
   const cleanCategories = categories.map((item) => item.trim()).filter(Boolean);
@@ -189,14 +194,10 @@ export function FaqFormDialog({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["faqs"] });
       await queryClient.invalidateQueries({ queryKey: ["activity"] });
-      toast.success(mode === "edit" ? "FAQ atualizada" : "FAQ criada");
-      setConfirming(false);
+      toast.success(mode === "edit" ? "Pergunta atualizada" : "Pergunta criada");
       onOpenChange(false);
     },
-    onError: (error: Error) => {
-      setConfirming(false);
-      toast.error(error.message || "Não foi possível salvar");
-    },
+    onError: (error: Error) => toast.error(error.message || "Não foi possível salvar"),
   });
 
   return (
@@ -211,21 +212,25 @@ export function FaqFormDialog({
           </DialogHeader>
 
           <form
-            id="faq-form"
+            id={idDe("form")}
             className="space-y-5"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!valid) {
-                toast.error("Preencha pergunta, resposta, 1+ categoria e 3+ tags");
-                return;
-              }
-              setConfirming(true);
+              // LÓGICA DO LUCIANO: aqui abria um segundo diálogo de confirmação
+              // por cima deste. Editar é reversível e já passou por um modal;
+              // eram 7 passos para corrigir uma letra numa resposta. Confirmar
+              // continua fazendo sentido para EXCLUIR, que é o que não volta.
+              //
+              // O toast que existia neste ponto era código morto: o botão fica
+              // `disabled` quando o formulário é inválido, então o submit nunca
+              // disparava. A validação agora aparece ao lado dos campos.
+              mutation.mutate();
             }}
           >
             <div className="space-y-2">
-              <Label htmlFor="faq-question">Pergunta</Label>
+              <Label htmlFor={idDe("question")}>Pergunta</Label>
               <Input
-                id="faq-question"
+                id={idDe("question")}
                 value={question}
                 maxLength={300}
                 onChange={(e) => setQuestion(e.target.value)}
@@ -235,9 +240,9 @@ export function FaqFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="faq-answer">Resposta</Label>
+              <Label htmlFor={idDe("answer")}>Resposta</Label>
               <Textarea
-                id="faq-answer"
+                id={idDe("answer")}
                 value={answer}
                 rows={6}
                 maxLength={4000}
@@ -248,9 +253,9 @@ export function FaqFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="faq-source">Referência</Label>
+              <Label htmlFor={idDe("source")}>Referência</Label>
               <Input
-                id="faq-source"
+                id={idDe("source")}
                 value={source}
                 maxLength={300}
                 onChange={(e) => setSource(e.target.value)}
@@ -283,35 +288,16 @@ export function FaqFormDialog({
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" form="faq-form" disabled={mutation.isPending || !valid}>
-              {mode === "edit" ? "Salvar alterações" : "Criar FAQ"}
+            <Button type="submit" form={idDe("form")} disabled={mutation.isPending || !valid}>
+              {mutation.isPending
+                ? "Salvando…"
+                : mode === "edit"
+                  ? "Salvar alterações"
+                  : "Criar pergunta"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={confirming} onOpenChange={setConfirming}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {mode === "edit" ? "Confirmar as alterações?" : "Confirmar a nova pergunta?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>“{question.trim()}”</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                mutation.mutate();
-              }}
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? "Salvando…" : "Confirmar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
