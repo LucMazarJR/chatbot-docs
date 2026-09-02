@@ -67,6 +67,40 @@ export class Faq {
     // encontrei", sem erro em lugar nenhum. Mesmo formato do enviar_dados.py.
     @Prop()
     text?: string;
+
+    // LÓGICA DO LUCIANO: procedência do vetor. O `embedding_model` é o mesmo
+    // campo que o scripts/reindexar_embeddings.py grava e consulta para saber o
+    // que já está no modelo atual — sem ele, a única forma de descobrir em que
+    // modelo a base está é re-embedar uma amostra e comparar por cosseno, porque
+    // a dimensão não distingue (o gemini-embedding-001 também produz 3072).
+    @Prop()
+    embedding_model?: string;
+
+    @Prop()
+    embedding_dim?: number;
+
+    @Prop()
+    embedded_at?: Date;
+
+    // LÓGICA DO LUCIANO: o content_hash que o vetor representa. Quando a edição
+    // muda o texto mas a chamada ao Gemini falha, o documento fica com conteúdo
+    // novo e vetor velho — o chatbot encontra a FAQ pelo texto antigo e mostra o
+    // novo, sem erro em lugar nenhum. Com este campo isso vira uma consulta:
+    // embedding_content_hash != content_hash significa vetor desatualizado.
+    @Prop()
+    embedding_content_hash?: string;
+
+    // LÓGICA DO LUCIANO: qual script de geração produziu esta FAQ, e em que
+    // versão. Guardar a VERSÃO, e não só o id, é o que permite descobrir depois
+    // que um lote inteiro saiu torto por causa de uma regra que já foi trocada.
+    // O par file_id/file_origin continua dizendo de onde veio o conteúdo
+    // ("dashboard_import" + nome do arquivo); estes dois dizem por qual regra
+    // ele passou.
+    @Prop()
+    import_script_id?: string;
+
+    @Prop()
+    import_script_version?: number;
 }
 
 export const FaqSchema = SchemaFactory.createForClass(Faq);

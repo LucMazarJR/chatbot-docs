@@ -229,3 +229,141 @@ describe('FaqsService — validação de conteúdo', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+
+/**
+ * O texto que vira vetor.
+ *
+ * LÓGICA DO LUCIANO: este é o defeito que não dá erro em lugar nenhum. O campo
+ * `text` alimenta o pageContent do nó Vector Store do n8n; o embedding define o
+ * ranqueamento. Se os dois forem montados a partir de strings diferentes, o bot
+ * recupera um trecho e pontua por outro — e ninguém percebe até uma pergunta
+ * simplesmente parar de ser encontrada. Por isso o teste compara os dois em vez
+ * de conferir o formato de um deles.
+ */
+describe('FaqsService — o texto embedado e o campo text', () => {
+  let service: FaqsService;
+  let gerarEmbedding: jest.Mock;
+  let salvo: any;
+
+  beforeEach(async () => {
+    gerarEmbedding = jest.fn().mockResolvedValue(new Array(3072).fill(0.1));
+    salvo = undefined;
+
+    const FakeFaqModel: any = jest.fn().mockImplementation(function (this: any, doc: any) {
+      Object.assign(this, doc);
+      salvo = doc;
+      this._id = { toString: () => 'faq-nova' };
+      this.save = jest.fn().mockResolvedValue(this);
+    });
+    FakeFaqModel.findById = jest.fn();
+
+    const modulo: TestingModule = await Test.createTestingModule({
+      providers: [
+        FaqsService,
+        { provide: getModelToken(Faq.name), useValue: FakeFaqModel },
+        { provide: ActivityService, useValue: { logActivity: jest.fn() } },
+        {
+          provide: GeminiService,
+          useValue: { gerarEmbedding, modeloAtual: 'gemini-embedding-2', dimensoes: 3072 },
+        },
+      ],
+    }).compile();
+
+    service = modulo.get(FaqsService);
+  });
+
+  it('embeda exatamente a mesma string que grava em text', async () => {
+    await service.createFaq(
+      {
+        question: 'Preciso de jejum?',
+        answer: 'Sim, 8 horas.',
+        categories: ['exames'],
+      },
+      { name: 'Alguem' },
+    );
+
+    expect(gerarEmbedding).toHaveBeenCalledWith(salvo.text);
+  });
+
+  it('inclui o assunto no texto embedado', async () => {
+    // Sem o assunto, perguntas identicas entre exames ("Como me preparar para o
+    // Exame?") viram vetores iguais e o ranqueamento vira sorteio.
+    await service.createFaq(
+      { question: 'Como me preparar?', answer: 'Jejum de 8 horas.', categories: ['zinco'] },
+      { name: 'Alguem' },
+    );
+
+    expect(gerarEmbedding).toHaveBeenCalledWith(
+      'Assunto: zinco\nPergunta: Como me preparar?\nResposta: Jejum de 8 horas.',
+    );
+  });
+
+  it('grava a procedencia do vetor junto com ele', async () => {
+    // Sem embedding_model gravado nao ha como saber depois em que modelo a base
+    // esta — e a dimensao nao responde, porque o 001 tambem produz 3072.
+    await service.createFaq(
+      { question: 'Qual o horario da UBS?', answer: 'Das 7h as 19h.', categories: ['unidades'] },
+      { name: 'Alguem' },
+    );
+
+    expect(salvo.embedding_model).toBe('gemini-embedding-2');
+    expect(salvo.embedding_dim).toBe(3072);
+    expect(salvo.embedding_content_hash).toBe(salvo.content_hash);
+  });
+
+  it('grava a FAQ mesmo quando o embedding falha, e avisa quem chamou', async () => {
+    gerarEmbedding.mockRejectedValue(new Error('429 Too Many Requests: quota exceeded'));
+
+    const resultado = await service.createFaq(
+      { question: 'Qual o horario da UBS?', answer: 'Das 7h as 19h.', categories: ['unidades'] },
+      { name: 'Alguem' },
+    );
+
+    // Perder o conteudo digitado seria pior. Mas quem chamou precisa saber, para
+    // a importacao em lote parar em vez de gravar centenas de FAQs invisiveis.
+    expect(resultado.ok).toBe(true);
+    expect(resultado.semEmbedding).toBe(true);
+    expect(resultado.falha).toBe('cota');
+    expect(salvo.embedding).toEqual([]);
+    expect(salvo.embedding_content_hash).toBeUndefined();
+  });
+
+  it('distingue falha de cota de falha passageira', async () => {
+    gerarEmbedding.mockRejectedValue(new Error('socket hang up'));
+
+    const resultado = await service.createFaq(
+      { question: 'Qual o horario da UBS?', answer: 'Das 7h as 19h.', categories: ['unidades'] },
+      { name: 'Alguem' },
+    );
+
+    expect(resultado.falha).toBe('outra');
+  });
+
+  it('marca a origem quando a FAQ vem de uma importacao', async () => {
+    await service.createFaq(
+      { question: 'Qual o horario da UBS?', answer: 'Das 7h as 19h.', categories: ['unidades'] },
+      { name: 'Alguem' },
+      {
+        file_id: 'dashboard_import',
+        file_origin: 'faqs-agosto.xlsx',
+        line_reference: 12,
+        import_script_id: 'script-1',
+        import_script_version: 3,
+      },
+    );
+
+    expect(salvo.file_id).toBe('dashboard_import');
+    expect(salvo.file_origin).toBe('faqs-agosto.xlsx');
+    expect(salvo.line_reference).toBe(12);
+    expect(salvo.import_script_version).toBe(3);
+  });
+
+  it('sem origem, continua marcando como insercao manual', async () => {
+    await service.createFaq(
+      { question: 'Qual o horario da UBS?', answer: 'Das 7h as 19h.', categories: ['unidades'] },
+      { name: 'Alguem' },
+    );
+
+    expect(salvo.file_id).toBe('dashboard_manual');
+  });
+});

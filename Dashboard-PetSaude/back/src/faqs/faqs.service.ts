@@ -6,6 +6,31 @@ import { ActivityService } from '../activity/activity.service';
 import { GeminiService } from '../gemini/gemini.service';
 import { Faq, FaqDocument } from './schemas/faq.schema';
 
+/** Vetor gerado e a procedência dele, ou o motivo de não ter saído vetor. */
+export type VetorGerado = {
+    embedding: number[];
+    embedding_model?: string;
+    embedding_dim?: number;
+    embedded_at?: Date;
+    /** Ausente quando deu certo. `cota` quer dizer que insistir não adianta. */
+    falha?: 'cota' | 'outra';
+};
+
+/**
+ * De onde a FAQ veio, quando não é o formulário manual.
+ *
+ * LÓGICA DO LUCIANO: file_id/file_origin já existiam para distinguir a ingestão
+ * do Drive da criação pelo dashboard. A importação em lote reaproveita os dois e
+ * acrescenta por qual script e versão o conteúdo passou.
+ */
+export type OrigemFaq = {
+    file_id?: string;
+    file_origin?: string;
+    line_reference?: number;
+    import_script_id?: string;
+    import_script_version?: number;
+};
+
 @Injectable()
 export class FaqsService {
     private readonly logger = new Logger(FaqsService.name);
@@ -88,6 +113,43 @@ export class FaqsService {
     private generateHash(pergunta: string, resposta: string): string {
         const conteudo = `${pergunta}|${resposta}`;
         return crypto.createHash('md5').update(conteudo, 'utf8').digest('hex');
+    }
+
+    /**
+     * Gera o vetor da FAQ e devolve junto a procedência dele.
+     *
+     * LÓGICA DO LUCIANO: o texto embedado tem de ser EXATAMENTE o mesmo que vai
+     * para o campo `text` — o canônico do montarTexto, com o assunto na frente.
+     * Aqui se embedava `pergunta + resposta`, sem o assunto, enquanto o `text`
+     * era gravado com ele. O comentário antigo dizia que isso espelhava o
+     * enviar_dados.py; espelhava, antes de o script passar a embedar o canônico
+     * (enviar_dados.py:297). O resultado é que toda FAQ criada pelo dashboard
+     * entrava num espaço vetorial ligeiramente diferente do resto da base: o nó
+     * do n8n recupera o trecho por um texto e pontua por outro. Não dá erro em
+     * lugar nenhum — só ranqueia mal, que é o defeito descrito em
+     * docs/proposta-rag.md.
+     *
+     * Não lança: a FAQ é gravada mesmo sem vetor, para não perder o conteúdo já
+     * digitado. Quem chama recebe `falha` e decide — o formulário manual segue
+     * em frente, a importação em lote para quando a falha é de cota.
+     */
+    private async gerarVetor(texto: string): Promise<VetorGerado> {
+        try {
+            const embedding = await this.geminiService.gerarEmbedding(texto);
+            return {
+                embedding,
+                embedding_model: this.geminiService.modeloAtual,
+                embedding_dim: embedding.length,
+                embedded_at: new Date(),
+            };
+        } catch (erro) {
+            const cota = GeminiService.ehErroDeCota(erro);
+            this.logger.error(
+                `Falha ao gerar embedding${cota ? ' (cota da API)' : ''}: ` +
+                `${erro instanceof Error ? erro.message : String(erro)}`
+            );
+            return { embedding: [], falha: cota ? 'cota' : 'outra' };
+        }
     }
 
     // LÓGICA DO LUCIANO: guarda de sanidade mínima. Pergunta e resposta iguais
@@ -219,7 +281,7 @@ export class FaqsService {
         };
     }
 
-    async createFaq(data: any, actor: { id?: string; name: string }) {
+    async createFaq(data: any, actor: { id?: string; name: string }, origem?: OrigemFaq) {
         let cat = "";
         if (data.category) {
             cat = data.category;
@@ -232,17 +294,8 @@ export class FaqsService {
         this.assertConteudoValido(question, answer);
         const contentHash = this.generateHash(question, answer);
 
-        let embeddingVector: number[] = [];
-        try {
-            // LÓGICA DO LUCIANO: Em 'enviar_dados.py', ele junta: texto_para_embedding = f"{pergunta} {resposta}"
-            // para gerar um embedding semântico abrangendo os dois!
-            const textForEmbedding = `${question} ${answer}`;
-            embeddingVector = await this.geminiService.gerarEmbedding(textForEmbedding);
-        } catch (e) {
-            // Handle gracefully if API fails (like python code)
-            // or bubble up exception. The python script continued with no embedding.
-            console.error("Embedding generate error:", e);
-        }
+        const texto = this.montarTexto(cat, question, answer);
+        const vetor = await this.gerarVetor(texto);
 
         // LÓGICA DO LUCIANO: Isso estrutura os dados no mesmo json "lote_arquivo.append({"
         // garantindo que os campos (question_normalized, line_reference, file_origin, tags, embedding) existam.
@@ -259,17 +312,27 @@ export class FaqsService {
             content_hash: contentHash,
             isActive: true,
             updatedAt: new Date(),
-            embedding: embeddingVector,
-            text: this.montarTexto(cat, question, answer),
+            embedding: vetor.embedding,
+            embedding_model: vetor.embedding_model,
+            embedding_dim: vetor.embedding_dim,
+            embedded_at: vetor.embedded_at,
+            embedding_content_hash: vetor.embedding.length > 0 ? contentHash : undefined,
+            text: texto,
             created_by: actor.name,
             updated_by: actor.name,
             created_by_id: actor.id,
-            updated_by_id: actor.id
+            updated_by_id: actor.id,
+            ...(origem ?? {})
         });
 
         const saved = await newFaq.save();
         this.activityService.logActivity(actor.name, 'inserir', saved.question, actor.id);
-        return { ok: true, id: saved._id.toString() };
+        return {
+            ok: true,
+            id: saved._id.toString(),
+            semEmbedding: vetor.embedding.length === 0,
+            falha: vetor.falha,
+        };
     }
 
     async updateFaq(id: string, data: any, actor: { id?: string; name: string }) {
@@ -292,15 +355,13 @@ export class FaqsService {
         this.assertConteudoValido(newQuestion, newAnswer);
         const newContentHash = this.generateHash(newQuestion, newAnswer);
 
-        let newEmbedding = faq.embedding;
-        // Generate new embedding only if content actually changed
+        const novoTexto = this.montarTexto(cat, newQuestion, newAnswer);
+
+        // Só re-embeda se o conteúdo mudou de verdade — o hash é a diferença
+        // entre gastar uma chamada de API por edição de tag e não gastar.
+        let vetor: VetorGerado | null = null;
         if (newContentHash !== faq.content_hash) {
-            try {
-                const textForEmbedding = `${newQuestion} ${newAnswer}`;
-                newEmbedding = await this.geminiService.gerarEmbedding(textForEmbedding);
-            } catch (e) {
-                console.error("Embedding generate error on update:", e);
-            }
+            vetor = await this.gerarVetor(novoTexto);
         }
 
         faq.question = newQuestion;
@@ -310,8 +371,14 @@ export class FaqsService {
         faq.tags = newTags;
         faq.source = newSource;
         faq.content_hash = newContentHash;
-        faq.embedding = newEmbedding;
-        faq.text = this.montarTexto(cat, newQuestion, newAnswer);
+        if (vetor && vetor.embedding.length > 0) {
+            faq.embedding = vetor.embedding;
+            faq.embedding_model = vetor.embedding_model;
+            faq.embedding_dim = vetor.embedding_dim;
+            faq.embedded_at = vetor.embedded_at;
+            faq.embedding_content_hash = newContentHash;
+        }
+        faq.text = novoTexto;
         faq.updatedAt = new Date();
         faq.updated_by = actor.name;
         faq.updated_by_id = actor.id;

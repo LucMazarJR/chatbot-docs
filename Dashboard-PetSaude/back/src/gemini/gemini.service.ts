@@ -41,6 +41,38 @@ export class GeminiService {
             this.configService.get<string>('GEMINI_TASK_TYPE') ?? 'SEMANTIC_SIMILARITY';
     }
 
+    /**
+     * Nome do modelo em uso, para ser gravado junto do vetor.
+     *
+     * LÓGICA DO LUCIANO: sem isto, não há como saber depois qual modelo gerou
+     * cada embedding da base — e a dimensão não responde, porque o
+     * gemini-embedding-001 também produz 3072 quando pedido. É o campo
+     * `embedding_model` que o scripts/reindexar_embeddings.py usa para saber o
+     * que já está em dia; o dashboard passa a gravar o mesmo.
+     */
+    get modeloAtual(): string {
+        return this.modelo;
+    }
+
+    get dimensoes(): number {
+        return GeminiService.DIMENSOES;
+    }
+
+    /**
+     * Verdadeiro quando o erro é a cota da API, não uma falha passageira.
+     *
+     * LÓGICA DO LUCIANO: mesma lista de termos do
+     * scripts/lib/gemini_embendding.py. Serve para uma importação em lote parar
+     * na primeira recusa por cota em vez de gravar centenas de FAQs com vetor
+     * vazio — que entram no banco e o chatbot nunca encontra.
+     */
+    static ehErroDeCota(erro: unknown): boolean {
+        const texto = (erro instanceof Error ? erro.message : String(erro)).toLowerCase();
+        return ['rate limit', 'quota', 'resource exhausted', '429', 'limit exceeded'].some(
+            (termo) => texto.includes(termo),
+        );
+    }
+
     async gerarEmbedding(texto: string): Promise<number[]> {
         if (!texto || !texto.trim()) {
             throw new Error('Text cannot be empty for embedding generation');
