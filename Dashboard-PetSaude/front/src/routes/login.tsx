@@ -48,7 +48,7 @@ function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6">
       <Toaster position="top-center" />
-      <div className="w-full max-w-sm space-y-6 rounded-2xl border border-border panel-surface p-8">
+      <div className="w-full max-w-sm space-y-6 rounded-lg border border-border panel-surface p-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex size-12 items-center justify-center rounded-xl bg-primary/12 text-primary">
             <Stethoscope className="size-6" />

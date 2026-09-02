@@ -51,7 +51,7 @@ export function TrocarSenhaObrigatoria() {
   };
 
   return (
-    <div className="mx-auto max-w-md space-y-6 rounded-2xl border border-border panel-surface p-8">
+    <div className="mx-auto max-w-md space-y-6 rounded-lg border border-border panel-surface p-8">
       <div className="flex flex-col items-center gap-3 text-center">
         <span className="flex size-12 items-center justify-center rounded-xl bg-primary/12 text-primary">
           <KeyRound className="size-6" />
@@ -59,8 +59,8 @@ export function TrocarSenhaObrigatoria() {
         <div>
           <h2 className="text-lg font-semibold">Defina sua senha</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sua conta está com uma senha provisória, criada por um administrador. Escolha
-            uma senha sua para continuar.
+            Sua conta está com uma senha provisória, criada por um administrador. Escolha uma senha
+            sua para continuar.
           </p>
         </div>
       </div>

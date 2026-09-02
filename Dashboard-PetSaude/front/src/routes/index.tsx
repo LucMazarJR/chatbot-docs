@@ -84,8 +84,7 @@ function BrowsePanel() {
 
   const faqsQuery = useQuery({
     queryKey: ["faqs", { page, search: termoAtrasado, category }],
-    queryFn: () =>
-      listFaqs({ data: { page, limit: POR_PAGINA, search: termoAtrasado, category } }),
+    queryFn: () => listFaqs({ data: { page, limit: POR_PAGINA, search: termoAtrasado, category } }),
     placeholderData: keepPreviousData,
   });
 
@@ -124,14 +123,19 @@ function BrowsePanel() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-5xl font-semibold text-primary">
+        {/* text-5xl fixo passava de metade da altura util em 360px. */}
+        <p className="text-4xl font-semibold text-primary sm:text-5xl">
           {categoriasQuery.data?.totalFaqs ?? "—"}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">FAQs cadastradas</p>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex-1">
+      {/* A busca ocupa a linha inteira ate lg; filtro e acoes ficam numa segunda
+          linha que quebra sozinha. Antes eram quatro filhos disputando um
+          sm:flex-row, e a partir de 640px a busca encolhia ate caber tres
+          palavras. */}
+      <div className="space-y-3 lg:flex lg:items-center lg:gap-3 lg:space-y-0">
+        <div className="lg:flex-1">
           <SearchField
             value={termo}
             onChange={aplicarBusca}
@@ -139,30 +143,32 @@ function BrowsePanel() {
           />
         </div>
 
-        <Select value={category || TODAS} onValueChange={aplicarCategoria}>
-          <SelectTrigger className="w-full sm:w-56">
-            <SelectValue placeholder="Todas as categorias" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODAS}>Todas as categorias</SelectItem>
-            {categorias.map((c) => (
-              <SelectItem
-                key={c.category}
-                value={c.category === "Sem categoria" ? SEM_CATEGORIA : c.category}
-              >
-                {c.category} ({c.count})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={category || TODAS} onValueChange={aplicarCategoria}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="Todas as categorias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODAS}>Todas as categorias</SelectItem>
+              {categorias.map((c) => (
+                <SelectItem
+                  key={c.category}
+                  value={c.category === "Sem categoria" ? SEM_CATEGORIA : c.category}
+                >
+                  {c.category} ({c.count})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Button asChild variant="outline">
-          <Link to="/categorias">
-            <FolderOpen className="size-4" /> Categorias (
-            {categoriasQuery.data?.totalCategories ?? 0})
-          </Link>
-        </Button>
-        <InsertFaqButton />
+          <Button asChild variant="outline" className="flex-1 sm:flex-none">
+            <Link to="/categorias">
+              <FolderOpen className="size-4" /> Categorias (
+              {categoriasQuery.data?.totalCategories ?? 0})
+            </Link>
+          </Button>
+          <InsertFaqButton />
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">
@@ -171,7 +177,7 @@ function BrowsePanel() {
       </p>
 
       {faqs.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
           Nenhuma pergunta encontrada.
         </p>
       ) : (

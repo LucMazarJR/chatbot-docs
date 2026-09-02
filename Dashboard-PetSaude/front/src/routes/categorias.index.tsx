@@ -56,17 +56,17 @@ function CategoriesPage() {
         {categoriasQuery.isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando categorias…</p>
         ) : categories.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
             Nenhuma categoria cadastrada.
           </p>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map(({ category, count }) => (
               <li key={category}>
                 <Link
                   to="/categorias/$categoria"
                   params={{ categoria: category }}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-border panel-surface p-5 transition-colors hover:border-primary/50 hover:bg-accent/40"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border panel-surface p-4 sm:p-5 transition-colors hover:border-primary/50 hover:bg-accent/40"
                 >
                   <span>
                     <span className="block text-base font-semibold">{category}</span>

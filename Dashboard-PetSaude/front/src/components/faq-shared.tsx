@@ -337,7 +337,7 @@ export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean 
   const categories = faqCategories(faq);
 
   return (
-    <li className="rounded-2xl border border-border panel-surface p-5">
+    <li className="rounded-lg border border-border panel-surface p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           {categories.length > 0 && (
@@ -352,17 +352,21 @@ export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean 
               ))}
             </div>
           )}
-          <h3 className="mt-2 text-base font-semibold">{faq.question}</h3>
+          <h3 className="mt-2 break-words text-base font-semibold">{faq.question}</h3>
           <p
             className={
               compact
-                ? "mt-1 line-clamp-3 text-sm text-muted-foreground"
-                : "mt-2 whitespace-pre-line text-sm text-muted-foreground"
+                ? "mt-1 line-clamp-3 break-words text-sm text-muted-foreground"
+                : "mt-2 whitespace-pre-line break-words text-sm text-muted-foreground"
             }
           >
             {faq.answer}
           </p>
-          {faq.source && <p className="mt-1 text-sm text-muted-foreground font-semibold">Fonte: {faq.source}</p>}
+          {faq.source && (
+            <p className="mt-1 break-words text-sm font-semibold text-muted-foreground">
+              Fonte: {faq.source}
+            </p>
+          )}
           <TagRow tags={faq.tags} />
           <p className="mt-2 text-xs text-muted-foreground">
             {faq.updated_by ? `Última alteração por ${faq.updated_by}` : "Sem registro de autor"}
@@ -377,6 +381,7 @@ export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean 
             <Button
               variant="ghost"
               size="icon"
+              className="size-10 sm:size-9"
               aria-label="Editar pergunta"
               title="Editar"
               onClick={() => setEditing(true)}
@@ -388,7 +393,7 @@ export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean 
               size="icon"
               aria-label="Excluir pergunta"
               title="Excluir"
-              className="text-destructive hover:text-destructive"
+              className="size-10 text-destructive hover:text-destructive sm:size-9"
               onClick={() => setDeleting(true)}
             >
               <Trash2 className="size-4" />

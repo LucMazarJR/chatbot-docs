@@ -91,7 +91,7 @@ function PainelUsuarios() {
   // devolveria 403.
   if (usuario && usuario.role !== "admin") {
     return (
-      <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
         Somente administradores podem gerenciar usuários.
       </p>
     );
@@ -120,7 +120,10 @@ function PainelUsuarios() {
           {usuarios.map((u) => (
             <li
               key={u.id}
-              className="flex flex-wrap items-center gap-3 rounded-2xl border border-border panel-surface p-5"
+              // Abaixo de sm as acoes empilham sob os dados. Em flex-wrap com
+              // um SelectTrigger de largura fixa e tres botoes, o item virava
+              // quatro linhas desalinhadas em 360px.
+              className="flex flex-col gap-3 rounded-lg border border-border panel-surface p-4 sm:flex-row sm:flex-wrap sm:items-center sm:p-5"
             >
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2 font-medium">
@@ -143,7 +146,7 @@ function PainelUsuarios() {
                 value={u.role}
                 onValueChange={(papel) => mutAtualizar.mutate({ id: u.id, role: papel })}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -163,6 +166,7 @@ function PainelUsuarios() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => mutDesativar.mutate(u.id)}
                   disabled={mutDesativar.isPending}
                 >
@@ -209,7 +213,7 @@ function FormularioNovoUsuario({
   return (
     <form
       onSubmit={enviar}
-      className="grid gap-3 rounded-2xl border border-border panel-surface p-5 sm:grid-cols-2"
+      className="grid gap-3 rounded-lg border border-border panel-surface p-4 sm:p-5 sm:grid-cols-2"
     >
       <div className="sm:col-span-2">
         <h3 className="flex items-center gap-2 text-base font-semibold">
@@ -292,13 +296,15 @@ function BotaoRedefinirSenha({ aoDefinir }: { aoDefinir: (senha: string) => void
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
       <Input
         type="password"
         value={senha}
         onChange={(e) => setSenha(e.target.value)}
         placeholder="Nova senha"
-        className="w-40"
+        // w-40 fixo estourava a linha no celular assim que os dois botoes
+        // entravam ao lado.
+        className="w-full sm:w-40"
         minLength={8}
       />
       <Button

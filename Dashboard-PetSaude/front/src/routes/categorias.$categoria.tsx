@@ -108,7 +108,7 @@ function CategoryPage() {
         {faqsQuery.isLoading && !faqsQuery.data ? (
           <p className="text-sm text-muted-foreground">Carregando perguntas…</p>
         ) : faqs.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
             Nenhuma pergunta nesta categoria.
           </p>
         ) : (

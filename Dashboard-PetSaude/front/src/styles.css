@@ -5,23 +5,35 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
+ * Design system.
  *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
+ * O @theme inline mapeia as variáveis para as classes do Tailwind
+ * (--color-primary -> bg-primary, text-primary). Os valores ficam em :root e
+ * .dark. Todas as cores em oklch.
  *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
+ * Para acrescentar uma cor semântica:
+ *   1. defina em :root e em .dark
+ *   2. registre em @theme inline como --color-<nome>: var(--<nome>)
  *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * LÓGICA DO LUCIANO — o que mudou e por quê:
+ *
+ * A interface saiu de um scaffold de IA e entregava isso em três detalhes
+ * concretos, todos aqui neste arquivo. O raio de 0.75rem, que arredondava tudo
+ * como cartão de app. O gradiente decorativo com sombra difusa no `panel-surface`,
+ * que fazia cada bloco flutuar sem motivo. E um verde de baixa saturação usado
+ * como cor de fundo, de borda, de texto e de destaque ao mesmo tempo — quando
+ * uma cor é tudo, ela não destaca nada.
+ *
+ * A troca é para cara de sistema público de saúde: fundo neutro, superfície
+ * chapada com borda de verdade, cantos discretos, e o teal rebaixado a acento
+ * único, usado só onde há ação ou estado. O contraste de texto subiu junto —
+ * esta tela é lida em celular, sob luz de posto de saúde.
  */
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
@@ -62,47 +74,62 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.985 0.008 170);
-  --foreground: oklch(0.28 0.035 200);
+  /* 6px. Suficiente para não parecer bruto, pequeno o bastante para não
+     parecer cartão de rede social. */
+  --radius: 0.375rem;
+
+  /* Fundo neutro levemente quente, não esverdeado: a cor da marca precisa
+     sobrar para o que é ação. */
+  --background: oklch(0.985 0.003 100);
+  --foreground: oklch(0.22 0.012 250);
+
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.28 0.035 200);
+  --card-foreground: oklch(0.22 0.012 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.28 0.035 200);
-  --primary: oklch(0.52 0.098 185);
-  --primary-foreground: oklch(0.99 0.005 180);
-  --secondary: oklch(0.945 0.024 175);
-  --secondary-foreground: oklch(0.33 0.05 195);
-  --muted: oklch(0.955 0.014 175);
-  --muted-foreground: oklch(0.52 0.024 200);
-  --accent: oklch(0.9 0.06 155);
-  --accent-foreground: oklch(0.3 0.05 190);
-  --destructive: oklch(0.55 0.17 22);
-  --destructive-foreground: oklch(0.99 0.005 180);
-  --border: oklch(0.9 0.018 180);
-  --input: oklch(0.9 0.018 180);
-  --ring: oklch(0.52 0.098 185);
-  --chart-1: oklch(0.52 0.098 185);
-  --chart-2: oklch(0.68 0.11 155);
-  --chart-3: oklch(0.62 0.1 235);
-  --chart-4: oklch(0.72 0.1 90);
-  --chart-5: oklch(0.6 0.12 20);
+  --popover-foreground: oklch(0.22 0.012 250);
+
+  /* Teal mais fechado que o anterior (0.52): passa em contraste sobre branco,
+     o que a versão clara não fazia com texto pequeno. */
+  --primary: oklch(0.45 0.088 190);
+  --primary-foreground: oklch(0.99 0.004 180);
+
+  --secondary: oklch(0.955 0.008 200);
+  --secondary-foreground: oklch(0.28 0.03 200);
+
+  --muted: oklch(0.962 0.004 240);
+  /* 0.46 e não 0.52: texto de apoio precisa passar de 4.5:1 sobre o fundo. */
+  --muted-foreground: oklch(0.46 0.014 250);
+
+  --accent: oklch(0.945 0.028 185);
+  --accent-foreground: oklch(0.28 0.04 195);
+
+  --destructive: oklch(0.5 0.18 25);
+  --destructive-foreground: oklch(0.99 0.004 180);
+
+  --border: oklch(0.9 0.005 250);
+  --input: oklch(0.88 0.006 250);
+  --ring: oklch(0.45 0.088 190);
+
+  /* Série de gráficos: a primeira é a cor da marca; as demais se distinguem
+     por matiz E por luminosidade, para continuarem legíveis impressas em
+     preto e branco — relatório de saúde acaba impresso. */
+  --chart-1: oklch(0.45 0.088 190);
+  --chart-2: oklch(0.62 0.1 155);
+  --chart-3: oklch(0.55 0.11 250);
+  --chart-4: oklch(0.72 0.11 85);
+  --chart-5: oklch(0.55 0.14 25);
+
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.28 0.035 200);
-  --sidebar-primary: oklch(0.52 0.098 185);
-  --sidebar-primary-foreground: oklch(0.99 0.005 180);
-  --sidebar-accent: oklch(0.945 0.024 175);
-  --sidebar-accent-foreground: oklch(0.33 0.05 195);
-  --sidebar-border: oklch(0.9 0.018 180);
-  --sidebar-ring: oklch(0.52 0.098 185);
+  --sidebar-foreground: oklch(0.22 0.012 250);
+  --sidebar-primary: oklch(0.45 0.088 190);
+  --sidebar-primary-foreground: oklch(0.99 0.004 180);
+  --sidebar-accent: oklch(0.955 0.008 200);
+  --sidebar-accent-foreground: oklch(0.28 0.03 200);
+  --sidebar-border: oklch(0.9 0.005 250);
+  --sidebar-ring: oklch(0.45 0.088 190);
+
   --font-display: "Newsreader", ui-serif, Georgia, serif;
   --font-body: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
-  --gradient-panel: linear-gradient(
-    160deg,
-    oklch(1 0 0) 0%,
-    oklch(0.975 0.014 175) 100%
-  );
-  --shadow-panel: 0 12px 32px -18px oklch(0.45 0.06 190 / 0.35);
 }
 
 @theme inline {
@@ -110,46 +137,66 @@
   --font-sans: var(--font-body);
 }
 
+/*
+ * A superfície de bloco.
+ *
+ * Era um gradiente diagonal com sombra difusa de 32px. Continua com o mesmo
+ * nome de propósito: os sete lugares que usam a classe não precisaram mudar, e
+ * trocar a definição num lugar só é justamente o motivo de existir uma utility.
+ */
 @utility panel-surface {
-  background-image: var(--gradient-panel);
-  box-shadow: var(--shadow-panel);
+  background-color: var(--color-card);
 }
 
-
-
+/*
+ * O tema escuro estava no slate padrão do shadcn, que não combinava com nada do
+ * tema claro — e nada no app jamais adiciona a classe `.dark`, então ninguém
+ * via. Reescrito com a mesma paleta: se um dia alguém ligar o tema escuro, ele
+ * não vai produzir uma tela quebrada.
+ */
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --background: oklch(0.19 0.012 245);
+  --foreground: oklch(0.96 0.004 240);
+
+  --card: oklch(0.235 0.013 245);
+  --card-foreground: oklch(0.96 0.004 240);
+  --popover: oklch(0.235 0.013 245);
+  --popover-foreground: oklch(0.96 0.004 240);
+
+  /* Teal claro: no escuro, a cor de ação precisa ser a mais luminosa do par. */
+  --primary: oklch(0.74 0.09 185);
+  --primary-foreground: oklch(0.19 0.03 200);
+
+  --secondary: oklch(0.28 0.015 245);
+  --secondary-foreground: oklch(0.94 0.005 240);
+
+  --muted: oklch(0.28 0.015 245);
+  --muted-foreground: oklch(0.72 0.015 245);
+
+  --accent: oklch(0.3 0.03 190);
+  --accent-foreground: oklch(0.94 0.01 190);
+
+  --destructive: oklch(0.66 0.17 25);
+  --destructive-foreground: oklch(0.99 0.004 180);
+
+  --border: oklch(1 0 0 / 13%);
+  --input: oklch(1 0 0 / 17%);
+  --ring: oklch(0.74 0.09 185);
+
+  --chart-1: oklch(0.74 0.09 185);
+  --chart-2: oklch(0.72 0.11 155);
+  --chart-3: oklch(0.68 0.11 250);
+  --chart-4: oklch(0.78 0.11 85);
+  --chart-5: oklch(0.68 0.14 25);
+
+  --sidebar: oklch(0.235 0.013 245);
+  --sidebar-foreground: oklch(0.96 0.004 240);
+  --sidebar-primary: oklch(0.74 0.09 185);
+  --sidebar-primary-foreground: oklch(0.19 0.03 200);
+  --sidebar-accent: oklch(0.28 0.015 245);
+  --sidebar-accent-foreground: oklch(0.94 0.005 240);
+  --sidebar-border: oklch(1 0 0 / 13%);
+  --sidebar-ring: oklch(0.74 0.09 185);
 }
 
 @layer base {
@@ -161,10 +208,57 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-body);
+    /* Sem isto, o iPhone aumenta o corpo do texto em blocos largos e a coluna
+       deixa de bater com o resto da tela. */
+    -webkit-text-size-adjust: 100%;
   }
 
-  h1, h2, h3 {
+  /*
+   * A serifa fica só no título de página. Antes valia para h1, h2 e h3 — com
+   * três níveis serifados, a hierarquia sumia e cada bloco parecia uma capa.
+   */
+  h1 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
+  }
+
+  h1,
+  h2,
+  h3 {
+    /* Evita a última palavra sozinha na linha, que é o que faz um título curto
+       parecer desalinhado no celular. */
+    text-wrap: balance;
+  }
+
+  /*
+   * Foco visível em tudo que recebe teclado. O padrão do navegador some quando
+   * o componente redefine `outline`, e boa parte dos primitivos do shadcn
+   * redefine — o resultado é uma tela que não dá para navegar com Tab.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Palavra longa sem espaço — URL, nome de medicamento, código de exame —
+   * estourava a caixa e criava rolagem horizontal na página inteira no celular.
+   */
+  p,
+  li,
+  h1,
+  h2,
+  h3 {
+    overflow-wrap: break-word;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
