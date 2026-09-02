@@ -87,7 +87,7 @@ function ResultadoDiagnostico({ dados }: { dados: Diagnostico }) {
 
   const cor =
     dados.veredito === "mesmo_modelo"
-      ? "text-primary"
+      ? "text-success"
       : dados.veredito === "modelo_diferente"
         ? "text-destructive"
         : "text-muted-foreground";

@@ -158,7 +158,7 @@ export function GateShell({ children }: { children: React.ReactNode }) {
                         to={para}
                         activeOptions={{ exact: para === "/" }}
                         activeProps={{ "data-ativo": "true" }}
-                        className="data-[ativo=true]:bg-secondary data-[ativo=true]:text-secondary-foreground"
+                        className="data-[ativo=true]:bg-secondary data-[ativo=true]:font-semibold data-[ativo=true]:text-secondary-foreground"
                       >
                         <Icone className="size-4" /> {rotulo}
                       </Link>

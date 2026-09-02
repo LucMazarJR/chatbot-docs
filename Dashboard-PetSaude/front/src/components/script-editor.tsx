@@ -305,9 +305,9 @@ export function ScriptEditor() {
         </p>
       )}
 
-      <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
+      <div className="rounded-lg border border-warning/40 bg-warning/10 p-4">
         <p className="flex items-start gap-2 text-sm">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
           <span>
             <strong>Este script vale so para a importacao pelo dashboard.</strong> A ingestao que le
             o Google Drive (<code>scripts/enviar_dados.py</code>) continua com os marcadores fixos

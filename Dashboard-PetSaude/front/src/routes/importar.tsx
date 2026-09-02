@@ -147,7 +147,7 @@ function Andamento({ job, aoParar }: { job: Job; aoParar: () => void }) {
         // A FAQ entrou mas o chatbot nao a encontra. Sem este aviso, o defeito
         // so apareceria semanas depois, quando alguem notasse que uma pergunta
         // nunca e respondida.
-        <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+        <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
           {semVetor} FAQ(s) entraram <strong>sem vetor</strong> e o chatbot nao vai encontra-las.{" "}
           <Link to="/configuracoes" className="underline underline-offset-2">
             Gere os vetores em Configuracoes
@@ -369,7 +369,7 @@ function PainelImportacao() {
       {lendo && <p className="text-sm text-muted-foreground">Lendo o arquivo…</p>}
 
       {avisos.length > 0 && (
-        <section className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
+        <section className="rounded-lg border border-warning/40 bg-warning/10 p-4">
           <h2 className="text-sm font-semibold">Avisos da leitura</h2>
           <ul className="mt-2 space-y-1">
             {avisos.map((aviso, i) => (

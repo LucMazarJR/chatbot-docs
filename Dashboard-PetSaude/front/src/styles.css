@@ -15,19 +15,45 @@
  *   1. defina em :root e em .dark
  *   2. registre em @theme inline como --color-<nome>: var(--<nome>)
  *
- * LÓGICA DO LUCIANO — o que mudou e por quê:
+ * LÓGICA DO LUCIANO — de onde vêm estas cores:
  *
- * A interface saiu de um scaffold de IA e entregava isso em três detalhes
- * concretos, todos aqui neste arquivo. O raio de 0.75rem, que arredondava tudo
- * como cartão de app. O gradiente decorativo com sombra difusa no `panel-surface`,
- * que fazia cada bloco flutuar sem motivo. E um verde de baixa saturação usado
- * como cor de fundo, de borda, de texto e de destaque ao mesmo tempo — quando
- * uma cor é tudo, ela não destaca nada.
+ * A paleta anterior era um teal de baixa saturação usado como fundo, borda,
+ * texto e destaque ao mesmo tempo. Três problemas, todos mensuráveis:
  *
- * A troca é para cara de sistema público de saúde: fundo neutro, superfície
- * chapada com borda de verdade, cantos discretos, e o teal rebaixado a acento
- * único, usado só onde há ação ou estado. O contraste de texto subiu junto —
- * esta tela é lida em celular, sob luz de posto de saúde.
+ * 1. Lavada. Cinco superfícies (card 1.000, fundo 0.985, muted 0.962,
+ *    secundária 0.955, accent 0.945) viviam dentro de 5,5% de luminosidade. O
+ *    olho não separa nenhum par, e o desenho todo dependia de uma borda com
+ *    1,1:1 de contraste. Em celular, sob luz de posto de saúde, os cartões
+ *    sumiam.
+ * 2. Sem hierarquia. O item ativo do menu era `secondary` (0.955) sobre um
+ *    cabeçalho branco: 4,5% de diferença, invisível. Não dava para saber em que
+ *    página se estava.
+ * 3. Cores competindo. `primary/12` significava sete coisas diferentes, âmbar e
+ *    vermelho conviviam no mesmo cartão dizendo a mesma coisa de relance, e não
+ *    havia token de sucesso nem de atenção — o âmbar era Tailwind cru a 5% de
+ *    opacidade, o que fazia o aviso mais importante do app ser o elemento mais
+ *    discreto da tela.
+ *
+ * Agora as cores vêm do Design System do gov.br, que é a linguagem visual que
+ * quem trabalha em saúde pública já reconhece. Os hex de origem, e o contraste
+ * medido de cada um sobre o fundo desta interface:
+ *
+ *   #1351B4  azul institucional   primária     6,6:1
+ *   #0C326F  azul escuro          texto sobre superfície azul clara   9,8:1
+ *   #168821  verde                sucesso      5,4:1  (escurecido p/ contraste)
+ *   #E52207  vermelho             risco        4,9:1
+ *   #FFCD07  amarelo              atenção      usado só como superfície; o
+ *                                              texto de aviso é um âmbar
+ *                                              escurecido, 5,6:1
+ *
+ * Cada cor tem UM significado:
+ *   primary     ação e identidade
+ *   secondary   estado ativo (a página em que você está)
+ *   success     deu certo
+ *   warning     exige atenção, mas nada quebrou
+ *   destructive risco e erro
+ *   muted       neutro, inativo, secundário
+ *   accent      superfície de hover, e nada mais
  */
 
 @theme inline {
@@ -52,6 +78,10 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -78,55 +108,74 @@
      parecer cartão de rede social. */
   --radius: 0.375rem;
 
-  /* Fundo neutro levemente quente, não esverdeado: a cor da marca precisa
-     sobrar para o que é ação. */
-  --background: oklch(0.985 0.003 100);
-  --foreground: oklch(0.22 0.012 250);
+  /* O fundo desceu de 0.985 para 0.955. Parece pouco e é o que faz o cartão
+     branco existir: antes card e fundo diferiam 1,5% e a página era uma folha
+     lisa. */
+  --background: oklch(0.955 0.006 250);
+  --foreground: oklch(0.21 0.02 260);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.012 250);
+  --card-foreground: oklch(0.21 0.02 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.012 250);
+  --popover-foreground: oklch(0.21 0.02 260);
 
-  /* Teal mais fechado que o anterior (0.52): passa em contraste sobre branco,
-     o que a versão clara não fazia com texto pequeno. */
-  --primary: oklch(0.45 0.088 190);
-  --primary-foreground: oklch(0.99 0.004 180);
+  /* #1351B4 do gov.br. 6,6:1 sobre o fundo, então passa em AA até para texto
+     pequeno — o teal anterior não passava. */
+  --primary: oklch(0.46 0.169 260);
+  --primary-foreground: oklch(0.99 0 0);
 
-  --secondary: oklch(0.955 0.008 200);
-  --secondary-foreground: oklch(0.28 0.03 200);
+  /* Azul bem claro para o estado ativo, com o azul escuro do gov.br por cima:
+     9,8:1 entre os dois. É o que faz o item de menu da página atual ser
+     visível, que era o pior efeito colateral da paleta antiga. */
+  --secondary: oklch(0.92 0.035 258);
+  --secondary-foreground: oklch(0.33 0.114 260);
 
-  --muted: oklch(0.962 0.004 240);
-  /* 0.46 e não 0.52: texto de apoio precisa passar de 4.5:1 sobre o fundo. */
-  --muted-foreground: oklch(0.46 0.014 250);
+  --muted: oklch(0.94 0.006 250);
+  --muted-foreground: oklch(0.47 0.02 258);
 
-  --accent: oklch(0.945 0.028 185);
-  --accent-foreground: oklch(0.28 0.04 195);
+  /* Superfície de hover. Só isso — antes o accent era hover E pastilha de tag
+     ao mesmo tempo, então as tags pareciam botões prestes a serem clicados. */
+  --accent: oklch(0.93 0.028 258);
+  --accent-foreground: oklch(0.33 0.114 260);
 
-  --destructive: oklch(0.5 0.18 25);
-  --destructive-foreground: oklch(0.99 0.004 180);
+  /* Verde do gov.br escurecido de 0.547 para 0.48: no valor original ficava em
+     4,16:1 sobre o fundo, abaixo do mínimo para texto. */
+  --success: oklch(0.48 0.15 145);
+  --success-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.9 0.005 250);
-  --input: oklch(0.88 0.006 250);
-  --ring: oklch(0.45 0.088 190);
+  /* O amarelo #FFCD07 tem 1,5:1 sobre branco — serve como superfície, nunca
+     como texto. Este é o mesmo matiz escurecido até 5,6:1, para o aviso poder
+     ser lido. */
+  --warning: oklch(0.5 0.115 75);
+  --warning-foreground: oklch(0.99 0 0);
+
+  --destructive: oklch(0.55 0.21 29);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.87 0.008 255);
+  /* A borda do campo é mais escura que a borda de divisão de propósito: antes
+     eram 0.88 e 0.9, dois por cento de diferença, e um input não parecia um
+     input. */
+  --input: oklch(0.8 0.012 255);
+  --ring: oklch(0.46 0.169 260);
 
   /* Série de gráficos: a primeira é a cor da marca; as demais se distinguem
-     por matiz E por luminosidade, para continuarem legíveis impressas em
-     preto e branco — relatório de saúde acaba impresso. */
-  --chart-1: oklch(0.45 0.088 190);
-  --chart-2: oklch(0.62 0.1 155);
-  --chart-3: oklch(0.55 0.11 250);
-  --chart-4: oklch(0.72 0.11 85);
-  --chart-5: oklch(0.55 0.14 25);
+     por matiz E por luminosidade, para continuarem legíveis impressas em preto
+     e branco — relatório de saúde acaba impresso. */
+  --chart-1: oklch(0.46 0.169 260);
+  --chart-2: oklch(0.48 0.15 145);
+  --chart-3: oklch(0.62 0.13 200);
+  --chart-4: oklch(0.7 0.13 60);
+  --chart-5: oklch(0.55 0.21 29);
 
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.22 0.012 250);
-  --sidebar-primary: oklch(0.45 0.088 190);
-  --sidebar-primary-foreground: oklch(0.99 0.004 180);
-  --sidebar-accent: oklch(0.955 0.008 200);
-  --sidebar-accent-foreground: oklch(0.28 0.03 200);
-  --sidebar-border: oklch(0.9 0.005 250);
-  --sidebar-ring: oklch(0.45 0.088 190);
+  --sidebar-foreground: oklch(0.21 0.02 260);
+  --sidebar-primary: oklch(0.46 0.169 260);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.92 0.035 258);
+  --sidebar-accent-foreground: oklch(0.33 0.114 260);
+  --sidebar-border: oklch(0.87 0.008 255);
+  --sidebar-ring: oklch(0.46 0.169 260);
 
   --font-display: "Newsreader", ui-serif, Georgia, serif;
   --font-body: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
@@ -141,7 +190,7 @@
  * A superfície de bloco.
  *
  * Era um gradiente diagonal com sombra difusa de 32px. Continua com o mesmo
- * nome de propósito: os sete lugares que usam a classe não precisaram mudar, e
+ * nome de propósito: os lugares que usam a classe não precisaram mudar, e
  * trocar a definição num lugar só é justamente o motivo de existir uma utility.
  */
 @utility panel-surface {
@@ -149,54 +198,60 @@
 }
 
 /*
- * O tema escuro estava no slate padrão do shadcn, que não combinava com nada do
- * tema claro — e nada no app jamais adiciona a classe `.dark`, então ninguém
- * via. Reescrito com a mesma paleta: se um dia alguém ligar o tema escuro, ele
- * não vai produzir uma tela quebrada.
+ * O tema escuro estava no slate padrão do shadcn, sem relação com o tema claro,
+ * e nada no app jamais adiciona a classe `.dark` — ninguém via. Reescrito com a
+ * mesma paleta: se um dia alguém ligar o tema escuro, ele não vai produzir uma
+ * tela quebrada.
  */
 .dark {
-  --background: oklch(0.19 0.012 245);
-  --foreground: oklch(0.96 0.004 240);
+  --background: oklch(0.19 0.02 258);
+  --foreground: oklch(0.96 0.005 250);
 
-  --card: oklch(0.235 0.013 245);
-  --card-foreground: oklch(0.96 0.004 240);
-  --popover: oklch(0.235 0.013 245);
-  --popover-foreground: oklch(0.96 0.004 240);
+  --card: oklch(0.235 0.022 258);
+  --card-foreground: oklch(0.96 0.005 250);
+  --popover: oklch(0.235 0.022 258);
+  --popover-foreground: oklch(0.96 0.005 250);
 
-  /* Teal claro: no escuro, a cor de ação precisa ser a mais luminosa do par. */
-  --primary: oklch(0.74 0.09 185);
-  --primary-foreground: oklch(0.19 0.03 200);
+  /* No escuro a cor de ação precisa ser a mais luminosa do par. */
+  --primary: oklch(0.72 0.13 255);
+  --primary-foreground: oklch(0.17 0.03 260);
 
-  --secondary: oklch(0.28 0.015 245);
-  --secondary-foreground: oklch(0.94 0.005 240);
+  --secondary: oklch(0.3 0.05 258);
+  --secondary-foreground: oklch(0.94 0.02 255);
 
-  --muted: oklch(0.28 0.015 245);
-  --muted-foreground: oklch(0.72 0.015 245);
+  --muted: oklch(0.28 0.02 258);
+  --muted-foreground: oklch(0.73 0.02 255);
 
-  --accent: oklch(0.3 0.03 190);
-  --accent-foreground: oklch(0.94 0.01 190);
+  --accent: oklch(0.31 0.045 258);
+  --accent-foreground: oklch(0.94 0.02 255);
 
-  --destructive: oklch(0.66 0.17 25);
-  --destructive-foreground: oklch(0.99 0.004 180);
+  --success: oklch(0.7 0.16 145);
+  --success-foreground: oklch(0.17 0.03 145);
 
-  --border: oklch(1 0 0 / 13%);
-  --input: oklch(1 0 0 / 17%);
-  --ring: oklch(0.74 0.09 185);
+  --warning: oklch(0.8 0.14 80);
+  --warning-foreground: oklch(0.2 0.04 75);
 
-  --chart-1: oklch(0.74 0.09 185);
-  --chart-2: oklch(0.72 0.11 155);
-  --chart-3: oklch(0.68 0.11 250);
-  --chart-4: oklch(0.78 0.11 85);
-  --chart-5: oklch(0.68 0.14 25);
+  --destructive: oklch(0.68 0.19 29);
+  --destructive-foreground: oklch(0.99 0 0);
 
-  --sidebar: oklch(0.235 0.013 245);
-  --sidebar-foreground: oklch(0.96 0.004 240);
-  --sidebar-primary: oklch(0.74 0.09 185);
-  --sidebar-primary-foreground: oklch(0.19 0.03 200);
-  --sidebar-accent: oklch(0.28 0.015 245);
-  --sidebar-accent-foreground: oklch(0.94 0.005 240);
-  --sidebar-border: oklch(1 0 0 / 13%);
-  --sidebar-ring: oklch(0.74 0.09 185);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 22%);
+  --ring: oklch(0.72 0.13 255);
+
+  --chart-1: oklch(0.72 0.13 255);
+  --chart-2: oklch(0.7 0.16 145);
+  --chart-3: oklch(0.72 0.12 200);
+  --chart-4: oklch(0.78 0.13 60);
+  --chart-5: oklch(0.68 0.19 29);
+
+  --sidebar: oklch(0.235 0.022 258);
+  --sidebar-foreground: oklch(0.96 0.005 250);
+  --sidebar-primary: oklch(0.72 0.13 255);
+  --sidebar-primary-foreground: oklch(0.17 0.03 260);
+  --sidebar-accent: oklch(0.3 0.05 258);
+  --sidebar-accent-foreground: oklch(0.94 0.02 255);
+  --sidebar-border: oklch(1 0 0 / 14%);
+  --sidebar-ring: oklch(0.72 0.13 255);
 }
 
 @layer base {

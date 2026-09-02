@@ -34,12 +34,15 @@ const ROTULO: Record<LinhaValidada["estado"], string> = {
 };
 
 function Selo({ estado }: { estado: LinhaValidada["estado"] }) {
+  // Os tres estados precisam se distinguir de relance: e por eles que a pessoa
+  // decide o que entra. O "ja existe" era bg-muted sem borda sobre um cartao
+  // branco, ou seja, um retangulo invisivel -- dos tres, so dois apareciam.
   const classe =
     estado === "ok"
-      ? "bg-primary/12 text-primary"
+      ? "border border-success/30 bg-success/10 text-success"
       : estado === "duplicada"
-        ? "bg-muted text-muted-foreground"
-        : "bg-destructive/12 text-destructive";
+        ? "border border-border bg-muted text-muted-foreground"
+        : "border border-destructive/30 bg-destructive/10 text-destructive";
 
   return (
     <span
