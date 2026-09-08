@@ -123,6 +123,42 @@ services:
     depends_on:
       - n8n
 
+  # --- Protótipo PWA de validação --------------------------------------------
+  # Roda o MESMO fluxo de RAG do WhatsApp numa interface web com cara de
+  # WhatsApp, pede uma nota ao final e registra as conversas para análise.
+  # Ver docs/prototipo-pwa.md.
+  #
+  # Não toca em nada do que está no ar: outra rota no n8n (/webhook/pwa-chat),
+  # outro token, outra credencial do Gemini e outro banco no Mongo.
+  pwa:
+    build:
+      context: ./pwa
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+
+      # Mesmo cluster das FAQs, banco separado. O nome do banco vem daqui e não
+      # do caminho da URI: ver o comentário em pwa/src/lib/db.ts.
+      MONGODB_URI: ${MONGODB_URI:?defina MONGODB_URI no .env}
+      PWA_MONGO_DB: ${PWA_MONGO_DB:-pwa_prototipo}
+
+      # Nome do serviço na rede do compose — não passa pelo Cloudflare Tunnel.
+      N8N_PWA_WEBHOOK_URL: ${N8N_PWA_WEBHOOK_URL:-http://n8n:5678/webhook/pwa-chat}
+      N8N_PWA_WEBHOOK_TOKEN: ${N8N_PWA_WEBHOOK_TOKEN:?defina N8N_PWA_WEBHOOK_TOKEN no .env}
+      # O fluxo responde só depois de embedding + busca no Atlas + Gemini, e o
+      # agente ainda tenta 3 vezes quando o modelo devolve sobrecarga.
+      PWA_N8N_TIMEOUT_MS: ${PWA_N8N_TIMEOUT_MS:-45000}
+
+      # Vazia = tela de revisão aberta, como decidido. Preencher liga Basic Auth.
+      PWA_ADMIN_PASSWORD: ${PWA_ADMIN_PASSWORD:-}
+    ports:
+      # Sem o 127.0.0.1 dos demais serviços: durante um teste presencial os
+      # celulares precisam alcançar esta porta pela rede local.
+      - "${PWA_PORT:-8080}:8080"
+    depends_on:
+      - n8n
+
   # --- Dashboard de gestão de FAQs -------------------------------------------
   # Vive em outro repositório (LucMazarJR/Dashboard-PetSaude), clonado dentro
   # desta pasta. Por isso os dois serviços ficam no profile `dashboard`: sem
