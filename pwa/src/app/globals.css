@@ -1,0 +1,723 @@
+/*
+ * Aparência do WhatsApp, recriada em CSS.
+ *
+ * Nenhum arquivo de imagem da Meta é usado — cores, formas e o padrão de fundo
+ * são reproduzidos aqui. A fidelidade visual é o ponto: o participante precisa
+ * julgar a experiência do canal real, não a de um chat genérico.
+ */
+
+:root {
+  --topo: #008069;
+  --topo-texto: #ffffff;
+  --fundo-chat: #efeae2;
+  --balao-saida: #d9fdd3;
+  --balao-entrada: #ffffff;
+  --texto: #111b21;
+  --texto-fraco: #667781;
+  --tick: #8696a0;
+  --tick-lido: #53bdeb;
+  --barra: #f0f2f5;
+  --campo: #ffffff;
+  --divisor: #ffffff;
+  --sombra: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --painel: #ffffff;
+  --borda: rgba(17, 27, 33, 0.1);
+  --acento: #008069;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --topo: #202c33;
+    --topo-texto: #e9edef;
+    --fundo-chat: #0b141a;
+    --balao-saida: #005c4b;
+    --balao-entrada: #202c33;
+    --texto: #e9edef;
+    --texto-fraco: #8696a0;
+    --tick: #8696a0;
+    --tick-lido: #53bdeb;
+    --barra: #202c33;
+    --campo: #2a3942;
+    --divisor: #182229;
+    --sombra: 0 1px 0.5px rgba(11, 20, 26, 0.3);
+    --painel: #111b21;
+    --borda: rgba(233, 237, 239, 0.12);
+    --acento: #00a884;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  font-size: 14.2px;
+  color: var(--texto);
+  background: var(--fundo-chat);
+  /* Evita o "pinch zoom" acidental e o realce azul do toque no Android. */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  /* `dvh` acompanha a barra de endereço do navegador móvel ao encolher; `vh`
+     sozinho deixa a barra de digitação escondida atrás dela no iOS. */
+  height: 100dvh;
+}
+
+.tela {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tela[hidden] {
+  display: none;
+}
+
+/* --- Tela de entrada ----------------------------------------------------- */
+
+.entrada {
+  align-items: center;
+  justify-content: center;
+  padding: 24px 22px calc(24px + env(safe-area-inset-bottom));
+  background: linear-gradient(160deg, var(--topo) 0%, #005c4b 100%);
+  color: #fff;
+  text-align: center;
+}
+
+.entrada-logo {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  margin-bottom: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  place-items: center;
+}
+
+.entrada h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.entrada p {
+  max-width: 30rem;
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.aviso {
+  max-width: 30rem;
+  margin: 0 0 22px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: left;
+  opacity: 0.95;
+}
+
+.aviso strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.entrada form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.entrada input {
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #111b21;
+  font: inherit;
+}
+
+.entrada input:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+}
+
+.botao-principal {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fff;
+  color: #005c4b;
+  font-weight: 600;
+}
+
+.botao-principal:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* --- Cabeçalho ----------------------------------------------------------- */
+
+.topo {
+  display: flex;
+  z-index: 3;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  background: var(--topo);
+  box-shadow: 0 1px 3px rgba(11, 20, 26, 0.16);
+  color: var(--topo-texto);
+}
+
+.avatar {
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  place-items: center;
+}
+
+.topo-nome {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.topo-nome strong {
+  display: block;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topo-nome span {
+  font-size: 12.5px;
+  opacity: 0.85;
+}
+
+.topo button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  place-items: center;
+}
+
+.topo button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* --- Menu do cabeçalho --------------------------------------------------- */
+
+.menu {
+  position: absolute;
+  z-index: 5;
+  top: calc(52px + env(safe-area-inset-top));
+  right: 10px;
+  min-width: 12rem;
+  padding: 6px 0;
+  border-radius: 6px;
+  background: var(--painel);
+  box-shadow: 0 2px 10px rgba(11, 20, 26, 0.35);
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.menu button {
+  display: block;
+  width: 100%;
+  padding: 12px 20px;
+  text-align: left;
+}
+
+.menu button:hover {
+  background: var(--barra);
+}
+
+/* --- Área das mensagens -------------------------------------------------- */
+
+.mensagens {
+  position: relative;
+  flex: 1;
+  padding: 12px 5% 8px;
+  overflow-y: auto;
+  background-color: var(--fundo-chat);
+  /* Padrão abstrato próprio, em SVG embutido — nenhum arquivo da Meta.
+     A cor do traço fica FIXA dentro do SVG: um `data:` URI é renderizado em
+     contexto isolado e não enxerga as variáveis CSS desta página, então
+     `var(--x)` aqui dentro sairia inválido e o padrão simplesmente não
+     apareceria. Por isso o tema escuro troca a imagem inteira, mais abaixo. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23111b21' stroke-width='1.6' stroke-linecap='round' opacity='0.06'%3E%3Ccircle cx='34' cy='30' r='9'/%3E%3Cpath d='M92 22h26v18h-9l-5 7-4-7h-8z'/%3E%3Cpath d='M168 18l7 13 14 2-10 10 2 14-13-7-13 7 2-14-10-10 14-2z'/%3E%3Cpath d='M226 34c0-6 9-8 11-2 2-6 11-4 11 2 0 7-11 14-11 14s-11-7-11-14z'/%3E%3Cpath d='M20 96h22M20 104h14'/%3E%3Ccircle cx='104' cy='100' r='11'/%3E%3Cpath d='M104 93v14M97 100h14'/%3E%3Cpath d='M164 92l10 10-10 10-10-10z'/%3E%3Cpath d='M214 90h24v20h-24z'/%3E%3Cpath d='M214 98h24'/%3E%3Cpath d='M26 168c8-10 20-10 28 0'/%3E%3Ccircle cx='40' cy='178' r='3'/%3E%3Cpath d='M88 162h28l-6 22H94z'/%3E%3Cpath d='M160 160v24M152 172h16'/%3E%3Ccircle cx='226' cy='172' r='10'/%3E%3Cpath d='M222 172l3 4 6-7'/%3E%3Cpath d='M24 226h20l-4 14H28z'/%3E%3Cpath d='M96 232c0-5 7-7 9-2 2-5 9-3 9 2 0 6-9 12-9 12s-9-6-9-12z'/%3E%3Cpath d='M158 224h24v16h-24z'/%3E%3Cpath d='M164 224v-6h12v6'/%3E%3Ccircle cx='228' cy='232' r='9'/%3E%3C/g%3E%3C/svg%3E");
+  background-attachment: local;
+  background-size: 260px 260px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mensagens {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23e9edef' stroke-width='1.6' stroke-linecap='round' opacity='0.045'%3E%3Ccircle cx='34' cy='30' r='9'/%3E%3Cpath d='M92 22h26v18h-9l-5 7-4-7h-8z'/%3E%3Cpath d='M168 18l7 13 14 2-10 10 2 14-13-7-13 7 2-14-10-10 14-2z'/%3E%3Cpath d='M226 34c0-6 9-8 11-2 2-6 11-4 11 2 0 7-11 14-11 14s-11-7-11-14z'/%3E%3Cpath d='M20 96h22M20 104h14'/%3E%3Ccircle cx='104' cy='100' r='11'/%3E%3Cpath d='M104 93v14M97 100h14'/%3E%3Cpath d='M164 92l10 10-10 10-10-10z'/%3E%3Cpath d='M214 90h24v20h-24z'/%3E%3Cpath d='M214 98h24'/%3E%3Cpath d='M26 168c8-10 20-10 28 0'/%3E%3Ccircle cx='40' cy='178' r='3'/%3E%3Cpath d='M88 162h28l-6 22H94z'/%3E%3Cpath d='M160 160v24M152 172h16'/%3E%3Ccircle cx='226' cy='172' r='10'/%3E%3Cpath d='M222 172l3 4 6-7'/%3E%3Cpath d='M24 226h20l-4 14H28z'/%3E%3Cpath d='M96 232c0-5 7-7 9-2 2-5 9-3 9 2 0 6-9 12-9 12s-9-6-9-12z'/%3E%3Cpath d='M158 224h24v16h-24z'/%3E%3Cpath d='M164 224v-6h12v6'/%3E%3Ccircle cx='228' cy='232' r='9'/%3E%3C/g%3E%3C/svg%3E");
+  }
+}
+
+.divisor {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 14px;
+}
+
+.divisor span {
+  padding: 5px 12px;
+  border-radius: 7.5px;
+  background: var(--divisor);
+  box-shadow: var(--sombra);
+  color: var(--texto-fraco);
+  font-size: 12.5px;
+  text-transform: uppercase;
+}
+
+/* --- Balões -------------------------------------------------------------- */
+
+.linha {
+  display: flex;
+  margin-bottom: 2px;
+}
+
+.linha.saida {
+  justify-content: flex-end;
+}
+
+/* Espaço extra quando o interlocutor muda: é onde o rabinho aparece. */
+.linha.primeira {
+  margin-top: 12px;
+}
+
+.balao {
+  position: relative;
+  max-width: min(78%, 34rem);
+  padding: 6px 9px 8px;
+  border-radius: 7.5px;
+  background: var(--balao-entrada);
+  box-shadow: var(--sombra);
+  line-height: 1.32;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.linha.saida .balao {
+  background: var(--balao-saida);
+}
+
+/* Rabinho: triângulo recortado, só no primeiro balão da sequência. */
+.linha.primeira .balao::after {
+  position: absolute;
+  top: 0;
+  width: 9px;
+  height: 13px;
+  background: inherit;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  content: '';
+}
+
+.linha.primeira.entrada-linha .balao {
+  border-top-left-radius: 0;
+}
+
+.linha.primeira.entrada-linha .balao::after {
+  left: -8px;
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+
+.linha.primeira.saida .balao {
+  border-top-right-radius: 0;
+}
+
+.linha.primeira.saida .balao::after {
+  right: -8px;
+}
+
+.balao .texto a {
+  color: var(--acento);
+}
+
+.balao code {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.92em;
+}
+
+/* Reserva o espaço da hora na última linha do texto, como o aplicativo faz. */
+.balao .espaco-meta {
+  display: inline-block;
+  width: 62px;
+  height: 1px;
+}
+
+.meta {
+  display: flex;
+  position: absolute;
+  right: 9px;
+  bottom: 4px;
+  align-items: center;
+  gap: 3px;
+  color: var(--texto-fraco);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.meta svg {
+  width: 15px;
+  height: 15px;
+  fill: var(--tick);
+}
+
+.meta.lido svg {
+  fill: var(--tick-lido);
+}
+
+/* --- Polegares ----------------------------------------------------------- */
+
+.avaliar-msg {
+  display: flex;
+  gap: 4px;
+  margin: 1px 0 8px 2px;
+}
+
+.avaliar-msg button {
+  padding: 3px 9px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--balao-entrada);
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+
+.avaliar-msg button:hover {
+  opacity: 1;
+}
+
+.avaliar-msg.respondido {
+  pointer-events: none;
+}
+
+.avaliar-msg.respondido button:not(.escolhido) {
+  display: none;
+}
+
+.avaliar-msg button.escolhido {
+  border-color: var(--acento);
+  opacity: 1;
+}
+
+/* --- "Digitando" --------------------------------------------------------- */
+
+.digitando .balao {
+  padding: 12px 14px;
+}
+
+.pontos {
+  display: flex;
+  gap: 4px;
+}
+
+.pontos i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--texto-fraco);
+  animation: pulsar 1.2s infinite ease-in-out;
+}
+
+.pontos i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.pontos i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes pulsar {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pontos i {
+    animation: none;
+  }
+}
+
+/* --- Barra de digitação -------------------------------------------------- */
+
+.barra-envio {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 10px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  background: var(--barra);
+}
+
+.barra-envio .campo {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 20px;
+  background: var(--campo);
+}
+
+.barra-envio textarea {
+  flex: 1;
+  max-height: 100px;
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  color: var(--texto);
+  font: inherit;
+  line-height: 1.4;
+  resize: none;
+}
+
+.barra-envio textarea:focus {
+  outline: none;
+}
+
+.barra-envio textarea::placeholder {
+  color: var(--texto-fraco);
+}
+
+.enviar {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--topo);
+  color: #fff;
+  place-items: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .enviar {
+    background: #00a884;
+    color: #111b21;
+  }
+}
+
+.enviar:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* --- Folha de avaliação -------------------------------------------------- */
+
+.cortina {
+  display: grid;
+  position: fixed;
+  z-index: 10;
+  align-items: end;
+  background: rgba(11, 20, 26, 0.55);
+  inset: 0;
+}
+
+.cortina[hidden] {
+  display: none;
+}
+
+.folha {
+  max-height: 92dvh;
+  padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0;
+  background: var(--painel);
+  overflow-y: auto;
+  animation: subir 0.22s ease-out;
+}
+
+@media (min-width: 640px) {
+  .cortina {
+    align-items: center;
+    justify-items: center;
+  }
+
+  .folha {
+    width: min(28rem, 92vw);
+    border-radius: 16px;
+  }
+}
+
+@keyframes subir {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folha {
+    animation: none;
+  }
+}
+
+.folha h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.folha p.sub {
+  margin: 0 0 20px;
+  color: var(--texto-fraco);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.folha label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.grupo {
+  margin-bottom: 24px;
+}
+
+.estrelas {
+  display: flex;
+  justify-content: space-between;
+  max-width: 17rem;
+}
+
+.estrelas button {
+  width: 44px;
+  height: 44px;
+  color: var(--texto-fraco);
+  font-size: 30px;
+  line-height: 1;
+  transition: transform 0.1s;
+}
+
+.estrelas button.ativa {
+  color: #f5b301;
+  transform: scale(1.06);
+}
+
+.nps {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 4px;
+}
+
+.nps button {
+  padding: 9px 0;
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+
+.nps button.ativa {
+  border-color: var(--acento);
+  background: var(--acento);
+  color: #fff;
+}
+
+.nps-legenda {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--texto-fraco);
+  font-size: 11.5px;
+}
+
+.folha textarea {
+  width: 100%;
+  min-height: 82px;
+  padding: 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--campo);
+  color: var(--texto);
+  font: inherit;
+  resize: vertical;
+}
+
+.folha .acoes {
+  display: flex;
+  gap: 10px;
+}
+
+.folha .acoes button {
+  flex: 1;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.folha .acoes .enviar-avaliacao {
+  background: var(--acento);
+  color: #fff;
+}
+
+.folha .acoes .depois {
+  border: 1px solid var(--borda);
+  color: var(--texto-fraco);
+}
+
+.obrigado {
+  padding: 12px 0 8px;
+  text-align: center;
+}
+
+.obrigado .marca {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: var(--acento);
+  color: #fff;
+  font-size: 30px;
+  place-items: center;
+}
