@@ -1,20 +1,33 @@
-# Sem etapa de build: o front é HTML/CSS/JS servido estático, de propósito.
-# É um protótipo de validação — `docker compose up` precisa bastar.
-FROM node:24-alpine
+# Build em estágios: a imagem final não leva o node_modules de desenvolvimento
+# nem o código-fonte, só o servidor autocontido que o `output: standalone`
+# produz. Sem isso, o container do protótipo passa de 1 GB.
 
+FROM node:24-alpine AS deps
 WORKDIR /app
-
-# As dependências mudam muito menos que o código: copiar o manifesto primeiro
-# aproveita o cache de camada a cada alteração no front.
 COPY package.json package-lock.json* ./
-RUN npm install --omit=dev --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
-COPY src ./src
-COPY public ./public
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# `next build` roda type-check e lint: um erro de tipo derruba a imagem aqui,
+# antes de subir, e não em produção.
+RUN npm run build
+
+FROM node:24-alpine AS runner
+WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=8080
-EXPOSE 8080
+# Sem HOSTNAME o servidor do standalone escuta só em localhost DENTRO do
+# container, e a porta publicada pelo compose responde connection refused.
+ENV HOSTNAME=0.0.0.0
+
+COPY --from=build /app/public ./public
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
 
 USER node
-CMD ["node", "src/server.js"]
+EXPOSE 8080
+CMD ["node", "server.js"]
