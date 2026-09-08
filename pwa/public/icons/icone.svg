@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Assistente de Saúde">
+  <rect width="512" height="512" rx="113" fill="#008069"/>
+  <path d="M146 148h220a44 44 0 0 1 44 44v128a44 44 0 0 1-44 44H228l-62 52v-52h-20a44 44 0 0 1-44-44V192a44 44 0 0 1 44-44Z" fill="#fff"/>
+  <path d="M236 202h40v36h36v40h-36v36h-40v-36h-36v-40h36z" fill="#008069"/>
+</svg>
