@@ -1,4 +1,5 @@
 {
+  "id": "PrototipoPwa0001",
   "name": "PET-SAÚDE — Protótipo PWA",
   "nodes": [
     {
@@ -20,7 +21,7 @@
       "webhookId": "d7a1c045-3b96-4e28-8f51-2c9b6d0a7e13",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CRIAR-CREDENCIAL-HEADER-AUTH-PWA",
+          "id": "PwaWebhookTok001",
           "name": "PWA Webhook Token"
         }
       }
@@ -119,7 +120,7 @@
       "name": "Embeddings Google Gemini",
       "credentials": {
         "googlePalmApi": {
-          "id": "CRIAR-CREDENCIAL-GEMINI-PWA",
+          "id": "PwaGeminiCred01",
           "name": "Gemini PWA"
         }
       }
@@ -173,7 +174,7 @@
       "name": "Google Gemini Chat Model",
       "credentials": {
         "googlePalmApi": {
-          "id": "CRIAR-CREDENCIAL-GEMINI-PWA",
+          "id": "PwaGeminiCred01",
           "name": "Gemini PWA"
         }
       }
