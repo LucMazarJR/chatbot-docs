@@ -57,6 +57,7 @@ O gateway é um backend próprio que **substituiu o WAHA**. Ele isola o Baileys 
 | redis | `redis:7-alpine` | interna | Deduplicação (db 1) e memória de conversa do n8n (db 0) |
 | cloudflared | `cloudflare/cloudflared` | — | Expõe o n8n para a internet |
 | postgres | `postgres:17-alpine` | 5432 (host configurável) | Identidade do Dashboard-PetSaúde — usuários, papéis, sessões. **Não guarda FAQ** |
+| pwa | build de `./pwa` | 8080 | Protótipo de validação: mesmo RAG numa interface web, com nota do usuário e revisão das conversas — ver [prototipo-pwa.md](prototipo-pwa.md) |
 | dashboard-api / dashboard-front | build de `./Dashboard-PetSaude` | 3333 / 5173 | Opcionais, atrás do profile `dashboard` — ver [Passo 6](#passo-6--dashboard-de-faqs) |
 
 Volumes: `wa_sessions` (credenciais do WhatsApp — apagar exige novo QR), `n8n_data` (fluxos e credenciais), `redis_data`, `postgres_data` (usuários do dashboard).
@@ -136,7 +137,9 @@ A referência completa da API fica em `http://localhost:3000/api/docs` (Swagger)
 
 ### O fluxo no n8n
 
-Existe **um fluxo só**: [n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json), na rota `/webhook/whatsapp`. A busca acontece sempre — não é uma ferramenta que o modelo pode ignorar (era assim numa versão anterior; ver [proposta-rag.md](proposta-rag.md) para o histórico da decisão).
+O fluxo do canal é [n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json), na rota `/webhook/whatsapp`. A busca acontece sempre — não é uma ferramenta que o modelo pode ignorar (era assim numa versão anterior; ver [proposta-rag.md](proposta-rag.md) para o histórico da decisão).
+
+> Existe um segundo fluxo, [n8n/pwa-chatbot.json](../n8n/pwa-chatbot.json), do protótipo de validação. Ele é uma cópia deste com outra rota, outro token e outra credencial do Gemini, e **não interfere no canal do WhatsApp** — ver [prototipo-pwa.md](prototipo-pwa.md). O que segue nesta seção descreve o fluxo de produção.
 
 ```
 Webhook → If → Dados → Switch → Buscar FAQs → Montar contexto → AI Agent → Enviar resposta
