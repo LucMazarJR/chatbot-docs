@@ -1,0 +1,205 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>PET-Saúde | Assistente Virtual</title>
+<meta name="theme-color" content="#008069" />
+<link rel="manifest" href="/b/manifest.json" />
+<link rel="icon" href="/b/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/b/icons/icon-192.png" />
+<link rel="stylesheet" href="/b/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- CABEÇALHO -->
+  <header id="chat-header">
+    <div class="avatar" id="chat-avatar"></div>
+    <div id="chat-header-info">
+      <div id="chat-title"></div>
+      <div id="chat-status">online</div>
+    </div>
+    <button class="icon-btn header-call-btn" id="video-call-btn" aria-label="Chamada de vídeo" title="Chamada de vídeo">
+      <svg viewBox="0 0 24 24"><path fill="var(--icon)" d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+    </button>
+    <button class="icon-btn header-call-btn" id="voice-call-btn" aria-label="Chamada de voz" title="Chamada de voz">
+      <svg viewBox="0 0 24 24"><path fill="var(--icon)" d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.57 3.58a1 1 0 0 1-.25 1.01l-2.2 2.2z"/></svg>
+    </button>
+    <div id="menu-wrap">
+      <button class="icon-btn" id="menu-btn" aria-haspopup="true" aria-label="Menu">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+      </button>
+      <nav id="dropdown-menu">
+        <div class="menu-item" id="menu-settings">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.61l-1.92-3.32a.5.5 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.59.22L1.68 8.87a.5.5 0 0 0 .12.61l2.03 1.58c-.05.3-.08.63-.08.94 0 .31.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.12.61l1.92 3.32c.14.24.4.32.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.28.27.42.5.42h3.84c.24 0 .46-.14.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.5.5 0 0 0-.12-.61l-2.02-1.58zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
+          Configurações
+        </div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" id="menu-feedback">
+          <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 11h-2v-2h2v2zm0-4h-2V6h2v3z"/></svg>
+          Feedback
+        </div>
+        <div class="menu-item danger" id="menu-report">
+          <svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+          Relatar um problema
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MENSAGENS -->
+  <main id="messages"></main>
+
+  <!-- COMPOSITOR -->
+  <div id="composer">
+    <button class="icon-btn" id="emoji-btn" aria-label="Emoji" title="Emoji">
+      <svg viewBox="0 0 24 24"><path fill="var(--icon)" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM8.5 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm7 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM12 17.5c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5z"/></svg>
+    </button>
+    <div id="emoji-popover"></div>
+
+    <button class="icon-btn" id="attach-btn" aria-label="Anexar arquivo" title="Anexar arquivo">
+      <svg viewBox="0 0 24 24"><path fill="var(--icon)" d="M16.5 6v11.5a4 4 0 1 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 1 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 1 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z"/></svg>
+    </button>
+    <input type="file" id="file-input" style="display:none" />
+
+    <div id="input-wrap">
+      <textarea id="msg-input" rows="1" placeholder="Mensagem"></textarea>
+    </div>
+
+    <div id="recording-bar">
+      <span class="rec-dot"></span>
+      <span id="rec-timer">0:00</span>
+      <span id="rec-hint">Gravando áudio...</span>
+      <button id="rec-cancel-btn" aria-label="Cancelar gravação" title="Cancelar">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      </button>
+    </div>
+
+    <button id="send-btn" aria-label="Enviar">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+    <button id="mic-btn" aria-label="Gravar áudio" title="Gravar áudio">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- PAINEL DE CONFIGURAÇÕES -->
+<div class="side-panel-overlay" id="settings-overlay">
+  <div class="side-panel">
+    <div class="side-panel-header">
+      <button class="icon-btn" id="settings-close" aria-label="Fechar">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <h2>Configurações</h2>
+    </div>
+    <div class="side-panel-body">
+      <div class="settings-section-label">Aparência</div>
+      <div class="theme-options" id="theme-options">
+        <div class="theme-opt" data-theme="light">
+          <div class="radio-dot"><div class="radio-dot-fill"></div></div>
+          <div class="theme-opt-text"><div class="t">Claro</div><div class="d">Tema claro do WhatsApp</div></div>
+        </div>
+        <div class="theme-opt" data-theme="dark">
+          <div class="radio-dot"><div class="radio-dot-fill"></div></div>
+          <div class="theme-opt-text"><div class="t">Escuro</div><div class="d">Reduz o brilho da tela</div></div>
+        </div>
+        <div class="theme-opt" data-theme="system">
+          <div class="radio-dot"><div class="radio-dot-fill"></div></div>
+          <div class="theme-opt-text"><div class="t">Automático</div><div class="d">Segue o tema do sistema</div></div>
+        </div>
+      </div>
+
+      <div class="settings-section-label">Tamanho do texto</div>
+      <div class="fontsize-stepper">
+        <button class="fs-step-btn" id="fs-decrease-btn" aria-label="Diminuir fonte" title="Diminuir">A−</button>
+        <span id="fs-current-label">Médio</span>
+        <button class="fs-step-btn" id="fs-increase-btn" aria-label="Aumentar fonte" title="Aumentar">A+</button>
+      </div>
+      <div class="fontsize-row" id="fontsize-row">
+        <button class="fontsize-opt" data-scale="sm"><span class="fs-a">A</span><span class="fs-label">Pequeno</span></button>
+        <button class="fontsize-opt" data-scale="md"><span class="fs-a">A</span><span class="fs-label">Médio</span></button>
+        <button class="fontsize-opt" data-scale="lg"><span class="fs-a">A</span><span class="fs-label">Grande</span></button>
+        <button class="fontsize-opt" data-scale="xl"><span class="fs-a">A</span><span class="fs-label">Extra</span></button>
+      </div>
+
+      <div class="settings-section-label">Sobre</div>
+      <div class="about-box" style="text-align: justify;">
+        Este é um protótipo em fase de testes, criado apenas para fins de demonstração e coleta de feedback junto a profissionais e usuários do PET-Saúde. As respostas do assistente e os dados enviados por aqui ainda não estão conectados aos sistemas oficiais da instituição e podem ser visualizados pela equipe de desenvolvimento durante os testes.
+        <br><br>
+        <strong>Por isso, não compartilhe dados sensíveis reais nesta conversa, como:</strong>
+        CPF, RG ou outros documentos de identificação; número de cartão de crédito ou débito; senhas e dados de acesso a sistemas; dados bancários; endereço completo; e informações de saúde de pacientes ou de terceiros.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: FEEDBACK -->
+<div class="modal-overlay" id="feedback-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Feedback</h2>
+      <button class="icon-btn" id="feedback-close" style="color:#fff;" aria-label="Fechar">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="hint">Como está sendo sua experiência com o assistente?</p>
+      <div class="rating-row" id="rating-row">
+        <div class="rating-opt" data-value="ruim"><span class="emoji">🙁</span>Ruim</div>
+        <div class="rating-opt" data-value="ok"><span class="emoji">😐</span>Ok</div>
+        <div class="rating-opt" data-value="boa"><span class="emoji">🙂</span>Boa</div>
+        <div class="rating-opt" data-value="otima"><span class="emoji">😄</span>Ótima</div>
+      </div>
+      <div class="field-label">Comentário (opcional)</div>
+      <textarea id="feedback-text" placeholder="Conte com mais detalhes..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="feedback-cancel">Cancelar</button>
+      <button class="btn-primary" id="feedback-submit" disabled>Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: RELATAR PROBLEMA -->
+<div class="modal-overlay" id="report-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Relatar um problema</h2>
+      <button class="icon-btn" id="report-close" style="color:#fff;" aria-label="Fechar">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="hint">Encontrou um erro ou uma resposta estranha? Descreva abaixo para a equipe.</p>
+
+      <div class="field-label">Tipo de problema</div>
+      <select id="report-type">
+        <option value="resposta_incorreta">Resposta incorreta ou confusa</option>
+        <option value="erro_tecnico">Erro técnico (trava, não carrega, etc.)</option>
+        <option value="lentidao">Lentidão</option>
+        <option value="visual">Problema visual / layout</option>
+        <option value="outro">Outro</option>
+      </select>
+
+      <div class="field-label">O que aconteceu?</div>
+      <textarea id="report-text" placeholder="Descreva o problema com o máximo de detalhes possível"></textarea>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="report-attach" checked />
+        Incluir as últimas mensagens desta conversa para ajudar a equipe a investigar
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="report-cancel">Cancelar</button>
+      <button class="btn-primary btn-danger" id="report-submit" disabled>Enviar relato</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/b/script.js"></script>
+</body>
+</html>

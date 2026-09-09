@@ -92,7 +92,14 @@ export default function Revisao() {
               onClick={() => setSelecionada(sessao._id)}
             >
               <div className="item-topo">
-                <strong>{sessao.nome}</strong>
+                <strong>
+                  {/* A letra da interface vem antes do nome: é a comparação que
+                      motivou o teste, e precisa ser lida sem abrir a sessão. */}
+                  <span className={'versao versao-' + (sessao.versao ?? 'a')}>
+                    {(sessao.versao ?? 'a').toUpperCase()}
+                  </span>
+                  {sessao.nome}
+                </strong>
                 <span>{formatarData(sessao.iniciadaEm)}</span>
               </div>
 

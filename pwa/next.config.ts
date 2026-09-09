@@ -17,6 +17,21 @@ const config: NextConfig = {
   // plataforma. `VERCEL` é definida por eles em todo build lá.
   output: process.env.VERCEL ? undefined : 'standalone',
 
+  /**
+   * A versão B é HTML/CSS/JS puro, servido de `public/b/`.
+   *
+   * Ela foi desenhada assim por outra pessoa, e reescrevê-la em React antes de o
+   * grupo escolher entre as duas seria refazer um trabalho que pode ser
+   * descartado — e arriscaria alterar justamente o que está em avaliação. Só as
+   * chamadas ao backend foram trocadas; o desenho está intacto.
+   *
+   * O Next serve `public/b/index.html` em `/b/index.html`, mas não em `/b`.
+   * Esta reescrita faz a rota curta funcionar.
+   */
+  async rewrites() {
+    return [{ source: '/b', destination: '/b/index.html' }];
+  },
+
   // O service worker precisa ser sempre buscado da rede, senão o navegador
   // segura uma versão antiga e a atualização nunca chega ao participante.
   async headers() {

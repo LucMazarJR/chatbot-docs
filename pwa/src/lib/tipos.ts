@@ -16,9 +16,19 @@ export type TrechoDebug = {
   previa: string | null;
 };
 
+/**
+ * Qual das duas interfaces em avaliação gerou a conversa.
+ *
+ * O protótipo apresenta dois desenhos concorrentes da mesma conversa, e o grupo
+ * precisa escolher um. Sem marcar a origem, as métricas da revisão misturariam
+ * os dois e não responderiam à única pergunta que motivou o teste.
+ */
+export type Versao = 'a' | 'b';
+
 export type Sessao = {
   _id: string;
   nome: string;
+  versao: Versao;
   iniciadaEm: Date;
   encerradaEm: Date | null;
   userAgent: string;
@@ -56,6 +66,8 @@ export type Mensagem = {
   /** Por que falhou: timeout, HTTP 404 do n8n, variável ausente. Só quando `erro`. */
   motivoErro?: string | null;
   feedback?: Voto | null;
+  /** Texto opcional que a versão B pede junto do polegar. */
+  feedbackComentario?: string | null;
   feedbackEm?: Date;
 };
 

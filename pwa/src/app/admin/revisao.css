@@ -187,6 +187,29 @@
   margin-bottom: 5px;
 }
 
+/* Selo da interface de origem. Duas cores distintas para o olho separar as
+   duas versões numa lista longa sem precisar ler a letra. */
+.versao {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  margin-right: 7px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  vertical-align: 1px;
+  place-items: center;
+}
+
+.versao-a {
+  background: var(--verde);
+}
+
+.versao-b {
+  background: #6b5bd2;
+}
+
 .item-topo span {
   color: var(--tinta-fraca);
   font-size: 12px;
