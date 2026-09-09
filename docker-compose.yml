@@ -201,6 +201,9 @@ services:
       # Precisa ser o MESMO modelo da base e do nó do n8n. Ver docs/handoff-notebook.md.
       GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-2}
       GEMINI_TASK_TYPE: ${GEMINI_TASK_TYPE:-SEMANTIC_SIMILARITY}
+      # Banco das conversas do protótipo PWA, no mesmo cluster. Segunda conexão
+      # do Nest — ver src/conversas/conexao.ts.
+      PWA_MONGO_DB: ${PWA_MONGO_DB:-pwa_prototipo}
       JWT_SECRET: ${DASHBOARD_JWT_SECRET:?defina DASHBOARD_JWT_SECRET no .env}
       JWT_EXPIRES_IN_SECONDS: ${DASHBOARD_JWT_EXPIRES_IN_SECONDS:-28800}
       CORS_ORIGINS: ${DASHBOARD_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
