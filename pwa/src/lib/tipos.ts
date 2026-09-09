@@ -53,6 +53,8 @@ export type Mensagem = {
   /** O agente respondeu o texto de "não encontrei", ou a busca não trouxe nada. */
   semResposta?: boolean;
   erro?: boolean;
+  /** Por que falhou: timeout, HTTP 404 do n8n, variável ausente. Só quando `erro`. */
+  motivoErro?: string | null;
   feedback?: Voto | null;
   feedbackEm?: Date;
 };

@@ -122,6 +122,10 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     modelo: resultado.modelo,
     semResposta,
     erro: Boolean(resultado.erro),
+    // Sem isto, toda falha fica idêntica na base — timeout, token errado e
+    // variável ausente viram a mesma linha, e diagnosticar exige achar o log
+    // da requisição certa. Nunca chega à tela do participante.
+    motivoErro: resultado.motivo ?? null,
     feedback: null,
   };
   await colMensagens.insertOne(respostaBot);

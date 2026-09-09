@@ -23,6 +23,9 @@
   --painel: #ffffff;
   --borda: rgba(17, 27, 33, 0.1);
   --acento: #008069;
+  /* Amarelo do aviso de sistema do WhatsApp. */
+  --aviso: #fff3c4;
+  --aviso-texto: #5b4a1f;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,6 +46,8 @@
     --painel: #111b21;
     --borda: rgba(233, 237, 239, 0.12);
     --acento: #00a884;
+    --aviso: #1e2a30;
+    --aviso-texto: #ffd279;
   }
 }
 
@@ -93,91 +98,29 @@ button {
   display: none;
 }
 
-/* --- Tela de entrada ----------------------------------------------------- */
+/* --- Aviso dentro da conversa -------------------------------------------- */
 
-.entrada {
-  align-items: center;
-  justify-content: center;
-  padding: 24px 22px calc(24px + env(safe-area-inset-bottom));
-  background: linear-gradient(160deg, var(--topo) 0%, #005c4b 100%);
-  color: #fff;
+/*
+ * O consentimento entra como um recado no meio da conversa, no lugar da antiga
+ * tela de entrada — o mesmo padrão do aviso de criptografia do WhatsApp.
+ * Informa sem cobrar um formulário de quem só quer fazer uma pergunta.
+ */
+.aviso-chat {
+  max-width: 32rem;
+  margin: 0 auto 14px;
+  padding: 9px 13px;
+  border-radius: 7.5px;
+  background: var(--aviso);
+  box-shadow: var(--sombra);
+  color: var(--aviso-texto);
+  font-size: 12.5px;
+  line-height: 1.5;
   text-align: center;
 }
 
-.entrada-logo {
-  display: grid;
-  width: 82px;
-  height: 82px;
-  margin-bottom: 18px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16);
-  place-items: center;
-}
-
-.entrada h1 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.entrada p {
-  max-width: 30rem;
-  margin: 0 0 22px;
-  font-size: 14px;
-  line-height: 1.5;
-  opacity: 0.9;
-}
-
-.aviso {
-  max-width: 30rem;
-  margin: 0 0 22px;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.18);
-  font-size: 12.5px;
-  line-height: 1.55;
-  text-align: left;
-  opacity: 0.95;
-}
-
-.aviso strong {
-  display: block;
-  margin-bottom: 4px;
-}
-
-.entrada form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  max-width: 22rem;
-}
-
-.entrada input {
-  padding: 14px 16px;
-  border: 0;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.95);
-  color: #111b21;
-  font: inherit;
-}
-
-.entrada input:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-}
-
-.botao-principal {
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: #fff;
-  color: #005c4b;
-  font-weight: 600;
-}
-
-.botao-principal:disabled {
-  opacity: 0.6;
-  cursor: progress;
+.aviso-chat.erro {
+  background: var(--balao-entrada);
+  color: var(--texto-fraco);
 }
 
 /* --- Cabeçalho ----------------------------------------------------------- */

@@ -154,7 +154,13 @@ export default function Revisao() {
                             <>
                               <span>{mensagem.latenciaMs} ms</span>
                               {mensagem.semResposta && <span className="alerta">não encontrou</span>}
-                              {mensagem.erro && <span className="alerta">erro</span>}
+                              {/* O motivo da falha aparece aqui porque é onde
+                                  alguém vai olhar quando o protótipo "não
+                                  respondeu": distingue timeout de token errado
+                                  sem precisar caçar o log da requisição. */}
+                              {mensagem.erro && (
+                                <span className="ruim">falhou: {mensagem.motivoErro ?? 'motivo não registrado'}</span>
+                              )}
                               {mensagem.feedback === 'up' && <span className="boa">👍</span>}
                               {mensagem.feedback === 'down' && <span className="ruim">👎</span>}
                             </>

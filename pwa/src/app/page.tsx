@@ -11,7 +11,20 @@ import type { Papel } from '@/lib/tipos';
 
 const INATIVIDADE_MS = 2 * 60 * 1000;
 const MINIMO_PERGUNTAS_PARA_AVALIAR = 3;
-const CHAVE_SESSAO = 'sessaoId';
+
+/**
+ * A sessão fica em `localStorage`, e não em `sessionStorage`.
+ *
+ * No celular, sair do navegador e voltar depois costuma descartar a aba — com
+ * `sessionStorage` a conversa se perderia nesse ir e vir, que é o uso normal de
+ * quem está testando o protótipo enquanto conversa com alguém.
+ */
+const CHAVE_SESSAO = 'pwa:sessao';
+
+const SAUDACAO =
+  'Olá! 😊 Sou seu assistente de auxílio em saúde.\n' +
+  'Posso ajudar com serviços, exames ou dúvidas gerais sobre saúde.\n\n' +
+  'Como posso ajudar?';
 
 type Item = {
   chave: string;
@@ -25,31 +38,29 @@ type Item = {
   lida?: boolean;
 };
 
-const ICONE_LOGO = (
-  <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
-    <path d="M12 2a10 10 0 0 0-8.7 14.9L2 22l5.3-1.3A10 10 0 1 0 12 2Zm1 14h-2v-3H8v-2h3V8h2v3h3v2h-3v3Z" />
-  </svg>
-);
-
 function horaAgora(quando: Date = new Date()) {
   return quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+function saudacao(): Item {
+  return { chave: 'saudacao', papel: 'bot', texto: SAUDACAO, hora: horaAgora() };
+}
+
 export default function Pagina() {
   const [sessaoId, setSessaoId] = useState<string | null>(null);
+  const [falhaAoAbrir, setFalhaAoAbrir] = useState(false);
   const [itens, setItens] = useState<Item[]>([]);
   const [digitando, setDigitando] = useState(false);
   const [avaliando, setAvaliando] = useState(false);
   const [encerrada, setEncerrada] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [texto, setTexto] = useState('');
-  const [criando, setCriando] = useState(false);
-  const [nome, setNome] = useState('');
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
   const relogioRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const perguntasRef = useRef(0);
+  const abrindoRef = useRef(false);
 
   // --- Rolagem -------------------------------------------------------------
 
@@ -78,91 +89,76 @@ export default function Pagina() {
 
   useEffect(() => () => void (relogioRef.current && clearTimeout(relogioRef.current)), []);
 
-  // --- Retomada depois de um refresh --------------------------------------
+  // --- Abertura: retoma a sessão guardada, ou cria uma nova ----------------
 
   useEffect(() => {
-    const salva = sessionStorage.getItem(CHAVE_SESSAO);
-    if (!salva) return;
+    // Em desenvolvimento o React monta o componente duas vezes; sem esta trava
+    // a primeira visita criaria duas sessões e a segunda ficaria órfã.
+    if (abrindoRef.current) return;
+    abrindoRef.current = true;
 
-    (async () => {
-      try {
-        const resposta = await fetch(`/api/sessoes/${salva}/mensagens`);
-        if (!resposta.ok) throw new Error('sessão inválida');
-
-        const dados = (await resposta.json()) as {
-          nome: string;
-          encerrada: boolean;
-          mensagens: { _id: string; papel: Papel; texto: string; em: string; erro?: boolean }[];
-        };
-
-        if (dados.encerrada) {
-          sessionStorage.removeItem(CHAVE_SESSAO);
-          return;
-        }
-
-        setSessaoId(salva);
-        setNome(dados.nome);
-        perguntasRef.current = dados.mensagens.filter((m) => m.papel === 'user').length;
-        setItens(
-          dados.mensagens.map((m) => ({
-            chave: m._id,
-            papel: m.papel,
-            texto: m.texto,
-            hora: horaAgora(new Date(m.em)),
-            mensagemId: m.papel === 'bot' ? m._id : undefined,
-            comFeedback: m.papel === 'bot' && !m.erro,
-            lida: m.papel === 'user',
-          })),
-        );
-      } catch {
-        sessionStorage.removeItem(CHAVE_SESSAO);
-      }
+    void (async () => {
+      const guardada = localStorage.getItem(CHAVE_SESSAO);
+      if (guardada && (await retomar(guardada))) return;
+      await criarSessao();
     })();
   }, []);
 
-  // --- Início da conversa --------------------------------------------------
+  async function retomar(id: string): Promise<boolean> {
+    try {
+      const resposta = await fetch(`/api/sessoes/${id}/mensagens`);
+      if (!resposta.ok) throw new Error('sessão inválida');
 
-  async function comecar(evento: React.FormEvent) {
-    evento.preventDefault();
-    setCriando(true);
+      const dados = (await resposta.json()) as {
+        encerrada: boolean;
+        mensagens: { _id: string; papel: Papel; texto: string; em: string; erro?: boolean }[];
+      };
 
+      // Sessão já avaliada não volta: o participante encerrou de propósito.
+      if (dados.encerrada) {
+        localStorage.removeItem(CHAVE_SESSAO);
+        return false;
+      }
+
+      setSessaoId(id);
+      perguntasRef.current = dados.mensagens.filter((m) => m.papel === 'user').length;
+      setItens([
+        // A saudação é local e nunca foi para o banco, então é remontada aqui.
+        saudacao(),
+        ...dados.mensagens.map((m) => ({
+          chave: m._id,
+          papel: m.papel,
+          texto: m.texto,
+          hora: horaAgora(new Date(m.em)),
+          mensagemId: m.papel === 'bot' ? m._id : undefined,
+          comFeedback: m.papel === 'bot' && !m.erro,
+          lida: m.papel === 'user',
+        })),
+      ]);
+      reiniciarInatividade();
+      return true;
+    } catch {
+      localStorage.removeItem(CHAVE_SESSAO);
+      return false;
+    }
+  }
+
+  async function criarSessao() {
     try {
       const resposta = await fetch('/api/sessoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome }),
+        body: JSON.stringify({}),
       });
       if (!resposta.ok) throw new Error('falha ao criar a sessão');
 
-      const dados = (await resposta.json()) as { sessaoId: string; nome: string };
-      sessionStorage.setItem(CHAVE_SESSAO, dados.sessaoId);
+      const dados = (await resposta.json()) as { sessaoId: string };
+      localStorage.setItem(CHAVE_SESSAO, dados.sessaoId);
       setSessaoId(dados.sessaoId);
-      setNome(dados.nome);
-      setItens([saudacaoInicial(dados.nome)]);
+      setItens([saudacao()]);
     } catch {
-      setCriando(false);
-      alert('Não consegui iniciar a conversa. Verifique a conexão e tente de novo.');
+      setFalhaAoAbrir(true);
     }
-  }
-
-  /**
-   * Primeira mensagem local, sem chamar o modelo.
-   *
-   * É o mesmo texto de saudação que o prompt do agente define, mas escrito
-   * aqui: gastar uma chamada ao Gemini (e uma unidade da cota diária) só para
-   * dizer "olá" não faria sentido, e o participante veria uma tela vazia
-   * enquanto espera.
-   */
-  function saudacaoInicial(nomeCompleto: string): Item {
-    return {
-      chave: 'saudacao',
-      papel: 'bot',
-      hora: horaAgora(),
-      texto:
-        `Olá, ${nomeCompleto.split(' ')[0]}! 😊 Sou seu assistente de auxílio em saúde.\n` +
-        'Posso ajudar com serviços, exames ou dúvidas gerais sobre saúde.\n\n' +
-        'Como posso ajudar?',
-    };
   }
 
   // --- Envio ---------------------------------------------------------------
@@ -248,48 +244,11 @@ export default function Pagina() {
 
     // A sessão foi encerrada no servidor; novas mensagens seriam recusadas.
     setEncerrada(true);
-    sessionStorage.removeItem(CHAVE_SESSAO);
+    localStorage.removeItem(CHAVE_SESSAO);
     if (relogioRef.current) clearTimeout(relogioRef.current);
   }
 
-  // --- Telas ---------------------------------------------------------------
-
-  if (!sessaoId) {
-    return (
-      <div id="app">
-        <RegistrarSW />
-        <section className="tela entrada">
-          <div className="entrada-logo">{ICONE_LOGO}</div>
-
-          <h1>Assistente de Saúde</h1>
-          <p>Tire dúvidas sobre exames, serviços e unidades de saúde da região.</p>
-
-          <div className="aviso">
-            <strong>Antes de começar</strong>
-            Este é um <b>protótipo em teste</b>. As mensagens desta conversa são registradas para
-            avaliarmos a qualidade das respostas. Por favor, <b>não informe dados pessoais</b> como
-            CPF, cartão do SUS, endereço ou informações de saúde que identifiquem você ou outra
-            pessoa.
-          </div>
-
-          <form onSubmit={comecar}>
-            <input
-              type="text"
-              placeholder="Como podemos te chamar?"
-              autoComplete="given-name"
-              maxLength={60}
-              required
-              value={nome}
-              onChange={(evento) => setNome(evento.target.value)}
-            />
-            <button className="botao-principal" type="submit" disabled={criando}>
-              {criando ? 'Abrindo...' : 'Começar conversa'}
-            </button>
-          </form>
-        </section>
-      </div>
-    );
-  }
+  // --- Tela ----------------------------------------------------------------
 
   return (
     <div id="app" onClick={() => setMenuAberto(false)}>
@@ -344,6 +303,15 @@ export default function Pagina() {
             <span>Hoje</span>
           </div>
 
+          {/* No lugar da antiga tela de entrada: o consentimento aparece dentro
+              da conversa, como o aviso de criptografia do WhatsApp. Informa sem
+              cobrar um formulário de quem só quer fazer uma pergunta. */}
+          <div className="aviso-chat">
+            Este é um <b>protótipo em teste</b>. As mensagens são registradas para avaliarmos a
+            qualidade das respostas. Por favor, <b>não informe dados pessoais</b> como CPF, cartão
+            do SUS ou endereço.
+          </div>
+
           {itens.map((item, indice) => (
             <div key={item.chave}>
               <Balao
@@ -359,6 +327,12 @@ export default function Pagina() {
           ))}
 
           {digitando && <Digitando />}
+
+          {falhaAoAbrir && (
+            <div className="aviso-chat erro">
+              Não consegui abrir a conversa. Verifique sua conexão e recarregue a página.
+            </div>
+          )}
         </main>
 
         <footer className="barra-envio">
@@ -370,7 +344,7 @@ export default function Pagina() {
               enterKeyHint="send"
               maxLength={1000}
               aria-label="Escreva sua mensagem"
-              disabled={encerrada}
+              disabled={encerrada || !sessaoId}
               value={texto}
               onChange={(evento) => {
                 setTexto(evento.target.value);
@@ -392,7 +366,7 @@ export default function Pagina() {
           <button
             className="enviar"
             aria-label="Enviar"
-            disabled={!texto.trim() || digitando || encerrada}
+            disabled={!texto.trim() || digitando || encerrada || !sessaoId}
             onClick={() => void enviar()}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
