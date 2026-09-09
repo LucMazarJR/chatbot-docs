@@ -162,8 +162,9 @@ O túnel **já expõe** essa rota, autenticada — um POST sem o `X-Webhook-Toke
 
 ### O que muda em relação ao Docker
 
-**Nada no código.** As mesmas variáveis, o mesmo Next. Dois detalhes já resolvidos, mas que valem saber:
+**Nada no código.** As mesmas variáveis, o mesmo Next. Três detalhes já resolvidos, mas que valem saber:
 
+- **`output: 'standalone'` é desligado na Vercel** — ver [Armadilhas](#armadilhas).
 - **`maxDuration = 60`** na rota de mensagens. O padrão da Vercel é 10s, e uma resposta leva 6 a 12s no caminho feliz — com o agente tentando 3 vezes contra sobrecarga do Gemini, passa de 30s. Sem esse ajuste, as mensagens lentas morreriam num 504 da plataforma em vez de esperar.
 - **O limite por IP vive no Mongo**, não em memória. Em serverless cada requisição pode cair numa instância diferente, e instância fria começa zerada: um contador em memória marcaria "1 de 40" para sempre e não seguraria a cota.
 
@@ -245,6 +246,14 @@ node -e "const {MongoClient}=require('mongodb');(async()=>{const c=new MongoClie
 ## Armadilhas
 
 **Instalar como aplicativo exige HTTPS.** Por IP da rede local o chat funciona normalmente, mas o navegador recusa registrar o service worker e o "Adicionar à tela de início" não aparece. Não é defeito do protótipo.
+
+**`output: 'standalone'` derruba o build na Vercel.** Ele é obrigatório para a imagem Docker não passar de 1 GB, e proibido na Vercel: o build de lá termina com um passo próprio que procura os arquivos de rastreio no formato padrão, que o modo standalone não produz. O erro é
+
+```
+ENOENT: no such file or directory, open '.next/next-server.js.nft.json'
+```
+
+— que não menciona `output` nem `standalone`, e leva a procurar o problema no lugar errado. O [next.config.ts](../pwa/next.config.ts) resolve com `process.env.VERCEL ? undefined : 'standalone'`. Mesma família da armadilha do `NITRO_PRESET` no front do dashboard ([chatbot.md](chatbot.md#armadilhas-já-descobertas)): o alvo do build precisa diferir entre o Docker e a plataforma.
 
 **`HOSTNAME=0.0.0.0` no Dockerfile não é decorativo.** O servidor gerado pelo `output: standalone` do Next escuta só em `localhost` *dentro* do container; sem essa variável, a porta publicada responde *connection refused* e o container parece saudável.
 
