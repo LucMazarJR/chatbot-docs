@@ -35,7 +35,19 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   return Response.json({ ok: true });
 }
 
+/**
+ * Converte para inteiro dentro do intervalo, ou `null`.
+ *
+ * A checagem de ausência vem ANTES da conversão, e não é decoração:
+ * `Number(null)` é `0`, e `Number('')` também. Sem esta guarda, um campo não
+ * respondido virava a nota 0 — que no NPS é o pior detrator possível. A versão
+ * B não pergunta NPS e mandava `null` em toda avaliação, então cada conversa
+ * dela entrava na média como um zero. O número saía errado sem nenhum erro à
+ * vista.
+ */
 function inteiroNoIntervalo(valor: unknown, minimo: number, maximo: number): number | null {
+  if (valor === null || valor === undefined || valor === '') return null;
+
   const numero = Number(valor);
   if (!Number.isInteger(numero) || numero < minimo || numero > maximo) return null;
   return numero;

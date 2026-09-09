@@ -89,7 +89,9 @@ button{font-family:inherit; touch-action:manipulation;}
 #chat-header{
   background:var(--header-bg);
   color:var(--header-text);
-  padding:.5rem .875rem;
+  /* Mesmo motivo do #composer, do outro lado da tela: sem isto o cabeçalho
+     passa por baixo da barra de status e o nome fica colado no relógio. */
+  padding:calc(.5rem + env(safe-area-inset-top)) .875rem .5rem;
   display:flex;
   align-items:center;
   gap:.5rem;
@@ -534,7 +536,11 @@ body.theme-dark .system-note{background:rgba(255,228,110,.12); color:#e8c15f;}
   display:flex;
   align-items:flex-end;
   gap:4px;
-  padding:6px 8px;
+  /* O `viewport-fit=cover` do <meta> estende a página POR BAIXO das barras do
+     sistema. Sem devolver esse espaço aqui, a barra de digitação fica escondida
+     atrás da navegação do Android e do indicador de gestos do iPhone — some
+     metade dela, junto com os botões de emoji, anexo e enviar. */
+  padding:6px 8px calc(6px + env(safe-area-inset-bottom));
   background:var(--composer-bg);
   flex-shrink:0;
   position:relative;
