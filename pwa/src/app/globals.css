@@ -281,14 +281,25 @@ button {
   background: var(--balao-saida);
 }
 
-/* Rabinho: triângulo recortado, só no primeiro balão da sequência. */
+/*
+ * Rabinho: triângulo recortado, só no primeiro balão da sequência.
+ *
+ * Os dois lados precisam de recortes ESPELHADOS, e não do mesmo polígono — a
+ * ordem dos vértices não muda a forma, então declarar
+ * `polygon(0 0, 100% 0, 100% 100%)` e `polygon(100% 0, 0 0, 100% 100%)` produz
+ * exatamente o mesmo triângulo, e um dos lados fica com o rabo virado ao
+ * contrário (a ponta apontando para dentro do balão).
+ *
+ * A regra: a aresta que encosta no balão é a que precisa estar cheia.
+ * Recebida  → o rabo fica à esquerda, encosta pela direita  → lado 100% cheio.
+ * Enviada   → o rabo fica à direita, encosta pela esquerda  → lado 0 cheio.
+ */
 .linha.primeira .balao::after {
   position: absolute;
   top: 0;
   width: 9px;
   height: 13px;
   background: inherit;
-  clip-path: polygon(0 0, 100% 0, 100% 100%);
   content: '';
 }
 
@@ -298,7 +309,8 @@ button {
 
 .linha.primeira.entrada-linha .balao::after {
   left: -8px;
-  clip-path: polygon(100% 0, 0 0, 100% 100%);
+  /* topo cheio · direita cheia · ponta no canto superior esquerdo */
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
 
 .linha.primeira.saida .balao {
@@ -307,6 +319,8 @@ button {
 
 .linha.primeira.saida .balao::after {
   right: -8px;
+  /* topo cheio · esquerda cheia · ponta no canto superior direito */
+  clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
 .balao .texto a {

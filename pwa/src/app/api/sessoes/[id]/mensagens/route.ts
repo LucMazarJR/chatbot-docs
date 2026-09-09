@@ -56,6 +56,10 @@ export async function GET(_requisicao: Request, { params }: Contexto) {
 
   return Response.json({
     nome: sessao.nome,
+    // A saudação é remontada no cliente e não existe no banco. Sem a hora de
+    // início, ela apareceria carimbada com a hora do refresh — acima de
+    // mensagens mais antigas, e com o relógio andando para trás na tela.
+    iniciadaEm: sessao.iniciadaEm,
     encerrada: Boolean(sessao.encerradaEm),
     mensagens: lista,
   });

@@ -42,8 +42,8 @@ function horaAgora(quando: Date = new Date()) {
   return quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function saudacao(): Item {
-  return { chave: 'saudacao', papel: 'bot', texto: SAUDACAO, hora: horaAgora() };
+function saudacao(quando?: Date): Item {
+  return { chave: 'saudacao', papel: 'bot', texto: SAUDACAO, hora: horaAgora(quando) };
 }
 
 export default function Pagina() {
@@ -110,6 +110,7 @@ export default function Pagina() {
       if (!resposta.ok) throw new Error('sessão inválida');
 
       const dados = (await resposta.json()) as {
+        iniciadaEm: string;
         encerrada: boolean;
         mensagens: { _id: string; papel: Papel; texto: string; em: string; erro?: boolean }[];
       };
@@ -123,8 +124,9 @@ export default function Pagina() {
       setSessaoId(id);
       perguntasRef.current = dados.mensagens.filter((m) => m.papel === 'user').length;
       setItens([
-        // A saudação é local e nunca foi para o banco, então é remontada aqui.
-        saudacao(),
+        // A saudação é local e nunca foi para o banco, então é remontada aqui —
+        // com a hora em que a conversa começou, não a do refresh.
+        saudacao(new Date(dados.iniciadaEm)),
         ...dados.mensagens.map((m) => ({
           chave: m._id,
           papel: m.papel,
