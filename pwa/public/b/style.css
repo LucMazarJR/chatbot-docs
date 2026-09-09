@@ -567,6 +567,15 @@ body.theme-dark .system-note{background:rgba(255,228,110,.12); color:#e8c15f;}
   max-height:120px;
   font-family:inherit;
   color:var(--panel-text);
+  /* A altura de uma linha fica FIXA aqui, e não a cargo do `rows="1"` com
+     line-height do navegador. Sem isto, a altura do campo dependia inteiramente
+     do scrollHeight medido pelo JS — e no Chrome do Android essa medida sai
+     alta quando o campo está vazio, deixando a barra de digitação com o dobro
+     do tamanho sem ninguém ter escrito nada. O JS só passa a mandar quando há
+     texto para acomodar; vazio, sempre volta a esta altura. */
+  line-height:1.35;
+  height:2.5rem;
+  min-height:2.5rem;
 }
 #msg-input::placeholder{color:var(--meta-text);}
 #send-btn, #mic-btn{

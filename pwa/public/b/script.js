@@ -659,9 +659,24 @@ function updateComposerButtons(){
 
 input.addEventListener("input", () => {
   updateComposerButtons();
+  ajustarAltura();
+});
+
+/**
+ * Cresce com o texto, até o teto do CSS.
+ *
+ * Campo vazio LIMPA a altura em vez de medir: assim ele volta para a altura de
+ * uma linha definida no CSS, sem depender do `scrollHeight`, que no Chrome do
+ * Android devolve um valor alto demais para textarea vazia — era o que deixava
+ * a barra de digitação com o dobro do tamanho.
+ */
+function ajustarAltura(){
+  input.style.height = "";
+  if (!input.value) return;
+
   input.style.height = "auto";
   input.style.height = Math.min(input.scrollHeight, 120) + "px";
-});
+}
 input.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey){
     e.preventDefault();
@@ -677,7 +692,7 @@ async function sendMessage(){
 
   appendMessage({ id: newId(), from: "user", type: "text", text, time: nowTime() });
   input.value = "";
-  input.style.height = "auto";
+  ajustarAltura();
   updateComposerButtons();
 
   if (consentStatus !== "accepted"){
