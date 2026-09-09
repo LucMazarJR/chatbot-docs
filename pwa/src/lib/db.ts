@@ -1,5 +1,6 @@
 import { MongoClient, type Collection, type Db } from 'mongodb';
 
+import type { RegistroDeLimite } from './limite';
 import type { Mensagem, Sessao } from './tipos';
 
 /**
@@ -56,6 +57,10 @@ export async function mensagens(): Promise<Collection<Mensagem>> {
   return (await banco()).collection<Mensagem>('mensagens');
 }
 
+export async function limites(): Promise<Collection<RegistroDeLimite>> {
+  return (await banco()).collection<RegistroDeLimite>('limites');
+}
+
 /**
  * `createIndex` é idempotente: rodar na primeira conexão não custa nada e
  * garante que uma base recriada do zero já nasça indexada.
@@ -69,5 +74,8 @@ async function criarIndices(db: Db) {
     // Filtros da revisão: só com polegar para baixo, só com "não encontrei".
     db.collection('mensagens').createIndex({ feedback: 1 }),
     db.collection('mensagens').createIndex({ semResposta: 1 }),
+    // O contador de limite se apaga sozinho: sem TTL, a coleção acumularia um
+    // documento por IP para sempre.
+    db.collection('limites').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
   ]);
 }

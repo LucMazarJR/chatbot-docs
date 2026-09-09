@@ -7,6 +7,20 @@ import type { Mensagem } from '@/lib/tipos';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Teto de execução da função, em segundos — só tem efeito na Vercel.
+ *
+ * O padrão de lá é 10s, e uma resposta leva 6 a 9s no caminho feliz: embedding,
+ * busca no Atlas e Gemini. Quando o modelo devolve sobrecarga, o AI Agent ainda
+ * tenta 3 vezes com 3s de intervalo, e o total passa fácil de 30s. Com o padrão
+ * de 10s, essas mensagens morreriam com erro de plataforma em vez de esperar.
+ *
+ * 60 é o máximo do plano Hobby, e fica acima do PWA_N8N_TIMEOUT_MS (45s), que é
+ * quem deve decidir a desistência — assim a falha vira a mensagem de
+ * indisponibilidade do WhatsApp, e não um 504 da Vercel.
+ */
+export const maxDuration = 60;
+
 const LIMITE_TEXTO = 1000;
 
 /**
@@ -57,7 +71,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   if (texto.length > LIMITE_TEXTO) {
     return Response.json({ erro: 'texto muito longo' }, { status: 400 });
   }
-  if (!dentroDoLimite(identificar(requisicao))) {
+  if (!(await dentroDoLimite(identificar(requisicao)))) {
     return Response.json(
       { erro: 'muitas mensagens em pouco tempo, aguarde alguns minutos' },
       { status: 429 },
