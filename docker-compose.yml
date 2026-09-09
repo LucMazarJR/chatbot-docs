@@ -155,6 +155,15 @@ services:
       # injetar orientação de saúde falsa na conversa de um participante.
       N8N_PWA_WEBHOOK_TOKEN: ${N8N_PWA_WEBHOOK_TOKEN:?defina N8N_PWA_WEBHOOK_TOKEN no .env}
 
+      # Endereço deste serviço PARA O N8N, que é quem devolve a resposta pronta.
+      # Precisa ser fixo aqui e não deduzido do cabeçalho `Host`: o Host diz como
+      # o NAVEGADOR chegou (localhost:8080, o IP da rede, o domínio do túnel), e
+      # nenhum desses endereços significa a mesma coisa dentro do container do
+      # n8n — `localhost` lá é o próprio n8n, e a resposta morria com
+      # ECONNREFUSED. Na Vercel a variável fica vazia de propósito: lá o
+      # cabeçalho encaminhado já traz o domínio público, que é alcançável.
+      PWA_PUBLIC_URL: ${PWA_PUBLIC_URL:-http://pwa:8080}
+
       # Vazia = tela de revisão aberta, como decidido. Preencher liga Basic Auth.
       PWA_ADMIN_PASSWORD: ${PWA_ADMIN_PASSWORD:-}
     ports:
