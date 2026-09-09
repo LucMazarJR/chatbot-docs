@@ -109,18 +109,73 @@ Espera `"ok": true`, `resposta` preenchida e `trechosDebug` com os scores. Se vi
 
 ## Como distribuir aos participantes
 
-| Cenário | Endereço | Instala na tela de início? |
-|---|---|---|
-| Mesma rede Wi‑Fi | `http://<IP-do-PC>:8080` | **Não** — o navegador só registra service worker em HTTPS |
-| Cloudflare Tunnel | o hostname público | **Sim** |
+Três caminhos, do mais rápido ao mais indicado para uso real:
 
-Para o tunnel, adicione no painel da Cloudflare um hostname apontando para `http://pwa:8080`. É configuração no painel, não mudança de arquivo — o `cloudflared` do compose roda por token e busca as rotas de lá.
+| Cenário | Endereço | Instala na tela de início? | Precisa do PC ligado? |
+|---|---|---|---|
+| Mesma rede Wi‑Fi | `http://<IP-do-PC>:8080` | **Não** — o navegador só registra service worker em HTTPS | sim |
+| Cloudflare Tunnel | um hostname apontando para `http://pwa:8080` | sim | sim |
+| **Vercel** | o domínio da Vercel | sim | **sim** — o n8n continua aqui |
 
 Descubra o IP da máquina com:
 
 ```powershell
 (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq 'Dhcp' }).IPAddress
 ```
+
+---
+
+## Hospedar na Vercel
+
+É o arranjo recomendado para levar a campo, e o mesmo que o Dashboard-PetSaúde já usa. A página fica na Vercel (HTTPS de graça, instalável, sempre no ar) e **só a chamada ao n8n volta para a sua máquina**, pelo Cloudflare Tunnel que já existe:
+
+```
+  celular ──► Vercel  (páginas + route handlers)
+                 │
+                 ├──► MongoDB Atlas                       (nuvem, direto)
+                 │
+                 └──► https://petbot.lucianomjr.dev/webhook/pwa-chat
+                              │  (Cloudflare Tunnel)
+                              ▼
+                        n8n no seu PC ──► Gemini + Atlas
+```
+
+O túnel **já expõe** essa rota, autenticada — um POST sem o `X-Webhook-Token` devolve 403. Não há nada a configurar na Cloudflare.
+
+### Passos
+
+1. **Vercel → Add New → Project**, importe este repositório.
+2. **Root Directory: `pwa`** — sem isso a Vercel tenta buildar a raiz e não acha um projeto Node.
+3. Variáveis de ambiente do projeto:
+
+| Variável | Valor |
+|---|---|
+| `MONGODB_URI` | a mesma do `.env` (com o nome do banco no caminho) |
+| `PWA_MONGO_DB` | `pwa_prototipo` |
+| `N8N_PWA_WEBHOOK_URL` | `https://petbot.lucianomjr.dev/webhook/pwa-chat` — **a URL do túnel, não `http://n8n:5678`** |
+| `N8N_PWA_WEBHOOK_TOKEN` | o mesmo do `.env` |
+| `PWA_ADMIN_PASSWORD` | **preencha** — ver o aviso abaixo |
+
+4. Deploy.
+
+> ⚠️ **Na Vercel, preencha a `PWA_ADMIN_PASSWORD`.** No seu PC, deixar `/admin` aberto é aceitável: só quem está na sua rede alcança. Publicada, a mesma tela expõe conversas sobre saúde para qualquer um que descubra a URL. É uma variável de ambiente, custa nada — e o middleware já faz o resto.
+
+### O que muda em relação ao Docker
+
+**Nada no código.** As mesmas variáveis, o mesmo Next. Dois detalhes já resolvidos, mas que valem saber:
+
+- **`maxDuration = 60`** na rota de mensagens. O padrão da Vercel é 10s, e uma resposta leva 6 a 12s no caminho feliz — com o agente tentando 3 vezes contra sobrecarga do Gemini, passa de 30s. Sem esse ajuste, as mensagens lentas morreriam num 504 da plataforma em vez de esperar.
+- **O limite por IP vive no Mongo**, não em memória. Em serverless cada requisição pode cair numa instância diferente, e instância fria começa zerada: um contador em memória marcaria "1 de 40" para sempre e não seguraria a cota.
+
+### Continua dependendo da sua máquina
+
+A Vercel resolve a página, **não o cérebro**. Se o PC dormir, o Docker parar ou a internet cair, o túnel morre e toda mensagem vira a tela de indisponibilidade. Para um teste em campo isso significa: o PC precisa estar ligado, acordado e conectado durante toda a sessão.
+
+Se em algum momento o protótipo precisar rodar sem depender da sua máquina, o passo é levar o n8n para um servidor — decisão de hospedagem que já está registrada em [depende-de-voce.md](depende-de-voce.md#quando-sair-do-teste).
+
+### Conferir se o Atlas aceita a Vercel
+
+As funções da Vercel saem de IPs variáveis. Em **Atlas → Network Access**, precisa haver `0.0.0.0/0` liberado (o dashboard já roda assim, então provavelmente está). Sem isso, o deploy sobe, a página abre, e toda requisição falha na conexão com o banco.
 
 ---
 
