@@ -1,4 +1,4 @@
-﻿/* TEMA — variáveis de cor (claro é o padrão; .theme-dark
+/* TEMA — variáveis de cor (claro é o padrão; .theme-dark
    sobrescreve para o modo escuro) */
 
 :root{
@@ -226,6 +226,33 @@ body.theme-dark .system-note{background:rgba(255,228,110,.12); color:#e8c15f;}
 .msg-block.sent:not(.grouped) .bubble{border-top-right-radius:0;}
 .msg-block.received .bubble{background:var(--bubble-received); color:var(--bubble-text); border-radius:8px;}
 .msg-block.received:not(.grouped) .bubble{border-top-left-radius:0;}
+
+/* Rabinho do primeiro balão de cada sequência.
+   As duas regras acima já quadravam o canto para encaixá-lo, mas a ponta em si
+   não chegou a ser desenhada — o balão ficava com um canto reto e nada preso
+   nele. Herda o `background` do balão, então serve aos dois temas sozinho.
+   Os recortes são ESPELHADOS: a aresta que encosta no balão é a que fica cheia.
+   Reordenar os vértices de um polygon() não muda a forma, e usar o mesmo nos
+   dois lados deixa a ponta de um deles virada para dentro. */
+.bubble{position:relative;}
+.msg-block:not(.grouped) .bubble::after{
+  content:"";
+  position:absolute;
+  top:0;
+  width:8px;
+  height:12px;
+  background:inherit;
+}
+.msg-block.received:not(.grouped) .bubble::after{
+  left:-7px;
+  /* topo cheio · direita cheia · ponta no canto superior esquerdo */
+  clip-path:polygon(0 0, 100% 0, 100% 100%);
+}
+.msg-block.sent:not(.grouped) .bubble::after{
+  right:-7px;
+  /* topo cheio · esquerda cheia · ponta no canto superior direito */
+  clip-path:polygon(0 0, 100% 0, 0 100%);
+}
 
 /* Envoltório do balão (permite posicionar botão de reagir e o "chip" de reação) */
 .bubble-wrap{

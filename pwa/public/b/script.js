@@ -1,4 +1,4 @@
-﻿const CONFIG = {
+const CONFIG = {
   botName: "PET-Saúde",
   botSubtitleOnline: "online",
   avatarSrc: "/b/icons/avatar.png",
