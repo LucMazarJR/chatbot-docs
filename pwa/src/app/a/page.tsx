@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { aguardarResposta } from '@/lib/aguardar-resposta';
 import { Balao, Digitando } from '@/components/Balao';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
@@ -223,19 +224,31 @@ export default function Pagina() {
       }
       if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
 
-      const dados = (await resposta.json()) as {
+      // O servidor só ACEITA a pergunta e devolve na hora; a resposta fica
+      // pronta depois. Um tique cinza vira dois tiques azuis já aqui: a
+      // mensagem chegou, é isso que os tiques significam.
+      const aceite = (await resposta.json()) as {
         mensagemId: string;
-        resposta: string;
-        erro: boolean;
-        causa: 'demora' | 'fora-do-ar' | 'indisponivel' | null;
+        pendente: boolean;
+        erro?: boolean;
+        causa?: 'demora' | 'fora-do-ar' | 'indisponivel' | null;
       };
 
-      // Um tique cinza vira dois tiques azuis quando a resposta chega.
       setItens((atuais) =>
         atuais.map((item) => (item.chave === chaveUsuario ? { ...item, lida: true } : item)),
       );
 
-      adicionarBot(textoDaFalha(dados.causa) ?? dados.resposta, dados.erro ? null : dados.mensagemId);
+      // Recusa imediata (n8n fora do ar) nem chega a virar pendência.
+      if (!aceite.pendente) {
+        adicionarBot(textoDaFalha(aceite.causa ?? null) ?? TEXTO_FORA_DO_AR, null);
+        return;
+      }
+
+      const pronta = await aguardarResposta(aceite.mensagemId);
+      adicionarBot(
+        textoDaFalha(pronta.causa) ?? pronta.resposta,
+        pronta.erro ? null : aceite.mensagemId,
+      );
     } catch {
       // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
       // provável é a plataforma ter cortado a função no teto dela — isso é

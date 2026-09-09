@@ -7,7 +7,7 @@
         "httpMethod": "POST",
         "path": "pwa-chat",
         "authentication": "headerAuth",
-        "responseMode": "responseNode",
+        "responseMode": "onReceived",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
@@ -58,6 +58,12 @@
               "id": "4fad5a66-8b3b-4e47-d29c-b5a8ecf7b640",
               "name": "CorrelationId",
               "value": "={{ $json.headers['x-correlation-id'] }}",
+              "type": "string"
+            },
+            {
+              "id": "5abe6b77-9c4c-4f58-e3ad-c6b9fda8c752",
+              "name": "UrlDeRetorno",
+              "value": "={{ $json.body.urlDeRetorno }}",
               "type": "string"
             }
           ]
@@ -203,33 +209,71 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({\n  ok: true,\n  resposta: $json.output,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  modelo: 'models/gemini-3.1-flash-lite',\n  correlationId: $('Dados').item.json.CorrelationId\n}) }}",
+        "method": "POST",
+        "url": "={{ $('Dados').item.json.UrlDeRetorno }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Token",
+              "value": "={{ $env.PWA_CALLBACK_TOKEN }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $('Dados').item.json.CorrelationId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  mensagemId: $('Dados').item.json.EventId,\n  sessionId: $('Dados').item.json.IdChat,\n  ok: true,\n  resposta: $json.output,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  modelo: 'models/gemini-3.1-flash-lite'\n}) }}",
         "options": {}
       },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
       "position": [
         720,
         -112
       ],
       "id": "c12fde2e-ad9c-4a0d-fa1d-dececdefce28",
-      "name": "Responder"
+      "name": "Responder",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({\n  ok: false,\n  erro: true,\n  resposta: 'Não consegui responder agora. 😕 Por favor, tente novamente em alguns minutos. Se for uma emergência, procure atendimento médico imediato ou ligue 192.',\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  correlationId: $('Dados').item.json.CorrelationId\n}) }}",
+        "method": "POST",
+        "url": "={{ $('Dados').item.json.UrlDeRetorno }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Token",
+              "value": "={{ $env.PWA_CALLBACK_TOKEN }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $('Dados').item.json.CorrelationId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  mensagemId: $('Dados').item.json.EventId,\n  sessionId: $('Dados').item.json.IdChat,\n  ok: false,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore\n}) }}",
         "options": {}
       },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
       "position": [
         720,
         80
       ],
       "id": "d23aef3f-bead-4b1e-ab2e-efdfdefadf39",
-      "name": "Responder com indisponibilidade"
+      "name": "Responder com indisponibilidade",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     }
   ],
   "pinData": {},

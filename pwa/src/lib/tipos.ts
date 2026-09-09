@@ -53,6 +53,15 @@ export type Mensagem = {
   em: Date;
   correlationId: string;
 
+  /**
+   * A resposta ainda não chegou do n8n.
+   *
+   * A mensagem do bot nasce vazia e pendente assim que a pergunta é aceita, e o
+   * n8n a preenche depois pelo retorno. É o que permite o fluxo demorar 3
+   * minutos sem nenhuma requisição ficar aberta esperando.
+   */
+  pendente?: boolean;
+
   // Preenchidos só nas mensagens do bot.
   latenciaMs?: number;
   temContexto?: boolean | null;

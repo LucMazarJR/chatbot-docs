@@ -592,6 +592,9 @@ body.theme-dark .system-note{background:rgba(255,228,110,.12); color:#e8c15f;}
 }
 #send-btn svg, #mic-btn svg{width:19px; height:19px; fill:#fff;}
 #send-btn{display:none;}
+/* Enquanto a resposta anterior não chega, o envio fica travado: empilhar
+   perguntas embaralha a memória do agente e gasta cota à toa. */
+#send-btn:disabled, #mic-btn:disabled{opacity:.45; cursor:not-allowed;}
 
 /* Barra de gravação de áudio */
 #recording-bar{

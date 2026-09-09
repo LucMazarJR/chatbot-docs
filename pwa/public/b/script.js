@@ -168,6 +168,39 @@ async function abrirSessao(){
   return false;
 }
 
+/**
+ * Espera a resposta ficar pronta, perguntando de tempos em tempos.
+ *
+ * Cada consulta dura milissegundos, entao a espera total pode ser de minutos sem
+ * nenhuma conexao pendurada — que era o que batia no teto de 60s da Vercel e
+ * perdia respostas ja geradas pelo n8n.
+ */
+async function aguardarResposta(mensagemId){
+  const INTERVALO = 2000;
+  // Um pouco acima do limite do servidor (4 min), que e quem de fato decide.
+  const ATE_DESISTIR = 4.5 * 60 * 1000;
+  const comecou = Date.now();
+
+  while (Date.now() - comecou < ATE_DESISTIR){
+    await new Promise(r => setTimeout(r, INTERVALO));
+
+    try {
+      const res = await fetch(`/api/mensagens/${mensagemId}`, { cache: "no-store" });
+      if (!res.ok) continue;
+
+      const dados = await res.json();
+      if (dados.pendente) continue;
+
+      return { resposta: dados.resposta || "", erro: Boolean(dados.erro), causa: dados.causa || null };
+    } catch {
+      // Oscilacao de rede numa consulta nao e motivo para desistir: a resposta
+      // segue sendo produzida do outro lado. A proxima volta tenta de novo.
+    }
+  }
+
+  return { resposta: "", erro: true, causa: "demora" };
+}
+
 /** Insere o aviso de demora ANTES da bolha de "digitando", que precisa seguir última. */
 function avisarDemora(texto){
   hideTyping();
@@ -181,6 +214,7 @@ async function sendMessageToBackend(text, history){
 
   const iniciouEm = Date.now();
   const avisos = AVISOS_DE_DEMORA.map(a => setTimeout(() => avisarDemora(a.texto), a.ms));
+  setAguardando(true);
 
   try {
     const res = await fetch(`/api/sessoes/${sessaoId}/mensagens`, {
@@ -200,9 +234,21 @@ async function sendMessageToBackend(text, history){
     }
     if (!res.ok) throw new Error("HTTP " + res.status);
 
-    const dados = await res.json();
-    const texto = textoDaFalha(dados.causa) ?? dados.resposta;
-    return { text: texto, buttons: null, serverId: dados.erro ? null : dados.mensagemId };
+    // O servidor so ACEITA a pergunta e devolve na hora; a resposta fica pronta
+    // depois, e a tela vai consultando. E o que permite o fluxo demorar
+    // minutos sem nenhuma requisicao ficar aberta.
+    const aceite = await res.json();
+
+    if (!aceite.pendente){
+      return { text: textoDaFalha(aceite.causa) || TEXTO_FORA_DO_AR, buttons: null };
+    }
+
+    const pronta = await aguardarResposta(aceite.mensagemId);
+    return {
+      text: textoDaFalha(pronta.causa) || pronta.resposta,
+      buttons: null,
+      serverId: pronta.erro ? null : aceite.mensagemId
+    };
   } catch {
     // Se ja tinha passado bastante tempo, o mais provavel e a plataforma ter
     // cortado a funcao no teto dela — isso e demora. Falhando rapido, o
@@ -211,6 +257,7 @@ async function sendMessageToBackend(text, history){
     return { text: demorou ? TEXTO_DEMOROU_DEMAIS : TEXTO_FORA_DO_AR, buttons: null };
   } finally {
     avisos.forEach(clearTimeout);
+    setAguardando(false);
   }
 }
 
@@ -722,6 +769,7 @@ function showConsentReminder(){
 }
 
 async function handleQuickReply(message, btn){
+  if (aguardandoResposta) return;
   message.answeredValue = btn.value;
   const node = messagesEl.querySelector(`[data-id="${message.id}"]`);
   if (node) node.replaceWith(renderMessageNode(message));
@@ -759,10 +807,30 @@ const sendBtn = document.getElementById("send-btn");
 const micBtn = document.getElementById("mic-btn");
 const chatStatus = document.getElementById("chat-status");
 
+/**
+ * Trava enquanto a resposta nao chega.
+ *
+ * Sem ela, dava para empilhar perguntas durante uma espera de minutos: as
+ * respostas voltavam fora de ordem, a memoria do agente (que guarda so as 4
+ * ultimas mensagens) embaralhava, e cada envio extra gastava uma unidade da
+ * cota diaria do Gemini. Travar o envio e o que mantem a conversa em pares
+ * pergunta-resposta, como no WhatsApp.
+ */
+let aguardandoResposta = false;
+
+function setAguardando(valor){
+  aguardandoResposta = valor;
+  updateComposerButtons();
+}
+
 function updateComposerButtons(){
   const has = input.value.trim().length > 0;
   sendBtn.style.display = has ? "flex" : "none";
   micBtn.style.display = has ? "none" : "flex";
+
+  sendBtn.disabled = aguardandoResposta;
+  micBtn.disabled = aguardandoResposta;
+  input.placeholder = aguardandoResposta ? "Aguardando resposta..." : "Mensagem";
 }
 
 input.addEventListener("input", () => {
@@ -796,7 +864,7 @@ updateComposerButtons();
 
 async function sendMessage(){
   const text = input.value.trim();
-  if (!text) return;
+  if (!text || aguardandoResposta) return;
 
   appendMessage({ id: newId(), from: "user", type: "text", text, time: nowTime() });
   input.value = "";

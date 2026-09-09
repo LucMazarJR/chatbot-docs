@@ -2,33 +2,12 @@ import { randomUUID } from 'node:crypto';
 
 import { mensagens, sessoes } from '@/lib/db';
 import { dentroDoLimite, identificar } from '@/lib/limite';
-import { perguntar } from '@/lib/n8n';
+import { despachar, urlDeRetorno } from '@/lib/n8n';
 import type { Mensagem } from '@/lib/tipos';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Teto de execução da função, em segundos — só tem efeito na Vercel.
- *
- * O padrão de lá é 10s, e uma resposta leva 6 a 9s no caminho feliz: embedding,
- * busca no Atlas e Gemini. Quando o modelo devolve sobrecarga, o AI Agent ainda
- * tenta 3 vezes com 3s de intervalo, e o total passa fácil de 30s. Com o padrão
- * de 10s, essas mensagens morreriam com erro de plataforma em vez de esperar.
- *
- * 60 é o máximo do plano Hobby, e fica acima do PWA_N8N_TIMEOUT_MS (45s), que é
- * quem deve decidir a desistência — assim a falha vira a mensagem de
- * indisponibilidade do WhatsApp, e não um 504 da Vercel.
- */
-export const maxDuration = 60;
-
 const LIMITE_TEXTO = 1000;
-
-/**
- * O texto exato que o prompt manda o agente responder quando nenhum trecho
- * serve. Reconhecê-lo é o que permite medir a taxa de "a base não sabia" sem
- * depender de o participante marcar nada.
- */
-const RE_NAO_ENCONTREI = /^\s*desculpe\s*[—–-]\s*n[ãa]o encontrei/i;
 
 type Contexto = { params: Promise<{ id: string }> };
 
@@ -50,7 +29,10 @@ export async function GET(_requisicao: Request, { params }: Contexto) {
   if (!sessao) return Response.json({ erro: 'sessão não encontrada' }, { status: 404 });
 
   const lista = await (await mensagens())
-    .find({ sessaoId: id }, { projection: { papel: 1, texto: 1, em: 1, erro: 1, feedback: 1 } })
+    .find(
+      { sessaoId: id },
+      { projection: { papel: 1, texto: 1, em: 1, erro: 1, feedback: 1, pendente: 1 } },
+    )
     .sort({ em: 1 })
     .toArray();
 
@@ -61,10 +43,23 @@ export async function GET(_requisicao: Request, { params }: Contexto) {
     // mensagens mais antigas, e com o relógio andando para trás na tela.
     iniciadaEm: sessao.iniciadaEm,
     encerrada: Boolean(sessao.encerradaEm),
-    mensagens: lista,
+    // Uma resposta que ficou pendente de uma visita anterior não volta como
+    // conversa: sem alguém esperando por ela, é ruído na transcrição.
+    mensagens: lista.filter((m) => !m.pendente),
   });
 }
 
+/**
+ * Aceita a pergunta e devolve na hora, sem esperar a resposta ficar pronta.
+ *
+ * A mensagem do bot nasce vazia e pendente; o n8n a preenche depois, pelo
+ * retorno em `/api/n8n/resposta`. A tela fica consultando `/api/mensagens/:id`
+ * até ela deixar de estar pendente.
+ *
+ * É esse desenho que permite o fluxo demorar três minutos. Antes a requisição
+ * ficava aberta o tempo todo esperando, e na Vercel a plataforma matava a função
+ * aos 60s — a resposta era gerada e se perdia no caminho.
+ */
 export async function POST(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
 
@@ -99,49 +94,49 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     em: new Date(),
     correlationId,
   };
-  await colMensagens.insertOne(pergunta);
-
-  const resultado = await perguntar({
-    sessaoId: sessao._id,
-    mensagemId: pergunta._id,
-    texto,
-    nome: sessao.nome,
-    correlationId,
-  });
-
-  const semResposta = resultado.temContexto === false || RE_NAO_ENCONTREI.test(resultado.resposta);
 
   const respostaBot: Mensagem = {
     _id: randomUUID(),
     sessaoId: sessao._id,
     papel: 'bot',
-    texto: resultado.resposta,
+    texto: '',
     em: new Date(),
     correlationId,
-    latenciaMs: resultado.latenciaMs,
-    temContexto: resultado.temContexto,
-    qtdTrechos: resultado.qtdTrechos,
-    trechosDebug: resultado.trechosDebug,
-    limiarScore: resultado.limiarScore,
-    modelo: resultado.modelo,
-    semResposta,
-    erro: Boolean(resultado.erro),
-    // Sem isto, toda falha fica idêntica na base — timeout, token errado e
-    // variável ausente viram a mesma linha, e diagnosticar exige achar o log
-    // da requisição certa. Nunca chega à tela do participante.
-    motivoErro: resultado.motivo ?? null,
+    pendente: true,
     feedback: null,
   };
-  await colMensagens.insertOne(respostaBot);
 
-  return Response.json({
+  await colMensagens.insertMany([pergunta, respostaBot]);
+
+  const entrega = await despachar({
+    sessaoId: sessao._id,
     mensagemId: respostaBot._id,
-    resposta: respostaBot.texto,
-    latenciaMs: respostaBot.latenciaMs,
-    erro: respostaBot.erro,
-    // Categoria grossa, nunca o `motivo` detalhado: a tela precisa saber se
-    // pode dizer "demorei demais", mas status HTTP e nome de variável não têm
-    // por que chegar ao navegador.
-    causa: resultado.causa ?? null,
+    texto,
+    nome: sessao.nome,
+    correlationId,
+    urlDeRetorno: urlDeRetorno(requisicao),
   });
+
+  if (!entrega.aceito) {
+    // Nem chegou a ser processada: marca a pendência como falha agora, senão a
+    // tela ficaria consultando uma resposta que nunca virá.
+    await colMensagens.updateOne(
+      { _id: respostaBot._id },
+      {
+        $set: {
+          pendente: false,
+          erro: true,
+          motivoErro: entrega.motivo,
+          latenciaMs: Date.now() - respostaBot.em.getTime(),
+        },
+      },
+    );
+
+    return Response.json(
+      { mensagemId: respostaBot._id, pendente: false, erro: true, causa: entrega.causa },
+      { status: 202 },
+    );
+  }
+
+  return Response.json({ mensagemId: respostaBot._id, pendente: true }, { status: 202 });
 }

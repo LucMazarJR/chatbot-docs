@@ -106,6 +106,10 @@ services:
       # denied") e os nós HTTP saem com URL e X-Api-Key vazios — o fluxo executa
       # até o fim sem erro visível e nenhuma mensagem chega ao cidadão.
       N8N_BLOCK_ENV_ACCESS_IN_NODE: false
+      # Token que o fluxo do protótipo apresenta ao devolver a resposta pronta
+      # ao PWA. É o mesmo do webhook: os dois lados da conversa entre n8n e PWA
+      # compartilham um segredo só.
+      PWA_CALLBACK_TOKEN: ${N8N_PWA_WEBHOOK_TOKEN:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -145,10 +149,11 @@ services:
 
       # Nome do serviço na rede do compose — não passa pelo Cloudflare Tunnel.
       N8N_PWA_WEBHOOK_URL: ${N8N_PWA_WEBHOOK_URL:-http://n8n:5678/webhook/pwa-chat}
+      # Mesmo segredo dos dois sentidos: o PWA o apresenta ao entregar a
+      # pergunta, e exige o mesmo de volta quando o n8n devolve a resposta em
+      # /api/n8n/resposta. Sem isso, quem descobrisse a URL de retorno poderia
+      # injetar orientação de saúde falsa na conversa de um participante.
       N8N_PWA_WEBHOOK_TOKEN: ${N8N_PWA_WEBHOOK_TOKEN:?defina N8N_PWA_WEBHOOK_TOKEN no .env}
-      # O fluxo responde só depois de embedding + busca no Atlas + Gemini, e o
-      # agente ainda tenta 3 vezes quando o modelo devolve sobrecarga.
-      PWA_N8N_TIMEOUT_MS: ${PWA_N8N_TIMEOUT_MS:-45000}
 
       # Vazia = tela de revisão aberta, como decidido. Preencher liga Basic Auth.
       PWA_ADMIN_PASSWORD: ${PWA_ADMIN_PASSWORD:-}
