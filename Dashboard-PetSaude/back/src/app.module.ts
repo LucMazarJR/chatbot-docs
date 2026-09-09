@@ -13,6 +13,8 @@ import { UsersModule } from './users/users.module';
 import { ImportScriptsModule } from './import-scripts/import-scripts.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ImportModule } from './import/import.module';
+import { ConversasModule } from './conversas/conversas.module';
+import { CONEXAO_PROTOTIPO } from './conversas/conexao';
 import { ImportScript } from './import-scripts/entities/import-script.entity';
 import { User } from './users/entities/user.entity';
 import { UserSession } from './users/entities/user-session.entity';
@@ -36,6 +38,21 @@ import { UserSession } from './users/entities/user-session.entity';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('MONGODB_URI'),
+      }),
+      inject: [ConfigService],
+    }),
+    // Segunda conexao: as conversas do prototipo PWA, noutro banco do MESMO
+    // cluster. O nome do banco vem da variavel, e nao do caminho da URI (que
+    // aponta para ministerio_saude) -- mesma decisao que o PWA tomou, e que
+    // evita a armadilha numero 1 do projeto: URI sem nome de banco faz o driver
+    // assumir 'test' em silencio, e existe um test.faq_medicamentos com dois
+    // documentos de lixo neste cluster.
+    MongooseModule.forRootAsync({
+      connectionName: CONEXAO_PROTOTIPO,
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        uri: configService.get<string>('MONGODB_URI'),
+        dbName: configService.get<string>('PWA_MONGO_DB') ?? 'pwa_prototipo',
       }),
       inject: [ConfigService],
     }),
@@ -79,6 +96,7 @@ import { UserSession } from './users/entities/user-session.entity';
     UsersModule,
     ImportScriptsModule,
     ImportModule,
+    ConversasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
