@@ -184,7 +184,11 @@ As funções da Vercel saem de IPs variáveis. Em **Atlas → Network Access**, 
 
 ### Chat — `/`
 
-Mobile. Entrada pede um nome e mostra o aviso de consentimento. Depois, o chat: balões com rabinho, tiques de leitura, "digitando…", e a formatação do WhatsApp (`*negrito*`, `_itálico_`, `•`) renderizada como no aplicativo.
+Mobile. **Abre direto na conversa** — não há tela de entrada nem pergunta de nome: a sessão é criada sozinha e as sessões são numeradas por ordem de chegada (`Participante 7`), o que mantém a lista da revisão legível. O aviso de consentimento aparece dentro do chat, no mesmo padrão do aviso de criptografia do WhatsApp.
+
+Balões com rabinho, tiques de leitura, "digitando…", e a formatação do WhatsApp (`*negrito*`, `_itálico_`, `•`) renderizada como no aplicativo.
+
+A conversa **sobrevive a recarregar a página e a fechar o navegador**: a sessão fica em `localStorage` e a transcrição é remontada do banco. Só um encerramento com avaliação começa uma sessão nova.
 
 Sob cada resposta do bot há **👍/👎**. É o dado mais valioso da validação: diz *qual* resposta falhou, não só que a conversa foi ruim.
 
@@ -240,6 +244,23 @@ node -e "const {MongoClient}=require('mongodb');(async()=>{const c=new MongoClie
 ```
 
 **Exporte o CSV antes.** O `dropDatabase` não pergunta duas vezes.
+
+---
+
+## Quando o bot responde "Não consegui responder agora"
+
+Esse é o texto de indisponibilidade — quer dizer que a chamada ao n8n falhou. A partir da versão atual, o **motivo fica gravado** e aparece na tela de revisão, junto da resposta que falhou. Os casos, e como distingui-los pelo tempo:
+
+| Latência | Provável causa |
+|---|---|
+| **0 ms** | `N8N_PWA_WEBHOOK_URL` ou `N8N_PWA_WEBHOOK_TOKEN` não definidos no ambiente |
+| **< 1 s** | DNS ou rota: a URL aponta para `http://n8n:5678` fora da rede do compose (o nome não existe na Vercel), ou o fluxo não está publicado (404) |
+| **1–3 s** | Token errado — o n8n devolve 403. `N8N_PWA_WEBHOOK_TOKEN` e a credencial `PWA Webhook Token` são independentes, e mudar só um quebra tudo |
+| **45 s** | Tempo limite: o Gemini está lento ou sem cota, ou o PC que hospeda o n8n caiu |
+
+Teste a rota isolada com o comando do [Passo 5](#5-testar-a-rota-isolada-sem-navegador) — se ela responder e o PWA não, o problema está na configuração do PWA, não no fluxo.
+
+Na Vercel, o motivo também sai nos logs da função (**Deployments → Functions**).
 
 ---
 
