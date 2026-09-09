@@ -11,8 +11,7 @@ import {
   Settings,
   Stethoscope,
   Upload,
-  Users,
-} from "lucide-react";
+  Users, MessagesSquare } from "lucide-react";
 import { toast } from "sonner";
 
 import { getSession, logout, type UserRole } from "@/lib/auth.functions";
@@ -59,7 +58,14 @@ export function usePodeEscrever() {
 }
 
 type Destino = {
-  para: "/" | "/categorias" | "/importar" | "/auditoria" | "/usuarios" | "/configuracoes";
+  para:
+    | "/"
+    | "/categorias"
+    | "/conversas"
+    | "/importar"
+    | "/auditoria"
+    | "/usuarios"
+    | "/configuracoes";
   rotulo: string;
   Icone: typeof ListChecks;
   /** Quem vê. Vazio = todo mundo autenticado. */
@@ -69,6 +75,9 @@ type Destino = {
 const DESTINOS: Destino[] = [
   { para: "/", rotulo: "FAQs", Icone: ListChecks },
   { para: "/categorias", rotulo: "Categorias", Icone: FolderOpen },
+  // Conversas do chatbot: relato de sintoma e pedido de atendimento escritos
+  // por cidadãos. Só admin, como Histórico e Usuários.
+  { para: "/conversas", rotulo: "Conversas", Icone: MessagesSquare, papeis: ["admin"] },
   { para: "/importar", rotulo: "Importar", Icone: Upload, papeis: ["admin", "editor"] },
   { para: "/auditoria", rotulo: "Histórico", Icone: History, papeis: ["admin"] },
   { para: "/usuarios", rotulo: "Usuários", Icone: Users, papeis: ["admin"] },

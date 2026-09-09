@@ -88,6 +88,20 @@ function montarQuery(params: Record<string, string | number | undefined>): strin
   return busca.toString();
 }
 
+/**
+ * Uma FAQ pelo id.
+ *
+ * Existe para a tela de conversas: cada resposta do chatbot registra o id das
+ * perguntas que a geraram, e quem revisa precisa ir do trecho ruim ao
+ * documento. Buscar pelo texto não serve — há 180 FAQs com a pergunta "Como me
+ * preparar para o Exame?", distinguidas só pelo assunto.
+ */
+export const getFaq = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(async ({ data }: { data: { id: string } }): Promise<Faq> =>
+    apiFetch<Faq>(`/faqs/${encodeURIComponent(data.id)}`),
+  );
+
 export const listFaqs = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => listFaqsQuery.parse(data ?? {}))
   .handler(async ({ data }: { data: z.infer<typeof listFaqsQuery> }): Promise<Paginated<Faq>> => {

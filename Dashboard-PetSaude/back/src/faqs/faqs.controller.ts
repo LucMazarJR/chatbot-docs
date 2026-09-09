@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Query, Param, NotFoundException } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -23,6 +23,15 @@ export class FaqsController {
     @Get()
     listFaqs(@Query() query: ListFaqsQueryDto) {
         return this.faqsService.listFaqs(query);
+    }
+
+    // Declarada por ultimo entre os GET: qualquer rota fixa nova precisa vir
+    // ANTES desta, senao o Nest casa o nome dela como se fosse um id.
+    @Get(':id')
+    async buscarPorId(@Param('id') id: string) {
+        const faq = await this.faqsService.buscarPorId(id);
+        if (!faq) throw new NotFoundException('Pergunta nao encontrada');
+        return faq;
     }
 
     // LÓGICA DO LUCIANO: o ator saía do header x-actor-name, que era só o nome

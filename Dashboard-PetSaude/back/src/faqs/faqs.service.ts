@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, isValidObjectId } from 'mongoose';
 import * as crypto from 'crypto';
 import { ActivityService } from '../activity/activity.service';
 import { GeminiService } from '../gemini/gemini.service';
@@ -363,6 +363,22 @@ export class FaqsService {
             created_by: doc.created_by || null,
             updated_by: doc.updated_by || null,
         };
+    }
+
+    /**
+     * Uma FAQ pelo id.
+     *
+     * Existe para a tela de conversas: cada resposta do chatbot registra o
+     * faqId dos trechos que a geraram, e quem revisa precisa ir do trecho ruim
+     * ao documento. Buscar pelo texto da pergunta nao serve — ha 180 FAQs com
+     * a pergunta "Como me preparar para o Exame?", distinguidas so pelo
+     * assunto.
+     */
+    async buscarPorId(id: string) {
+        if (!isValidObjectId(id)) return null;
+
+        const doc = await this.faqModel.findById(id).select('-embedding -text').exec();
+        return doc ? this.mapearFaq(doc.toObject()) : null;
     }
 
     async listFaqs(params: FiltroFaqs = {}) {

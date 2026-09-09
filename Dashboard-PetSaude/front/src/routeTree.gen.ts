@@ -17,6 +17,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as CategoriasIndexRouteImport } from './routes/categorias.index'
 import { Route as CategoriasCategoriaRouteImport } from './routes/categorias.$categoria'
+import { Route as ConversasIndexRouteImport } from './routes/conversas.index'
+import { Route as ConversasIdRouteImport } from './routes/conversas.$id'
+import { Route as FaqsIdRouteImport } from './routes/faqs.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +61,21 @@ const CategoriasCategoriaRoute = CategoriasCategoriaRouteImport.update({
   path: '/categorias/$categoria',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConversasIndexRoute = ConversasIndexRouteImport.update({
+  id: '/conversas/',
+  path: '/conversas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConversasIdRoute = ConversasIdRouteImport.update({
+  id: '/conversas/$id',
+  path: '/conversas/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqsIdRoute = FaqsIdRouteImport.update({
+  id: '/faqs/$id',
+  path: '/faqs/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,7 +85,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
+  '/conversas/$id': typeof ConversasIdRoute
+  '/faqs/$id': typeof FaqsIdRoute
   '/categorias/': typeof CategoriasIndexRoute
+  '/conversas/': typeof ConversasIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,7 +98,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
+  '/conversas/$id': typeof ConversasIdRoute
+  '/faqs/$id': typeof FaqsIdRoute
   '/categorias': typeof CategoriasIndexRoute
+  '/conversas': typeof ConversasIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -88,7 +112,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
+  '/conversas/$id': typeof ConversasIdRoute
+  '/faqs/$id': typeof FaqsIdRoute
   '/categorias/': typeof CategoriasIndexRoute
+  '/conversas/': typeof ConversasIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,7 +127,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/usuarios'
     | '/categorias/$categoria'
+    | '/conversas/$id'
+    | '/faqs/$id'
     | '/categorias/'
+    | '/conversas/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -110,7 +140,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/usuarios'
     | '/categorias/$categoria'
+    | '/conversas/$id'
+    | '/faqs/$id'
     | '/categorias'
+    | '/conversas'
   id:
     | '__root__'
     | '/'
@@ -120,7 +153,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/usuarios'
     | '/categorias/$categoria'
+    | '/conversas/$id'
+    | '/faqs/$id'
     | '/categorias/'
+    | '/conversas/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -131,7 +167,10 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   UsuariosRoute: typeof UsuariosRoute
   CategoriasCategoriaRoute: typeof CategoriasCategoriaRoute
+  ConversasIdRoute: typeof ConversasIdRoute
+  FaqsIdRoute: typeof FaqsIdRoute
   CategoriasIndexRoute: typeof CategoriasIndexRoute
+  ConversasIndexRoute: typeof ConversasIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +231,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoriasCategoriaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conversas/': {
+      id: '/conversas/'
+      path: '/conversas'
+      fullPath: '/conversas/'
+      preLoaderRoute: typeof ConversasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conversas/$id': {
+      id: '/conversas/$id'
+      path: '/conversas/$id'
+      fullPath: '/conversas/$id'
+      preLoaderRoute: typeof ConversasIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faqs/$id': {
+      id: '/faqs/$id'
+      path: '/faqs/$id'
+      fullPath: '/faqs/$id'
+      preLoaderRoute: typeof FaqsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -203,7 +263,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   UsuariosRoute: UsuariosRoute,
   CategoriasCategoriaRoute: CategoriasCategoriaRoute,
+  ConversasIdRoute: ConversasIdRoute,
+  FaqsIdRoute: FaqsIdRoute,
   CategoriasIndexRoute: CategoriasIndexRoute,
+  ConversasIndexRoute: ConversasIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
