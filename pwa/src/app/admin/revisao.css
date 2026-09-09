@@ -226,6 +226,23 @@
   color: var(--ambar);
 }
 
+/* Sessão sem interação: apagada de propósito, para a lista continuar sendo
+   lida pelas conversas de verdade mesmo com o filtro "Todas" ligado. */
+.marca.vazia {
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+.item-sessao:has(.marca.vazia) {
+  opacity: 0.55;
+}
+
+.nota-descartadas {
+  margin: -12px 0 20px;
+  color: var(--tinta-fraca);
+  font-size: 12px;
+}
+
 .vazio {
   padding: 26px 16px;
   color: var(--tinta-fraca);

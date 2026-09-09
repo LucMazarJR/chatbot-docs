@@ -15,7 +15,7 @@ export async function estatisticas(): Promise<Estatisticas> {
   const colSessoes = await sessoes();
   const colMensagens = await mensagens();
 
-  const [porSessao, porMensagem] = await Promise.all([
+  const [porSessao, totalDeSessoes, porMensagem] = await Promise.all([
     colSessoes
       .aggregate<{
         total: number;
@@ -27,6 +27,19 @@ export async function estatisticas(): Promise<Estatisticas> {
         promotores: number;
         detratores: number;
       }>([
+        // Sessão sem pergunta nenhuma é visita, não conversa. Contá-la aqui
+        // afundaria a taxa de avaliação e o total de sessões — números que
+        // alguém vai ler como "quantas pessoas conversaram".
+        {
+          $lookup: {
+            from: 'mensagens',
+            localField: '_id',
+            foreignField: 'sessaoId',
+            pipeline: [{ $match: { papel: 'user' } }, { $limit: 1 }],
+            as: 'temPergunta',
+          },
+        },
+        { $match: { 'temPergunta.0': { $exists: true } } },
         {
           $group: {
             _id: null,
@@ -59,6 +72,8 @@ export async function estatisticas(): Promise<Estatisticas> {
         },
       ])
       .toArray(),
+
+    colSessoes.countDocuments({}),
 
     colMensagens
       .aggregate<{
@@ -95,6 +110,9 @@ export async function estatisticas(): Promise<Estatisticas> {
 
   return {
     sessoes: s?.total ?? 0,
+    // Quantas foram descartadas por não terem pergunta nenhuma. Fica à vista
+    // para ninguém achar que sumiram sessões sem explicação.
+    sessoesVazias: Math.max(0, totalDeSessoes - (s?.total ?? 0)),
     sessoesAvaliadas: s?.avaliadas ?? 0,
     mensagens: m?.total ?? 0,
     respostas: m?.doBot ?? 0,
@@ -113,13 +131,19 @@ export async function estatisticas(): Promise<Estatisticas> {
   };
 }
 
-/** Lista de sessões com os contadores que os filtros usam. */
-export async function listarSessoes(filtro: Filtro = null, limite = 200) {
+/**
+ * Lista de sessões com os contadores que os filtros usam.
+ *
+ * Sessão sem nenhuma pergunta não é conversa: é alguém que abriu o link e saiu,
+ * ou uma aba recarregada. Elas nascem em cada visita, porque a sessão é criada
+ * ao carregar a página, e se ficassem no meio da lista diluiriam as conversas
+ * de verdade. Por isso só aparecem no filtro "Todas".
+ */
+export async function listarSessoes(filtro: Filtro = 'validas', limite = 200) {
   const colSessoes = await sessoes();
 
   const pipeline: Record<string, unknown>[] = [
     { $sort: { iniciadaEm: -1 } },
-    { $limit: limite },
     {
       $lookup: {
         from: 'mensagens',
@@ -148,9 +172,17 @@ export async function listarSessoes(filtro: Filtro = null, limite = 200) {
     { $project: { msgs: 0 } },
   ];
 
+  // "todas" é o único filtro que mostra as sessões vazias.
+  if (filtro !== 'todas') pipeline.push({ $match: { qtdPerguntas: { $gt: 0 } } });
+
   if (filtro === 'negativos') pipeline.push({ $match: { negativos: { $gt: 0 } } });
   else if (filtro === 'nota-baixa') pipeline.push({ $match: { 'avaliacao.estrelas': { $lte: 3 } } });
   else if (filtro === 'sem-resposta') pipeline.push({ $match: { semResposta: { $gt: 0 } } });
+
+  // O corte vem depois dos filtros, e não junto do $sort: cortando antes, um
+  // filtro estreito devolveria menos linhas do que existem só porque as 200
+  // mais recentes não continham as que interessam.
+  pipeline.push({ $limit: limite });
 
   return colSessoes.aggregate<SessaoResumida>(pipeline).toArray();
 }

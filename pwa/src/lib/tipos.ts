@@ -83,7 +83,10 @@ export type SessaoResumida = Sessao & {
 };
 
 export type Estatisticas = {
+  /** Só as que tiveram ao menos uma pergunta. */
   sessoes: number;
+  /** Visitas que abriram a página e saíram sem perguntar nada. */
+  sessoesVazias: number;
   sessoesAvaliadas: number;
   mensagens: number;
   respostas: number;
@@ -98,5 +101,10 @@ export type Estatisticas = {
   latenciaP95: number | null;
 };
 
-/** Filtros da lista de sessões. */
-export type Filtro = 'negativos' | 'nota-baixa' | 'sem-resposta' | null;
+/**
+ * Filtros da lista de sessões.
+ *
+ * `validas` é o padrão e esconde as sessões sem nenhuma pergunta; `todas` é o
+ * único que as mostra.
+ */
+export type Filtro = 'validas' | 'todas' | 'negativos' | 'nota-baixa' | 'sem-resposta';

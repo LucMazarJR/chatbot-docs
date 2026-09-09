@@ -9,26 +9,32 @@ import './revisao.css';
 
 type Detalhe = { sessao: Sessao; mensagens: Mensagem[] };
 
-const FILTROS: { valor: Filtro; rotulo: string }[] = [
-  { valor: null, rotulo: 'Todas' },
+const FILTROS: { valor: Filtro; rotulo: string; titulo?: string }[] = [
+  { valor: 'validas', rotulo: 'Com interação' },
   { valor: 'negativos', rotulo: 'Com 👎' },
   { valor: 'nota-baixa', rotulo: 'Nota ≤ 3' },
   { valor: 'sem-resposta', rotulo: 'Com "não encontrei"' },
+  {
+    valor: 'todas',
+    rotulo: 'Todas',
+    titulo: 'Inclui as visitas que abriram a página e saíram sem perguntar nada',
+  },
 ];
 
 export default function Revisao() {
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [lista, setLista] = useState<SessaoResumida[]>([]);
-  const [filtro, setFiltro] = useState<Filtro>(null);
+  const [filtro, setFiltro] = useState<Filtro>('validas');
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<Detalhe | null>(null);
   const [expandida, setExpandida] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
-    const busca = filtro ? `?filtro=${filtro}` : '';
     const [numeros, sessoes] = await Promise.all([
       fetch('/api/admin/estatisticas').then((r) => r.json() as Promise<Estatisticas>),
-      fetch(`/api/admin/sessoes${busca}`).then((r) => r.json() as Promise<SessaoResumida[]>),
+      fetch(`/api/admin/sessoes?filtro=${filtro}`).then(
+        (r) => r.json() as Promise<SessaoResumida[]>,
+      ),
     ]);
     setEstatisticas(numeros);
     setLista(sessoes);
@@ -65,9 +71,10 @@ export default function Revisao() {
       <div className="revisao-corpo">
         <aside className="painel-lista">
           <div className="filtros">
-            {FILTROS.map(({ valor, rotulo }) => (
+            {FILTROS.map(({ valor, rotulo, titulo }) => (
               <button
                 key={rotulo}
+                title={titulo}
                 className={filtro === valor ? 'ativo' : ''}
                 onClick={() => setFiltro(valor)}
               >
@@ -90,7 +97,13 @@ export default function Revisao() {
               </div>
 
               <div className="item-marcas">
-                <span>{sessao.qtdPerguntas} perguntas</span>
+                {sessao.qtdPerguntas === 0 ? (
+                  <span className="marca vazia">sem interação · fora da análise</span>
+                ) : (
+                  <span>
+                    {sessao.qtdPerguntas} {sessao.qtdPerguntas === 1 ? 'pergunta' : 'perguntas'}
+                  </span>
+                )}
                 {sessao.avaliacao?.estrelas != null && (
                   <span className="marca nota">{'★'.repeat(sessao.avaliacao.estrelas)}</span>
                 )}
@@ -183,7 +196,7 @@ export default function Revisao() {
 
 function Cartoes({ dados }: { dados: Estatisticas }) {
   const cartoes: [string, string][] = [
-    ['Sessões', String(dados.sessoes)],
+    ['Conversas', String(dados.sessoes)],
     ['Avaliadas', `${dados.sessoesAvaliadas}/${dados.sessoes}`],
     ['Perguntas', String(dados.respostas)],
     ['Nota média', dados.notaMedia ? `${dados.notaMedia.toFixed(1)} ★` : '—'],
@@ -199,14 +212,26 @@ function Cartoes({ dados }: { dados: Estatisticas }) {
   ];
 
   return (
-    <div className="cartoes">
-      {cartoes.map(([rotulo, valor]) => (
-        <div className="cartao" key={rotulo}>
-          <span className="cartao-valor">{valor}</span>
-          <span className="cartao-rotulo">{rotulo}</span>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="cartoes">
+        {cartoes.map(([rotulo, valor]) => (
+          <div className="cartao" key={rotulo}>
+            <span className="cartao-valor">{valor}</span>
+            <span className="cartao-rotulo">{rotulo}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Dito em voz baixa, mas dito: sem isto alguém compara o total daqui com
+          o número de links distribuídos e conclui que sumiram sessões. */}
+      {dados.sessoesVazias > 0 && (
+        <p className="nota-descartadas">
+          {dados.sessoesVazias}{' '}
+          {dados.sessoesVazias === 1 ? 'visita não entrou' : 'visitas não entraram'} nos números
+          acima — abriram a página e saíram sem perguntar nada. Aparecem no filtro “Todas”.
+        </p>
+      )}
+    </>
   );
 }
 
