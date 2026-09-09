@@ -33,6 +33,49 @@ const TEXTO_INDISPONIVEL =
   "Não consegui responder agora. 😕 Por favor, tente novamente em alguns minutos. " +
   "Se for uma emergência, procure atendimento médico imediato ou ligue 192.";
 
+// Tempos vindos do uso real: a resposta leva cerca de 30s em media e ha casos
+// chegando perto de 3 minutos. Por isso o primeiro aviso so aparece aos 20s —
+// antes disso ele interromperia uma espera que e normal — e o segundo aos 60s,
+// quando a conversa ja saiu de qualquer expectativa razoavel.
+const AVISOS_DE_DEMORA = [
+  {
+    ms: 20000,
+    texto:
+      "Ainda estou procurando essa informação. 🔎 Às vezes a busca leva um pouco mais, " +
+      "pode aguardar."
+  },
+  {
+    ms: 60000,
+    texto:
+      "Continuo trabalhando na sua pergunta. ⏳ Hoje o sistema está mais lento que o " +
+      "normal — não precisa reenviar, é só aguardar mais um pouco."
+  }
+];
+
+const TEXTO_DEMOROU_DEMAIS =
+  "Demorei demais para responder desta vez e acabei não conseguindo concluir. 😕 " +
+  "Pode tentar perguntar de novo? Se for uma emergência, procure atendimento médico " +
+  "imediato ou ligue 192.";
+
+// Abaixo disso, a requisicao nem chegou a esperar de verdade: e o servidor que
+// nao respondeu, e a mensagem certa e a de servico fora do ar.
+const MS_PARA_CONSIDERAR_DEMORA = 20000;
+
+// Caso tipico: o Docker da maquina que hospeda o n8n esta desligado. Aqui
+// "tente novamente em alguns minutos" seria mentira — nada muda ate alguem
+// religar.
+const TEXTO_FORA_DO_AR =
+  "O assistente está temporariamente fora do ar. 🔌 Fique tranquilo, não é nada com o " +
+  "seu celular nem com a sua internet. Por favor, avise a pessoa responsável pelo teste " +
+  "para que o serviço seja religado.";
+
+/** O texto a mostrar quando a resposta falhou, ou null se nao falhou. */
+function textoDaFalha(causa){
+  if (causa === "demora") return TEXTO_DEMOROU_DEMAIS;
+  if (causa === "fora-do-ar") return TEXTO_FORA_DO_AR;
+  return null;
+}
+
 // A resposta do agente vem na formatação do WhatsApp, e o canal real só aceita
 // texto. Mesma mensagem que o cidadão recebe ao mandar áudio ou imagem lá.
 const TEXTO_SOMENTE_TEXTO =
@@ -49,21 +92,62 @@ let sessaoId = null;
 // saber a qual mensagem se refere. O `m.id` local ("m3") não existe no banco.
 const idsDoServidor = new Map();
 
+/**
+ * Retoma a sessão guardada e REMONTA a conversa na tela.
+ *
+ * Sem remontar, recarregar a página devolvia um chat vazio embora a sessão
+ * continuasse viva no banco e na memória do Redis — a conversa parecia ter
+ * sumido. No celular isso acontece o tempo todo: trocar de aplicativo e voltar,
+ * puxar a tela sem querer.
+ *
+ * Devolve `true` quando conseguiu remontar, e aí o fluxo de boas-vindas e
+ * consentimento não deve rodar de novo: quem já conversou já aceitou.
+ */
+async function retomarSessao(id){
+  try {
+    const res = await fetch(`/api/sessoes/${id}/mensagens`);
+    if (!res.ok) return false;
+
+    const dados = await res.json();
+    // Sessão já avaliada não volta: quem encerrou fez isso de propósito.
+    if (dados.encerrada) return false;
+    if (!dados.mensagens || dados.mensagens.length === 0) {
+      // Sessão criada mas sem conversa: aproveita o id e segue para as
+      // boas-vindas normais, sem gastar outra sessão no banco.
+      sessaoId = id;
+      return false;
+    }
+
+    sessaoId = id;
+    consentStatus = "accepted";
+    renderAberturaDaConversa();
+
+    for (const m of dados.mensagens){
+      const idLocal = newId();
+      if (m.papel === "bot" && !m.erro) idsDoServidor.set(idLocal, m._id);
+      appendMessage({
+        id: idLocal,
+        from: m.papel === "user" ? "user" : "bot",
+        type: "text",
+        text: m.texto,
+        time: new Date(m.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        feedback: m.feedback || null
+      });
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** `true` se a conversa foi remontada e o fluxo de boas-vindas deve ser pulado. */
 async function abrirSessao(){
   const guardada = localStorage.getItem(CHAVE_SESSAO);
 
   if (guardada){
-    try {
-      const res = await fetch(`/api/sessoes/${guardada}/mensagens`);
-      if (res.ok){
-        const dados = await res.json();
-        // Sessão já avaliada não volta: quem encerrou fez isso de propósito.
-        if (!dados.encerrada){
-          sessaoId = guardada;
-          return;
-        }
-      }
-    } catch {}
+    if (await retomarSessao(guardada)) return true;
+    if (sessaoId) return false;
     localStorage.removeItem(CHAVE_SESSAO);
   }
 
@@ -80,11 +164,23 @@ async function abrirSessao(){
   } catch {
     sessaoId = null;
   }
+
+  return false;
+}
+
+/** Insere o aviso de demora ANTES da bolha de "digitando", que precisa seguir última. */
+function avisarDemora(texto){
+  hideTyping();
+  appendMessage({ id: newId(), from: "bot", type: "text", text: texto, time: nowTime() });
+  showTyping();
 }
 
 async function sendMessageToBackend(text, history){
   if (!sessaoId) await abrirSessao();
   if (!sessaoId) return { text: TEXTO_INDISPONIVEL, buttons: null };
+
+  const iniciouEm = Date.now();
+  const avisos = AVISOS_DE_DEMORA.map(a => setTimeout(() => avisarDemora(a.texto), a.ms));
 
   try {
     const res = await fetch(`/api/sessoes/${sessaoId}/mensagens`, {
@@ -105,9 +201,16 @@ async function sendMessageToBackend(text, history){
     if (!res.ok) throw new Error("HTTP " + res.status);
 
     const dados = await res.json();
-    return { text: dados.resposta, buttons: null, serverId: dados.erro ? null : dados.mensagemId };
+    const texto = textoDaFalha(dados.causa) ?? dados.resposta;
+    return { text: texto, buttons: null, serverId: dados.erro ? null : dados.mensagemId };
   } catch {
-    return { text: TEXTO_INDISPONIVEL, buttons: null };
+    // Se ja tinha passado bastante tempo, o mais provavel e a plataforma ter
+    // cortado a funcao no teto dela — isso e demora. Falhando rapido, o
+    // servidor do prototipo e que nao respondeu.
+    const demorou = Date.now() - iniciouEm >= MS_PARA_CONSIDERAR_DEMORA;
+    return { text: demorou ? TEXTO_DEMOROU_DEMAIS : TEXTO_FORA_DO_AR, buttons: null };
+  } finally {
+    avisos.forEach(clearTimeout);
   }
 }
 
@@ -180,9 +283,9 @@ async function submitErrorReport(entry){
   sessaoId = null;
 }
 
-// Abre a sessão assim que a página carrega, para a primeira pergunta não pagar
-// o custo de criar a sessão antes de ser enviada.
-abrirSessao();
+// A abertura da sessão acontece no fim do arquivo, junto do `initConversation`:
+// os dois decidem juntos se a tela mostra uma conversa retomada ou as
+// boas-vindas, e a ordem entre eles importa.
 
 // RENDER: cabeçalho
 document.getElementById("chat-title").textContent = CONFIG.botName;
@@ -575,7 +678,8 @@ function scrollToBottom(){
 }
 
 // Fluxo inicial: boas-vindas + consentimento LGPD com botões
-function initConversation(){
+/** Divisor de data e aviso de protótipo — abrem a conversa nova e a retomada. */
+function renderAberturaDaConversa(){
   const chip = document.createElement("div");
   chip.className = "date-chip";
   chip.textContent = "Hoje";
@@ -585,6 +689,10 @@ function initConversation(){
   note.className = "system-note";
   note.innerHTML = `<svg class="lock-icon" viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm0 2a3 3 0 0 1 3 3v3H9V6a3 3 0 0 1 3-3zm0 10a1.6 1.6 0 0 1 .6 3.08V17.5a.6.6 0 0 1-1.2 0v-1.42A1.6 1.6 0 0 1 12 13z"/></svg><span>Este é um protótipo de testes. Não envie dados sensíveis reais aqui.</span>`;
   messagesEl.appendChild(note);
+}
+
+function initConversation(){
+  renderAberturaDaConversa();
 
   appendMessage({
     id: newId(),
@@ -1095,9 +1203,21 @@ function showToast(msg){
 }
 
 // Init
-initConversation();
+//
+// Abre a sessão ANTES de decidir o que desenhar: se havia uma conversa em
+// andamento, ela é remontada e as boas-vindas não se repetem — quem já
+// conversou já aceitou os termos, e receber o pedido de aceite de novo a cada
+// recarga é o que fazia a conversa parecer perdida.
+(async () => {
+  const retomou = await abrirSessao();
+  if (!retomou) initConversation();
+})();
+
 if ("serviceWorker" in navigator){
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    // Caminho absoluto: a página vive em `/b`, e o relativo "sw.js" resolvia
+    // para `/sw.js` por acidente. Registrando o da raiz de propósito, existe um
+    // único service worker para as duas versões, sem caches concorrentes.
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
 }

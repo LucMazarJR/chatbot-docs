@@ -1,5 +1,13 @@
 import { mensagens, sessoes } from './db';
-import type { Estatisticas, Filtro, Mensagem, Sessao, SessaoResumida } from './tipos';
+import type {
+  Estatisticas,
+  Filtro,
+  FiltroVersao,
+  Mensagem,
+  Periodo,
+  Sessao,
+  SessaoResumida,
+} from './tipos';
 
 /**
  * Consultas da tela de revisão.
@@ -10,12 +18,59 @@ import type { Estatisticas, Filtro, Mensagem, Sessao, SessaoResumida } from './t
  * correspondente.
  */
 
-/** Números do topo da tela. */
-export async function estatisticas(): Promise<Estatisticas> {
+/** Início do intervalo, ou `null` quando o filtro é "tudo". */
+function desde(periodo: Periodo): Date | null {
+  const agora = new Date();
+
+  if (periodo === 'hoje') {
+    const inicio = new Date(agora);
+    inicio.setHours(0, 0, 0, 0);
+    return inicio;
+  }
+  if (periodo === '7d') return new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+  if (periodo === '30d') return new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+  return null;
+}
+
+/**
+ * Filtro base das sessões: recorte de tempo e de interface.
+ *
+ * Sessões antigas não têm o campo `versao` — são anteriores à existência das
+ * duas interfaces. Elas contam como "a", que era a única que existia.
+ */
+function filtroDeSessao(periodo: Periodo, versao: FiltroVersao) {
+  const filtro: Record<string, unknown> = {};
+
+  const inicio = desde(periodo);
+  if (inicio) filtro.iniciadaEm = { $gte: inicio };
+
+  if (versao === 'a') filtro.$or = [{ versao: 'a' }, { versao: { $exists: false } }];
+  else if (versao === 'b') filtro.versao = 'b';
+
+  return filtro;
+}
+
+/** Números do topo da tela, já recortados por período e interface. */
+export async function estatisticas(
+  periodo: Periodo = 'tudo',
+  versao: FiltroVersao = 'todas',
+): Promise<Estatisticas> {
   const colSessoes = await sessoes();
   const colMensagens = await mensagens();
 
-  const [porSessao, totalDeSessoes, porMensagem] = await Promise.all([
+  const base = filtroDeSessao(periodo, versao);
+  const noRecorte = await colSessoes.find(base, { projection: { _id: 1 } }).toArray();
+  const idsNoRecorte = noRecorte.map((s) => s._id);
+
+  // Sessão sem pergunta nenhuma é visita, não conversa. Contá-la afundaria o
+  // total e a taxa de avaliação — números que alguém lê como "quantas pessoas
+  // conversaram".
+  const comPergunta = await colMensagens.distinct('sessaoId', {
+    sessaoId: { $in: idsNoRecorte },
+    papel: 'user',
+  });
+
+  const [porSessao, porMensagem, latencias] = await Promise.all([
     colSessoes
       .aggregate<{
         total: number;
@@ -27,19 +82,7 @@ export async function estatisticas(): Promise<Estatisticas> {
         promotores: number;
         detratores: number;
       }>([
-        // Sessão sem pergunta nenhuma é visita, não conversa. Contá-la aqui
-        // afundaria a taxa de avaliação e o total de sessões — números que
-        // alguém vai ler como "quantas pessoas conversaram".
-        {
-          $lookup: {
-            from: 'mensagens',
-            localField: '_id',
-            foreignField: 'sessaoId',
-            pipeline: [{ $match: { papel: 'user' } }, { $limit: 1 }],
-            as: 'temPergunta',
-          },
-        },
-        { $match: { 'temPergunta.0': { $exists: true } } },
+        { $match: { _id: { $in: comPergunta } } },
         {
           $group: {
             _id: null,
@@ -73,8 +116,6 @@ export async function estatisticas(): Promise<Estatisticas> {
       ])
       .toArray(),
 
-    colSessoes.countDocuments({}),
-
     colMensagens
       .aggregate<{
         total: number;
@@ -84,6 +125,7 @@ export async function estatisticas(): Promise<Estatisticas> {
         positivos: number;
         negativos: number;
       }>([
+        { $match: { sessaoId: { $in: comPergunta } } },
         {
           $group: {
             _id: null,
@@ -97,22 +139,24 @@ export async function estatisticas(): Promise<Estatisticas> {
         },
       ])
       .toArray(),
+
+    colMensagens
+      .find(
+        { sessaoId: { $in: comPergunta }, papel: 'bot', latenciaMs: { $gt: 0 } },
+        { projection: { latenciaMs: 1 } },
+      )
+      .toArray(),
   ]);
 
   const s = porSessao[0];
   const m = porMensagem[0];
-
-  const latencias = (
-    await colMensagens
-      .find({ papel: 'bot', latenciaMs: { $gt: 0 } }, { projection: { latenciaMs: 1 } })
-      .toArray()
-  ).map((x) => x.latenciaMs ?? 0);
+  const tempos = latencias.map((x) => x.latenciaMs ?? 0);
 
   return {
     sessoes: s?.total ?? 0,
     // Quantas foram descartadas por não terem pergunta nenhuma. Fica à vista
     // para ninguém achar que sumiram sessões sem explicação.
-    sessoesVazias: Math.max(0, totalDeSessoes - (s?.total ?? 0)),
+    sessoesVazias: Math.max(0, idsNoRecorte.length - (s?.total ?? 0)),
     sessoesAvaliadas: s?.avaliadas ?? 0,
     mensagens: m?.total ?? 0,
     respostas: m?.doBot ?? 0,
@@ -126,8 +170,11 @@ export async function estatisticas(): Promise<Estatisticas> {
     erros: m?.erros ?? 0,
     positivos: m?.positivos ?? 0,
     negativos: m?.negativos ?? 0,
-    latenciaMedia: media(latencias),
-    latenciaP95: percentil(latencias, 95),
+    latenciaMedia: media(tempos),
+    latenciaP95: percentil(tempos, 95),
+    // Quantas respostas passaram de 30s. Com os tempos observados no uso real,
+    // é o número que diz se a espera está virando um problema de experiência.
+    respostasLentas: tempos.filter((t) => t >= 30_000).length,
   };
 }
 
@@ -139,10 +186,16 @@ export async function estatisticas(): Promise<Estatisticas> {
  * ao carregar a página, e se ficassem no meio da lista diluiriam as conversas
  * de verdade. Por isso só aparecem no filtro "Todas".
  */
-export async function listarSessoes(filtro: Filtro = 'validas', limite = 200) {
+export async function listarSessoes(
+  filtro: Filtro = 'validas',
+  periodo: Periodo = 'tudo',
+  versao: FiltroVersao = 'todas',
+  limite = 200,
+) {
   const colSessoes = await sessoes();
 
   const pipeline: Record<string, unknown>[] = [
+    { $match: filtroDeSessao(periodo, versao) },
     { $sort: { iniciadaEm: -1 } },
     {
       $lookup: {
@@ -167,6 +220,10 @@ export async function listarSessoes(filtro: Filtro = 'validas', limite = 200) {
         semResposta: {
           $size: { $filter: { input: '$msgs', cond: { $eq: ['$$this.semResposta', true] } } },
         },
+        erros: {
+          $size: { $filter: { input: '$msgs', cond: { $eq: ['$$this.erro', true] } } },
+        },
+        latenciaMaxima: { $max: '$msgs.latenciaMs' },
       },
     },
     { $project: { msgs: 0 } },
@@ -178,6 +235,7 @@ export async function listarSessoes(filtro: Filtro = 'validas', limite = 200) {
   if (filtro === 'negativos') pipeline.push({ $match: { negativos: { $gt: 0 } } });
   else if (filtro === 'nota-baixa') pipeline.push({ $match: { 'avaliacao.estrelas': { $lte: 3 } } });
   else if (filtro === 'sem-resposta') pipeline.push({ $match: { semResposta: { $gt: 0 } } });
+  else if (filtro === 'com-erro') pipeline.push({ $match: { erros: { $gt: 0 } } });
 
   // O corte vem depois dos filtros, e não junto do $sort: cortando antes, um
   // filtro estreito devolveria menos linhas do que existem só porque as 200
@@ -212,6 +270,7 @@ export async function exportarCsv(): Promise<string> {
 
   const cabecalho = [
     'sessaoId',
+    'versao',
     'participante',
     'em',
     'papel',
@@ -221,7 +280,9 @@ export async function exportarCsv(): Promise<string> {
     'qtdTrechos',
     'semResposta',
     'erro',
+    'motivoErro',
     'feedback',
+    'feedbackComentario',
     'estrelas',
     'nps',
     'comentario',
@@ -230,6 +291,7 @@ export async function exportarCsv(): Promise<string> {
   const corpo = linhas.map((l) =>
     [
       l.sessaoId,
+      l.sessao?.versao ?? 'a',
       l.sessao?.nome ?? '',
       l.em instanceof Date ? l.em.toISOString() : '',
       l.papel,
@@ -239,7 +301,9 @@ export async function exportarCsv(): Promise<string> {
       l.qtdTrechos ?? '',
       l.semResposta ?? '',
       l.erro ?? '',
+      l.motivoErro ?? '',
       l.feedback ?? '',
+      l.feedbackComentario ?? '',
       l.sessao?.avaliacao?.estrelas ?? '',
       l.sessao?.avaliacao?.nps ?? '',
       l.sessao?.avaliacao?.comentario ?? '',

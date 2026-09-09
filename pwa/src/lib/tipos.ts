@@ -71,11 +71,29 @@ export type Mensagem = {
   feedbackEm?: Date;
 };
 
+/**
+ * Por que a resposta falhou, em categoria grossa.
+ *
+ * Existe para a tela poder dizer algo útil — "demorei demais" é uma informação
+ * que o participante entende e que muda o que ele faz em seguida (tentar de
+ * novo). O `motivo` detalhado fica no banco, para a equipe; esta categoria é o
+ * único pedaço que chega ao navegador.
+ */
+export type CausaErro =
+  /** O fluxo não terminou a tempo. Tentar de novo costuma resolver. */
+  | 'demora'
+  /** Não deu para falar com o n8n: serviço parado, rota errada, token errado.
+   *  Tentar de novo não adianta — alguém precisa religar ou consertar. */
+  | 'fora-do-ar'
+  /** Falhou por outro motivo. */
+  | 'indisponivel';
+
 /** Resposta do fluxo do n8n em `/webhook/pwa-chat`. */
 export type RespostaFluxo = {
   ok: boolean;
   erro?: boolean;
   motivo?: string;
+  causa?: CausaErro;
   resposta: string;
   temContexto: boolean | null;
   qtdTrechos: number | null;
@@ -92,6 +110,9 @@ export type SessaoResumida = Sessao & {
   positivos: number;
   negativos: number;
   semResposta: number;
+  erros: number;
+  /** A resposta mais lenta da conversa, para achar os casos de espera longa. */
+  latenciaMaxima: number | null;
 };
 
 export type Estatisticas = {
@@ -111,6 +132,8 @@ export type Estatisticas = {
   negativos: number;
   latenciaMedia: number | null;
   latenciaP95: number | null;
+  /** Respostas que passaram de 30s — a espera virando problema de experiência. */
+  respostasLentas: number;
 };
 
 /**
@@ -119,4 +142,16 @@ export type Estatisticas = {
  * `validas` é o padrão e esconde as sessões sem nenhuma pergunta; `todas` é o
  * único que as mostra.
  */
-export type Filtro = 'validas' | 'todas' | 'negativos' | 'nota-baixa' | 'sem-resposta';
+export type Filtro =
+  | 'validas'
+  | 'todas'
+  | 'negativos'
+  | 'nota-baixa'
+  | 'sem-resposta'
+  | 'com-erro';
+
+/** Recorte de tempo da revisão. */
+export type Periodo = 'hoje' | '7d' | '30d' | 'tudo';
+
+/** Qual das interfaces entra na conta. */
+export type FiltroVersao = 'a' | 'b' | 'todas';

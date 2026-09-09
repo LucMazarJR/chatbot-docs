@@ -76,13 +76,95 @@
   border-color: var(--verde);
 }
 
+/* --- Barra de filtros ----------------------------------------------------- */
+
+/* Os três recortes ficam em grupos rotulados porque respondem a perguntas
+   diferentes — quando, qual interface, o que deu errado. Numa fileira única
+   ninguém percebia que dava para combinar os três. */
+.filtros-barra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: var(--cartao);
+}
+
+.filtro-grupo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filtro-rotulo {
+  color: var(--tinta-fraca);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.filtro-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filtro-chips button {
+  padding: 5px 11px;
+  border: 1px solid var(--linha);
+  border-radius: 20px;
+  background: none;
+  color: var(--tinta-fraca);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.filtro-chips button:hover {
+  border-color: var(--verde);
+  color: var(--tinta);
+}
+
+.filtro-chips button.ativo {
+  border-color: var(--verde);
+  background: var(--verde);
+  color: #fff;
+}
+
 /* --- Cartões de métrica --------------------------------------------------- */
+
+.paineis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.painel-grupo h2 {
+  margin: 0 0 8px;
+  color: var(--tinta-fraca);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
 .cartoes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
   gap: 10px;
-  margin-bottom: 22px;
+  margin-bottom: 14px;
+}
+
+/* Só o que precisa de atenção ganha cor. Se tudo destacasse, nada destacaria. */
+.cartao-alerta {
+  border-color: var(--ambar);
+}
+
+.cartao-alerta .cartao-valor {
+  color: var(--ambar);
 }
 
 .cartao {
@@ -135,27 +217,16 @@
   overflow-y: auto;
 }
 
-.filtros {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.filtros button {
-  padding: 5px 10px;
-  border: 1px solid var(--linha);
-  border-radius: 20px;
-  background: none;
+.lista-cabecalho {
+  padding: 4px 12px 10px;
+  border-bottom: 1px solid var(--linha);
+  margin-bottom: 4px;
   color: var(--tinta-fraca);
   font-size: 12px;
-  cursor: pointer;
 }
 
-.filtros button.ativo {
-  border-color: var(--verde);
-  background: var(--verde);
-  color: #fff;
+.comentario-feedback {
+  font-style: italic;
 }
 
 .item-sessao {

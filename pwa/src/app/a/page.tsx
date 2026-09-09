@@ -6,7 +6,12 @@ import { Balao, Digitando } from '@/components/Balao';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
 import { RegistrarSW } from '@/components/RegistrarSW';
-import { TEXTO_INDISPONIVEL } from '@/lib/mensagens-fixas';
+import {
+  AVISOS_DE_DEMORA,
+  MS_PARA_CONSIDERAR_DEMORA,
+  TEXTO_DEMOROU_DEMAIS,
+  TEXTO_FORA_DO_AR,
+} from '@/lib/mensagens-fixas';
 import type { Papel } from '@/lib/tipos';
 
 const INATIVIDADE_MS = 2 * 60 * 1000;
@@ -48,6 +53,19 @@ function horaAgora(quando: Date = new Date()) {
 
 function saudacao(quando?: Date): Item {
   return { chave: 'saudacao', papel: 'bot', texto: SAUDACAO, hora: horaAgora(quando) };
+}
+
+/**
+ * O texto a mostrar quando a resposta falhou, ou `null` se não falhou.
+ *
+ * Cada causa muda o que a pessoa deve fazer em seguida: demora pede outra
+ * tentativa, serviço fora do ar pede avisar alguém. Dizer "tente novamente em
+ * alguns minutos" quando o servidor está desligado seria mentira.
+ */
+function textoDaFalha(causa: string | null): string | null {
+  if (causa === 'demora') return TEXTO_DEMOROU_DEMAIS;
+  if (causa === 'fora-do-ar') return TEXTO_FORA_DO_AR;
+  return null;
 }
 
 export default function Pagina() {
@@ -184,6 +202,14 @@ export default function Pagina() {
     perguntasRef.current += 1;
     setDigitando(true);
 
+    // Passado um tempo sem resposta, avisa que ainda está trabalhando. Ficar
+    // olhando três pontinhos por minutos sem explicação é o que faz alguém
+    // fechar a aba — e aí a conversa e a avaliação se perdem junto.
+    const iniciouEm = Date.now();
+    const avisos = AVISOS_DE_DEMORA.map(({ ms, texto }) =>
+      setTimeout(() => adicionarBot(texto, null), ms),
+    );
+
     try {
       const resposta = await fetch(`/api/sessoes/${sessaoId}/mensagens`, {
         method: 'POST',
@@ -201,16 +227,23 @@ export default function Pagina() {
         mensagemId: string;
         resposta: string;
         erro: boolean;
+        causa: 'demora' | 'fora-do-ar' | 'indisponivel' | null;
       };
 
       // Um tique cinza vira dois tiques azuis quando a resposta chega.
       setItens((atuais) =>
         atuais.map((item) => (item.chave === chaveUsuario ? { ...item, lida: true } : item)),
       );
-      adicionarBot(dados.resposta, dados.erro ? null : dados.mensagemId);
+
+      adicionarBot(textoDaFalha(dados.causa) ?? dados.resposta, dados.erro ? null : dados.mensagemId);
     } catch {
-      adicionarBot(TEXTO_INDISPONIVEL, null);
+      // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
+      // provável é a plataforma ter cortado a função no teto dela — isso é
+      // demora. Falhando rápido, o servidor do protótipo é que não respondeu.
+      const demorou = Date.now() - iniciouEm >= MS_PARA_CONSIDERAR_DEMORA;
+      adicionarBot(demorou ? TEXTO_DEMOROU_DEMAIS : TEXTO_FORA_DO_AR, null);
     } finally {
+      avisos.forEach(clearTimeout);
       setDigitando(false);
       reiniciarInatividade();
     }
@@ -334,11 +367,7 @@ export default function Pagina() {
 
           {digitando && <Digitando />}
 
-          {falhaAoAbrir && (
-            <div className="aviso-chat erro">
-              Não consegui abrir a conversa. Verifique sua conexão e recarregue a página.
-            </div>
-          )}
+          {falhaAoAbrir && <div className="aviso-chat erro">{TEXTO_FORA_DO_AR}</div>}
         </main>
 
         <footer className="barra-envio">

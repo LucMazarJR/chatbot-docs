@@ -139,5 +139,9 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     resposta: respostaBot.texto,
     latenciaMs: respostaBot.latenciaMs,
     erro: respostaBot.erro,
+    // Categoria grossa, nunca o `motivo` detalhado: a tela precisa saber se
+    // pode dizer "demorei demais", mas status HTTP e nome de variável não têm
+    // por que chegar ao navegador.
+    causa: resultado.causa ?? null,
   });
 }
