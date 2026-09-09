@@ -235,6 +235,3 @@ volumes:
   redis_data:
   # Credenciais da sessão do WhatsApp. Apagar este volume exige novo QR code.
   wa_sessions:
-  # Mantido até a migração ser validada em produção — permite voltar ao WAHA
-  # sem perder a sessão antiga. Pode ser removido depois.
-  waha_data:
