@@ -53,7 +53,16 @@ export async function POST(requisicao: Request) {
 
   const houveFalha = corpo.ok === false;
   const resposta = corpo.resposta || TEXTO_INDISPONIVEL;
-  const semResposta = corpo.temContexto === false || RE_NAO_ENCONTREI.test(resposta);
+
+  // Vale o TEXTO da resposta, e não a ausência de trechos.
+  //
+  // Antes, `temContexto === false` sozinho já marcava a mensagem como lacuna da
+  // base. Mas o prompt manda o agente saudar sem depender de trecho nenhum:
+  // "oi", "olá" e "bom dia" chegavam aqui sem contexto, eram respondidos
+  // corretamente, e mesmo assim entravam na conta. Na primeira rodada de testes
+  // isso foi 8 das 28 marcações — 29% do indicador era ruído, e o indicador é
+  // justamente o que diz se a base precisa crescer.
+  const semResposta = RE_NAO_ENCONTREI.test(resposta);
 
   await col.updateOne(
     { _id: mensagemId },
