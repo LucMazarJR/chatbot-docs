@@ -1,5 +1,45 @@
 import type { NextConfig } from 'next';
 
+/**
+ * Cabeçalhos de segurança.
+ *
+ * O protótipo guarda conversa sobre saúde de pessoas identificáveis pelo que
+ * escrevem, e até aqui não mandava nenhum destes — qualquer site podia embutir
+ * o chat num iframe e ler o que o participante digitava.
+ *
+ * A CSP permite `unsafe-inline` em script e estilo porque o Next injeta o
+ * próprio bootstrap inline e o React insere estilos em tempo de execução;
+ * apertar isso exigiria nonce por requisição, que a versão B (HTML estático em
+ * `public/b/`) não teria como usar. `blob:` em `media-src` é a gravação de áudio
+ * dessa mesma versão B, e `data:` em `img-src` é o padrão de fundo do chat, que
+ * é um SVG embutido no CSS.
+ */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "media-src 'self' blob:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+const CABECALHOS_DE_SEGURANCA = [
+  { key: 'Content-Security-Policy', value: CSP },
+  // Redundante com `frame-ancestors`, mantido para navegadores antigos.
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  // Sem isto, o endereço da conversa vaza no `Referer` ao clicar num link que a
+  // resposta do agente tenha incluído.
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), geolocation=(), microphone=(self)' },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+];
+
 const config: NextConfig = {
   // `standalone` gera .next/standalone com um servidor Node autocontido e só as
   // dependências realmente usadas. É o que permite a imagem Docker não carregar
@@ -32,13 +72,17 @@ const config: NextConfig = {
     return [{ source: '/b', destination: '/b/index.html' }];
   },
 
-  // O service worker precisa ser sempre buscado da rede, senão o navegador
-  // segura uma versão antiga e a atualização nunca chega ao participante.
   async headers() {
     return [
+      // O service worker precisa ser sempre buscado da rede, senão o navegador
+      // segura uma versão antiga e a atualização nunca chega ao participante.
       {
         source: '/sw.js',
         headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
+      {
+        source: '/:caminho*',
+        headers: CABECALHOS_DE_SEGURANCA,
       },
     ];
   },
