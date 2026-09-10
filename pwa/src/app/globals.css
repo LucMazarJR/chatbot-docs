@@ -123,6 +123,58 @@ button {
   color: var(--texto-fraco);
 }
 
+/* --- Botões de resposta rápida ------------------------------------------- */
+
+/*
+ * Sob o balão do bot, alinhados com ele. Vieram do desenho da versão B: o
+ * aceite dos termos vira um toque em vez de digitação, e quem abre o chat sem
+ * saber o que perguntar tem por onde começar.
+ */
+.botoes-rapidos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 10px 2px;
+  max-width: min(78%, 34rem);
+}
+
+.botoes-rapidos button {
+  padding: 7px 14px;
+  border: 1px solid var(--acento);
+  border-radius: 18px;
+  background: var(--balao-entrada);
+  color: var(--acento);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.12s;
+}
+
+.botoes-rapidos button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--acento) 10%, var(--balao-entrada));
+}
+
+/* O escolhido fica preenchido e os outros somem: uma conversa retomada não
+   pode mostrar botão já usado, que convida ao clique duplo. */
+.botoes-rapidos button.escolhido {
+  background: var(--acento);
+  color: #fff;
+  cursor: default;
+}
+
+.menu-divisor {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--borda);
+}
+
+/* A foto do contato, como no WhatsApp. */
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 /* --- Cabeçalho ----------------------------------------------------------- */
 
 .topo {

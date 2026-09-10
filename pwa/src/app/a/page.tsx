@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { aguardarResposta } from '@/lib/aguardar-resposta';
 import { Balao, Digitando } from '@/components/Balao';
+import { BotoesRapidos, type BotaoRapido } from '@/components/BotoesRapidos';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
 import { RegistrarSW } from '@/components/RegistrarSW';
@@ -46,14 +47,80 @@ type Item = {
   comFeedback?: boolean;
   /** Nas mensagens do participante: dois tiques azuis quando a resposta chegou. */
   lida?: boolean;
+  /** Respostas rápidas sob o balão, no lugar de digitar. */
+  botoes?: BotaoRapido[];
+  /** O que já foi escolhido: some com os outros e marca este. */
+  escolhido?: string;
 };
+
+/**
+ * Pedido de aceite, antes de qualquer pergunta.
+ *
+ * O aviso era passivo — um recado no meio da conversa, que dava para ignorar e
+ * seguir perguntando. Como o protótipo grava relato de saúde, o consentimento
+ * precisa ser um ato: sem tocar em "Aceitar", o campo não envia. E a data fica
+ * registrada, o que transforma o aviso em evidência — numa auditoria de LGPD,
+ * "avisamos na tela" vale menos que "aceite às 14h31".
+ */
+const PEDIDO_DE_ACEITE = [
+  'Antes de começarmos, preciso do seu aceite. 📋',
+  '',
+  'Este é um *protótipo em teste*. As mensagens desta conversa ficam registradas para que a equipe avalie a qualidade das respostas.',
+  '',
+  'Por favor, *não informe dados pessoais* como CPF, cartão do SUS, endereço ou informações de saúde que identifiquem você ou outra pessoa.',
+  '',
+  'Você aceita continuar nessas condições?',
+].join('\n');
+
+const ACEITE_RECUSADO = [
+  'Tudo bem, e obrigado por avisar. 🙂',
+  '',
+  'Sem o aceite eu não posso registrar a conversa, e sem registro não consigo responder. Se mudar de ideia, é só tocar em *Aceitar* acima.',
+].join('\n');
+
+const BOTOES_DE_ACEITE: BotaoRapido[] = [
+  { rotulo: 'Aceitar', valor: 'aceitar' },
+  { rotulo: 'Agora não', valor: 'recusar' },
+];
+
+/**
+ * Sugestões de partida, mostradas junto da saudação.
+ *
+ * No primeiro teste, 8 das 28 conversas marcadas como "não encontrou" eram só
+ * "oi" — gente que abriu o chat e não sabia o que pedir. Os assuntos abaixo são
+ * os que mais aparecem na base de FAQs.
+ */
+const SUGESTOES: BotaoRapido[] = [
+  { rotulo: 'Preparo para exames', valor: 'Como devo me preparar para um exame de sangue?' },
+  {
+    rotulo: 'Unidades de saúde',
+    valor: 'Quais são as unidades de saúde e os horários de atendimento?',
+  },
+  { rotulo: 'Medicamentos', valor: 'Como funciona a Farmácia Popular?' },
+];
 
 function horaAgora(quando: Date = new Date()) {
   return quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function saudacao(quando?: Date): Item {
-  return { chave: 'saudacao', papel: 'bot', texto: SAUDACAO, hora: horaAgora(quando) };
+  return {
+    chave: 'saudacao',
+    papel: 'bot',
+    texto: SAUDACAO,
+    hora: horaAgora(quando),
+    botoes: SUGESTOES,
+  };
+}
+
+function pedidoDeAceite(quando?: Date): Item {
+  return {
+    chave: 'aceite',
+    papel: 'bot',
+    texto: PEDIDO_DE_ACEITE,
+    hora: horaAgora(quando),
+    botoes: BOTOES_DE_ACEITE,
+  };
 }
 
 /**
@@ -78,6 +145,7 @@ export default function Pagina() {
   const [encerrada, setEncerrada] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [texto, setTexto] = useState('');
+  const [aceitou, setAceitou] = useState(false);
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
@@ -135,6 +203,7 @@ export default function Pagina() {
       const dados = (await resposta.json()) as {
         iniciadaEm: string;
         encerrada: boolean;
+        consentimento: boolean;
         mensagens: { _id: string; papel: Papel; texto: string; em: string; erro?: boolean }[];
       };
 
@@ -145,11 +214,17 @@ export default function Pagina() {
       }
 
       setSessaoId(id);
+      setAceitou(dados.consentimento);
       perguntasRef.current = dados.mensagens.filter((m) => m.papel === 'user').length;
+
+      const inicio = new Date(dados.iniciadaEm);
       setItens([
-        // A saudação é local e nunca foi para o banco, então é remontada aqui —
-        // com a hora em que a conversa começou, não a do refresh.
-        saudacao(new Date(dados.iniciadaEm)),
+        // Aceite e saudação são locais e nunca foram para o banco, então são
+        // remontados aqui — com a hora em que a conversa começou, não a do
+        // refresh. Quem já aceitou não recebe o pedido de novo.
+        ...(dados.consentimento
+          ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, saudacao(inicio)]
+          : [pedidoDeAceite(inicio)]),
         ...dados.mensagens.map((m) => ({
           chave: m._id,
           papel: m.papel,
@@ -180,20 +255,71 @@ export default function Pagina() {
       const dados = (await resposta.json()) as { sessaoId: string };
       localStorage.setItem(CHAVE_SESSAO, dados.sessaoId);
       setSessaoId(dados.sessaoId);
-      setItens([saudacao()]);
+      setItens([pedidoDeAceite()]);
     } catch {
       setFalhaAoAbrir(true);
     }
   }
 
+  // --- Botões de resposta rápida -------------------------------------------
+
+  /**
+   * Marca o botão escolhido e some com os outros.
+   *
+   * Sem isso, uma conversa retomada mostraria botões já usados, convidando ao
+   * clique duplo — e no caso do aceite, a um segundo registro de consentimento.
+   */
+  function marcarEscolha(chave: string, valor: string) {
+    setItens((atuais) =>
+      atuais.map((item) => (item.chave === chave ? { ...item, escolhido: valor } : item)),
+    );
+  }
+
+  async function escolherBotao(item: Item, botao: BotaoRapido) {
+    marcarEscolha(item.chave, botao.valor);
+
+    if (item.chave !== 'aceite') {
+      // Sugestão de assunto: vale como pergunta digitada.
+      void enviarTexto(botao.valor);
+      return;
+    }
+
+    const aceitando = botao.valor === 'aceitar';
+    setAceitou(aceitando);
+
+    // Sem await e sem tratar erro na tela: perder o registro não pode
+    // interromper a conversa, e a data serve à equipe, não ao participante.
+    if (sessaoId) {
+      void fetch(`/api/sessoes/${sessaoId}/consentimento`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aceito: aceitando }),
+      }).catch(() => {});
+    }
+
+    if (aceitando) {
+      setItens((atuais) => [...atuais, saudacao()]);
+      campoRef.current?.focus();
+    } else {
+      adicionarBot(ACEITE_RECUSADO, null);
+    }
+  }
+
   // --- Envio ---------------------------------------------------------------
 
-  async function enviar() {
+  function enviar() {
     const pergunta = texto.trim();
-    if (!pergunta || !sessaoId || digitando || encerrada) return;
+    if (!pergunta) return;
 
     setTexto('');
     if (campoRef.current) campoRef.current.style.height = 'auto';
+    void enviarTexto(pergunta);
+  }
+
+  async function enviarTexto(pergunta: string) {
+    // O aceite é a única porta: sem ele nada é enviado, nem por digitação nem
+    // por botão.
+    if (!sessaoId || !aceitou || digitando || encerrada) return;
 
     const chaveUsuario = crypto.randomUUID();
     setItens((atuais) => [
@@ -308,10 +434,11 @@ export default function Pagina() {
 
       <section className="tela">
         <header className="topo">
-          <div className="avatar" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff">
-              <path d="M12 2a10 10 0 0 0-8.7 14.9L2 22l5.3-1.3A10 10 0 1 0 12 2Zm1 14h-2v-3H8v-2h3V8h2v3h3v2h-3v3Z" />
-            </svg>
+          {/* Foto no lugar do ícone genérico: o WhatsApp mostra o retrato do
+              contato, e um chat de saúde sem rosto parece formulário. */}
+          <div className="avatar">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/avatar.png" alt="" width={40} height={40} />
           </div>
 
           <div className="topo-nome">
@@ -338,6 +465,25 @@ export default function Pagina() {
 
         {menuAberto && (
           <div className="menu">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuAberto(false);
+                setAvaliando(true);
+              }}
+            >
+              Enviar feedback
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuAberto(false);
+                setAvaliando(true);
+              }}
+            >
+              Relatar um problema
+            </button>
+            <div className="menu-divisor" />
             <button
               type="button"
               onClick={() => {
@@ -374,6 +520,13 @@ export default function Pagina() {
                 // O rabinho só aparece no primeiro balão de uma sequência.
                 primeira={indice === 0 || itens[indice - 1].papel !== item.papel}
               />
+              {item.botoes && (
+                <BotoesRapidos
+                  botoes={item.botoes}
+                  escolhido={item.escolhido}
+                  onEscolher={(botao) => void escolherBotao(item, botao)}
+                />
+              )}
               {item.comFeedback && item.mensagemId && <Feedback mensagemId={item.mensagemId} />}
             </div>
           ))}
@@ -388,11 +541,17 @@ export default function Pagina() {
             <textarea
               ref={campoRef}
               rows={1}
-              placeholder={encerrada ? 'Conversa encerrada' : 'Mensagem'}
+              placeholder={
+                encerrada
+                  ? 'Conversa encerrada'
+                  : aceitou
+                    ? 'Mensagem'
+                    : 'Aceite os termos acima para começar'
+              }
               enterKeyHint="send"
               maxLength={1000}
               aria-label="Escreva sua mensagem"
-              disabled={encerrada || !sessaoId}
+              disabled={encerrada || !sessaoId || !aceitou}
               value={texto}
               onChange={(evento) => {
                 setTexto(evento.target.value);
@@ -414,7 +573,7 @@ export default function Pagina() {
           <button
             className="enviar"
             aria-label="Enviar"
-            disabled={!texto.trim() || digitando || encerrada || !sessaoId}
+            disabled={!texto.trim() || digitando || encerrada || !sessaoId || !aceitou}
             onClick={() => void enviar()}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

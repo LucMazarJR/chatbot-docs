@@ -50,6 +50,16 @@ export type Sessao = {
   encerradaEm: Date | null;
   userAgent: string;
   avaliacao: Avaliacao | null;
+
+  /**
+   * Quando a pessoa aceitou os termos.
+   *
+   * Guardar a data é o que transforma o aviso em evidência: numa auditoria de
+   * LGPD, "avisamos na tela" vale menos que "esta conversa começou às 14h32
+   * com aceite às 14h31". Nulo enquanto ninguém aceitou.
+   */
+  consentimentoEm?: Date | null;
+  consentimentoRecusadoEm?: Date | null;
 };
 
 export type Avaliacao = {

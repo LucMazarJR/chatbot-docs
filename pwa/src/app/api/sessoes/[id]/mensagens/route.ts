@@ -43,6 +43,8 @@ export async function GET(_requisicao: Request, { params }: Contexto) {
     // mensagens mais antigas, e com o relógio andando para trás na tela.
     iniciadaEm: sessao.iniciadaEm,
     encerrada: Boolean(sessao.encerradaEm),
+    // Quem já aceitou não recebe o pedido de novo a cada recarga.
+    consentimento: Boolean(sessao.consentimentoEm),
     // Uma resposta que ficou pendente de uma visita anterior não volta como
     // conversa: sem alguém esperando por ela, é ruído na transcrição.
     mensagens: lista.filter((m) => !m.pendente),
