@@ -4,6 +4,11 @@
  * `Sessao` e `Mensagem` são exatamente o que vai para o MongoDB — não há
  * camada de mapeamento entre banco e aplicação, de propósito: é um protótipo de
  * validação, e uma indireção a mais só atrapalharia quem for ler isto depois.
+ *
+ * O painel que lia estes dados vive agora no Dashboard-PetSaúde, que declara os
+ * próprios tipos em `front/src/lib/conversas.functions.ts` e os próprios schemas
+ * em `back/src/conversas/schemas/`. Este arquivo continua sendo o dono do
+ * formato: mudar um campo aqui exige mudar lá na mesma alteração.
  */
 
 /** Um trecho recuperado da busca vetorial, com o veredito do filtro de score. */
@@ -11,6 +16,18 @@ export type TrechoDebug = {
   score: number;
   /** `false` quando o trecho ficou abaixo do limiar e não chegou ao agente. */
   usado: boolean;
+  /**
+   * Id da FAQ no Mongo.
+   *
+   * É o que liga a conversa ao conteúdo: a revisão usa este id para levar de
+   * uma resposta ruim direto ao documento que precisa ser corrigido. Buscar
+   * pelo texto não serviria — há 180 FAQs com a pergunta "Como me preparar
+   * para o Exame?", distinguidas só pelo assunto.
+   *
+   * Pode vir nulo: o nó do vector store não documenta sob qual chave devolve o
+   * id, e o formato de saída dele já mudou entre versões.
+   */
+  faqId: string | null;
   category: string | null;
   question: string | null;
   previa: string | null;
@@ -69,7 +86,7 @@ export type Mensagem = {
   trechosDebug?: TrechoDebug[];
   limiarScore?: number | null;
   modelo?: string | null;
-  /** O agente respondeu o texto de "não encontrei", ou a busca não trouxe nada. */
+  /** O agente respondeu o texto de "não encontrei" — lacuna de conteúdo. */
   semResposta?: boolean;
   erro?: boolean;
   /** Por que falhou: timeout, HTTP 404 do n8n, variável ausente. Só quando `erro`. */
@@ -111,56 +128,3 @@ export type RespostaFluxo = {
   modelo: string | null;
   latenciaMs: number;
 };
-
-/** Linha da lista de sessões na tela de revisão. */
-export type SessaoResumida = Sessao & {
-  qtdMensagens: number;
-  qtdPerguntas: number;
-  positivos: number;
-  negativos: number;
-  semResposta: number;
-  erros: number;
-  /** A resposta mais lenta da conversa, para achar os casos de espera longa. */
-  latenciaMaxima: number | null;
-};
-
-export type Estatisticas = {
-  /** Só as que tiveram ao menos uma pergunta. */
-  sessoes: number;
-  /** Visitas que abriram a página e saíram sem perguntar nada. */
-  sessoesVazias: number;
-  sessoesAvaliadas: number;
-  mensagens: number;
-  respostas: number;
-  notaMedia: number | null;
-  npsMedio: number | null;
-  npsScore: number | null;
-  percentualSemResposta: number | null;
-  erros: number;
-  positivos: number;
-  negativos: number;
-  latenciaMedia: number | null;
-  latenciaP95: number | null;
-  /** Respostas que passaram de 30s — a espera virando problema de experiência. */
-  respostasLentas: number;
-};
-
-/**
- * Filtros da lista de sessões.
- *
- * `validas` é o padrão e esconde as sessões sem nenhuma pergunta; `todas` é o
- * único que as mostra.
- */
-export type Filtro =
-  | 'validas'
-  | 'todas'
-  | 'negativos'
-  | 'nota-baixa'
-  | 'sem-resposta'
-  | 'com-erro';
-
-/** Recorte de tempo da revisão. */
-export type Periodo = 'hoje' | '7d' | '30d' | 'tudo';
-
-/** Qual das interfaces entra na conta. */
-export type FiltroVersao = 'a' | 'b' | 'todas';

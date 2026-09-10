@@ -164,8 +164,6 @@ services:
       # cabeçalho encaminhado já traz o domínio público, que é alcançável.
       PWA_PUBLIC_URL: ${PWA_PUBLIC_URL:-http://pwa:8080}
 
-      # Vazia = tela de revisão aberta, como decidido. Preencher liga Basic Auth.
-      PWA_ADMIN_PASSWORD: ${PWA_ADMIN_PASSWORD:-}
     ports:
       # Sem o 127.0.0.1 dos demais serviços: durante um teste presencial os
       # celulares precisam alcançar esta porta pela rede local.

@@ -40,12 +40,17 @@ O canal em produção continua igual. O isolamento é de ponta a ponta:
      │              │     ├─ Redis Chat Memory      │
      │              │     └─ Gemini (chave _2)      │
      │              └────────┬──────────────────────┘
-     │   resposta            │ resposta + metadados da busca
+     │                       │ quando termina, devolve em
+     │                       ▼ POST /api/n8n/resposta
      │◄────────────  grava em  pwa_prototipo
-                       sessoes · mensagens
-                                  ▲
-  Equipe (PC) ──► /admin ─────────┘
+     (a tela vai            sessoes · mensagens
+      consultando)                 ▲
+                                   │
+  Equipe ──► Dashboard-PetSaúde ───┘
+             /conversas (login + papel admin)
 ```
+
+Nenhuma requisição fica aberta esperando: o fluxo responde ao **receber**, e devolve o resultado quando termina. É o que permite uma resposta levar três minutos sem bater em teto de plataforma nenhum.
 
 ---
 
@@ -63,7 +68,6 @@ PWA_PORT=8080
 PWA_MONGO_DB=pwa_prototipo
 N8N_PWA_WEBHOOK_URL=http://n8n:5678/webhook/pwa-chat
 N8N_PWA_WEBHOOK_TOKEN=<o token gerado>
-PWA_ADMIN_PASSWORD=
 ```
 
 ⚠️ **`GEMINI_API_KEY_2` precisa ser de outro projeto Google.** A cota gratuita é por projeto: duas chaves do mesmo projeto dividem o mesmo balde de 500 chats/dia, e o "isolamento" seria só aparente — uma tarde de testes derrubaria o bot do WhatsApp.
@@ -103,7 +107,9 @@ curl.exe -X POST http://localhost:5678/webhook/pwa-chat `
   -d '{\"sessionId\":\"teste\",\"texto\":\"quais exames precisam de jejum?\",\"nome\":\"Teste\",\"mensagemId\":\"1\"}'
 ```
 
-Espera `"ok": true`, `resposta` preenchida e `trechosDebug` com os scores. Se vier 404, o fluxo não está ativo; se vier 403, a credencial Header Auth não bate com o `.env`.
+Espera **HTTP 200 imediato** — o webhook confirma o recebimento, não a resposta. Se vier 404, o fluxo não está ativo; se vier 403, a credencial Header Auth não bate com o `.env`.
+
+A resposta em si chega depois, pelo retorno em `/api/n8n/resposta`. Para ver o ciclo inteiro, use o chat: mande uma pergunta e acompanhe até o balão aparecer.
 
 ---
 
@@ -154,18 +160,19 @@ O túnel **já expõe** essa rota, autenticada — um POST sem o `X-Webhook-Toke
 | `PWA_MONGO_DB` | `pwa_prototipo` |
 | `N8N_PWA_WEBHOOK_URL` | `https://petbot.lucianomjr.dev/webhook/pwa-chat` — **a URL do túnel, não `http://n8n:5678`** |
 | `N8N_PWA_WEBHOOK_TOKEN` | o mesmo do `.env` |
-| `PWA_ADMIN_PASSWORD` | **preencha** — ver o aviso abaixo |
 
 4. Deploy.
 
-> ⚠️ **Na Vercel, preencha a `PWA_ADMIN_PASSWORD`.** No seu PC, deixar `/admin` aberto é aceitável: só quem está na sua rede alcança. Publicada, a mesma tela expõe conversas sobre saúde para qualquer um que descubra a URL. É uma variável de ambiente, custa nada — e o middleware já faz o resto.
+> O PWA publicado tem **só o chat**. O painel de conversas mora no
+> Dashboard-PetSaúde, em `/conversas`, atrás do login e do papel de admin que já
+> existem lá — ver [O painel de conversas](#o-painel-de-conversas).
 
 ### O que muda em relação ao Docker
 
 **Nada no código.** As mesmas variáveis, o mesmo Next. Três detalhes já resolvidos, mas que valem saber:
 
 - **`output: 'standalone'` é desligado na Vercel** — ver [Armadilhas](#armadilhas).
-- **`maxDuration = 60`** na rota de mensagens. O padrão da Vercel é 10s, e uma resposta leva 6 a 12s no caminho feliz — com o agente tentando 3 vezes contra sobrecarga do Gemini, passa de 30s. Sem esse ajuste, as mensagens lentas morreriam num 504 da plataforma em vez de esperar.
+- **O teto de 60s da Vercel deixou de importar.** Era o problema central: 35% das respostas eram geradas pelo Gemini e mortas no caminho de volta. Com o retorno assíncrono, cada requisição dura milissegundos e a espera acontece em consultas curtas.
 - **O limite por IP vive no Mongo**, não em memória. Em serverless cada requisição pode cair numa instância diferente, e instância fria começa zerada: um contador em memória marcaria "1 de 40" para sempre e não seguraria a cota.
 
 ### Continua dependendo da sua máquina
@@ -194,11 +201,13 @@ Sob cada resposta do bot há **👍/👎**. É o dado mais valioso da validaçã
 
 A avaliação final abre pelo menu (**Encerrar e avaliar**) ou sozinha, após 2 minutos parado com pelo menos 3 perguntas feitas. São três campos, todos opcionais: nota ★1–5, NPS 0–10 e um comentário.
 
-### Revisão — `/admin`
+### O painel de conversas
 
-Tela grande. Cartões no topo (sessões, nota média, NPS, **% de "não encontrei"**, latência média e p95, polegares), lista de sessões à esquerda com filtros, transcrição à direita.
+**Não fica mais no PWA.** Migrou para o Dashboard-PetSaúde, em **`/conversas`**, e só abre para quem tem papel `admin` — o conteúdo é relato de sintoma e pedido de atendimento escritos por cidadãos identificáveis pelo que contam, e a senha única de antes não tinha identidade nem registro de quem leu o quê.
 
-**Clique numa resposta do bot** para abrir os bastidores dela: cada trecho que a busca vetorial devolveu, com o score e se passou do limiar.
+Cartões no topo agrupados por assunto (uso, qualidade, desempenho), filtros de período, interface e situação, e a transcrição de cada conversa.
+
+**Clique numa resposta do bot** para abrir os bastidores dela: cada pergunta da base que a busca trouxe, com o score e se passou do limiar. Cada linha leva à FAQ pelo id, para quem revisa ir da resposta ruim direto ao documento que precisa de conserto.
 
 > Esse painel é o retorno mais direto do protótipo. O `LIMIAR_SCORE = 0.82` do fluxo foi estimado a partir de **cinco consultas manuais** ([whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json), nó *Montar contexto*). Olhar os scores numa resposta marcada com 👎 mostra se o corte está alto demais (o trecho certo ficou de fora por pouco) ou baixo demais (entrou ruído que confundiu o agente).
 
@@ -230,7 +239,7 @@ Antes de sair:
 - [ ] **Conferir a cota do dia**: cada mensagem gasta 1 chat + 1 embedding. No plano gratuito são 500 conversas/dia, ou seja **~50 participantes com 10 perguntas cada**
 - [ ] **Liberar recursos**: `COMPOSE_PROFILES=` no `.env` deixa o dashboard fora e economiza ~120 MB
 - [ ] **Testar o link no próprio celular antes de sair de casa**, pela mesma via que os participantes vão usar
-- [ ] Deixar a aba `/admin` aberta noutra janela para acompanhar as sessões chegando
+- [ ] Deixar o Dashboard-PetSaúde aberto em `/conversas` noutra janela, para acompanhar as sessões chegando
 
 ---
 
