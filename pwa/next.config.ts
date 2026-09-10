@@ -9,18 +9,15 @@ import type { NextConfig } from 'next';
  *
  * A CSP permite `unsafe-inline` em script e estilo porque o Next injeta o
  * próprio bootstrap inline e o React insere estilos em tempo de execução;
- * apertar isso exigiria nonce por requisição, que a versão B (HTML estático em
- * `public/b/`) não teria como usar. `blob:` em `media-src` é a gravação de áudio
- * dessa mesma versão B, e `data:` em `img-src` é o padrão de fundo do chat, que
- * é um SVG embutido no CSS.
+ * apertar isso exigiria nonce por requisição. `data:` em `img-src` é o padrão de
+ * fundo do chat, que é um SVG embutido no CSS.
  */
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data:",
   "font-src 'self' data:",
-  "media-src 'self' blob:",
   "connect-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -56,21 +53,6 @@ const config: NextConfig = {
   // front do dashboard: o alvo do build precisa diferir entre Docker e a
   // plataforma. `VERCEL` é definida por eles em todo build lá.
   output: process.env.VERCEL ? undefined : 'standalone',
-
-  /**
-   * A versão B é HTML/CSS/JS puro, servido de `public/b/`.
-   *
-   * Ela foi desenhada assim por outra pessoa, e reescrevê-la em React antes de o
-   * grupo escolher entre as duas seria refazer um trabalho que pode ser
-   * descartado — e arriscaria alterar justamente o que está em avaliação. Só as
-   * chamadas ao backend foram trocadas; o desenho está intacto.
-   *
-   * O Next serve `public/b/index.html` em `/b/index.html`, mas não em `/b`.
-   * Esta reescrita faz a rota curta funcionar.
-   */
-  async rewrites() {
-    return [{ source: '/b', destination: '/b/index.html' }];
-  },
 
   async headers() {
     return [
