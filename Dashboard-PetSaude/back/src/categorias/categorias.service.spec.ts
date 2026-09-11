@@ -45,10 +45,11 @@ describe('CategoriasService', () => {
 
   /** O que o $group da revisão devolveria para as FAQs do teste. */
   const agrupadas = () => {
-    const mapa = new Map<string, { _id: string; count: number; exemplos: any[] }>();
+    type Grupo = { _id: string; count: number; exemplos: { id: string; question: string }[] };
+    const mapa = new Map<string, Grupo>();
     for (const f of faqs) {
       const chave = f.category ?? '';
-      const grupo = mapa.get(chave) ?? { _id: chave, count: 0, exemplos: [] };
+      const grupo: Grupo = mapa.get(chave) ?? { _id: chave, count: 0, exemplos: [] };
       grupo.count += 1;
       grupo.exemplos.push({ id: f._id, question: f.question });
       mapa.set(chave, grupo);

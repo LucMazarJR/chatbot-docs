@@ -41,6 +41,13 @@ export class CategoriasController {
         return this.categorias.criar(body, { id: user.id, name: user.name });
     }
 
+    /** Reescreve as variantes de grafia deste assunto para o nome oficial. */
+    @Post(':id/normalizar')
+    @Roles('admin')
+    normalizar(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+        return this.categorias.normalizarGrafia(id, { id: user.id, name: user.name });
+    }
+
     @Put(':id')
     @Roles('admin')
     atualizar(

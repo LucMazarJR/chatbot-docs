@@ -263,7 +263,12 @@ export class CategoriasService {
             .lean()
             .exec();
 
-        const alvos = docs.filter((d) => chaveDeCategoria(d.category) === chaveAntiga);
+        // Quem já está com a grafia de destino fica de fora: reescrever daria o
+        // mesmo documento, mas entraria na conta de `reindexar` e mandaria
+        // regerar vetor de FAQ que não mudou — cota gasta à toa.
+        const alvos = docs.filter(
+            (d) => chaveDeCategoria(d.category) === chaveAntiga && d.category !== nomeNovo,
+        );
         if (alvos.length === 0) return 0;
 
         const operacoes = alvos.map((d) => ({
@@ -284,6 +289,44 @@ export class CategoriasService {
 
         await this.faqModel.bulkWrite(operacoes);
         return alvos.length;
+    }
+
+    /**
+     * Alinha as variantes de grafia à grafia oficial.
+     *
+     * LÓGICA DO LUCIANO: é a ação que resolve a maior parte da bagunça, e é a
+     * única da curadoria que não precisa de ninguém decidindo nada. "exames",
+     * "EXAMES" e "Exames" são o mesmo assunto — a chave já diz isso. O que falta
+     * é escrever todos do mesmo jeito, e isso é mecânico.
+     *
+     * Sai daqui com a mesma pendência do renomear: o nome entra no texto
+     * embedado, então as FAQs ajustadas ficam com vetor descrevendo a grafia
+     * antiga. Vale o mesmo caminho — a resposta diz quantas, e o backfill por
+     * categoria reindexa quando alguém mandar.
+     */
+    async normalizarGrafia(
+        id: string,
+        actor: { id?: string; name: string },
+    ): Promise<{ ok: true; ajustadas: number; reindexar: number }> {
+        if (!isValidObjectId(id)) throw new NotFoundException('Categoria nao encontrada');
+        const doc = await this.categoriaModel.findById(id).lean().exec();
+        if (!doc) throw new NotFoundException('Categoria nao encontrada');
+
+        const ajustadas = await this.renomearNasFaqs(doc.chave, doc.nome);
+
+        if (ajustadas > 0) {
+            void this.activityService.registrar({
+                actor_name: actor.name,
+                actor_id: actor.id,
+                action: 'padronizar',
+                entity_type: 'categoria',
+                entity_id: id,
+                target: doc.nome,
+                after: { perguntas_ajustadas: ajustadas },
+            });
+        }
+
+        return { ok: true, ajustadas, reindexar: ajustadas };
     }
 
     async remover(id: string, actor: { id?: string; name: string }): Promise<{ ok: true }> {
