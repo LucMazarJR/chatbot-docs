@@ -531,12 +531,26 @@ export class FaqsService {
         this.assertConteudoValido(newQuestion, newAnswer);
         const newContentHash = this.generateHash(newQuestion, newAnswer);
 
+        const textoAnterior = this.montarTexto(faq.category ?? '', faq.question, faq.answer);
         const novoTexto = this.montarTexto(cat, newQuestion, newAnswer);
 
-        // Só re-embeda se o conteúdo mudou de verdade — o hash é a diferença
-        // entre gastar uma chamada de API por edição de tag e não gastar.
+        // Só re-embeda se o TEXTO EMBEDADO mudou — é a diferença entre gastar
+        // uma chamada de API por edição de tag e não gastar.
+        //
+        // A comparação é do texto, e não do content_hash, porque o hash é
+        // MD5(pergunta|resposta) e ignora a categoria — enquanto a categoria
+        // ENTRA no texto embedado, como "Assunto: ...". Comparando hashes,
+        // corrigir só a categoria de uma FAQ reescrevia o campo `text` e
+        // deixava o vetor descrevendo a categoria antiga, sem que nada
+        // indicasse isso: nem o modo `desatualizados` do backfill pegava o
+        // caso, porque embedding_content_hash continuava batendo.
+        //
+        // Não dá para simplesmente incluir a categoria no content_hash: ele é
+        // contrato compartilhado com o gerar_hash_conteudo do enviar_dados.py e
+        // com a deduplicação da importação em lote. Mudá-lo faria as duas
+        // pararem de reconhecer o que já está na base.
         let vetor: VetorGerado | null = null;
-        if (newContentHash !== faq.content_hash) {
+        if (novoTexto !== textoAnterior) {
             vetor = await this.gerarVetor(novoTexto);
         }
 
