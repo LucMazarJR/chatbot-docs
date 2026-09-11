@@ -11,7 +11,7 @@ import {
   Settings,
   Stethoscope,
   Upload,
-  Users, MessagesSquare } from "lucide-react";
+  Users, MessagesSquare, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { getSession, logout, type UserRole } from "@/lib/auth.functions";
@@ -62,6 +62,7 @@ type Destino = {
     | "/"
     | "/categorias"
     | "/conversas"
+    | "/curadoria"
     | "/importar"
     | "/auditoria"
     | "/usuarios"
@@ -78,6 +79,9 @@ const DESTINOS: Destino[] = [
   // Conversas do chatbot: relato de sintoma e pedido de atendimento escritos
   // por cidadãos. Só admin, como Histórico e Usuários.
   { para: "/conversas", rotulo: "Conversas", Icone: MessagesSquare, papeis: ["admin"] },
+  // A fila expõe o que cidadãos escreveram no chat, com o id da conversa de
+  // origem — mesmo material das Conversas, mesma regra.
+  { para: "/curadoria", rotulo: "Sem resposta", Icone: Sparkles, papeis: ["admin"] },
   { para: "/importar", rotulo: "Importar", Icone: Upload, papeis: ["admin", "editor"] },
   { para: "/auditoria", rotulo: "Histórico", Icone: History, papeis: ["admin"] },
   { para: "/usuarios", rotulo: "Usuários", Icone: Users, papeis: ["admin"] },

@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Sparkles } from "lucide-react";
 
 import { GateShell } from "@/components/gate";
+import { getFilaCuradoria } from "@/lib/curadoria.functions";
 import { exigirAdmin } from "@/lib/guardas";
 import {
   getEstatisticasConversas,
@@ -131,6 +132,8 @@ function ConversasPage() {
           </GrupoDeFiltro>
         </div>
 
+        <AvisoDaFila />
+
         {estatisticas.data && <Numeros dados={estatisticas.data} />}
 
         {conversas.isError ? (
@@ -206,6 +209,42 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Quantas perguntas sem resposta esperam análise.
+ *
+ * LÓGICA DO LUCIANO: fica aqui, e não só na tela da fila, porque esta é a tela
+ * que alguém abre para ver como o chatbot foi. "Não encontrou" era um número
+ * entre os outros indicadores, e um número não pede nada a ninguém. Com o
+ * contador e o caminho ao lado, a lacuna deixa de ser diagnóstico e vira tarefa.
+ *
+ * Só aparece quando há fila: um aviso permanente de "0 pendentes" é ruído.
+ */
+function AvisoDaFila() {
+  const fila = useQuery({ queryKey: ["curadoria-fila"], queryFn: () => getFilaCuradoria() });
+
+  const pendentes = fila.data?.pendentes ?? 0;
+  if (pendentes === 0) return null;
+
+  return (
+    <Link
+      to="/curadoria"
+      className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 transition-colors hover:border-primary/50"
+    >
+      <span className="flex items-start gap-2 text-sm">
+        <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+        <span>
+          <strong>
+            {pendentes} {pendentes === 1 ? "pergunta" : "perguntas"} sem resposta
+          </strong>{" "}
+          {pendentes === 1 ? "aguarda" : "aguardam"} análise
+          {fila.data?.prontoParaRodar ? " — já dá para rodar uma rodada" : ""}.
+        </span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+    </Link>
   );
 }
 
