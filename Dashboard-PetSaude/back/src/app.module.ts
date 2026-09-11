@@ -15,6 +15,7 @@ import { ImportScriptsModule } from './import-scripts/import-scripts.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ImportModule } from './import/import.module';
 import { ConversasModule } from './conversas/conversas.module';
+import { CuradoriaModule } from './curadoria/curadoria.module';
 import { CONEXAO_PROTOTIPO } from './conversas/conexao';
 import { ImportScript } from './import-scripts/entities/import-script.entity';
 import { User } from './users/entities/user.entity';
@@ -99,6 +100,7 @@ import { UserSession } from './users/entities/user-session.entity';
     ImportScriptsModule,
     ImportModule,
     ConversasModule,
+    CuradoriaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

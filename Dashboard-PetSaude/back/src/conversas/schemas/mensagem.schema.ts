@@ -86,6 +86,22 @@ export class Mensagem {
     @Prop({ default: false })
     semResposta: boolean;
 
+    /**
+     * Onde esta lacuna está na fila de curadoria.
+     *
+     * LÓGICA DO LUCIANO: é o ÚNICO campo desta coleção que não vem do PWA — quem
+     * escreve é o job de curadoria daqui. Está gravado junto da mensagem, e não
+     * numa coleção à parte, porque a pergunta é "esta lacuna já foi tratada?", e
+     * a resposta pertence à lacuna. Uma tabela de controle separada precisaria
+     * ser mantida em sincronia com mensagens que podem ser apagadas junto com o
+     * protótipo.
+     *
+     * Ausente quer dizer pendente: as mensagens que já existiam antes deste
+     * campo são lacunas legítimas e precisam entrar na fila.
+     */
+    @Prop({ type: String, default: null })
+    curadoria: 'pendente' | 'processada' | 'descartada' | null;
+
     @Prop({ default: false })
     erro: boolean;
 
@@ -108,3 +124,10 @@ export const MensagemSchema = SchemaFactory.createForClass(Mensagem);
 MensagemSchema.index({ sessaoId: 1, em: 1 });
 MensagemSchema.index({ feedback: 1 });
 MensagemSchema.index({ semResposta: 1 });
+
+// A fila de curadoria: lacunas ainda não tratadas, mais antigas primeiro.
+MensagemSchema.index({ semResposta: 1, curadoria: 1, em: 1 });
+
+// O job precisa achar a pergunta do cidadão a partir da resposta do bot, e o
+// par é o correlationId — um por troca.
+MensagemSchema.index({ correlationId: 1 });
