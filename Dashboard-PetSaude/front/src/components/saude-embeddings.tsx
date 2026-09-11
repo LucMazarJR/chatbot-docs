@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Activity, AlertTriangle, CheckCircle2, HelpCircle, Play } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  HelpCircle,
+  Play,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -13,6 +21,7 @@ import {
   type ModoBackfill,
 } from "@/lib/embeddings.functions";
 import type { Job } from "@/lib/import.functions";
+import { listarRevisaoCategorias } from "@/lib/categorias.functions";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -116,6 +125,59 @@ function ResultadoDiagnostico({ dados }: { dados: Diagnostico }) {
  * responde: o gemini-embedding-001 também produz 3072 quando pedido. Quem
  * responde de verdade é o diagnóstico por amostragem, que custa ~10 chamadas.
  */
+/**
+ * As perguntas cujo assunto não fecha com a lista oficial.
+ *
+ * LÓGICA DO LUCIANO: está nesta tela, e não só na de categorias, porque o
+ * defeito é da mesma natureza dos outros daqui e é igualmente invisível. A
+ * categoria entra no texto que vira vetor ("Assunto: ..."), então uma pergunta
+ * com o assunto errado é encontrada pelo assunto errado — ela aparece na
+ * listagem, tem vetor, está em dia, e mesmo assim responde a pergunta errada.
+ * Nenhuma das seis métricas acima enxerga isso.
+ *
+ * Os números levam para a tela de categorias em vez de repetir os controles
+ * aqui: a correção é decisão de conteúdo, e o lugar dela é onde a lista vive.
+ */
+function AssuntosParaRevisar() {
+  const revisao = useQuery({
+    queryKey: ["categorias-revisao"],
+    queryFn: () => listarRevisaoCategorias(),
+  });
+
+  const dados = revisao.data;
+  if (!dados || dados.grupos.length === 0) return null;
+
+  const { variante, fora_da_lista, inativa, sem_categoria } = dados.resumo.porMotivo;
+
+  return (
+    <div className="rounded-lg border border-border panel-surface p-4">
+      <h3 className="text-sm font-semibold">Perguntas com o assunto fora da lista</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {dados.listaVazia
+          ? "A lista oficial de assuntos ainda não foi definida, então toda pergunta aparece aqui."
+          : `${dados.resumo.faqs} ${dados.resumo.faqs === 1 ? "pergunta usa" : "perguntas usam"} um assunto que não está na lista, em ${dados.resumo.grupos} ${dados.resumo.grupos === 1 ? "nome" : "nomes"} diferentes. O assunto faz parte do que o chatbot busca — com ele errado, a pergunta é encontrada pelo tema errado.`}
+      </p>
+
+      {!dados.listaVazia && (
+        <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
+          {fora_da_lista > 0 && <li>{fora_da_lista} em assuntos que não existem na lista</li>}
+          {variante > 0 && <li>{variante} só com a grafia diferente</li>}
+          {inativa > 0 && <li>{inativa} em assuntos aposentados</li>}
+          {sem_categoria > 0 && <li>{sem_categoria} sem assunto nenhum</li>}
+        </ul>
+      )}
+
+      <Link
+        to="/categorias"
+        className="mt-3 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+      >
+        Revisar em Categorias
+        <ChevronRight className="size-4" />
+      </Link>
+    </div>
+  );
+}
+
 export function SaudeEmbeddings() {
   const queryClient = useQueryClient();
   const [modo, setModo] = useState<ModoBackfill>("faltantes");
@@ -224,6 +286,8 @@ export function SaudeEmbeddings() {
               explicacao="Preparadas antes de o sistema registrar isso. Não quer dizer que estão erradas."
             />
           </div>
+
+          <AssuntosParaRevisar />
 
           <div className="rounded-lg border border-border panel-surface p-4">
             <h3 className="text-sm font-semibold">
