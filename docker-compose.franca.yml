@@ -1,0 +1,33 @@
+# Override para o host municipal 172.21.31.167.
+# Uso: docker compose -f docker-compose.yml -f docker-compose.franca.yml up -d
+#
+# Não substitui o compose local. Só remapeia o que o HOST publica.
+# Mapa: docs/mapa-portas-172-21-31-167.md
+services:
+  postgres:
+    ports: !override
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5534}:5432"
+
+  whatsapp-gateway:
+    ports: !override
+      - "127.0.0.1:3800:3000"
+
+  n8n:
+    ports: !override
+      - "127.0.0.1:3801:5678"
+
+  pwa:
+    ports: !override
+      - "${PWA_PORT:-3802}:8080"
+
+  # Neste host o TLS/proxy já existe (Traefik/Nginx). Não subir túnel Cloudflare.
+  cloudflared:
+    profiles: ["cloudflare"]
+
+  dashboard-api:
+    ports: !override
+      - "127.0.0.1:${DASHBOARD_API_PORT:-3803}:3333"
+
+  dashboard-front:
+    ports: !override
+      - "127.0.0.1:${DASHBOARD_FRONT_PORT:-3804}:3000"
