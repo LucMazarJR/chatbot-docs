@@ -4,7 +4,13 @@ import { Document } from 'mongoose';
 export type ActivityDocument = Activity & Document;
 
 /** O que foi mexido. Define também por quanto tempo o registro é guardado. */
-export type TipoEntidade = 'faq' | 'usuario' | 'sessao' | 'regra_importacao' | 'sistema';
+export type TipoEntidade =
+    | 'faq'
+    | 'categoria'
+    | 'usuario'
+    | 'sessao'
+    | 'regra_importacao'
+    | 'sistema';
 
 /** Registro de acesso vive menos que registro de alteração de conteúdo. */
 export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
@@ -16,6 +22,10 @@ export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
     // rastreamento de pessoa. Vale por muito mais tempo.
     faq: 730,
     regra_importacao: 730,
+    // Renomear uma categoria reescreve o campo `category` de todas as FAQs
+    // daquele assunto de uma vez. É a alteração de conteúdo com maior alcance
+    // do sistema, e o registro dela tem que durar o mesmo que o das FAQs.
+    categoria: 730,
     // Criar conta, trocar papel, redefinir senha de terceiro. Fica entre os
     // dois: é ato administrativo, mas identifica pessoas.
     usuario: 365,

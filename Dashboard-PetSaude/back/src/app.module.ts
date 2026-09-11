@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FaqsModule } from './faqs/faqs.module';
+import { CategoriasModule } from './categorias/categorias.module';
 import { ActivityModule } from './activity/activity.module';
 import { GeminiModule } from './gemini/gemini.module';
 import { AuthModule } from './auth/auth.module';
@@ -91,6 +92,7 @@ import { UserSession } from './users/entities/user-session.entity';
     JobsModule,
     GeminiModule,
     FaqsModule,
+    CategoriasModule,
     ActivityModule,
     AuthModule,
     UsersModule,
