@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { FaqsController } from './faqs.controller';
 import { EmbeddingsController } from './embeddings.controller';
 import { EmbeddingsService } from './embeddings.service';
+import { BuscaSemanticaService } from './busca.service';
 import { FaqsService } from './faqs.service';
 import { ActivityModule } from '../activity/activity.module';
 import { GeminiModule } from '../gemini/gemini.module';
@@ -15,7 +16,7 @@ import { Faq, FaqSchema } from './schemas/faq.schema';
         GeminiModule
     ],
     controllers: [FaqsController, EmbeddingsController],
-    providers: [FaqsService, EmbeddingsService],
-    exports: [FaqsService, EmbeddingsService]
+    providers: [FaqsService, EmbeddingsService, BuscaSemanticaService],
+    exports: [FaqsService, EmbeddingsService, BuscaSemanticaService]
 })
 export class FaqsModule { }

@@ -137,6 +137,49 @@ export const listActivity = createServerFn({ method: "GET" })
     },
   );
 
+export type TrechoEncontrado = {
+  id: string;
+  question: string;
+  category: string | null;
+  score: number;
+  /** Se o chatbot usaria este trecho como contexto. */
+  passaria: boolean;
+  /** FAQ desativada que mesmo assim voltou na busca. */
+  ativa: boolean;
+  previa: string;
+};
+
+export type ResultadoBusca = {
+  pergunta: string;
+  limiar: number;
+  modelo: string;
+  quantosPassam: number;
+  trechos: TrechoEncontrado[];
+};
+
+/**
+ * Roda a mesma busca do chatbot para uma pergunta digitada.
+ *
+ * Custa um embedding por chamada, na mesma cota diária que a ingestão e o
+ * chatbot dividem — por isso não dispara enquanto se digita.
+ */
+export const testarBusca = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        pergunta: z.string().trim().min(2, "Escreva a pergunta").max(300),
+        topK: z.number().int().min(1).max(25).optional(),
+      })
+      .parse(data),
+  )
+  .handler(
+    async ({ data }: { data: { pergunta: string; topK?: number } }): Promise<ResultadoBusca> =>
+      apiFetch<ResultadoBusca>("/faqs/testar-busca", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  );
+
 export const createFaq = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => faqInput.parse(data))
   .handler(async ({ data }: { data: any }) => {

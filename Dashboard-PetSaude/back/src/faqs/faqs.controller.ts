@@ -3,6 +3,8 @@ import { Controller, Get, Post, Put, Delete, Body, Query, Param, NotFoundExcepti
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
+import { BuscaSemanticaService } from './busca.service';
+import { TestarBuscaDto } from './dto/testar-busca.dto';
 import { FaqsService } from './faqs.service';
 import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
@@ -11,7 +13,23 @@ import { ListFaqsQueryDto } from './dto/list-faqs-query.dto';
 
 @Controller('faqs')
 export class FaqsController {
-    constructor(private readonly faqsService: FaqsService) { }
+    constructor(
+        private readonly faqsService: FaqsService,
+        private readonly buscaSemantica: BuscaSemanticaService,
+    ) { }
+
+    /**
+     * Roda a busca do chatbot para uma pergunta digitada, e devolve os scores.
+     *
+     * POST porque gasta: é um embedding por teste, na mesma cota diária que a
+     * ingestão e o chatbot dividem. De editor para cima — é quem escreve FAQ que
+     * precisa saber se a que escreveu vai ser encontrada.
+     */
+    @Post('testar-busca')
+    @Roles('admin', 'editor')
+    testarBusca(@Body() body: TestarBuscaDto) {
+        return this.buscaSemantica.testar(body.pergunta, body.topK);
+    }
 
     // Declarado ANTES de qualquer rota com parametro: se um dia existir um
     // @Get(':id'), o Nest casaria "categories" como se fosse um id.

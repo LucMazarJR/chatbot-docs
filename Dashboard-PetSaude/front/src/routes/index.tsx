@@ -16,6 +16,7 @@ import { FaqPagination } from "@/components/faq-pagination";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
+import { TesteDeBusca } from "@/components/teste-busca";
 import {
   FILTRO_VAZIO,
   FiltrosFaq,
@@ -222,6 +223,11 @@ function BrowsePanel() {
           <InsertFaqButton />
         </div>
       </div>
+
+      {/* Acima da busca normal de propósito: as duas procuram FAQ, e é preciso
+          ficar claro que uma acha por palavra digitada e a outra por
+          significado, que é o que o chatbot faz. */}
+      <TesteDeBusca />
 
       <SearchField
         value={termo}
