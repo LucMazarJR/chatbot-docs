@@ -24,6 +24,7 @@ export class GeminiService {
 
     private readonly modelo: string;
     private readonly taskType: string;
+    private readonly modeloTexto: string;
 
     constructor(private configService: ConfigService) {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -39,6 +40,17 @@ export class GeminiService {
             this.configService.get<string>('GEMINI_EMBEDDING_MODEL') ?? 'gemini-embedding-2';
         this.taskType =
             this.configService.get<string>('GEMINI_TASK_TYPE') ?? 'SEMANTIC_SIMILARITY';
+
+        // O mesmo modelo de texto que os dois fluxos do n8n usam para responder
+        // ao cidadão. Não precisa ser o mesmo — a curadoria é outra tarefa, e um
+        // modelo maior daria sugestões melhores —, mas começar igual mantém uma
+        // variável a menos entre o que se lê aqui e o que o chatbot faz lá.
+        this.modeloTexto =
+            this.configService.get<string>('GEMINI_TEXT_MODEL') ?? 'gemini-3.1-flash-lite';
+    }
+
+    get modeloDeTexto(): string {
+        return this.modeloTexto;
     }
 
     /**
@@ -79,6 +91,45 @@ export class GeminiService {
         return ['rate limit', 'quota', 'resource exhausted', '429', 'limit exceeded'].some(
             (termo) => texto.includes(termo),
         );
+    }
+
+    /**
+     * Geração de texto, com a resposta já lida como JSON.
+     *
+     * LÓGICA DO LUCIANO: `responseMimeType: application/json` não é enfeite. Sem
+     * ele o modelo devolve o JSON embrulhado numa cerca de markdown (```json),
+     * às vezes com uma frase antes, e o `JSON.parse` quebra de forma
+     * intermitente — funciona em nove chamadas e falha na décima, que é o pior
+     * tipo de defeito para diagnosticar. Com o mime type declarado, a API
+     * garante a forma.
+     *
+     * `temperature` baixa pelo mesmo motivo: aqui não se quer criatividade, se
+     * quer que a mesma fila produza a mesma leitura.
+     */
+    async gerarJson<T>(prompt: string, esquema?: Record<string, unknown>): Promise<T> {
+        const resultado = await this.genAI.models.generateContent({
+            model: this.modeloTexto,
+            contents: prompt,
+            config: {
+                temperature: 0.2,
+                responseMimeType: 'application/json',
+                ...(esquema ? { responseSchema: esquema } : {}),
+            },
+        });
+
+        const texto = (resultado.text ?? '').trim();
+        if (!texto) {
+            throw new Error('O modelo devolveu resposta vazia.');
+        }
+
+        try {
+            return JSON.parse(texto) as T;
+        } catch {
+            // O trecho entra na mensagem porque, quando isto acontece, o que
+            // veio no lugar do JSON é a única pista — costuma ser uma recusa do
+            // modelo, e não um erro de formato.
+            throw new Error(`O modelo nao devolveu JSON valido. Comeco da resposta: ${texto.slice(0, 200)}`);
+        }
     }
 
     async gerarEmbedding(texto: string): Promise<number[]> {
