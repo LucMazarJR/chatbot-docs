@@ -46,9 +46,13 @@ export type Activity = {
 const faqInput = z.object({
   question: z.string().trim().min(5, "A pergunta precisa ter ao menos 5 caracteres").max(300),
   answer: z.string().trim().min(5, "A resposta precisa ter ao menos 5 caracteres").max(4000),
-  categories: z
-    .array(z.string().trim().min(2, "Cada categoria precisa ter ao menos 2 caracteres").max(60))
-    .min(1, "Informe ao menos 1 categoria"),
+  // LÓGICA DO LUCIANO: era um array, e isso era mentira. O formulário deixava
+  // acrescentar quantas categorias quisesse, mas o backend só gravava a
+  // primeira (`data.categories[0]`) — as outras eram digitadas, salvas com
+  // sucesso e descartadas em silêncio. O documento no Mongo tem UM campo
+  // `category`, que é o que a ingestão Python e o nó do n8n leem, e é ele que
+  // entra no texto embedado como "Assunto: ...".
+  category: z.string().trim().min(2, "Escolha uma categoria").max(60),
   tags: z
     .array(z.string().trim().min(2, "Cada tag precisa ter ao menos 2 caracteres").max(30))
     .min(3, "Informe ao menos 3 tags"),

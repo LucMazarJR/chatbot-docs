@@ -1,10 +1,19 @@
 import { useEffect, useId, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { createFaq, deleteFaq, updateFaq, type Faq } from "@/lib/faq.functions";
+import { listarCategorias } from "@/lib/categorias.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -131,6 +140,91 @@ function ChipListField({
   );
 }
 
+/**
+ * Escolha do assunto, a partir da lista oficial.
+ *
+ * LÓGICA DO LUCIANO: aqui era campo de texto livre, e é daí que vêm as 236
+ * categorias distintas para 2491 FAQs. Cada pessoa digitava o assunto de novo, e
+ * "Exames", "exames" e "Exames de sangue" viraram três temas diferentes para o
+ * chatbot — que lê a categoria dentro do texto embedado.
+ *
+ * Dois casos que a lista não cobre, e que precisam continuar funcionando:
+ *
+ * 1. A lista começa VAZIA — quem a define é o pessoal da saúde. Enquanto não
+ *    houver nenhuma categoria, o campo volta a ser texto livre, senão ninguém
+ *    consegue cadastrar FAQ até a taxonomia existir.
+ * 2. A FAQ sendo editada pode ter uma categoria que não está na lista (é o caso
+ *    da maior parte da base hoje). O valor atual entra como opção, marcado, em
+ *    vez de sumir — senão corrigir uma vírgula na resposta trocaria o assunto da
+ *    pergunta sem ninguém pedir.
+ */
+function CampoCategoria({
+  id,
+  valor,
+  onChange,
+}: {
+  id: string;
+  valor: string;
+  onChange: (valor: string) => void;
+}) {
+  const categoriasQuery = useQuery({
+    queryKey: ["categorias", false],
+    queryFn: () => listarCategorias({ data: { incluirInativas: false } }),
+  });
+
+  const oficiais = categoriasQuery.data?.categorias ?? [];
+  const listaVazia = !categoriasQuery.isLoading && oficiais.length === 0;
+  const foraDaLista = Boolean(valor) && !oficiais.some((c) => c.nome === valor);
+
+  if (listaVazia) {
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={id}>Categoria</Label>
+        <Input
+          id={id}
+          value={valor}
+          maxLength={60}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Ex.: Exames"
+        />
+        <p className="text-xs text-muted-foreground">
+          Nenhuma categoria cadastrada ainda.{" "}
+          <Link to="/categorias" className="underline underline-offset-2">
+            Defina a lista de assuntos
+          </Link>{" "}
+          para escolher em vez de digitar.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>Categoria</Label>
+      <Select value={valor || undefined} onValueChange={onChange}>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue placeholder="Escolha o assunto" />
+        </SelectTrigger>
+        <SelectContent>
+          {foraDaLista && (
+            <SelectItem value={valor}>{valor} — fora da lista</SelectItem>
+          )}
+          {oficiais.map((categoria) => (
+            <SelectItem key={categoria.id} value={categoria.nome}>
+              {categoria.nome}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">
+        {foraDaLista
+          ? "Este assunto não está na lista oficial. Escolher outro corrige a pergunta."
+          : "A lista é definida pela equipe de saúde, em Categorias."}
+      </p>
+    </div>
+  );
+}
+
 export function FaqFormDialog({
   mode,
   faq,
@@ -149,7 +243,7 @@ export function FaqFormDialog({
   const update = useServerFn(updateFaq);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
-  const [categories, setCategories] = useState<string[]>([""]);
+  const [category, setCategory] = useState("");
   const [tags, setTags] = useState<string[]>(["", "", ""]);
   const [source, setSource] = useState("");
 
@@ -164,19 +258,18 @@ export function FaqFormDialog({
     if (!open) return;
     setQuestion(faq?.question ?? "");
     setAnswer(faq?.answer ?? "");
-    const initialCategories = faq ? faqCategories(faq) : defaultCategory ? [defaultCategory] : [];
-    setCategories(initialCategories.length ? initialCategories : [""]);
+    setCategory(faq ? (faqCategories(faq)[0] ?? "") : (defaultCategory ?? ""));
     const initialTags = faq?.tags ?? [];
     setTags(initialTags.length >= 3 ? initialTags : [...initialTags, "", "", ""].slice(0, 3));
     setSource(faq?.source ?? "");
   }, [open, faq, defaultCategory]);
 
-  const cleanCategories = categories.map((item) => item.trim()).filter(Boolean);
+  const cleanCategory = category.trim();
   const cleanTags = tags.map((item) => item.trim()).filter(Boolean);
   const valid =
     question.trim().length >= 5 &&
     answer.trim().length >= 5 &&
-    cleanCategories.length >= 1 &&
+    cleanCategory.length >= 2 &&
     cleanTags.length >= 3;
 
   const mutation = useMutation({
@@ -184,7 +277,7 @@ export function FaqFormDialog({
       const payload = {
         question,
         answer,
-        categories: cleanCategories,
+        category: cleanCategory,
         tags: cleanTags,
         source: source.trim(),
       };
@@ -194,6 +287,10 @@ export function FaqFormDialog({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["faqs"] });
       await queryClient.invalidateQueries({ queryKey: ["activity"] });
+      // As duas telas de categoria contam FAQs, e a de revisão classifica por
+      // assunto — criar ou recategorizar uma pergunta muda as duas.
+      await queryClient.invalidateQueries({ queryKey: ["faq-categories"] });
+      await queryClient.invalidateQueries({ queryKey: ["categorias-revisao"] });
       toast.success(mode === "edit" ? "Pergunta atualizada" : "Pergunta criada");
       onOpenChange(false);
     },
@@ -207,7 +304,7 @@ export function FaqFormDialog({
           <DialogHeader>
             <DialogTitle>{mode === "edit" ? "Editar FAQ" : "Nova FAQ"}</DialogTitle>
             <DialogDescription>
-              Ao menos 1 categoria e 3 tags. Você pode adicionar quantas quiser.
+              Uma categoria e ao menos 3 tags.
             </DialogDescription>
           </DialogHeader>
 
@@ -263,15 +360,7 @@ export function FaqFormDialog({
               />
             </div>
 
-            <ChipListField
-              label="Categorias (mínimo 1)"
-              hint="Uma pergunta pode pertencer a várias categorias."
-              values={categories}
-              onChange={setCategories}
-              minCount={1}
-              maxLength={60}
-              placeholder="Categoria"
-            />
+            <CampoCategoria id={idDe("category")} valor={category} onChange={setCategory} />
 
             <ChipListField
               label="Tags (mínimo 3)"
