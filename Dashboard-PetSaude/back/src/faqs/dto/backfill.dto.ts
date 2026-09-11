@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 import type { ModoBackfill } from '../embeddings.service';
@@ -25,6 +25,15 @@ export class BackfillDto {
     @Min(1)
     @Max(2000)
     limite?: number;
+
+    /**
+     * Restringe o alvo a um assunto. Usado depois de renomear uma categoria,
+     * para reindexar só as FAQs afetadas em vez da base inteira.
+     */
+    @IsOptional()
+    @IsString()
+    @MaxLength(60)
+    categoria?: string;
 }
 
 export class DiagnosticoDto {

@@ -61,9 +61,25 @@ export class EmbeddingsService {
         ].join('\n');
     }
 
-    private filtroDoModo(modo: ModoBackfill): Record<string, any> {
+    /**
+     * @param categoria Restringe o alvo a um assunto.
+     *
+     * LÓGICA DO LUCIANO: existe por causa do renomear do módulo de categorias.
+     * O nome da categoria entra no texto embedado ("Assunto: ..."), então
+     * renomear um assunto deixa todas as FAQs dele com vetor descrevendo o nome
+     * antigo. Regerar na hora seria uma chamada ao Gemini por FAQ dentro de uma
+     * requisição HTTP; sem este recorte, a alternativa era reindexar a base
+     * inteira para arrumar 40 perguntas.
+     *
+     * Comparação exata, e não pela chave canônica: quem chega aqui vem logo
+     * depois de uma renomeação, e a cascata deixou todas as FAQs com a grafia
+     * oficial. As variantes que ainda não foram renomeadas aparecem na tela de
+     * revisão, que é onde elas devem ser resolvidas — e não gastando cota.
+     */
+    private filtroDoModo(modo: ModoBackfill, categoria?: string): Record<string, any> {
         const dim = this.geminiService.dimensoes;
         const modelo = this.geminiService.modeloAtual;
+        const doAssunto = categoria ? { category: categoria } : {};
 
         const semVetor = {
             $or: [
@@ -76,25 +92,27 @@ export class EmbeddingsService {
 
         switch (modo) {
             case 'faltantes':
-                return { isActive: true, ...semVetor };
+                return { isActive: true, ...doAssunto, ...semVetor };
             case 'desatualizados':
                 // Conteúdo editado depois que o vetor foi gerado. A FAQ é
                 // encontrada pelo texto antigo e mostra o novo.
                 return {
                     isActive: true,
+                    ...doAssunto,
                     embedding_content_hash: { $exists: true },
                     $expr: { $ne: ['$embedding_content_hash', '$content_hash'] },
                 };
             case 'nao_registrados':
-                return { isActive: true, embedding_model: { $exists: false } };
+                return { isActive: true, ...doAssunto, embedding_model: { $exists: false } };
             case 'divergentes':
                 return {
                     isActive: true,
+                    ...doAssunto,
                     embedding_model: { $exists: true, $ne: modelo },
                 };
             case 'tudo':
             default:
-                return { isActive: true };
+                return { isActive: true, ...doAssunto };
         }
     }
 
@@ -303,28 +321,34 @@ export class EmbeddingsService {
     }
 
     /** Quantas FAQs cada modo de backfill alcançaria, para a tela avisar antes. */
-    async contarAlvo(modo: ModoBackfill): Promise<number> {
-        return this.faqModel.countDocuments(this.filtroDoModo(modo)).exec();
+    async contarAlvo(modo: ModoBackfill, categoria?: string): Promise<number> {
+        return this.faqModel.countDocuments(this.filtroDoModo(modo, categoria)).exec();
     }
 
     async iniciarBackfill(
         modo: ModoBackfill,
         limite: number,
         actor: { id?: string; name: string },
+        categoria?: string,
     ) {
         const alvo = Math.max(1, Math.min(2000, limite));
-        const total = Math.min(alvo, await this.contarAlvo(modo));
+        const total = Math.min(alvo, await this.contarAlvo(modo, categoria));
 
         const job = this.jobsService.criar(JOB_EMBEDDINGS, total, actor.name);
-        void this.processar(job.id, modo, alvo);
+        void this.processar(job.id, modo, alvo, categoria);
 
-        return { jobId: job.id, total, modo };
+        return { jobId: job.id, total, modo, categoria };
     }
 
-    private async processar(jobId: string, modo: ModoBackfill, limite: number): Promise<void> {
+    private async processar(
+        jobId: string,
+        modo: ModoBackfill,
+        limite: number,
+        categoria?: string,
+    ): Promise<void> {
         try {
             const docs = await this.faqModel
-                .find(this.filtroDoModo(modo))
+                .find(this.filtroDoModo(modo, categoria))
                 .select('question answer category content_hash')
                 .limit(limite)
                 .exec();

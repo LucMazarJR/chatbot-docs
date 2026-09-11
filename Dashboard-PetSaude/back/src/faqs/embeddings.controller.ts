@@ -29,7 +29,10 @@ export class EmbeddingsController {
     /** Quantas FAQs um modo alcançaria — a tela avisa antes de gastar cota. */
     @Get('alvo')
     async alvo(@Query() query: BackfillDto) {
-        return { modo: query.modo, total: await this.embeddings.contarAlvo(query.modo) };
+        return {
+            modo: query.modo,
+            total: await this.embeddings.contarAlvo(query.modo, query.categoria),
+        };
     }
 
     @Post('diagnosticar')
@@ -39,10 +42,12 @@ export class EmbeddingsController {
 
     @Post('backfill')
     backfill(@Body() body: BackfillDto, @CurrentUser() user: AuthenticatedUser) {
-        return this.embeddings.iniciarBackfill(body.modo, body.limite ?? 200, {
-            id: user.id,
-            name: user.name,
-        });
+        return this.embeddings.iniciarBackfill(
+            body.modo,
+            body.limite ?? 200,
+            { id: user.id, name: user.name },
+            body.categoria,
+        );
     }
 
     @Get('job')
