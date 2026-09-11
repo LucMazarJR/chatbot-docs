@@ -148,6 +148,30 @@ function CuradoriaPage() {
   );
 }
 
+/**
+ * O que saiu da rodada, em uma frase.
+ *
+ * LÓGICA DO LUCIANO: "fora de escopo" aparece junto das sugestões porque é
+ * resultado, não descarte silencioso. Nem toda pergunta que o chatbot não
+ * respondeu é conteúdo faltando — na primeira fila real havia "qual o melhor
+ * time de futebol do brasil?" e "Hoje fiz muita coisa", e nesses o chatbot
+ * acertou em não responder. Sem esta linha, a pessoa veria a fila encolher e
+ * nenhuma sugestão aparecer, e concluiria que a análise falhou.
+ */
+function resumoDaAnalise(contadores: Record<string, number>): string {
+  const sugestoes = contadores.sugestoes ?? 0;
+  const fora = contadores.fora_de_escopo ?? 0;
+
+  const partes = [
+    `${sugestoes} ${sugestoes === 1 ? "sugestão" : "sugestões"}`,
+    ...(fora > 0
+      ? [`${fora} ${fora === 1 ? "pergunta" : "perguntas"} fora do escopo da saúde`]
+      : []),
+  ];
+
+  return `Análise concluída — ${partes.join(", ")}`;
+}
+
 function Andamento({ job }: { job: NonNullable<Awaited<ReturnType<typeof getJobCuradoria>>> }) {
   const rodando = job.estado === "rodando";
   const pct = job.total > 0 ? Math.round((job.processados / job.total) * 100) : 0;
@@ -159,7 +183,7 @@ function Andamento({ job }: { job: NonNullable<Awaited<ReturnType<typeof getJobC
           {rodando
             ? "Analisando as perguntas da fila…"
             : job.estado === "concluido"
-              ? `Análise concluída — ${job.contadores?.sugestoes ?? 0} ${(job.contadores?.sugestoes ?? 0) === 1 ? "sugestão" : "sugestões"}`
+              ? resumoDaAnalise(job.contadores ?? {})
               : "A última análise não terminou"}
         </p>
         <span className="text-xs text-muted-foreground">por {job.atorNome}</span>

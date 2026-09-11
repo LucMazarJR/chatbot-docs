@@ -205,6 +205,39 @@ describe('CuradoriaService', () => {
       expect(jobs.incrementar).toHaveBeenCalledWith('job-1', 'descartados');
     });
 
+    // A fila real nao e so conteudo faltando: entre as 17 primeiras lacunas
+    // gravadas estavam "qual o melhor time de futebol do brasil?" e "Hoje fiz
+    // muita coisa". Sem esta saida, a tela de aprovacao encheria de lixo na
+    // primeira vez que alguem a abrisse.
+    it('encerra a pergunta fora de escopo sem criar sugestao', async () => {
+      troca(1, 'qual o melhor time de futebol do brasil?');
+      troca(2, 'Onde fica a UBS?');
+      gerarJson.mockResolvedValue({
+        grupos: [
+          { perguntas: [1], pergunta: '', tipo: 'fora_de_escopo', justificativa: 'nao e saude' },
+          { perguntas: [2], pergunta: 'Onde fica a UBS?', tipo: 'nova' },
+        ],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(salvas).toHaveLength(1);
+      expect(salvas[0].pergunta).toBe('Onde fica a UBS?');
+
+      // Os dois estados ficam distintos: é a única medida de quanto do "não
+      // encontrou" é lacuna de verdade.
+      const chamadas = updateMany.mock.calls;
+      expect(chamadas).toContainEqual([
+        { _id: { $in: ['b2'] } },
+        { $set: { curadoria: 'processada' } },
+      ]);
+      expect(chamadas).toContainEqual([
+        { _id: { $in: ['b1'] } },
+        { $set: { curadoria: 'descartada' } },
+      ]);
+    });
+
     it('NAO tira a lacuna da fila quando a analise falha', async () => {
       troca(1, 'Onde fica a UBS?');
       gerarJson.mockRejectedValue(new Error('modelo fora do ar'));

@@ -32,7 +32,17 @@ type GrupoSugerido = {
     categoria?: string | null;
     tags?: string[];
     faqRelacionada?: string | null;
-    tipo?: 'nova' | 'complemento';
+    /**
+     * `fora_de_escopo` não vira sugestão — a lacuna é encerrada e some da fila.
+     *
+     * LÓGICA DO LUCIANO: existe porque a fila real não é só conteúdo faltando.
+     * Entre as 17 primeiras lacunas gravadas estavam "qual o melhor time de
+     * futebol do brasil?", "quero contar meu cabelo" e "Hoje fiz muita coisa".
+     * O chatbot acertou em não responder essas; sem esta saída, o modelo seria
+     * obrigado a propor uma FAQ para cada uma, e a tela de aprovação encheria
+     * de lixo justamente na primeira vez que alguém a abrisse.
+     */
+    tipo?: 'nova' | 'complemento' | 'fora_de_escopo';
     justificativa?: string;
 };
 
@@ -164,22 +174,33 @@ export class CuradoriaService {
                 return;
             }
 
+            // As lacunas que o modelo classificou como fora de escopo saem da
+            // fila sem virar sugestão.
+            const foraDeEscopo: string[] = [];
+
             for (const grupo of lista) {
-                const origens = (grupo.perguntas ?? [])
+                const daqui = (grupo.perguntas ?? [])
                     .map((indice) => lacunas[indice - 1])
-                    .filter(Boolean)
-                    .map((lacuna) => ({
-                        sessaoId: lacuna.sessaoId,
-                        mensagemId: lacuna.mensagemId,
-                        pergunta: lacuna.pergunta,
-                        em: lacuna.em,
-                    }));
+                    .filter(Boolean);
+
+                const origens = daqui.map((lacuna) => ({
+                    sessaoId: lacuna.sessaoId,
+                    mensagemId: lacuna.mensagemId,
+                    pergunta: lacuna.pergunta,
+                    em: lacuna.em,
+                }));
 
                 // Grupo que não aponta para nenhuma pergunta real é alucinação
                 // de índice: sem origem, a sugestão não tem rastreabilidade
                 // nenhuma, que é justamente a razão de ela existir.
                 if (origens.length === 0) {
                     this.jobsService.incrementar(jobId, 'descartados');
+                    continue;
+                }
+
+                if (grupo.tipo === 'fora_de_escopo') {
+                    foraDeEscopo.push(...daqui.map((l) => l.mensagemId));
+                    this.jobsService.incrementar(jobId, 'fora_de_escopo', daqui.length);
                     continue;
                 }
 
@@ -201,13 +222,36 @@ export class CuradoriaService {
                 this.jobsService.incrementar(jobId, 'sugestoes');
             }
 
-            // Só marca como processada DEPOIS de as sugestões estarem gravadas.
+            // Só marca como tratada DEPOIS de as sugestões estarem gravadas.
             // Invertido, uma falha no meio tiraria a lacuna da fila sem nada no
             // lugar — ela nunca mais seria analisada e ninguém saberia.
-            const ids = lacunas.map((l) => l.mensagemId);
-            await this.mensagemModel
-                .updateMany({ _id: { $in: ids } }, { $set: { curadoria: 'processada' } })
-                .exec();
+            //
+            // Os dois estados ficam distintos de propósito: `descartada` diz que
+            // a pergunta não era sobre saúde, e `processada` que ela virou (ou
+            // entrou em) uma sugestão. Marcar tudo igual perderia a única
+            // medida de quanto do "não encontrou" é lacuna de verdade — que é o
+            // indicador que decide se a base precisa crescer.
+            const descartadas = new Set(foraDeEscopo);
+            const processadas = lacunas
+                .map((l) => l.mensagemId)
+                .filter((id) => !descartadas.has(id));
+
+            if (processadas.length > 0) {
+                await this.mensagemModel
+                    .updateMany(
+                        { _id: { $in: processadas } },
+                        { $set: { curadoria: 'processada' } },
+                    )
+                    .exec();
+            }
+            if (foraDeEscopo.length > 0) {
+                await this.mensagemModel
+                    .updateMany(
+                        { _id: { $in: foraDeEscopo } },
+                        { $set: { curadoria: 'descartada' } },
+                    )
+                    .exec();
+            }
 
             this.jobsService.avancar(jobId, lacunas.length);
 
@@ -283,6 +327,10 @@ export class CuradoriaService {
             '2. Para cada grupo, escreva a pergunta canonica, do jeito que ela entraria na base.',
             '3. Diga se o grupo pede uma FAQ NOVA ou se e COMPLEMENTO de uma FAQ existente',
             '   (neste caso, informe o id dela em faqRelacionada).',
+            '4. Se a entrada NAO for um pedido de informacao de saude ou de servico de saude',
+            '   — assunto de fora, desabafo, teste, texto sem sentido —, use tipo',
+            '   "fora_de_escopo". Nao invente FAQ para ela: o chatbot acertou em nao',
+            '   responder. Pode juntar varias assim num grupo so.',
             '',
             'REGRA MAIS IMPORTANTE: nao invente orientacao de saude. Preencha "resposta"',
             'APENAS com informacao que esteja literalmente nas FAQs fornecidas, adaptada a',
@@ -296,6 +344,9 @@ export class CuradoriaService {
             'Responda em JSON, neste formato:',
             '{"grupos":[{"perguntas":[1,3],"pergunta":"...","resposta":"","categoria":null,',
             '"tags":["...","...","..."],"tipo":"nova","faqRelacionada":null,"justificativa":"..."}]}',
+            '',
+            'Para fora de escopo basta: {"perguntas":[2],"pergunta":"","tipo":"fora_de_escopo",',
+            '"justificativa":"nao e pergunta de saude"}',
             '',
             'O campo "perguntas" lista os NUMEROS das perguntas do grupo, conforme a',
             'numeracao abaixo. Toda pergunta deve aparecer em exatamente um grupo.',
