@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
+import { CategoriasService } from '../categorias/categorias.service';
+import { chaveDeCategoria } from '../categorias/chave';
 import { FaqsService } from '../faqs/faqs.service';
 import { JobsService } from '../jobs/jobs.service';
 import { CommitImportacaoDto, FaqImportadaDto } from './dto/importar.dto';
@@ -40,6 +42,15 @@ export type LinhaValidada = {
      * padrao, e para a pessoa ver o que esta prestes a duplicar.
      */
     parecida?: boolean;
+    /**
+     * O assunto da linha nao esta na lista oficial de categorias.
+     *
+     * Tambem nao impede a importacao, pela mesma razao que a lista comeca
+     * vazia: quem define a taxonomia e a equipe de saude, e recusar o lote por
+     * causa disso travaria a importacao ate que a lista existisse. A linha
+     * entra marcada, e a FAQ aparece depois em "precisa de revisao".
+     */
+    foraDaLista?: boolean;
     /** Vazio quando `ok`. Uma frase por problema, para aparecer ao lado da linha. */
     motivos: string[];
     contentHash: string;
@@ -64,6 +75,7 @@ export class ImportService {
     constructor(
         private readonly faqsService: FaqsService,
         private readonly jobsService: JobsService,
+        private readonly categoriasService: CategoriasService,
     ) { }
 
     private texto(valor: unknown): string {
@@ -77,8 +89,21 @@ export class ImportService {
      * O script é código do usuário: ele pode devolver tags como string única,
      * categoria como número, campo faltando. Nada disso deve virar exceção —
      * vira uma linha marcada na prévia.
+     *
+     * @param categoria O assunto já resolvido contra a lista oficial.
+     *
+     * LÓGICA DO LUCIANO: a categoria era forçada para minúsculo aqui, enquanto
+     * o formulário manual gravava exatamente o que foi digitado. "Exames"
+     * cadastrado na tela e "exames" vindo da planilha viravam duas categorias
+     * distintas no agrupamento — é parte da explicação para as 236 categorias
+     * que a base tem para 2491 FAQs.
+     *
+     * Agora quem decide a grafia é a lista oficial: se a chave da linha bate com
+     * uma categoria cadastrada, a linha passa a usar a grafia DELA. O minúsculo
+     * à força sai junto — ele nunca corrigiu nada, só escolheu um dos lados da
+     * divergência e escondeu o problema das telas que mostram a categoria.
      */
-    private normalizar(bruta: FaqImportadaDto): FaqNormalizada {
+    private normalizar(bruta: FaqImportadaDto, categoria: string): FaqNormalizada {
         const tags = Array.isArray(bruta.tags)
             ? bruta.tags.map((t) => this.texto(t).toLowerCase()).filter(Boolean)
             : this.texto(bruta.tags)
@@ -89,12 +114,28 @@ export class ImportService {
         return {
             question: this.texto(bruta.question),
             answer: this.texto(bruta.answer),
-            category: this.texto(bruta.category).toLowerCase(),
+            category: categoria,
             // Tag repetida na mesma FAQ não acrescenta nada e faria a contagem
             // de "3 tags" passar com uma palavra escrita três vezes.
             tags: [...new Set(tags)],
             source: this.texto(bruta.source),
         };
+    }
+
+    /**
+     * O assunto da linha, confrontado com a lista oficial.
+     *
+     * Resolvido UMA vez, antes de qualquer outra coisa: a grafia adotada pode
+     * ser diferente da que veio na planilha, e procurar de novo pela grafia já
+     * traduzida buscaria por uma chave que não é a da linha.
+     */
+    private resolverCategoria(
+        bruta: string,
+        oficiais: Map<string, { nome: string; ativa: boolean }>,
+    ): { nome: string; situacao: 'oficial' | 'aposentada' | 'fora' } {
+        const oficial = oficiais.get(chaveDeCategoria(bruta));
+        if (!oficial) return { nome: bruta, situacao: 'fora' };
+        return { nome: oficial.nome, situacao: oficial.ativa ? 'oficial' : 'aposentada' };
     }
 
     private motivosDe(faq: FaqNormalizada): string[] {
@@ -158,14 +199,18 @@ export class ImportService {
      * duplica nada, e é isso que torna a importação retomável.
      */
     async validar(faqs: FaqImportadaDto[]): Promise<ResultadoValidacao> {
+        const oficiais = await this.categoriasService.mapaOficial();
+
         const normalizadas = faqs.map((bruta, i) => {
-            const faq = this.normalizar(bruta);
+            const categoria = this.resolverCategoria(this.texto(bruta.category), oficiais);
+            const faq = this.normalizar(bruta, categoria.nome);
             const linhaBruta = Number(bruta.linha);
             return {
                 // Sem `linha` vinda do script, cai para a posição no array — a
                 // prévia precisa de algum ponteiro para a pessoa achar o erro.
                 linha: Number.isFinite(linhaBruta) && linhaBruta > 0 ? linhaBruta : i + 1,
                 faq,
+                situacaoCategoria: categoria.situacao,
                 contentHash: this.faqsService.hashDeConteudo(faq.question, faq.answer),
                 motivos: this.motivosDe(faq),
             };
@@ -188,9 +233,16 @@ export class ImportService {
         // apareceria quando alguém estranhasse a contagem.
         const vistosNoArquivo = new Set<string>();
 
+        // Com a lista vazia, TODA linha estaria fora dela — verdade e inútil.
+        // Enquanto a equipe de saúde não definir a taxonomia, a importação não
+        // tem contra o que comparar, e avisar isso em cada linha só treinaria
+        // as pessoas a ignorar o aviso.
+        const temTaxonomia = oficiais.size > 0;
+
         const itens: LinhaValidada[] = normalizadas.map((n) => {
             let estado: EstadoLinha = 'invalida';
             let parecida = false;
+            let foraDaLista = false;
             const motivos = [...n.motivos];
 
             if (motivos.length === 0) {
@@ -214,6 +266,21 @@ export class ImportService {
                             'diferente. Importar vai criar uma segunda copia.',
                         );
                     }
+
+                    if (temTaxonomia && n.situacaoCategoria === 'fora') {
+                        foraDaLista = true;
+                        motivos.push(
+                            `O assunto "${n.faq.category}" nao esta na lista oficial de ` +
+                            'categorias. A importacao continua, e a pergunta vai aparecer em ' +
+                            '"precisa de revisao".',
+                        );
+                    } else if (n.situacaoCategoria === 'aposentada') {
+                        foraDaLista = true;
+                        motivos.push(
+                            `O assunto "${n.faq.category}" foi aposentado. A importacao ` +
+                            'continua, e a pergunta vai aparecer em "precisa de revisao".',
+                        );
+                    }
                 }
             }
 
@@ -221,6 +288,7 @@ export class ImportService {
                 linha: n.linha,
                 estado,
                 parecida,
+                foraDaLista,
                 motivos,
                 contentHash: n.contentHash,
                 faq: n.faq,

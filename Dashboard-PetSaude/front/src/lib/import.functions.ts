@@ -18,6 +18,8 @@ export type LinhaValidada = {
   estado: EstadoLinha;
   /** A pergunta já existe na base, com o texto um pouco diferente. */
   parecida?: boolean;
+  /** O assunto não está na lista oficial de categorias, ou foi aposentado. */
+  foraDaLista?: boolean;
   motivos: string[];
   contentHash: string;
   faq: FaqNormalizada;

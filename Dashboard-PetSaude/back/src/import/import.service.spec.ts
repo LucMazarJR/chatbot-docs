@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { createHash } from 'crypto';
 
+import { CategoriasService } from '../categorias/categorias.service';
 import { FaqsService } from '../faqs/faqs.service';
 import { JobsService } from '../jobs/jobs.service';
 import { ImportService } from './import.service';
@@ -17,6 +18,8 @@ describe('ImportService — validacao', () => {
   let service: ImportService;
   let hashesNaBase: Set<string>;
   let perguntasNaBase: Set<string>;
+  /** A lista oficial de assuntos. Vazia = taxonomia ainda não definida. */
+  let oficiais: Map<string, { nome: string; ativa: boolean }>;
 
   const hash = (q: string, a: string) =>
     createHash('md5').update(`${q}|${a}`, 'utf8').digest('hex');
@@ -34,6 +37,7 @@ describe('ImportService — validacao', () => {
   beforeEach(async () => {
     hashesNaBase = new Set();
     perguntasNaBase = new Set();
+    oficiais = new Map();
 
     const modulo: TestingModule = await Test.createTestingModule({
       providers: [
@@ -55,6 +59,10 @@ describe('ImportService — validacao', () => {
           },
         },
         { provide: JobsService, useValue: {} },
+        {
+          provide: CategoriasService,
+          useValue: { mapaOficial: jest.fn(async () => oficiais) },
+        },
       ],
     }).compile();
 
@@ -205,13 +213,52 @@ describe('ImportService — validacao', () => {
       expect(r.itens[1].linha).toBe(2);
     });
 
-    it('normaliza assunto e tags para minusculas', async () => {
-      const r = await service.validar([
-        boa({ category: 'Exames', tags: ['Jejum', 'SANGUE', 'Coleta'] }),
-      ]);
+    it('normaliza as tags para minusculas', async () => {
+      const r = await service.validar([boa({ tags: ['Jejum', 'SANGUE', 'Coleta'] })]);
 
-      expect(r.itens[0].faq.category).toBe('exames');
       expect(r.itens[0].faq.tags).toEqual(['jejum', 'sangue', 'coleta']);
+    });
+
+    // LÓGICA DO LUCIANO: o assunto era forçado para minúsculo aqui, e o
+    // formulário manual gravava o que foi digitado — "Exames" da tela e
+    // "exames" da planilha viravam duas categorias no agrupamento. O minúsculo
+    // à força nunca corrigiu nada: só escolhia um dos lados da divergência.
+    it('preserva a grafia do assunto quando nao ha lista oficial', async () => {
+      const r = await service.validar([boa({ category: 'Exames' })]);
+
+      expect(r.itens[0].faq.category).toBe('Exames');
+      expect(r.itens[0].foraDaLista).toBe(false);
+    });
+
+    it('adota a grafia oficial quando a lista tem o mesmo assunto', async () => {
+      oficiais.set('exames', { nome: 'Exames de sangue', ativa: true });
+
+      const r = await service.validar([boa({ category: 'EXAMES' })]);
+
+      expect(r.itens[0].faq.category).toBe('Exames de sangue');
+      expect(r.itens[0].foraDaLista).toBe(false);
+    });
+
+    it('marca o assunto fora da lista sem recusar a linha', async () => {
+      oficiais.set('exames', { nome: 'Exames', ativa: true });
+
+      const r = await service.validar([boa({ category: 'Radiologia' })]);
+
+      // Continua importável: recusar o lote travaria a importação até a equipe
+      // de saúde terminar a taxonomia.
+      expect(r.itens[0].estado).toBe('ok');
+      expect(r.itens[0].foraDaLista).toBe(true);
+      expect(r.itens[0].motivos.join(' ')).toContain('nao esta na lista oficial');
+    });
+
+    it('marca tambem o assunto aposentado', async () => {
+      oficiais.set('exames', { nome: 'Exames', ativa: false });
+
+      const r = await service.validar([boa({ category: 'exames' })]);
+
+      expect(r.itens[0].estado).toBe('ok');
+      expect(r.itens[0].foraDaLista).toBe(true);
+      expect(r.itens[0].motivos.join(' ')).toContain('aposentado');
     });
   });
 
@@ -290,6 +337,10 @@ describe('ImportService — gravacao do lote', () => {
             perguntasParecidasExistentes: jest.fn(async () => new Set<string>()),
             createFaq,
           },
+        },
+        {
+          provide: CategoriasService,
+          useValue: { mapaOficial: jest.fn(async () => new Map()) },
         },
       ],
     }).compile();

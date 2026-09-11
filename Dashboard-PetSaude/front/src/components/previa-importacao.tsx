@@ -33,15 +33,35 @@ const ROTULO: Record<LinhaValidada["estado"], string> = {
   invalida: "Com problema",
 };
 
+/**
+ * Assunto que não fecha com a lista oficial.
+ *
+ * Anda junto do selo de estado, e não no lugar dele: a linha continua sendo
+ * nova, duplicada ou inválida por conta própria, e o assunto é uma segunda
+ * informação. Não bloqueia a importação — recusar o lote por causa da taxonomia
+ * travaria a entrada de conteúdo até a equipe de saúde terminar a lista.
+ */
+function SeloAssunto() {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
+      <AlertCircle className="mr-1 size-3" />
+      Assunto fora da lista
+    </span>
+  );
+}
+
 function Selo({ item }: { item: LinhaValidada }) {
   // "Parecida" e um estado `ok` com aviso: e importavel, mas nao deveria passar
   // despercebida. Sem selo proprio, ela se confundiria com uma pergunta nova.
   if (item.parecida) {
     return (
-      <span className="inline-flex shrink-0 items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
-        <AlertCircle className="mr-1 size-3" />
-        Já existe parecida
-      </span>
+      <>
+        <span className="inline-flex shrink-0 items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
+          <AlertCircle className="mr-1 size-3" />
+          Já existe parecida
+        </span>
+        {item.foraDaLista && <SeloAssunto />}
+      </>
     );
   }
 
@@ -57,13 +77,16 @@ function Selo({ item }: { item: LinhaValidada }) {
         : "border border-destructive/30 bg-destructive/10 text-destructive";
 
   return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${classe}`}
-    >
-      {estado === "duplicada" && <CopyCheck className="mr-1 size-3" />}
-      {estado === "invalida" && <AlertCircle className="mr-1 size-3" />}
-      {ROTULO[estado]}
-    </span>
+    <>
+      <span
+        className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${classe}`}
+      >
+        {estado === "duplicada" && <CopyCheck className="mr-1 size-3" />}
+        {estado === "invalida" && <AlertCircle className="mr-1 size-3" />}
+        {ROTULO[estado]}
+      </span>
+      {item.foraDaLista && <SeloAssunto />}
+    </>
   );
 }
 
@@ -202,8 +225,10 @@ export function PreviaImportacao({
   const [editando, setEditando] = useState<LinhaValidada | null>(null);
 
   const visiveis = useMemo(() => {
-    if (filtro === "problemas") return itens.filter((i) => i.estado !== "ok" || i.parecida);
-    if (filtro === "novas") return itens.filter((i) => i.estado === "ok" && !i.parecida);
+    if (filtro === "problemas")
+      return itens.filter((i) => i.estado !== "ok" || i.parecida || i.foraDaLista);
+    if (filtro === "novas")
+      return itens.filter((i) => i.estado === "ok" && !i.parecida && !i.foraDaLista);
     return itens;
   }, [itens, filtro]);
 
@@ -215,8 +240,13 @@ export function PreviaImportacao({
   };
 
   const contagem = {
-    ok: itens.filter((i) => i.estado === "ok" && !i.parecida).length,
-    duplicadas: itens.filter((i) => i.estado === "duplicada" || i.parecida).length,
+    ok: itens.filter((i) => i.estado === "ok" && !i.parecida && !i.foraDaLista).length,
+    // "Com problema" junta o que merece um olhar antes de entrar. Assunto fora
+    // da lista entra aqui pelo mesmo motivo que "parecida": é importável, mas
+    // não deveria passar sem alguém ver.
+    duplicadas: itens.filter(
+      (i) => i.estado === "duplicada" || i.parecida || (i.estado === "ok" && i.foraDaLista),
+    ).length,
     invalidas: itens.filter((i) => i.estado === "invalida").length,
   };
 
