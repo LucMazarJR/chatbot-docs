@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { cabecalhosDaSessao } from '@/lib/sessao-local';
 import type { Voto } from '@/lib/tipos';
 
 /**
@@ -20,7 +21,7 @@ export function Feedback({ mensagemId }: { mensagemId: string }) {
     // a conversa que está sendo avaliada.
     fetch(`/api/mensagens/${mensagemId}/feedback`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ voto }),
     }).catch(() => {});
   }

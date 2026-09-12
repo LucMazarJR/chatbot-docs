@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import { mensagens, sessoes } from '@/lib/db';
+import { mensagens } from '@/lib/db';
 import { dentroDoLimite, identificar } from '@/lib/limite';
 import { despachar, urlDeRetorno } from '@/lib/n8n';
+import { autenticarSessao } from '@/lib/sessao-autenticada';
 import type { Mensagem } from '@/lib/tipos';
 
 export const dynamic = 'force-dynamic';
@@ -22,11 +23,12 @@ type Contexto = { params: Promise<{ id: string }> };
  * A projeção é enxuta de propósito: `trechosDebug` e `latenciaMs` são dados de
  * análise, não têm por que trafegar para a tela do participante.
  */
-export async function GET(_requisicao: Request, { params }: Contexto) {
+export async function GET(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
 
-  const sessao = await (await sessoes()).findOne({ _id: id });
-  if (!sessao) return Response.json({ erro: 'sessão não encontrada' }, { status: 404 });
+  const autenticada = await autenticarSessao(requisicao, id);
+  if ('erro' in autenticada) return autenticada.erro;
+  const { sessao } = autenticada;
 
   const lista = await (await mensagens())
     .find(
@@ -79,11 +81,12 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     );
   }
 
-  const colSessoes = await sessoes();
+  const autenticada = await autenticarSessao(requisicao, id);
+  if ('erro' in autenticada) return autenticada.erro;
+  const { sessao } = autenticada;
+
   const colMensagens = await mensagens();
 
-  const sessao = await colSessoes.findOne({ _id: id });
-  if (!sessao) return Response.json({ erro: 'sessão não encontrada' }, { status: 404 });
   if (sessao.encerradaEm) return Response.json({ erro: 'sessão já encerrada' }, { status: 409 });
 
   const correlationId = randomUUID();

@@ -1,4 +1,5 @@
 import { mensagens } from '@/lib/db';
+import { autenticarPelaMensagem } from '@/lib/sessao-autenticada';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,14 @@ type Contexto = { params: Promise<{ id: string }> };
  * ela precisa ser resolvida. Uma rotina de limpeza seria mais uma peça para
  * manter viva sem nada em troca.
  */
-export async function GET(_requisicao: Request, { params }: Contexto) {
+export async function GET(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
+
+  // Esta rota entrega o TEXTO da resposta. Sem a conferência, seria a
+  // transcrição servida por outra porta: bastaria o id da mensagem, que também
+  // não é segredo — ele volta no corpo do POST e vai para o n8n.
+  const autenticada = await autenticarPelaMensagem(requisicao, id);
+  if ('erro' in autenticada) return autenticada.erro;
 
   const col = await mensagens();
   const mensagem = await col.findOne(

@@ -7,6 +7,8 @@
  * sem nenhuma conexão pendurada.
  */
 
+import { cabecalhosDaSessao } from '@/lib/sessao-local';
+
 const INTERVALO_MS = 2_000;
 
 /**
@@ -30,7 +32,10 @@ export async function aguardarResposta(mensagemId: string): Promise<RespostaPron
     await espera(INTERVALO_MS);
 
     try {
-      const res = await fetch(`/api/mensagens/${mensagemId}`, { cache: 'no-store' });
+      const res = await fetch(`/api/mensagens/${mensagemId}`, {
+        cache: 'no-store',
+        headers: cabecalhosDaSessao(),
+      });
       if (!res.ok) continue;
 
       const dados = (await res.json()) as {

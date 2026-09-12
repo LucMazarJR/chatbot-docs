@@ -44,6 +44,15 @@ export type Versao = 'a' | 'b';
 
 export type Sessao = {
   _id: string;
+  /**
+   * Segredo desta sessão, devolvido só na criação.
+   *
+   * O `_id` não serve como segredo: ele trafega no corpo das respostas, vai
+   * para o n8n e aparece na tela de conversas do dashboard. A chave é o que
+   * separa "tenho o identificador da conversa" de "sou a pessoa que a está
+   * tendo". Ausente nas sessões criadas antes deste campo.
+   */
+  chave?: string;
   nome: string;
   versao: Versao;
   iniciadaEm: Date;

@@ -14,6 +14,12 @@ import {
   TEXTO_DEMOROU_DEMAIS,
   TEXTO_FORA_DO_AR,
 } from '@/lib/mensagens-fixas';
+import {
+  cabecalhosDaSessao,
+  esquecerSessao,
+  guardarSessao,
+  lerSessao,
+} from '@/lib/sessao-local';
 import type { Papel } from '@/lib/tipos';
 
 const INATIVIDADE_MS = 2 * 60 * 1000;
@@ -26,12 +32,9 @@ const MINIMO_PERGUNTAS_PARA_AVALIAR = 3;
  * `sessionStorage` a conversa se perderia nesse ir e vir, que é o uso normal de
  * quem está testando o protótipo enquanto conversa com alguém.
  *
- * O sufixo `:a` ficou de quando havia duas interfaces concorrentes e cada uma
- * precisava da própria conversa. Sobrou uma só, mas a chave continua igual de
- * propósito: trocá-la desligaria a conversa de quem está com o protótipo aberto
- * agora, sem ganho nenhum.
+ * A leitura e a escrita passam por `lib/sessao-local.ts`, que também guarda a
+ * chave da sessão e monta o cabeçalho das chamadas autenticadas.
  */
-const CHAVE_SESSAO = 'pwa:sessao:a';
 
 const SAUDACAO =
   'Olá! 😊 Sou seu assistente de auxílio em saúde.\n' +
@@ -190,15 +193,17 @@ export default function Pagina() {
     abrindoRef.current = true;
 
     void (async () => {
-      const guardada = localStorage.getItem(CHAVE_SESSAO);
-      if (guardada && (await retomar(guardada))) return;
+      const guardada = lerSessao();
+      if (guardada && (await retomar(guardada.id))) return;
       await criarSessao();
     })();
   }, []);
 
   async function retomar(id: string): Promise<boolean> {
     try {
-      const resposta = await fetch(`/api/sessoes/${id}/mensagens`);
+      const resposta = await fetch(`/api/sessoes/${id}/mensagens`, {
+        headers: cabecalhosDaSessao(),
+      });
       if (!resposta.ok) throw new Error('sessão inválida');
 
       const dados = (await resposta.json()) as {
@@ -210,7 +215,7 @@ export default function Pagina() {
 
       // Sessão já avaliada não volta: o participante encerrou de propósito.
       if (dados.encerrada) {
-        localStorage.removeItem(CHAVE_SESSAO);
+        esquecerSessao();
         return false;
       }
 
@@ -239,7 +244,7 @@ export default function Pagina() {
       reiniciarInatividade();
       return true;
     } catch {
-      localStorage.removeItem(CHAVE_SESSAO);
+      esquecerSessao();
       return false;
     }
   }
@@ -253,8 +258,9 @@ export default function Pagina() {
       });
       if (!resposta.ok) throw new Error('falha ao criar a sessão');
 
-      const dados = (await resposta.json()) as { sessaoId: string };
-      localStorage.setItem(CHAVE_SESSAO, dados.sessaoId);
+      // A chave vem só nesta resposta, e não há rota que a devolva depois.
+      const dados = (await resposta.json()) as { sessaoId: string; chave?: string };
+      guardarSessao({ id: dados.sessaoId, chave: dados.chave });
       setSessaoId(dados.sessaoId);
       setItens([pedidoDeAceite()]);
     } catch {
@@ -293,7 +299,7 @@ export default function Pagina() {
     if (sessaoId) {
       void fetch(`/api/sessoes/${sessaoId}/consentimento`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ aceito: aceitando }),
       }).catch(() => {});
     }
@@ -341,7 +347,7 @@ export default function Pagina() {
     try {
       const resposta = await fetch(`/api/sessoes/${sessaoId}/mensagens`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ texto: pergunta }),
       });
 
@@ -413,7 +419,7 @@ export default function Pagina() {
     try {
       await fetch(`/api/sessoes/${sessaoId}/avaliacao`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(avaliacao),
       });
     } catch {
@@ -423,7 +429,7 @@ export default function Pagina() {
 
     // A sessão foi encerrada no servidor; novas mensagens seriam recusadas.
     setEncerrada(true);
-    localStorage.removeItem(CHAVE_SESSAO);
+    esquecerSessao();
     if (relogioRef.current) clearTimeout(relogioRef.current);
   }
 

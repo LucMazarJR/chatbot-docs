@@ -1,4 +1,5 @@
 import { sessoes } from '@/lib/db';
+import { autenticarSessao } from '@/lib/sessao-autenticada';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,11 @@ type Contexto = { params: Promise<{ id: string }> };
  */
 export async function POST(requisicao: Request, { params }: Contexto) {
     const { id } = await params;
+
+    // O consentimento é a evidência de LGPD desta conversa. Aceitar em nome de
+    // outra pessoa é o tipo de registro que não pode ser possível.
+    const autenticada = await autenticarSessao(requisicao, id);
+    if ('erro' in autenticada) return autenticada.erro;
 
     const corpo = (await requisicao.json().catch(() => ({}))) as { aceito?: boolean };
 

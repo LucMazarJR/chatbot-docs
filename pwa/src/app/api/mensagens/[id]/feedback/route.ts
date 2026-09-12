@@ -1,4 +1,5 @@
 import { mensagens } from '@/lib/db';
+import { autenticarPelaMensagem } from '@/lib/sessao-autenticada';
 import type { Voto } from '@/lib/tipos';
 
 export const dynamic = 'force-dynamic';
@@ -7,6 +8,12 @@ type Contexto = { params: Promise<{ id: string }> };
 
 export async function POST(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
+
+  // O 👍/👎 é o que calibra a qualidade das respostas. Voto de quem não estava
+  // na conversa não é retorno, é ruído no dado que orienta a curadoria.
+  const autenticada = await autenticarPelaMensagem(requisicao, id);
+  if ('erro' in autenticada) return autenticada.erro;
+
   const corpo = (await requisicao.json().catch(() => ({}))) as {
     voto?: Voto | null;
     comentario?: string;

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { sessoes } from '@/lib/db';
+import { gerarChaveDeSessao } from '@/lib/sessao-autenticada';
 import type { Sessao, Versao } from '@/lib/tipos';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ export async function POST(requisicao: Request) {
 
   const sessao: Sessao = {
     _id: randomUUID(),
+    chave: gerarChaveDeSessao(),
     nome: rotulo,
     versao,
     iniciadaEm: new Date(),
@@ -33,5 +35,10 @@ export async function POST(requisicao: Request) {
 
   await col.insertOne(sessao);
 
-  return Response.json({ sessaoId: sessao._id, nome: sessao.nome }, { status: 201 });
+  // A chave sai daqui UMA vez. Não há rota que a devolva depois: quem a perde
+  // perde o acesso à conversa, que é exatamente o comportamento desejado.
+  return Response.json(
+    { sessaoId: sessao._id, chave: sessao.chave, nome: sessao.nome },
+    { status: 201 },
+  );
 }

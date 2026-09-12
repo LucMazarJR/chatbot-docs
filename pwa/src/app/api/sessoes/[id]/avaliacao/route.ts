@@ -1,4 +1,5 @@
 import { sessoes } from '@/lib/db';
+import { autenticarSessao } from '@/lib/sessao-autenticada';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,12 @@ type Contexto = { params: Promise<{ id: string }> };
 
 export async function POST(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
+
+  // Sem isto, quem tivesse o id podia encerrar a conversa de outra pessoa e
+  // ainda deixar uma nota no lugar dela — a avaliação é o dado que sustenta a
+  // conclusão do protótipo inteiro.
+  const autenticada = await autenticarSessao(requisicao, id);
+  if ('erro' in autenticada) return autenticada.erro;
 
   const corpo = (await requisicao.json().catch(() => ({}))) as {
     estrelas?: number;
