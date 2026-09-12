@@ -478,6 +478,26 @@ Resolvidas recentemente, registradas porque a correção não é óbvia a quem f
 
 ---
 
+## O atalho da condensação não funciona
+
+**O problema.** Pergunta de acompanhamento busca com a frase crua. "como chego lá?" é embedado sem referente nenhum, a busca devolve lixo, e o agente recebe a memória do Redis certinha e nenhum conteúdo — então responde "não encontrei". **A memória não é o problema: quem precisava do histórico era a busca, e ela não o vê.** No primeiro teste com participantes, ao menos 4 dos 28 "não encontrei" eram isso.
+
+**O atalho que parecia óbvio.** Em vez de uma chamada de LLM para reescrever a pergunta, concatenar a pergunta anterior ao texto da busca. Custo zero, latência zero. Medido com a busca real, contra os casos reais:
+
+| Pergunta | Anterior | Só a frase | Com a anterior |
+|---|---|---|---|
+| "ata e como chego la" | "aeroporto" | 0,776 — *"Por que quem chegou depois foi atendido primeiro"* | 0,788 — *"A UPA do Aeroporto atende 24 horas?"* |
+| "como chego la ?" | "ata e como chego la" | 0,803 — *"Como as bactérias chegam ao coração?"* | 0,811 — *"NAIA, como entrar em contato"* |
+| "E fralda geriatrica?" | "Onde consigo pegar salbutamol?" | 0,813 — *"Qualquer médico pode receitar Alendronato?"* | **0,909 — *"Onde conseguir Salbutamol gratuito?"*** |
+
+**Os dois primeiros continuam abaixo do corte de 0,82** — o tema melhora (de "bactérias no coração" para "UPA do Aeroporto"), mas não passa, porque a base **não tem** FAQ de como chegar às unidades. Ali a lacuna é de conteúdo, e já foi para a fila de curadoria como *"Como faço para chegar a uma unidade de saúde?"*, com resposta vazia.
+
+**O terceiro é pior que falhar.** O score subiu para 0,909 e três trechos passaram — mas o melhor deles é sobre **salbutamol**, a pergunta anterior. A pergunta era sobre fralda geriátrica. A concatenação fez o assunto velho dominar o vetor, e o agente receberia como contexto relevante um texto de outro medicamento. É exatamente a falha que o comentário do `LIMIAR_SCORE` descreve: *um número real, tirado de um trecho sobre outro assunto e apresentado como se valesse para a pergunta feita, é pior do que admitir que não sabe*.
+
+**Conclusão:** concatenar é pior que não fazer nada. Não ajuda onde falta conteúdo, e onde "ajuda" é trocando a pergunta da pessoa pela anterior. A condensação por LLM é diferente porque ela **resolve a referência e descarta o assunto anterior** — reescreveria "E fralda geriátrica?" como "Onde consigo pegar fralda geriátrica?", sem arrastar o salbutamol junto. Ou se faz assim, ou não se faz.
+
+---
+
 ## Decisões que dependem de você
 
 Detalhamento em [depende-de-voce.md](depende-de-voce.md).
@@ -485,7 +505,7 @@ Detalhamento em [depende-de-voce.md](depende-de-voce.md).
 | Decisão | Por que agora |
 |---|---|
 | **Billing do Gemini** | A cota gratuita de embeddings é de **1000/dia por projeto**; o chat, 500/dia no modelo em uso. O fluxo gasta 1 de cada por mensagem, então esse é o teto diário de conversas |
-| **Condensação de query** | ⚠️ **A condição já foi satisfeita.** Perguntas de acompanhamento buscam com a frase crua: "como chego lá?" é embedado sem referente, a busca devolve lixo, e o agente recebe a memória do Redis certinha e nenhum conteúdo. No primeiro teste, ao menos 4 dos 28 "não encontrei" eram isso. O que falta decidir é o custo: a correção completa dobra as chamadas de LLM por mensagem, e a latência (mediana 23,7s) já é o maior problema de experiência. Meio-termo possível: só condensar quando a pergunta for curta e tiver referência pendente ("lá", "isso", "e o…"), que é o padrão de todos os casos observados |
+| **Condensação de query** | ⚠️ **A condição já foi satisfeita — e o atalho barato foi testado e reprovado.** Ver [a medição](#o-atalho-da-condensação-não-funciona) abaixo. Resta decidir se vale a correção completa, que custa uma chamada de LLM a mais por mensagem sobre uma latência que já é o maior problema de experiência |
 | **Tier do MongoDB Atlas** | Se for M0, há limite de conexões simultâneas e de índices de busca |
 
 Itens de prazo longo (número institucional, API oficial da Meta, hospedagem, LGPD das conversas) estão em [depende-de-voce.md](depende-de-voce.md#quando-sair-do-teste). A verificação da Meta leva semanas.
