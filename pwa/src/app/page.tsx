@@ -36,11 +36,6 @@ const MINIMO_PERGUNTAS_PARA_AVALIAR = 3;
  * chave da sessão e monta o cabeçalho das chamadas autenticadas.
  */
 
-const SAUDACAO =
-  'Olá! 😊 Sou seu assistente de auxílio em saúde.\n' +
-  'Posso ajudar com serviços, exames ou dúvidas gerais sobre saúde.\n\n' +
-  'Como posso ajudar?';
-
 type Item = {
   chave: string;
   papel: Papel;
@@ -88,11 +83,21 @@ const BOTOES_DE_ACEITE: BotaoRapido[] = [
 ];
 
 /**
- * Sugestões de partida, mostradas junto da saudação.
+ * Sugestões de partida, numa faixa acima do campo de mensagem.
  *
- * No primeiro teste, 8 das 28 conversas marcadas como "não encontrou" eram só
- * "oi" — gente que abriu o chat e não sabia o que pedir. Os assuntos abaixo são
- * os que mais aparecem na base de FAQs.
+ * LÓGICA DO LUCIANO: aqui havia uma saudação — "Olá! Sou seu assistente…
+ * Como posso ajudar?" — e as sugestões vinham penduradas nela. A saudação saiu.
+ * Ela ocupava a primeira tela inteira para dizer o que o cabeçalho já diz, e
+ * obrigava a pessoa a ler um parágrafo antes de poder perguntar qualquer coisa.
+ * Chat bom abre pronto para receber a pergunta, não para apresentar-se.
+ *
+ * As sugestões ficaram, porque resolvem um problema medido: no primeiro teste,
+ * 8 das 28 conversas marcadas como "não encontrou" eram só "oi" — gente que
+ * abriu o chat e não sabia o que pedir. Sem a saudação elas viram o que sempre
+ * deveriam ter sido: atalhos ao lado do campo, e não um balão a mais para ler.
+ *
+ * Somem na primeira pergunta: a partir dali a pessoa já sabe o que fazer, e
+ * atalho que não some vira ruído permanente em cima do teclado.
  */
 const SUGESTOES: BotaoRapido[] = [
   { rotulo: 'Preparo para exames', valor: 'Como devo me preparar para um exame de sangue?' },
@@ -105,16 +110,6 @@ const SUGESTOES: BotaoRapido[] = [
 
 function horaAgora(quando: Date = new Date()) {
   return quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-}
-
-function saudacao(quando?: Date): Item {
-  return {
-    chave: 'saudacao',
-    papel: 'bot',
-    texto: SAUDACAO,
-    hora: horaAgora(quando),
-    botoes: SUGESTOES,
-  };
 }
 
 function pedidoDeAceite(quando?: Date): Item {
@@ -225,12 +220,12 @@ export default function Pagina() {
 
       const inicio = new Date(dados.iniciadaEm);
       setItens([
-        // Aceite e saudação são locais e nunca foram para o banco, então são
-        // remontados aqui — com a hora em que a conversa começou, não a do
-        // refresh. Quem já aceitou não recebe o pedido de novo.
-        ...(dados.consentimento
-          ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, saudacao(inicio)]
-          : [pedidoDeAceite(inicio)]),
+        // O aceite é local e nunca foi para o banco, então é remontado aqui —
+        // com a hora em que a conversa começou, não a do refresh. Quem já
+        // aceitou vê o pedido já respondido, e não recebe outro.
+        dados.consentimento
+          ? { ...pedidoDeAceite(inicio), escolhido: 'aceitar' }
+          : pedidoDeAceite(inicio),
         ...dados.mensagens.map((m) => ({
           chave: m._id,
           papel: m.papel,
@@ -304,12 +299,10 @@ export default function Pagina() {
       }).catch(() => {});
     }
 
-    if (aceitando) {
-      setItens((atuais) => [...atuais, saudacao()]);
-      campoRef.current?.focus();
-    } else {
-      adicionarBot(ACEITE_RECUSADO, null);
-    }
+    // Aceitou: o campo é liberado e recebe o foco na hora. Nada de saudação —
+    // quem acabou de tocar em "Aceitar" quer perguntar, não ser cumprimentado.
+    if (aceitando) campoRef.current?.focus();
+    else adicionarBot(ACEITE_RECUSADO, null);
   }
 
   // --- Envio ---------------------------------------------------------------
@@ -435,6 +428,12 @@ export default function Pagina() {
 
   // --- Tela ----------------------------------------------------------------
 
+  // Derivado dos itens, e não de um contador à parte: assim vale igual para a
+  // conversa recém-criada e para a retomada do banco, sem um segundo estado
+  // para manter em sincronia.
+  const mostrarSugestoes =
+    aceitou && !encerrada && !itens.some((item) => item.papel === 'user');
+
   return (
     <div id="app" onClick={() => setMenuAberto(false)}>
       <RegistrarSW />
@@ -470,29 +469,20 @@ export default function Pagina() {
           </button>
         </header>
 
+        {/* LÓGICA DO LUCIANO: eram três itens — "Enviar feedback", "Relatar um
+            problema" e "Encerrar e avaliar" — e os três chamavam exatamente a
+            mesma folha de avaliação, que encerra a conversa. Três nomes para uma
+            ação só, e dois deles mentindo: quem tocava em "Relatar um problema"
+            no meio da conversa a encerrava sem querer.
+
+            Sobrou o nome verdadeiro. Relatar problema PONTUAL continua tendo
+            caminho, e melhor: o 👎 sob cada resposta, que diz QUAL resposta
+            falhou em vez de "a conversa foi ruim". */}
         {menuAberto && (
-          <div className="menu">
+          <div className="menu" role="menu" aria-label="Opções da conversa">
             <button
               type="button"
-              onClick={() => {
-                setMenuAberto(false);
-                setAvaliando(true);
-              }}
-            >
-              Enviar feedback
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMenuAberto(false);
-                setAvaliando(true);
-              }}
-            >
-              Relatar um problema
-            </button>
-            <div className="menu-divisor" />
-            <button
-              type="button"
+              role="menuitem"
               onClick={() => {
                 setMenuAberto(false);
                 setAvaliando(true);
@@ -542,6 +532,15 @@ export default function Pagina() {
 
           {falhaAoAbrir && <div className="aviso-chat erro">{TEXTO_FORA_DO_AR}</div>}
         </main>
+
+        {mostrarSugestoes && (
+          <div className="sugestoes" role="group" aria-label="Sugestões de assunto">
+            <BotoesRapidos
+              botoes={SUGESTOES}
+              onEscolher={(botao) => void enviarTexto(botao.valor)}
+            />
+          </div>
+        )}
 
         <footer className="barra-envio">
           <div className="campo">
