@@ -83,32 +83,6 @@ const BOTOES_DE_ACEITE: BotaoRapido[] = [
   { rotulo: 'Agora não', valor: 'recusar' },
 ];
 
-/**
- * Sugestões de partida, numa faixa acima do campo de mensagem.
- *
- * LÓGICA DO LUCIANO: aqui havia uma saudação — "Olá! Sou seu assistente…
- * Como posso ajudar?" — e as sugestões vinham penduradas nela. A saudação saiu.
- * Ela ocupava a primeira tela inteira para dizer o que o cabeçalho já diz, e
- * obrigava a pessoa a ler um parágrafo antes de poder perguntar qualquer coisa.
- * Chat bom abre pronto para receber a pergunta, não para apresentar-se.
- *
- * As sugestões ficaram, porque resolvem um problema medido: no primeiro teste,
- * 8 das 28 conversas marcadas como "não encontrou" eram só "oi" — gente que
- * abriu o chat e não sabia o que pedir. Sem a saudação elas viram o que sempre
- * deveriam ter sido: atalhos ao lado do campo, e não um balão a mais para ler.
- *
- * Somem na primeira pergunta: a partir dali a pessoa já sabe o que fazer, e
- * atalho que não some vira ruído permanente em cima do teclado.
- */
-const SUGESTOES: BotaoRapido[] = [
-  { rotulo: 'Preparo para exames', valor: 'Como devo me preparar para um exame de sangue?' },
-  {
-    rotulo: 'Unidades de saúde',
-    valor: 'Quais são as unidades de saúde e os horários de atendimento?',
-  },
-  { rotulo: 'Medicamentos', valor: 'Como funciona a Farmácia Popular?' },
-];
-
 function horaAgora(quando: Date = new Date()) {
   return quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
@@ -512,12 +486,6 @@ export default function Pagina() {
 
   // --- Tela ----------------------------------------------------------------
 
-  // Derivado dos itens, e não de um contador à parte: assim vale igual para a
-  // conversa recém-criada e para a retomada do banco, sem um segundo estado
-  // para manter em sincronia.
-  const mostrarSugestoes =
-    aceitou && !encerrada && !itens.some((item) => item.papel === 'user');
-
   // Mesma porta do texto: sem aceite não sai nada, e enquanto uma resposta está
   // sendo esperada não entra mais nada.
   const podeEnviarAnexo = Boolean(sessaoId) && aceitou && !digitando && !encerrada;
@@ -650,15 +618,6 @@ export default function Pagina() {
             </div>
           )}
         </main>
-
-        {mostrarSugestoes && (
-          <div className="sugestoes" role="group" aria-label="Sugestões de assunto">
-            <BotoesRapidos
-              botoes={SUGESTOES}
-              onEscolher={(botao) => void enviarTexto(botao.valor)}
-            />
-          </div>
-        )}
 
         {avisoComposer && (
           <p className="aviso-composer" role="alert">

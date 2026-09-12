@@ -222,39 +222,6 @@ button {
   cursor: default;
 }
 
-/*
- * Faixa de sugestões, logo acima do campo de mensagem.
- *
- * Ficava pendurada numa saudação dentro da conversa, que ocupava a primeira
- * tela inteira só para se apresentar. Aqui as sugestões são o que sempre
- * deveriam ter sido: atalhos ao alcance do polegar, e não um balão a mais para
- * ler antes de poder perguntar.
- *
- * Rola na horizontal em vez de quebrar linha: em 360px os três assuntos
- * empurrariam o campo de digitação para fora da tela.
- */
-.sugestoes {
-  flex: 0 0 auto;
-  padding: 8px 10px 0;
-  overflow-x: auto;
-  background: var(--barra);
-  scrollbar-width: none;
-}
-
-.sugestoes::-webkit-scrollbar {
-  display: none;
-}
-
-.sugestoes .botoes-rapidos {
-  flex-wrap: nowrap;
-  max-width: none;
-  margin: 0;
-}
-
-.sugestoes .botoes-rapidos button {
-  white-space: nowrap;
-}
-
 /* A foto do contato, como no WhatsApp. */
 .avatar img {
   width: 100%;
