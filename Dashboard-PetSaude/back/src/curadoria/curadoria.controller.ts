@@ -44,6 +44,18 @@ export class CuradoriaController {
         return this.jobs.doTipo(JOB_CURADORIA) ?? null;
     }
 
+    /** O histórico das análises: quando, por quem, e o que entrou em cada uma. */
+    @Get('rodadas')
+    rodadas() {
+        return this.curadoria.listarRodadas();
+    }
+
+    // Depois de 'rodadas', senão o Nest casaria a palavra como se fosse um id.
+    @Get('rodadas/:id')
+    rodada(@Param('id') id: string) {
+        return this.curadoria.detalharRodada(id);
+    }
+
     @Post('analisar')
     analisar(@CurrentUser() user: AuthenticatedUser) {
         return this.curadoria.iniciarRodada({ id: user.id, name: user.name });

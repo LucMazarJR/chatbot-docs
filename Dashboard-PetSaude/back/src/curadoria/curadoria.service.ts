@@ -8,6 +8,7 @@ import { Mensagem, MensagemDocument } from '../conversas/schemas/mensagem.schema
 import { FaqsService } from '../faqs/faqs.service';
 import { GeminiService } from '../gemini/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
+import { Rodada, RodadaDocument } from './schemas/rodada.schema';
 import { Sugestao, SugestaoDocument } from './schemas/sugestao.schema';
 
 export const JOB_CURADORIA = 'curadoria-lacunas';
@@ -55,6 +56,8 @@ export class CuradoriaService {
         private readonly mensagemModel: Model<MensagemDocument>,
         @InjectModel(Sugestao.name)
         private readonly sugestaoModel: Model<SugestaoDocument>,
+        @InjectModel(Rodada.name)
+        private readonly rodadaModel: Model<RodadaDocument>,
         private readonly geminiService: GeminiService,
         private readonly jobsService: JobsService,
         private readonly faqsService: FaqsService,
@@ -152,6 +155,8 @@ export class CuradoriaService {
      * agrupar.
      */
     private async processar(jobId: string, actor: { id?: string; name: string }): Promise<void> {
+        let rodada: RodadaDocument | null = null;
+
         try {
             const lacunas = await this.proximasLacunas(TAMANHO_DA_RODADA);
 
@@ -160,12 +165,42 @@ export class CuradoriaService {
                 return;
             }
 
+            // O registro nasce ANTES da chamada ao modelo, com as perguntas já
+            // congeladas. Criado depois, uma falha na chamada não deixaria
+            // registro nenhum — e "rodei e não aconteceu nada" é exatamente o
+            // caso em que alguém vai querer saber o que foi enviado.
+            rodada = await new this.rodadaModel({
+                estado: 'rodando',
+                iniciadaEm: new Date(),
+                atorNome: actor.name,
+                atorId: actor.id,
+                modelo: this.geminiService.modeloDeTexto,
+                jobId,
+                lacunas: lacunas.map((l) => ({
+                    mensagemId: l.mensagemId,
+                    sessaoId: l.sessaoId,
+                    pergunta: l.pergunta,
+                    vizinhas: l.vizinhas.slice(0, 5).map((v) => ({
+                        faqId: v.faqId,
+                        question: v.question,
+                        score: v.score,
+                    })),
+                })),
+            }).save();
+
             const grupos = await this.geminiService.gerarJson<{ grupos: GrupoSugerido[] }>(
                 this.montarPrompt(lacunas),
             );
 
+            // Guardado como texto, e antes de qualquer interpretação: é a única
+            // forma de distinguir depois "o modelo errou" de "o código leu
+            // errado o que ele devolveu".
+            rodada.respostaBruta = JSON.stringify(grupos);
+            await rodada.save();
+
             const lista = Array.isArray(grupos?.grupos) ? grupos.grupos : [];
             if (lista.length === 0) {
+                await this.encerrarRodada(rodada, 'erro', 'Nenhum agrupamento devolvido.');
                 this.jobsService.finalizar(
                     jobId,
                     'erro',
@@ -177,6 +212,7 @@ export class CuradoriaService {
             // As lacunas que o modelo classificou como fora de escopo saem da
             // fila sem virar sugestão.
             const foraDeEscopo: string[] = [];
+            const sugestoesCriadas: string[] = [];
 
             for (const grupo of lista) {
                 const daqui = (grupo.perguntas ?? [])
@@ -204,14 +240,14 @@ export class CuradoriaService {
                     continue;
                 }
 
-                await new this.sugestaoModel({
+                const criada = await new this.sugestaoModel({
                     estado: 'pendente',
                     tipo: grupo.tipo === 'complemento' ? 'complemento' : 'nova',
                     pergunta: (grupo.pergunta ?? '').trim(),
                     rascunhoResposta: (grupo.resposta ?? '').trim(),
                     categoriaSugerida: grupo.categoria?.trim() || null,
                     tagsSugeridas: (grupo.tags ?? []).map((t) => String(t).trim()).filter(Boolean),
-                    faqRelacionadaId: grupo.faqRelacionada?.trim() || null,
+                    faqRelacionadaId: this.faqRelacionadaValida(grupo.faqRelacionada, daqui),
                     justificativa: (grupo.justificativa ?? '').trim(),
                     origens,
                     criadaEm: new Date(),
@@ -219,6 +255,7 @@ export class CuradoriaService {
                     modelo: this.geminiService.modeloDeTexto,
                 }).save();
 
+                sugestoesCriadas.push(String(criada._id));
                 this.jobsService.incrementar(jobId, 'sugestoes');
             }
 
@@ -255,18 +292,33 @@ export class CuradoriaService {
 
             this.jobsService.avancar(jobId, lacunas.length);
 
+            rodada.sugestoesCriadas = sugestoesCriadas;
+            rodada.foraDeEscopo = foraDeEscopo;
+            await this.encerrarRodada(rodada, 'concluida');
+
             void this.activityService.registrar({
                 actor_name: actor.name,
                 actor_id: actor.id,
                 action: 'curadoria',
                 entity_type: 'sistema',
+                // O id da rodada é o que liga esta linha do histórico ao
+                // registro completo: as perguntas que entraram e a resposta
+                // crua do modelo.
+                entity_id: String(rodada._id),
                 target: `${lacunas.length} perguntas sem resposta analisadas`,
-                after: { sugestoes: lista.length },
+                after: {
+                    sugestoes: sugestoesCriadas.length,
+                    fora_de_escopo: foraDeEscopo.length,
+                    modelo: this.geminiService.modeloDeTexto,
+                },
             });
 
             this.jobsService.finalizar(jobId, 'concluido');
         } catch (erro) {
+            const mensagem = erro instanceof Error ? erro.message : 'Falha inesperada.';
+
             if (GeminiService.ehErroDeCota(erro)) {
+                await this.encerrarRodada(rodada, 'cota_esgotada', mensagem);
                 this.jobsService.finalizar(
                     jobId,
                     'cota_esgotada',
@@ -274,15 +326,132 @@ export class CuradoriaService {
                 );
                 return;
             }
+
+            this.logger.error(`Curadoria ${jobId} falhou: ${mensagem}`);
+            await this.encerrarRodada(rodada, 'erro', mensagem);
+            this.jobsService.finalizar(jobId, 'erro', mensagem);
+        }
+    }
+
+    /**
+     * Fecha o registro da rodada.
+     *
+     * Nunca deixa a falha do registro derrubar a rodada: o histórico existe para
+     * explicar o que aconteceu, e um histórico que interrompe a operação que ele
+     * deveria descrever é pior que histórico nenhum — mesma regra do
+     * ActivityService.
+     */
+    private async encerrarRodada(
+        rodada: RodadaDocument | null,
+        estado: 'concluida' | 'erro' | 'cota_esgotada',
+        erro?: string,
+    ): Promise<void> {
+        if (!rodada) return;
+        try {
+            rodada.estado = estado;
+            rodada.terminadaEm = new Date();
+            rodada.erro = erro ?? null;
+            await rodada.save();
+        } catch (falha) {
             this.logger.error(
-                `Curadoria ${jobId} falhou: ${erro instanceof Error ? erro.message : erro}`,
-            );
-            this.jobsService.finalizar(
-                jobId,
-                'erro',
-                erro instanceof Error ? erro.message : 'Falha inesperada.',
+                `Nao foi possivel gravar a rodada de curadoria: ${
+                    falha instanceof Error ? falha.message : falha
+                }`,
             );
         }
+    }
+
+    /**
+     * O histórico das análises, com o que entrou em cada uma.
+     *
+     * LÓGICA DO LUCIANO: a lista vem sem a `respostaBruta` e sem as vizinhas de
+     * cada pergunta — são dezenas de KB por rodada, e a tela mostra dez rodadas.
+     * Quem quiser o detalhe abre uma.
+     */
+    async listarRodadas(limite = 20) {
+        const docs = await this.rodadaModel
+            .find()
+            .sort({ iniciadaEm: -1 })
+            .limit(Math.min(50, Math.max(1, limite)))
+            .select('-respostaBruta -lacunas.vizinhas')
+            .lean()
+            .exec();
+
+        return docs.map((doc) => ({
+            id: String(doc._id),
+            estado: doc.estado,
+            iniciadaEm: doc.iniciadaEm,
+            terminadaEm: doc.terminadaEm ?? null,
+            atorNome: doc.atorNome,
+            modelo: doc.modelo ?? null,
+            erro: doc.erro ?? null,
+            perguntas: (doc.lacunas ?? []).map((l) => ({
+                mensagemId: l.mensagemId,
+                sessaoId: l.sessaoId,
+                pergunta: l.pergunta,
+            })),
+            sugestoesCriadas: doc.sugestoesCriadas ?? [],
+            foraDeEscopo: doc.foraDeEscopo ?? [],
+        }));
+    }
+
+    /** Uma rodada inteira, incluindo o que o modelo devolveu palavra por palavra. */
+    async detalharRodada(id: string) {
+        if (!isValidObjectId(id)) throw new NotFoundException('Rodada nao encontrada');
+        const doc = await this.rodadaModel.findById(id).lean().exec();
+        if (!doc) throw new NotFoundException('Rodada nao encontrada');
+
+        return {
+            id: String(doc._id),
+            estado: doc.estado,
+            iniciadaEm: doc.iniciadaEm,
+            terminadaEm: doc.terminadaEm ?? null,
+            atorNome: doc.atorNome,
+            modelo: doc.modelo ?? null,
+            erro: doc.erro ?? null,
+            respostaBruta: doc.respostaBruta ?? '',
+            lacunas: (doc.lacunas ?? []).map((l) => ({
+                mensagemId: l.mensagemId,
+                sessaoId: l.sessaoId,
+                pergunta: l.pergunta,
+                vizinhas: (l.vizinhas ?? []).map((v) => ({
+                    faqId: v.faqId ?? null,
+                    question: v.question ?? null,
+                    score: v.score,
+                })),
+            })),
+            sugestoesCriadas: doc.sugestoesCriadas ?? [],
+            foraDeEscopo: doc.foraDeEscopo ?? [],
+        };
+    }
+
+    /**
+     * Só aceita como FAQ relacionada um id que a busca realmente devolveu para
+     * aquelas perguntas.
+     *
+     * LÓGICA DO LUCIANO: no primeiro ensaio contra dados reais o modelo devolveu
+     * `faqRelacionada: "desconhecido"` — a palavra que o prompt usava como
+     * rótulo para as FAQs antigas, que não têm id gravado. Guardado assim,
+     * viraria um link para /faqs/desconhecido na tela de aprovação: um 404 que
+     * ninguém consegue explicar, aparecendo na tela de quem está decidindo
+     * conteúdo de saúde.
+     *
+     * A conferência não é só de formato. Um ObjectId com a forma certa mas
+     * inventado apontaria para uma FAQ que não tem nada a ver com a pergunta, e
+     * isso é pior que não apontar para nada. Exigir que o id esteja entre os
+     * vizinhos DAQUELAS perguntas é o que torna a checagem verdadeira.
+     */
+    private faqRelacionadaValida(
+        candidato: string | null | undefined,
+        lacunas: Lacuna[],
+    ): string | null {
+        const id = (candidato ?? '').trim();
+        if (!id || !isValidObjectId(id)) return null;
+
+        const conhecidos = new Set(
+            lacunas.flatMap((l) => l.vizinhas.map((v) => v.faqId).filter(Boolean)),
+        );
+        return conhecidos.has(id) ? id : null;
     }
 
     /**
@@ -301,12 +470,21 @@ export class CuradoriaService {
         const blocos = lacunas.map((lacuna, i) => {
             const vizinhas = lacuna.vizinhas
                 .slice(0, 5)
-                .map(
-                    (v) =>
-                        `    - [id: ${v.faqId ?? 'desconhecido'} | proximidade ${v.score.toFixed(3)}] ${
-                            v.question ?? '(sem pergunta)'
-                        }\n      ${(v.previa ?? '').replace(/\s+/g, ' ').slice(0, 200)}`,
-                )
+                .map((v) => {
+                    // O id só entra quando existe de verdade. Numa versão
+                    // anterior aqui se escrevia "id: desconhecido" para os que
+                    // não tinham, e o modelo devolveu literalmente
+                    // `faqRelacionada: "desconhecido"` — que viraria um link
+                    // quebrado na tela de aprovação. Rótulo que não é dado não
+                    // deve parecer dado.
+                    const identificacao = v.faqId
+                        ? `id: ${v.faqId} | proximidade ${v.score.toFixed(3)}`
+                        : `sem id | proximidade ${v.score.toFixed(3)}`;
+                    return (
+                        `    - [${identificacao}] ${v.question ?? '(sem pergunta)'}\n` +
+                        `      ${(v.previa ?? '').replace(/\s+/g, ' ').slice(0, 200)}`
+                    );
+                })
                 .join('\n');
 
             return [
@@ -325,8 +503,10 @@ export class CuradoriaService {
             'Sua tarefa:',
             '1. Agrupe as perguntas que pedem a MESMA coisa escrita de formas diferentes.',
             '2. Para cada grupo, escreva a pergunta canonica, do jeito que ela entraria na base.',
-            '3. Diga se o grupo pede uma FAQ NOVA ou se e COMPLEMENTO de uma FAQ existente',
-            '   (neste caso, informe o id dela em faqRelacionada).',
+            '3. Diga se o grupo pede uma FAQ NOVA ou se e COMPLEMENTO de uma FAQ existente.',
+            '   Em faqRelacionada, use APENAS um id que aparece na lista abaixo, copiado',
+            '   exatamente. Se a FAQ proxima nao mostrar id, use null — nunca invente nem',
+            '   escreva texto nesse campo.',
             '4. Se a entrada NAO for um pedido de informacao de saude ou de servico de saude',
             '   — assunto de fora, desabafo, teste, texto sem sentido —, use tipo',
             '   "fora_de_escopo". Nao invente FAQ para ela: o chatbot acertou em nao',

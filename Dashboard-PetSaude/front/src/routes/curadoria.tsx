@@ -2,16 +2,25 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ChevronDown, ChevronRight, MessagesSquare, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  History,
+  MessagesSquare,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
   analisarLacunas,
   aprovarSugestao,
   descartarSugestao,
+  detalharRodada,
   getFilaCuradoria,
   getJobCuradoria,
   listarLacunas,
+  listarRodadas,
   listarSugestoes,
   type Sugestao,
 } from "@/lib/curadoria.functions";
@@ -70,6 +79,8 @@ function CuradoriaPage() {
     if (job.data && job.data.estado !== "rodando") {
       void queryClient.invalidateQueries({ queryKey: ["curadoria-fila"] });
       void queryClient.invalidateQueries({ queryKey: ["curadoria-sugestoes"] });
+      void queryClient.invalidateQueries({ queryKey: ["curadoria-rodadas"] });
+      void queryClient.invalidateQueries({ queryKey: ["curadoria-lacunas"] });
     }
   }, [job.data?.estado, job.data?.id, queryClient]);
 
@@ -143,8 +154,152 @@ function CuradoriaPage() {
         </section>
 
         <FilaBruta />
+
+        <HistoricoDeRodadas />
       </div>
     </GateShell>
+  );
+}
+
+/**
+ * Toda vez que a análise foi disparada, e com que conteúdo.
+ *
+ * LÓGICA DO LUCIANO: sem isto, a única marca de que o modelo agiu seria a
+ * sugestão que sobreviveu — e sugestão descartada some sem deixar rastro. Quem
+ * olhasse depois veria FAQs criadas "pela curadoria" sem conseguir responder a
+ * pergunta óbvia: com base em quê?
+ *
+ * Por isso a rodada mostra a ENTRADA, e não só o resultado: as perguntas ficam
+ * copiadas no registro, com as FAQs que a busca tinha devolvido e os scores
+ * daquele momento. A base muda e as conversas do protótipo são descartáveis;
+ * sem a cópia, a decisão viraria inauditável em poucas semanas.
+ */
+function HistoricoDeRodadas() {
+  const [aberto, setAberto] = useState(false);
+  const [abertaId, setAbertaId] = useState<string | null>(null);
+
+  const rodadas = useQuery({
+    queryKey: ["curadoria-rodadas"],
+    queryFn: () => listarRodadas(),
+    enabled: aberto,
+  });
+
+  const lista = rodadas.data ?? [];
+
+  return (
+    <section className="rounded-lg border border-border panel-surface">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-2 p-4 text-left"
+        onClick={() => setAberto((v) => !v)}
+        aria-expanded={aberto}
+      >
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <History className="size-4" />
+          Histórico das análises
+        </span>
+        {aberto ? (
+          <ChevronDown className="size-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="size-4 text-muted-foreground" />
+        )}
+      </button>
+
+      {aberto && (
+        <div className="border-t border-border p-4">
+          {rodadas.isLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando…</p>
+          ) : lista.length === 0 ? (
+            <p className="text-sm text-muted-foreground">A análise ainda não foi disparada.</p>
+          ) : (
+            <ul className="space-y-3">
+              {lista.map((rodada) => (
+                <li key={rodada.id} className="rounded-md border border-border p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">
+                        {new Date(rodada.iniciadaEm).toLocaleString("pt-BR")} · {rodada.atorNome}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {rodada.perguntas.length}{" "}
+                        {rodada.perguntas.length === 1 ? "pergunta" : "perguntas"} ·{" "}
+                        {rodada.sugestoesCriadas.length}{" "}
+                        {rodada.sugestoesCriadas.length === 1 ? "sugestão" : "sugestões"}
+                        {rodada.foraDeEscopo.length > 0 &&
+                          ` · ${rodada.foraDeEscopo.length} fora do escopo`}
+                        {rodada.modelo && ` · ${rodada.modelo}`}
+                      </p>
+                      {rodada.erro && (
+                        <p className="mt-1 text-xs text-destructive">{rodada.erro}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setAbertaId(abertaId === rodada.id ? null : rodada.id)}
+                    >
+                      {abertaId === rodada.id ? "ocultar" : "ver o que foi enviado"}
+                    </button>
+                  </div>
+
+                  {abertaId === rodada.id && <DetalheDaRodada id={rodada.id} />}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DetalheDaRodada({ id }: { id: string }) {
+  const rodada = useQuery({
+    queryKey: ["curadoria-rodada", id],
+    queryFn: () => detalharRodada({ data: { id } }),
+  });
+
+  if (rodada.isLoading) return <p className="mt-3 text-xs text-muted-foreground">Carregando…</p>;
+  if (!rodada.data) return null;
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-border pt-3">
+      <ul className="space-y-2">
+        {rodada.data.lacunas.map((lacuna) => (
+          <li key={lacuna.mensagemId} className="text-sm">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <span className="min-w-0">“{lacuna.pergunta}”</span>
+              <Link
+                to="/conversas/$id"
+                params={{ id: lacuna.sessaoId }}
+                className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+              >
+                conversa
+              </Link>
+            </div>
+            {lacuna.vizinhas.length > 0 && (
+              <ul className="mt-0.5 space-y-0.5">
+                {lacuna.vizinhas.map((v, i) => (
+                  <li key={i} className="text-xs text-muted-foreground">
+                    <span className="tabular-nums">{v.score.toFixed(3)}</span> ·{" "}
+                    {v.question ?? "—"}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <details>
+        <summary className="cursor-pointer text-xs text-muted-foreground">
+          Resposta do modelo, como veio
+        </summary>
+        <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted p-2 text-xs">
+          {rodada.data.respostaBruta || "(vazia)"}
+        </pre>
+      </details>
+    </div>
   );
 }
 

@@ -67,6 +67,42 @@ export const listarSugestoes = createServerFn({ method: "GET" })
       apiFetch(`/curadoria/sugestoes?estado=${data.estado}`),
   );
 
+export type RodadaResumida = {
+  id: string;
+  estado: "rodando" | "concluida" | "erro" | "cota_esgotada";
+  iniciadaEm: string;
+  terminadaEm: string | null;
+  atorNome: string;
+  modelo: string | null;
+  erro: string | null;
+  /** As perguntas que entraram nesta rodada, congeladas como estavam. */
+  perguntas: { mensagemId: string; sessaoId: string; pergunta: string }[];
+  sugestoesCriadas: string[];
+  foraDeEscopo: string[];
+};
+
+export type RodadaDetalhada = Omit<RodadaResumida, "perguntas"> & {
+  /** O JSON que o modelo devolveu, palavra por palavra. */
+  respostaBruta: string;
+  lacunas: {
+    mensagemId: string;
+    sessaoId: string;
+    pergunta: string;
+    vizinhas: { faqId: string | null; question: string | null; score: number }[];
+  }[];
+};
+
+export const listarRodadas = createServerFn({ method: "GET" }).handler(
+  async (): Promise<RodadaResumida[]> => apiFetch<RodadaResumida[]>("/curadoria/rodadas"),
+);
+
+export const detalharRodada = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(
+    async ({ data }: { data: { id: string } }): Promise<RodadaDetalhada> =>
+      apiFetch<RodadaDetalhada>(`/curadoria/rodadas/${encodeURIComponent(data.id)}`),
+  );
+
 export const getJobCuradoria = createServerFn({ method: "GET" }).handler(
   async (): Promise<Job | null> => apiFetch<Job | null>("/curadoria/job"),
 );

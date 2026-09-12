@@ -9,6 +9,7 @@ import { FaqsService } from '../faqs/faqs.service';
 import { GeminiService } from '../gemini/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
 import { CuradoriaService } from './curadoria.service';
+import { Rodada } from './schemas/rodada.schema';
 import { Sugestao } from './schemas/sugestao.schema';
 
 /**
@@ -24,6 +25,8 @@ describe('CuradoriaService', () => {
   let service: CuradoriaService;
   let mensagens: any[];
   let salvas: any[];
+  /** O registro de cada rodada, que e o historico da ativacao. */
+  let rodadas: any[];
   let updateMany: jest.Mock;
   let gerarJson: jest.Mock;
   let createFaq: jest.Mock;
@@ -54,6 +57,7 @@ describe('CuradoriaService', () => {
   beforeEach(async () => {
     mensagens = [];
     salvas = [];
+    rodadas = [];
     updateMany = jest.fn(() => ({ exec: jest.fn(async () => ({})) }));
     gerarJson = jest.fn();
     createFaq = jest.fn(async () => ({ ok: true, id: 'faq-nova', semEmbedding: false }));
@@ -74,6 +78,19 @@ describe('CuradoriaService', () => {
     sugestaoModel.find = jest.fn(() => consulta(() => []));
     sugestaoModel.findById = jest.fn();
 
+    // O documento da rodada continua acessível depois do save: o service o
+    // atualiza ao longo da execução, e os testes leem o estado final.
+    const rodadaModel: any = function (this: any, dados: any) {
+      Object.assign(this, dados);
+      this._id = `rodada-${rodadas.length + 1}`;
+      this.save = jest.fn(async () => {
+        if (!rodadas.includes(this)) rodadas.push(this);
+        return this;
+      });
+    };
+    rodadaModel.find = jest.fn(() => consulta(() => []));
+    rodadaModel.findById = jest.fn(() => consulta(() => null));
+
     jobs = {
       criar: jest.fn(() => ({ id: 'job-1' })),
       incrementar: jest.fn(),
@@ -89,6 +106,7 @@ describe('CuradoriaService', () => {
         CuradoriaService,
         { provide: getModelToken(Mensagem.name, CONEXAO_PROTOTIPO), useValue: mensagemModel },
         { provide: getModelToken(Sugestao.name), useValue: sugestaoModel },
+        { provide: getModelToken(Rodada.name), useValue: rodadaModel },
         {
           provide: GeminiService,
           useValue: { gerarJson, modeloDeTexto: 'gemini-3.1-flash-lite' },
@@ -209,6 +227,78 @@ describe('CuradoriaService', () => {
     // gravadas estavam "qual o melhor time de futebol do brasil?" e "Hoje fiz
     // muita coisa". Sem esta saida, a tela de aprovacao encheria de lixo na
     // primeira vez que alguem a abrisse.
+    // No primeiro ensaio contra dados reais o modelo devolveu
+    // `faqRelacionada: "desconhecido"` — a palavra que o prompt usava como
+    // rotulo para FAQ sem id. Guardado assim, viraria um /faqs/desconhecido na
+    // tela de quem decide conteudo de saude.
+    it('recusa FAQ relacionada que nao veio da busca daquelas perguntas', async () => {
+      troca(1, 'E fralda geriatrica?');
+      gerarJson.mockResolvedValue({
+        grupos: [
+          {
+            perguntas: [1],
+            pergunta: 'Quais documentos para retirar fralda?',
+            tipo: 'complemento',
+            faqRelacionada: 'desconhecido',
+          },
+        ],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(salvas[0].faqRelacionadaId).toBeNull();
+    });
+
+    it('recusa id com forma valida que a busca nao devolveu', async () => {
+      troca(1, 'E fralda geriatrica?');
+      gerarJson.mockResolvedValue({
+        grupos: [
+          {
+            perguntas: [1],
+            pergunta: 'Quais documentos para retirar fralda?',
+            tipo: 'complemento',
+            // ObjectId bem formado, mas alheio: apontaria para uma FAQ sem
+            // relacao com a pergunta, que e pior do que nao apontar.
+            faqRelacionada: '507f1f77bcf86cd799439099',
+          },
+        ],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(salvas[0].faqRelacionadaId).toBeNull();
+    });
+
+    it('aceita o id que a busca realmente devolveu', async () => {
+      troca(1, 'E fralda geriatrica?', {
+        trechosDebug: [
+          {
+            faqId: '507f1f77bcf86cd799439011',
+            question: 'Documentos para remedios',
+            score: 0.83,
+            previa: 'texto',
+          },
+        ],
+      });
+      gerarJson.mockResolvedValue({
+        grupos: [
+          {
+            perguntas: [1],
+            pergunta: 'Quais documentos para retirar fralda?',
+            tipo: 'complemento',
+            faqRelacionada: '507f1f77bcf86cd799439011',
+          },
+        ],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(salvas[0].faqRelacionadaId).toBe('507f1f77bcf86cd799439011');
+    });
+
     it('encerra a pergunta fora de escopo sem criar sugestao', async () => {
       troca(1, 'qual o melhor time de futebol do brasil?');
       troca(2, 'Onde fica a UBS?');
@@ -274,6 +364,71 @@ describe('CuradoriaService', () => {
         { _id: { $in: ['b1'] } },
         { $set: { curadoria: 'processada' } },
       );
+    });
+  });
+
+  /**
+   * LÓGICA DO LUCIANO: sem o registro, a única marca de que o modelo agiu seria
+   * a sugestão que sobreviveu — e sugestão descartada some sem deixar rastro.
+   * O que precisa ficar é a ENTRADA: quais perguntas foram enviadas e com que
+   * FAQs ao lado. A base muda e as conversas do protótipo são descartáveis;
+   * sem a cópia, a decisão vira inauditável em poucas semanas.
+   */
+  describe('historico da rodada', () => {
+    it('grava quem disparou, quando e quais perguntas entraram', async () => {
+      troca(1, 'Onde fica a UBS?');
+      troca(2, 'qual o melhor time de futebol?');
+      gerarJson.mockResolvedValue({
+        grupos: [
+          { perguntas: [1], pergunta: 'Onde fica a UBS?', tipo: 'nova' },
+          { perguntas: [2], pergunta: '', tipo: 'fora_de_escopo' },
+        ],
+      });
+
+      service.iniciarRodada({ name: 'Ana', id: 'u-1' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(rodadas).toHaveLength(1);
+      const rodada = rodadas[0];
+      expect(rodada.estado).toBe('concluida');
+      expect(rodada.atorNome).toBe('Ana');
+      expect(rodada.modelo).toBe('gemini-3.1-flash-lite');
+      expect(rodada.lacunas.map((l: any) => l.pergunta)).toEqual([
+        'Onde fica a UBS?',
+        'qual o melhor time de futebol?',
+      ]);
+      // As FAQs que a busca tinha devolvido, com o score daquele momento.
+      expect(rodada.lacunas[0].vizinhas[0].faqId).toBe('faq-1');
+      expect(rodada.foraDeEscopo).toEqual(['b2']);
+      expect(rodada.sugestoesCriadas).toHaveLength(1);
+    });
+
+    it('guarda a resposta do modelo como texto, antes de interpretar', async () => {
+      troca(1, 'Onde fica a UBS?');
+      const devolvido = { grupos: [{ perguntas: [1], pergunta: 'Onde fica a UBS?' }] };
+      gerarJson.mockResolvedValue(devolvido);
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      // É a única forma de distinguir depois "o modelo errou" de "o código leu
+      // errado o que ele devolveu".
+      expect(JSON.parse(rodadas[0].respostaBruta)).toEqual(devolvido);
+    });
+
+    it('registra a rodada mesmo quando a chamada ao modelo falha', async () => {
+      troca(1, 'Onde fica a UBS?');
+      gerarJson.mockRejectedValue(new Error('modelo fora do ar'));
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      // "Rodei e não aconteceu nada" é exatamente o caso em que alguém vai
+      // querer saber o que foi enviado.
+      expect(rodadas).toHaveLength(1);
+      expect(rodadas[0].estado).toBe('erro');
+      expect(rodadas[0].erro).toBe('modelo fora do ar');
+      expect(rodadas[0].lacunas).toHaveLength(1);
     });
   });
 

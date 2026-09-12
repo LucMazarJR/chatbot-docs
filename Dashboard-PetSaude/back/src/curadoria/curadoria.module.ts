@@ -8,6 +8,7 @@ import { FaqsModule } from '../faqs/faqs.module';
 import { GeminiModule } from '../gemini/gemini.module';
 import { CuradoriaController } from './curadoria.controller';
 import { CuradoriaService } from './curadoria.service';
+import { Rodada, RodadaSchema } from './schemas/rodada.schema';
 import { Sugestao, SugestaoSchema } from './schemas/sugestao.schema';
 
 /**
@@ -21,7 +22,10 @@ import { Sugestao, SugestaoSchema } from './schemas/sugestao.schema';
  */
 @Module({
     imports: [
-        MongooseModule.forFeature([{ name: Sugestao.name, schema: SugestaoSchema }]),
+        MongooseModule.forFeature([
+            { name: Sugestao.name, schema: SugestaoSchema },
+            { name: Rodada.name, schema: RodadaSchema },
+        ]),
         MongooseModule.forFeature(
             [{ name: Mensagem.name, schema: MensagemSchema }],
             CONEXAO_PROTOTIPO,
