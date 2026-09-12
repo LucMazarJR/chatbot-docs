@@ -55,6 +55,64 @@
   box-sizing: border-box;
 }
 
+/*
+ * Texto só para leitor de tela.
+ *
+ * Usado onde a informação existe visualmente mas não em palavras: os tiques de
+ * entrega, o aviso de que o assistente está digitando, o atalho para pular a
+ * conversa. Não é `display: none` nem `visibility: hidden` — os dois escondem
+ * do leitor de tela também, que é o oposto do que se quer aqui.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * Anel de foco visível, em tudo que recebe foco.
+ *
+ * LÓGICA DO LUCIANO: `:focus-visible`, e não `:focus` — o navegador só mostra o
+ * anel para quem está navegando por teclado, então o toque e o clique continuam
+ * limpos. Sem isto, quem usa só o teclado não tinha como saber onde estava:
+ * botões e balões não mudavam de aparência nenhuma ao receber foco.
+ */
+:focus-visible {
+  outline: 3px solid var(--acento);
+  outline-offset: 2px;
+}
+
+/*
+ * Atalho para pular a conversa.
+ *
+ * Os polegares 👍/👎 sob cada resposta são focáveis. Numa conversa de vinte
+ * respostas, isso são quarenta paradas de Tab entre o topo da página e o campo
+ * de mensagem — na prática, o teclado deixa de servir para conversar. O atalho
+ * aparece ao receber foco, como manda o padrão: some para quem usa o mouse.
+ */
+.pular {
+  position: absolute;
+  z-index: 20;
+  top: -100px;
+  left: 8px;
+  padding: 10px 16px;
+  border-radius: 0 0 6px 6px;
+  background: var(--acento);
+  color: #fff;
+  font-weight: 600;
+  transition: top 0.15s;
+}
+
+.pular:focus {
+  top: 0;
+}
+
 html,
 body {
   height: 100%;
@@ -139,6 +197,9 @@ button {
 }
 
 .botoes-rapidos button {
+  /* 40px de altura: dedo acerta, e passa com folga do mínimo de alvo da WCAG.
+     Com os 7px de padding sozinhos dava 31px. */
+  min-height: 40px;
   padding: 7px 14px;
   border: 1px solid var(--acento);
   border-radius: 18px;
@@ -242,9 +303,11 @@ button {
   white-space: nowrap;
 }
 
+/* Estava em opacity 0.85, o que dava 3.99:1 de contraste contra o verde do
+   cabeçalho — abaixo dos 4.5:1 que a WCAG pede para texto deste tamanho. A
+   opacidade cheia leva para 4.89:1. A hierarquia continua pelo tamanho. */
 .topo-nome span {
   font-size: 12.5px;
-  opacity: 0.85;
 }
 
 .topo button {
@@ -449,6 +512,8 @@ button {
 }
 
 .avaliar-msg button {
+  min-height: 32px;
+  min-width: 40px;
   padding: 3px 9px;
   border: 1px solid var(--borda);
   border-radius: 12px;
@@ -557,8 +622,17 @@ button {
   resize: none;
 }
 
+/* O anel fica na cápsula inteira, e não no textarea: desenhado no textarea ele
+   contornaria só a linha de texto, por dentro do campo arredondado, o que lê
+   como defeito. A regra `:focus-visible` global não alcançava aqui porque este
+   `outline: none` é mais específico que ela. */
 .barra-envio textarea:focus {
   outline: none;
+}
+
+.barra-envio .campo:focus-within {
+  outline: 3px solid var(--acento);
+  outline-offset: 2px;
 }
 
 .barra-envio textarea::placeholder {

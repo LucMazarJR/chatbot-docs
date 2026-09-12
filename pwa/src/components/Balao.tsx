@@ -43,7 +43,15 @@ export function Balao({ papel, texto, hora, primeira, lida = false }: Props) {
 
         <span className={'meta' + (lida ? ' lido' : '')}>
           <span>{hora}</span>
-          {ehSaida ? (lida ? TICK_DUPLO : TICK_SIMPLES) : null}
+          {/* Os tiques são a única indicação de que a mensagem chegou, e são
+              desenho puro: para quem usa leitor de tela, um tique e dois tiques
+              azuis eram exatamente a mesma coisa — nada. */}
+          {ehSaida ? (
+            <>
+              <span className="sr-only">{lida ? 'Entregue' : 'Enviando'}</span>
+              {lida ? TICK_DUPLO : TICK_SIMPLES}
+            </>
+          ) : null}
         </span>
       </div>
     </div>
@@ -52,9 +60,12 @@ export function Balao({ papel, texto, hora, primeira, lida = false }: Props) {
 
 export function Digitando() {
   return (
-    <div className="linha entrada-linha digitando">
+    // `aria-hidden`: quem anuncia a espera é o "digitando…" do cabeçalho, que
+    // é role="status". Sem isto os dois falariam, e o leitor de tela repetiria
+    // o aviso a cada repintura da lista.
+    <div className="linha entrada-linha digitando" aria-hidden="true">
       <div className="balao">
-        <div className="pontos" aria-label="digitando">
+        <div className="pontos">
           <i />
           <i />
           <i />

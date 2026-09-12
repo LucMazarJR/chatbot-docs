@@ -27,7 +27,11 @@ export function Feedback({ mensagemId }: { mensagemId: string }) {
   }
 
   return (
-    <div className={'avaliar-msg' + (escolhido ? ' respondido' : '')}>
+    <div
+      className={'avaliar-msg' + (escolhido ? ' respondido' : '')}
+      role="group"
+      aria-label="Esta resposta ajudou?"
+    >
       {(
         [
           ['up', '👍', 'Esta resposta ajudou'],
@@ -39,6 +43,12 @@ export function Feedback({ mensagemId }: { mensagemId: string }) {
           type="button"
           title={titulo}
           aria-label={titulo}
+          // `aria-pressed` é o que transmite o voto já dado: visualmente o botão
+          // escolhido fica preenchido e o outro some, e nada disso chegava a
+          // quem usa leitor de tela. E `disabled` porque o CSS travava só o
+          // ponteiro — pelo teclado dava para votar de novo, à toa.
+          aria-pressed={escolhido === voto}
+          disabled={Boolean(escolhido)}
           className={escolhido === voto ? 'escolhido' : ''}
           onClick={() => votar(voto)}
         >

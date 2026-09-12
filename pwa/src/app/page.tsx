@@ -148,6 +148,8 @@ export default function Pagina() {
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
+  const botaoMenuRef = useRef<HTMLButtonElement>(null);
+  const primeiroItemRef = useRef<HTMLButtonElement>(null);
   const relogioRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const perguntasRef = useRef(0);
   const abrindoRef = useRef(false);
@@ -158,6 +160,30 @@ export default function Pagina() {
     const lista = listaRef.current;
     if (lista) lista.scrollTop = lista.scrollHeight;
   }, [itens, digitando]);
+
+  // --- Menu do cabeçalho ---------------------------------------------------
+
+  /**
+   * Abrir o menu leva o foco para dentro dele; Esc fecha e devolve o foco.
+   *
+   * LÓGICA DO LUCIANO: o menu só fechava por clique fora, num onClick do
+   * container — quem navega por teclado abria e ficava preso: Tab passeava pela
+   * conversa inteira por baixo do menu aberto, e não havia como desistir.
+   */
+  useEffect(() => {
+    if (!menuAberto) return;
+
+    primeiroItemRef.current?.focus();
+
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key !== 'Escape') return;
+      setMenuAberto(false);
+      botaoMenuRef.current?.focus();
+    };
+
+    document.addEventListener('keydown', aoTeclar);
+    return () => document.removeEventListener('keydown', aoTeclar);
+  }, [menuAberto]);
 
   // --- Inatividade ---------------------------------------------------------
 
@@ -438,6 +464,13 @@ export default function Pagina() {
     <div id="app" onClick={() => setMenuAberto(false)}>
       <RegistrarSW />
 
+      {/* Os polegares sob cada resposta são focáveis: numa conversa de vinte
+          respostas, chegar ao campo de mensagem pelo teclado custa quarenta
+          paradas de Tab. Este atalho é a saída, e só aparece ao receber foco. */}
+      <a className="pular" href="#campo-mensagem">
+        Ir direto para o campo de mensagem
+      </a>
+
       <section className="tela">
         <header className="topo">
           {/* Foto no lugar do ícone genérico: o WhatsApp mostra o retrato do
@@ -449,12 +482,24 @@ export default function Pagina() {
 
           <div className="topo-nome">
             <strong>Assistente de Saúde</strong>
-            <span>{digitando ? 'digitando…' : encerrada ? 'conversa encerrada' : 'online'}</span>
+            {/* `role="status"` porque este texto é o único lugar onde a espera
+                aparece em palavras. Os três pontinhos do balão são desenho, e
+                quem não enxerga a tela ficaria sem saber que a resposta está
+                sendo preparada — que é justamente o momento em que a pessoa
+                precisa saber, porque aqui ela dura dezenas de segundos. */}
+            <span role="status">
+              {digitando
+                ? 'digitando…'
+                : encerrada
+                  ? 'conversa encerrada'
+                  : 'online'}
+            </span>
           </div>
 
           <button
+            ref={botaoMenuRef}
             aria-label="Mais opções"
-            aria-haspopup="true"
+            aria-haspopup="menu"
             aria-expanded={menuAberto}
             onClick={(evento) => {
               evento.stopPropagation();
@@ -483,6 +528,7 @@ export default function Pagina() {
             <button
               type="button"
               role="menuitem"
+              ref={primeiroItemRef}
               onClick={() => {
                 setMenuAberto(false);
                 setAvaliando(true);
@@ -493,7 +539,11 @@ export default function Pagina() {
           </div>
         )}
 
-        <main className="mensagens" ref={listaRef} aria-live="polite" aria-label="Conversa">
+        {/* `role="log"` no lugar de `aria-live="polite"`: é o papel próprio de
+            conversa, e traz de graça o "anuncie só o que foi acrescentado". Com
+            aria-live solto num container que o React repinta, o leitor de tela
+            relia trechos antigos a cada renderização. */}
+        <main className="mensagens" ref={listaRef} role="log" aria-label="Conversa">
           <div className="divisor">
             <span>Hoje</span>
           </div>
@@ -530,7 +580,13 @@ export default function Pagina() {
 
           {digitando && <Digitando />}
 
-          {falhaAoAbrir && <div className="aviso-chat erro">{TEXTO_FORA_DO_AR}</div>}
+          {/* `alert` e não `log`: o serviço fora do ar interrompe o que a pessoa
+              veio fazer, e precisa ser dito na hora, não na vez dela. */}
+          {falhaAoAbrir && (
+            <div className="aviso-chat erro" role="alert">
+              {TEXTO_FORA_DO_AR}
+            </div>
+          )}
         </main>
 
         {mostrarSugestoes && (
@@ -545,6 +601,7 @@ export default function Pagina() {
         <footer className="barra-envio">
           <div className="campo">
             <textarea
+              id="campo-mensagem"
               ref={campoRef}
               rows={1}
               placeholder={
@@ -557,6 +614,9 @@ export default function Pagina() {
               enterKeyHint="send"
               maxLength={1000}
               aria-label="Escreva sua mensagem"
+              // O placeholder não é anunciado de forma confiável, e é onde
+              // estava a explicação de por que o campo está desligado.
+              aria-describedby="dica-campo"
               disabled={encerrada || !sessaoId || !aceitou}
               value={texto}
               onChange={(evento) => {
@@ -575,6 +635,14 @@ export default function Pagina() {
               }}
             />
           </div>
+
+          <p id="dica-campo" className="sr-only">
+            {encerrada
+              ? 'A conversa foi encerrada. Não é possível enviar novas mensagens.'
+              : !aceitou
+                ? 'Para começar, aceite os termos na primeira mensagem da conversa.'
+                : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
+          </p>
 
           <button
             className="enviar"
