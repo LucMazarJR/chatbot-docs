@@ -79,6 +79,15 @@ export type Avaliacao = {
 };
 
 export type Papel = 'user' | 'bot';
+
+/**
+ * O que a pessoa tentou mandar, quando não foi texto.
+ *
+ * O canal real só processa texto. Estes tipos existem para medir quanta gente
+ * tenta mandar foto do exame ou áudio em vez de digitar — pergunta que só tem
+ * resposta se houver o botão para tentar. O conteúdo em si nunca sobe.
+ */
+export type TipoAnexo = 'arquivo' | 'audio';
 export type Voto = 'up' | 'down';
 
 export type Mensagem = {
@@ -97,6 +106,23 @@ export type Mensagem = {
    * minutos sem nenhuma requisição ficar aberta esperando.
    */
   pendente?: boolean;
+
+  /** Ausente em mensagem de texto, que é o caso comum. */
+  tipo?: TipoAnexo;
+
+  /**
+   * Só metadado — nunca o conteúdo.
+   *
+   * Guardar a gravação seria acumular voz de gente relatando problema de saúde,
+   * sem uso possível: não existe transcrição no fluxo. E o nome do arquivo fica
+   * de fora porque "exame_maria_silva.pdf" é exatamente o dado pessoal que o
+   * aviso de consentimento pede para ninguém mandar.
+   */
+  anexo?: {
+    mime?: string;
+    tamanhoBytes?: number;
+    duracaoSegundos?: number;
+  };
 
   // Preenchidos só nas mensagens do bot.
   latenciaMs?: number;

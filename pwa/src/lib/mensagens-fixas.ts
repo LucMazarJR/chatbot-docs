@@ -69,3 +69,15 @@ export const TEXTO_FORA_DO_AR =
   'O assistente está temporariamente fora do ar. 🔌 Fique tranquilo, não é nada com o ' +
   'seu celular nem com a sua internet. Por favor, avise a pessoa responsável pelo teste ' +
   'para que o serviço seja religado.';
+
+/**
+ * Resposta a arquivo ou áudio.
+ *
+ * O canal real só processa texto, e esta é a recusa que ele daria. Diz o que
+ * fazer em seguida em vez de só recusar: quem mandou foto do exame precisa saber
+ * que pode digitar a dúvida, senão desiste ali.
+ */
+export const TEXTO_SOMENTE_TEXTO =
+  'Recebi seu envio, mas por enquanto só consigo ler mensagens de texto. 📝 Pode me ' +
+  'escrever a sua dúvida? Se for sobre um exame ou receita, me conte o que está escrito ' +
+  'que eu ajudo.';

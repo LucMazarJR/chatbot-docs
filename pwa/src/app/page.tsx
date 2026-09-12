@@ -20,7 +20,8 @@ import {
   guardarSessao,
   lerSessao,
 } from '@/lib/sessao-local';
-import type { Papel } from '@/lib/tipos';
+import { formatarDuracao, useGravador } from '@/lib/usar-gravador';
+import type { Papel, TipoAnexo } from '@/lib/tipos';
 
 const INATIVIDADE_MS = 2 * 60 * 1000;
 const MINIMO_PERGUNTAS_PARA_AVALIAR = 3;
@@ -145,11 +146,14 @@ export default function Pagina() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [texto, setTexto] = useState('');
   const [aceitou, setAceitou] = useState(false);
+  /** Recado passageiro acima do campo: microfone recusado, envio falhou. */
+  const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
   const botaoMenuRef = useRef<HTMLButtonElement>(null);
   const primeiroItemRef = useRef<HTMLButtonElement>(null);
+  const arquivoRef = useRef<HTMLInputElement>(null);
   const relogioRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const perguntasRef = useRef(0);
   const abrindoRef = useRef(false);
@@ -414,6 +418,60 @@ export default function Pagina() {
     }
   }
 
+  // --- Arquivo e áudio -----------------------------------------------------
+
+  /**
+   * Registra a tentativa e mostra a recusa do canal.
+   *
+   * LÓGICA DO LUCIANO: o conteúdo não sai do aparelho — vão só tipo, tamanho e
+   * duração. Os botões existem para medir quanta gente tenta mandar foto do
+   * exame ou áudio em vez de digitar, e essa resposta só aparece se houver o
+   * botão para tentar; guardar a gravação seria acumular voz de pessoas
+   * relatando problema de saúde, sem nenhum uso, já que o fluxo não transcreve.
+   *
+   * Não passa pelo n8n: a recusa é imediata, não gasta cota e é exatamente a
+   * que o canal real daria.
+   */
+  async function enviarAnexo(
+    tipo: TipoAnexo,
+    dados: { mime?: string; tamanhoBytes?: number; duracaoSegundos?: number },
+  ) {
+    if (!sessaoId || !aceitou || digitando || encerrada) return;
+    setAvisoComposer(null);
+
+    try {
+      const resposta = await fetch(`/api/sessoes/${sessaoId}/anexos`, {
+        method: 'POST',
+        headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ tipo, ...dados }),
+      });
+      if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+
+      const pronta = (await resposta.json()) as { texto: string; resposta: string };
+
+      setItens((atuais) => [
+        ...atuais,
+        {
+          chave: crypto.randomUUID(),
+          papel: 'user',
+          texto: pronta.texto,
+          hora: horaAgora(),
+          lida: true,
+        },
+      ]);
+      adicionarBot(pronta.resposta, null);
+      reiniciarInatividade();
+    } catch {
+      setAvisoComposer('Não consegui registrar o envio. Tente de novo em instantes.');
+    }
+  }
+
+  const gravador = useGravador({
+    aoTerminar: (duracaoSegundos, mime) =>
+      void enviarAnexo('audio', { duracaoSegundos, mime }),
+    aoFalhar: setAvisoComposer,
+  });
+
   function adicionarBot(conteudo: string, mensagemId: string | null) {
     setItens((atuais) => [
       ...atuais,
@@ -459,6 +517,10 @@ export default function Pagina() {
   // para manter em sincronia.
   const mostrarSugestoes =
     aceitou && !encerrada && !itens.some((item) => item.papel === 'user');
+
+  // Mesma porta do texto: sem aceite não sai nada, e enquanto uma resposta está
+  // sendo esperada não entra mais nada.
+  const podeEnviarAnexo = Boolean(sessaoId) && aceitou && !digitando && !encerrada;
 
   return (
     <div id="app" onClick={() => setMenuAberto(false)}>
@@ -598,8 +660,69 @@ export default function Pagina() {
           </div>
         )}
 
+        {avisoComposer && (
+          <p className="aviso-composer" role="alert">
+            {avisoComposer}
+          </p>
+        )}
+
         <footer className="barra-envio">
-          <div className="campo">
+          {/* O canal real só lê texto, e estes dois botões existem para medir
+              quanta gente tenta outra coisa — pergunta que não tem resposta sem
+              o botão para tentar. O conteúdo nunca sai do aparelho. */}
+          <input
+            ref={arquivoRef}
+            type="file"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(evento) => {
+              const arquivo = evento.target.files?.[0];
+              // Zera antes de qualquer coisa: sem isto, escolher o MESMO
+              // arquivo duas vezes seguidas não dispara o segundo `change`.
+              evento.target.value = '';
+              if (arquivo) {
+                void enviarAnexo('arquivo', {
+                  mime: arquivo.type,
+                  tamanhoBytes: arquivo.size,
+                });
+              }
+            }}
+          />
+
+          {gravador.gravando ? (
+            <div className="gravando" role="status">
+              <span className="ponto-gravacao" aria-hidden="true" />
+              <span>Gravando áudio</span>
+              {/* Fora da leitura: o cronômetro muda a cada segundo, e num
+                  role="status" isso seria o leitor de tela falando sem parar. */}
+              <span className="cronometro" aria-hidden="true">
+                {formatarDuracao(gravador.segundos)}
+              </span>
+              <button
+                type="button"
+                className="cancelar-gravacao"
+                aria-label="Cancelar gravação"
+                onClick={() => gravador.parar(true)}
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="acessorio"
+                aria-label="Anexar arquivo"
+                disabled={!podeEnviarAnexo}
+                onClick={() => arquivoRef.current?.click()}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M16.5 6v11.5a4 4 0 1 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 1 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 1 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5Z" />
+                </svg>
+              </button>
+
+              <div className="campo">
             <textarea
               id="campo-mensagem"
               ref={campoRef}
@@ -644,16 +767,34 @@ export default function Pagina() {
                 : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
           </p>
 
-          <button
-            className="enviar"
-            aria-label="Enviar"
-            disabled={!texto.trim() || digitando || encerrada || !sessaoId || !aceitou}
-            onClick={() => void enviar()}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" />
-            </svg>
-          </button>
+              {/* Microfone enquanto não há texto, avião quando há — a troca do
+                  WhatsApp. Os dois ao mesmo tempo deixariam três botões
+                  redondos lado a lado numa tela de 360px. */}
+              {texto.trim() ? (
+                <button
+                  className="enviar"
+                  aria-label="Enviar"
+                  disabled={digitando || encerrada || !sessaoId || !aceitou}
+                  onClick={() => void enviar()}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  className="enviar"
+                  aria-label="Gravar áudio"
+                  disabled={!podeEnviarAnexo}
+                  onClick={() => void gravador.iniciar()}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+                  </svg>
+                </button>
+              )}
+            </>
+          )}
         </footer>
       </section>
 
