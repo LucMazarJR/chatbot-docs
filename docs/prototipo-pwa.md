@@ -197,6 +197,8 @@ Balões com rabinho, tiques de leitura, "digitando…", e a formatação do What
 
 A conversa **sobrevive a recarregar a página e a fechar o navegador**: a sessão fica em `localStorage` e a transcrição é remontada do banco. Só um encerramento com avaliação começa uma sessão nova.
 
+O que fica guardado é o par `{id, chave}`. A **chave** é gerada na criação da sessão, devolvida uma única vez e exigida em todas as rotas da conversa. Sem ela, bastava ter o id — que não é segredo, porque volta no corpo das respostas, vai para o n8n e aparece no painel de conversas — para ler a transcrição inteira, mandar mensagem em nome da pessoa, votar nas respostas dela ou encerrar a conversa com uma nota. Quem não apresenta a chave recebe **404**, e não 403: responder "existe, mas você não pode" confirmaria a existência daquela conversa. Sessões criadas antes desse campo continuam abrindo sem chave, para não apagar conversas que ainda estejam vivas no aparelho de alguém.
+
 Sob cada resposta do bot há **👍/👎**. É o dado mais valioso da validação: diz *qual* resposta falhou, não só que a conversa foi ruim.
 
 A avaliação final abre pelo menu (**Encerrar e avaliar**) ou sozinha, após 2 minutos parado com pelo menos 3 perguntas feitas. São três campos, todos opcionais: nota ★1–5, NPS 0–10 e um comentário.
@@ -212,6 +214,17 @@ Cartões no topo agrupados por assunto (uso, qualidade, desempenho), filtros de 
 > Esse painel é o retorno mais direto do protótipo. O `LIMIAR_SCORE = 0.82` do fluxo foi estimado a partir de **cinco consultas manuais** ([whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json), nó *Montar contexto*). Olhar os scores numa resposta marcada com 👎 mostra se o corte está alto demais (o trecho certo ficou de fora por pouco) ou baixo demais (entrou ruído que confundiu o agente).
 
 Exportação em **CSV** (uma linha por mensagem, abre no Excel) e **JSON** (sessões com a transcrição aninhada).
+
+### O que o protótipo alimenta no dashboard
+
+O registro das conversas não é descartável como o protótipo: é dele que sai a melhoria da base.
+
+- **Contador de perguntas sem resposta**, no topo de `/conversas`. "Não encontrou" era um número entre os indicadores, e número não pede nada a ninguém — agora leva a uma fila.
+- **`/curadoria`** junta até 10 dessas perguntas e manda **um** prompt ao Gemini, pedindo que agrupe as que pedem a mesma coisa e proponha a FAQ. As FAQs vizinhas não são buscadas de novo: já estão em `trechosDebug` da própria resposta, com os scores daquele momento — a rodada não gasta embedding nenhum.
+- O modelo **não escreve orientação de saúde**. A resposta sai vazia quando as FAQs fornecidas não continham a informação; aprovar exige que alguém escreva o texto, e a FAQ é criada pelo mesmo caminho do formulário manual, com quem aprovou como autor.
+- Toda rodada fica registrada com as perguntas que entraram e a resposta crua do modelo, visível em "Histórico das análises".
+
+> Do primeiro lote real: 17 lacunas, das quais **3 não eram lacuna nenhuma** ("qual o melhor time de futebol do brasil?", "Hoje fiz muita coisa") — o chatbot acertou em não responder, e elas são encerradas sem virar sugestão. Das outras, duas eram a mesma pergunta ("ata e como chego la" e "como chego la ?") e foram agrupadas.
 
 ---
 

@@ -187,6 +187,21 @@ Repositório **separado**, clonado em `Dashboard-PetSaude/` — o `.gitignore` d
 - Sessões revogáveis: desativar um usuário ou trocar senha derruba o acesso na hora, sem esperar o token expirar
 - Paginação no servidor em todas as listagens
 
+#### As quatro telas que vieram do primeiro teste com participantes
+
+| Tela | O que resolve |
+|---|---|
+| **Conversas** (`/conversas`, admin) | As conversas do protótipo, com os trechos que geraram cada resposta e o score de cada um. Clicar num trecho abre a FAQ que o produziu — é o caminho da resposta ruim até o documento que precisa ser corrigido |
+| **Categorias** (`/categorias`) | A lista oficial de assuntos, definida pela equipe de saúde, e a fila do que está fora dela |
+| **Sem resposta** (`/curadoria`, admin) | As perguntas que o chatbot não soube responder, agrupadas por um modelo em sugestões de FAQ |
+| **Testar a busca** (na home das FAQs) | Roda a busca do chatbot para uma pergunta digitada e mostra os scores, sem passar pelo chatbot |
+
+**Por que as categorias viraram entidade.** Categoria era um agregado derivado: o resultado de um `$group` sobre o campo `category` das FAQs. Quem "criava" uma categoria era quem digitava um nome novo no formulário. O resultado foram **236 categorias distintas para 2491 FAQs**, boa parte delas a mesma coisa escrita de outro jeito — a criação manual gravava o que foi digitado e a importação forçava minúsculo, então "Exames" e "exames" viraram dois assuntos. Como a categoria entra no texto embedado (`Assunto: …`), isso são dois temas diferentes para a busca. A lista agora tem chave canônica e índice único; começa **vazia**, porque quem decide quais assuntos existem é a área de saúde.
+
+**Por que o teste de busca existe.** A única forma de saber por que o chatbot não respondeu algo era mandar a pergunta pelo chat e esperar — minutos, dependendo do n8n estar de pé, e sem ver os scores. E o "por quanto" é o que decide o trabalho: *"Onde fica a UBS?"* deu 0,816 contra um corte de 0,82. Sem o número, esse caso e um de conteúdo realmente faltando são indistinguíveis — e a correção de um é o oposto da do outro.
+
+**O que a curadoria custa.** Uma chamada de geração por rodada de até 10 perguntas, e **nenhum embedding**: as FAQs vizinhas de cada pergunta já ficaram gravadas em `trechosDebug` quando o chatbot respondeu. O modelo agrupa e propõe, mas **não escreve orientação de saúde**: a resposta sai vazia quando as FAQs fornecidas não continham a informação, e aí a lacuna é de conteúdo mesmo. Toda rodada fica registrada em `curadoria_rodadas` com as perguntas que entraram e a resposta crua do modelo.
+
 ### Dependências externas
 
 - **MongoDB Atlas** — base vetorial de FAQs, compartilhada entre chatbot, ingestão e dashboard
@@ -470,7 +485,7 @@ Detalhamento em [depende-de-voce.md](depende-de-voce.md).
 | Decisão | Por que agora |
 |---|---|
 | **Billing do Gemini** | A cota gratuita de embeddings é de **1000/dia por projeto**; o chat, 500/dia no modelo em uso. O fluxo gasta 1 de cada por mensagem, então esse é o teto diário de conversas |
-| **Condensação de query** | Perguntas de acompanhamento ("e quanto tempo?") buscam com a frase crua e recuperam pouco relevante. A correção completa dobra as chamadas de LLM por mensagem — só vale se isso acontecer com frequência no uso real |
+| **Condensação de query** | ⚠️ **A condição já foi satisfeita.** Perguntas de acompanhamento buscam com a frase crua: "como chego lá?" é embedado sem referente, a busca devolve lixo, e o agente recebe a memória do Redis certinha e nenhum conteúdo. No primeiro teste, ao menos 4 dos 28 "não encontrei" eram isso. O que falta decidir é o custo: a correção completa dobra as chamadas de LLM por mensagem, e a latência (mediana 23,7s) já é o maior problema de experiência. Meio-termo possível: só condensar quando a pergunta for curta e tiver referência pendente ("lá", "isso", "e o…"), que é o padrão de todos os casos observados |
 | **Tier do MongoDB Atlas** | Se for M0, há limite de conexões simultâneas e de índices de busca |
 
 Itens de prazo longo (número institucional, API oficial da Meta, hospedagem, LGPD das conversas) estão em [depende-de-voce.md](depende-de-voce.md#quando-sair-do-teste). A verificação da Meta leva semanas.
