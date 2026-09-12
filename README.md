@@ -35,10 +35,9 @@ chatbot-docs/
 │   └── faq-scripts.md         # scripts de ingestão de FAQs
 ├── n8n/
 │   ├── whatsapp-chatbot.json  # fluxo do canal — RAG determinístico, rota /webhook/whatsapp
-│   ├── pwa-chatbot.json       # fluxo do protótipo — mesma busca, rota /webhook/pwa-chat
-│   └── Whatsaap PET-BOT.json  # fluxo antigo (WAHA) — mantido para rollback
+│   └── pwa-chatbot.json       # fluxo do protótipo — mesma busca, rota /webhook/pwa-chat
 ├── pwa/                       # protótipo de validação (Next.js + TypeScript)
-│   ├── src/app/               # chat em / e revisão das interações em /admin
+│   ├── src/app/               # o chat, e as rotas de API que falam com o n8n e o Mongo
 │   ├── src/lib/               # Mongo, contrato com o n8n e formatação do WhatsApp
 │   └── public/                # manifest, service worker e ícones
 └── scripts/                   # ingestão de FAQs: Drive → embeddings → MongoDB

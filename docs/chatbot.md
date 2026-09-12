@@ -434,7 +434,7 @@ Confirme batendo no webhook: token antigo deve devolver 403, o novo 200.
 
 Como o WhatsApp permite vários aparelhos vinculados, dá para parear o gateway novo **com o WAHA ainda no ar** e validar antes de cortar.
 
-**Rollback:** o volume `waha_data` e o fluxo original [n8n/Whatsaap PET-BOT.json](../n8n/Whatsaap%20PET-BOT.json) foram preservados. Para voltar, reverta o `docker-compose.yml`, suba o serviço `waha` e reaponte o webhook pelo dashboard dele.
+**Rollback: não existe mais.** Ele dependia do volume `waha_data`, que guardava as credenciais do WhatsApp em formato próprio do WAHA — e esse volume já não existe. Sem ele, "voltar" significaria ler o QR code de novo, que é exatamente o custo da migração para frente. O fluxo antigo (`Whatsaap PET-BOT.json`, da época do Telegram) foi removido do repositório junto com essa promessa: ele apontava para `gemini-2.5-flash-lite` e `gemini-embedding-001`, modelos que a base já não usa, e importá-lo hoje geraria vetores incompatíveis com o `vector_index_3072`. Continua no histórico do git, se algum dia fizer falta.
 
 ---
 
