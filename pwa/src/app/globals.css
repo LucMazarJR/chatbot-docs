@@ -588,23 +588,28 @@ button {
 }
 
 /*
- * A cápsula é quem tem altura, e é ela que se alinha com os botões redondos.
+ * A cápsula, com o texto e o clipe dentro.
  *
- * LÓGICA DO LUCIANO: a altura vinha só do textarea dentro dela, então a cápsula
- * media ~34px ao lado de botões de 44px — o campo ficava flutuando acima da
- * linha do clipe e do avião, desalinhado com o resto da barra. Com min-height
- * igual à do botão e o conteúdo centrado, os três assentam na mesma linha, e a
- * cápsula só cresce quando a mensagem passa de uma linha.
+ * LÓGICA DO LUCIANO: o clipe estava FORA dela, solto à esquerda, e era isso que
+ * deixava a barra estranha mesmo depois de alinhada. No WhatsApp a cápsula é o
+ * campo inteiro — os ícones de anexo moram dentro dela, e só o botão redondo
+ * verde fica de fora. Com o clipe solto, a barra virava três blocos de peso
+ * parecido em vez de um campo largo com um botão ao lado.
+ *
+ * O recuo é assimétrico de propósito, e é o do WhatsApp: bem folgado à esquerda,
+ * onde só há texto, e curto à direita, onde o próprio clipe já afasta o texto da
+ * borda. Os 10px iguais dos dois lados deixavam a primeira letra colada na curva
+ * da cápsula.
  */
 .barra-envio .campo {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   min-width: 0;
-  min-height: 44px;
-  padding: 6px 10px;
-  border-radius: 22px;
+  min-height: 46px;
+  padding: 6px 6px 6px 18px;
+  border-radius: 23px;
   background: var(--campo);
 }
 
@@ -668,11 +673,12 @@ button {
   white-space: nowrap;
 }
 
+/* Mesma altura da cápsula, para os dois assentarem na mesma linha. */
 .enviar {
   display: grid;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   background: var(--topo);
   color: #fff;
@@ -692,17 +698,20 @@ button {
 /* --- Anexo e áudio ------------------------------------------------------- */
 
 /*
- * O clipe, ao lado do campo.
+ * O clipe, dentro da cápsula e à direita do texto — a posição do WhatsApp.
  *
- * O canal real só lê texto — o botão existe para medir quanta gente tenta
- * mandar foto do exame, e essa resposta só aparece se houver o botão para
- * tentar. 44px porque é alvo de dedo, não de ponteiro.
+ * O canal real só lê texto: o botão existe para medir quanta gente tenta mandar
+ * foto do exame, e essa resposta só aparece se houver o botão para tentar.
+ *
+ * 40px de alvo dentro de uma cápsula de 46 — cheio o bastante para o dedo e
+ * pequeno o bastante para não empurrar o campo. Fora dela eram 44, e isso dava
+ * a ele o mesmo peso visual do botão de enviar, que é a ação principal.
  */
 .acessorio {
   display: grid;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   color: var(--texto-fraco);
   place-items: center;
@@ -725,9 +734,9 @@ button {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  min-height: 44px;
+  min-height: 46px;
   padding: 6px 14px;
-  border-radius: 22px;
+  border-radius: 23px;
   background: var(--campo);
   color: var(--texto);
   font-size: 0.99em;

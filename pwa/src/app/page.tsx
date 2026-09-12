@@ -683,18 +683,6 @@ export default function Pagina() {
             </div>
           ) : (
             <>
-              <button
-                type="button"
-                className="acessorio"
-                aria-label="Anexar arquivo"
-                disabled={!podeEnviarAnexo}
-                onClick={() => arquivoRef.current?.click()}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M16.5 6v11.5a4 4 0 1 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 1 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 1 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5Z" />
-                </svg>
-              </button>
-
               <div className="campo">
             <textarea
               id="campo-mensagem"
@@ -733,7 +721,18 @@ export default function Pagina() {
                 }
               }}
             />
-          </div>
+                <button
+                  type="button"
+                  className="acessorio"
+                  aria-label="Anexar arquivo"
+                  disabled={!podeEnviarAnexo}
+                  onClick={() => arquivoRef.current?.click()}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M16.5 6v11.5a4 4 0 1 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 1 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 1 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5Z" />
+                  </svg>
+                </button>
+              </div>
 
           <p id="dica-campo" className="sr-only">
             {encerrada
