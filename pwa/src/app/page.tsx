@@ -7,6 +7,7 @@ import { Balao, Digitando } from '@/components/Balao';
 import { BotoesRapidos, type BotaoRapido } from '@/components/BotoesRapidos';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
+import { PainelAjustes } from '@/components/PainelAjustes';
 import { RegistrarSW } from '@/components/RegistrarSW';
 import {
   AVISOS_DE_DEMORA,
@@ -116,6 +117,7 @@ export default function Pagina() {
   const [itens, setItens] = useState<Item[]>([]);
   const [digitando, setDigitando] = useState(false);
   const [avaliando, setAvaliando] = useState(false);
+  const [ajustando, setAjustando] = useState(false);
   const [encerrada, setEncerrada] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [texto, setTexto] = useState('');
@@ -316,7 +318,8 @@ export default function Pagina() {
     if (!pergunta) return;
 
     setTexto('');
-    if (campoRef.current) campoRef.current.style.height = 'auto';
+    // Vazio, e não 'auto': devolve a altura ao CSS, que a prende em uma linha.
+    if (campoRef.current) campoRef.current.style.height = '';
     void enviarTexto(pergunta);
   }
 
@@ -561,6 +564,17 @@ export default function Pagina() {
               ref={primeiroItemRef}
               onClick={() => {
                 setMenuAberto(false);
+                setAjustando(true);
+              }}
+            >
+              Acessibilidade
+            </button>
+            <div className="menu-divisor" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuAberto(false);
                 setAvaliando(true);
               }}
             >
@@ -691,7 +705,7 @@ export default function Pagina() {
                   ? 'Conversa encerrada'
                   : aceitou
                     ? 'Mensagem'
-                    : 'Aceite os termos acima para começar'
+                    : 'Aceite os termos para começar'
               }
               enterKeyHint="send"
               maxLength={1000}
@@ -705,8 +719,11 @@ export default function Pagina() {
                 setTexto(evento.target.value);
                 // Cresce com o conteúdo, até o teto definido no CSS.
                 const campo = evento.target;
-                campo.style.height = 'auto';
-                campo.style.height = `${campo.scrollHeight}px`;
+                // Some com a altura inline para o CSS voltar a mandar quando o
+                // campo esvazia: sem isto, apagar tudo deixava a caixa parada
+                // na altura de tres linhas.
+                campo.style.height = '';
+                if (campo.value) campo.style.height = `${campo.scrollHeight}px`;
               }}
               onKeyDown={(evento) => {
                 // Enter envia, Shift+Enter quebra linha — como no WhatsApp Web.
@@ -756,6 +773,8 @@ export default function Pagina() {
           )}
         </footer>
       </section>
+
+      {ajustando && <PainelAjustes aoFechar={() => setAjustando(false)} />}
 
       {avaliando && (
         <FolhaAvaliacao

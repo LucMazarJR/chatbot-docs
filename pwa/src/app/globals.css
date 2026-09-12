@@ -7,6 +7,20 @@
  */
 
 :root {
+  color-scheme: light;
+
+  /*
+   * Multiplicador do tamanho do texto, ajustável no painel de acessibilidade.
+   *
+   * LÓGICA DO LUCIANO: multiplicador em cima do `font-size` do body, e não
+   * `html { font-size: N% }` como se costuma fazer — este CSS mede em px, e
+   * mudar a raiz não moveria nada. Quem precisa acompanhar a escala usa `em`,
+   * e é por isso que os tamanhos do balão, dos avisos e da folha de avaliação
+   * estão em `em` e os do cabeçalho não: o cabeçalho tem altura fixa e cresceria
+   * por cima da conversa.
+   */
+  --escala: 1;
+
   --topo: #008069;
   --topo-texto: #ffffff;
   --fundo-chat: #efeae2;
@@ -28,27 +42,36 @@
   --aviso-texto: #5b4a1f;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --topo: #202c33;
-    --topo-texto: #e9edef;
-    --fundo-chat: #0b141a;
-    --balao-saida: #005c4b;
-    --balao-entrada: #202c33;
-    --texto: #e9edef;
-    --texto-fraco: #8696a0;
-    --tick: #8696a0;
-    --tick-lido: #53bdeb;
-    --barra: #202c33;
-    --campo: #2a3942;
-    --divisor: #182229;
-    --sombra: 0 1px 0.5px rgba(11, 20, 26, 0.3);
-    --painel: #111b21;
-    --borda: rgba(233, 237, 239, 0.12);
-    --acento: #00a884;
-    --aviso: #1e2a30;
-    --aviso-texto: #ffd279;
-  }
+/*
+ * Paleta escura, por ATRIBUTO e não por media query.
+ *
+ * LÓGICA DO LUCIANO: com `@media (prefers-color-scheme: dark)` não havia como
+ * alguém escolher o tema — quem usa o celular no escuro o dia inteiro ficava
+ * sem o modo claro, e vice-versa. Quem resolve "automático" agora é o script no
+ * <head>, que lê a preferência guardada, consulta o matchMedia e carimba
+ * `data-tema` antes da primeira pintura. Assim existe UMA fonte da verdade, e
+ * a paleta não precisa ser escrita duas vezes.
+ */
+:root[data-tema='escuro'] {
+  color-scheme: dark;
+  --topo: #202c33;
+  --topo-texto: #e9edef;
+  --fundo-chat: #0b141a;
+  --balao-saida: #005c4b;
+  --balao-entrada: #202c33;
+  --texto: #e9edef;
+  --texto-fraco: #8696a0;
+  --tick: #8696a0;
+  --tick-lido: #53bdeb;
+  --barra: #202c33;
+  --campo: #2a3942;
+  --divisor: #182229;
+  --sombra: 0 1px 0.5px rgba(11, 20, 26, 0.3);
+  --painel: #111b21;
+  --borda: rgba(233, 237, 239, 0.12);
+  --acento: #00a884;
+  --aviso: #1e2a30;
+  --aviso-texto: #ffd279;
 }
 
 * {
@@ -121,7 +144,7 @@ body {
 
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
-  font-size: 14.2px;
+  font-size: calc(14.2px * var(--escala));
   color: var(--texto);
   background: var(--fundo-chat);
   /* Evita o "pinch zoom" acidental e o realce azul do toque no Android. */
@@ -171,7 +194,7 @@ button {
   background: var(--aviso);
   box-shadow: var(--sombra);
   color: var(--aviso-texto);
-  font-size: 12.5px;
+  font-size: 0.88em;
   line-height: 1.5;
   text-align: center;
 }
@@ -205,7 +228,7 @@ button {
   border-radius: 18px;
   background: var(--balao-entrada);
   color: var(--acento);
-  font-size: 13.5px;
+  font-size: 0.95em;
   font-weight: 500;
   transition: background 0.12s;
 }
@@ -336,10 +359,8 @@ button {
   background-size: 260px 260px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .mensagens {
+:root[data-tema='escuro'] .mensagens {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23e9edef' stroke-width='1.6' stroke-linecap='round' opacity='0.045'%3E%3Ccircle cx='34' cy='30' r='9'/%3E%3Cpath d='M92 22h26v18h-9l-5 7-4-7h-8z'/%3E%3Cpath d='M168 18l7 13 14 2-10 10 2 14-13-7-13 7 2-14-10-10 14-2z'/%3E%3Cpath d='M226 34c0-6 9-8 11-2 2-6 11-4 11 2 0 7-11 14-11 14s-11-7-11-14z'/%3E%3Cpath d='M20 96h22M20 104h14'/%3E%3Ccircle cx='104' cy='100' r='11'/%3E%3Cpath d='M104 93v14M97 100h14'/%3E%3Cpath d='M164 92l10 10-10 10-10-10z'/%3E%3Cpath d='M214 90h24v20h-24z'/%3E%3Cpath d='M214 98h24'/%3E%3Cpath d='M26 168c8-10 20-10 28 0'/%3E%3Ccircle cx='40' cy='178' r='3'/%3E%3Cpath d='M88 162h28l-6 22H94z'/%3E%3Cpath d='M160 160v24M152 172h16'/%3E%3Ccircle cx='226' cy='172' r='10'/%3E%3Cpath d='M222 172l3 4 6-7'/%3E%3Cpath d='M24 226h20l-4 14H28z'/%3E%3Cpath d='M96 232c0-5 7-7 9-2 2-5 9-3 9 2 0 6-9 12-9 12s-9-6-9-12z'/%3E%3Cpath d='M158 224h24v16h-24z'/%3E%3Cpath d='M164 224v-6h12v6'/%3E%3Ccircle cx='228' cy='232' r='9'/%3E%3C/g%3E%3C/svg%3E");
-  }
 }
 
 .divisor {
@@ -456,7 +477,7 @@ button {
   align-items: center;
   gap: 3px;
   color: var(--texto-fraco);
-  font-size: 11px;
+  font-size: 0.78em;
   line-height: 1;
 }
 
@@ -485,7 +506,7 @@ button {
   border: 1px solid var(--borda);
   border-radius: 12px;
   background: var(--balao-entrada);
-  font-size: 13px;
+  font-size: 0.92em;
   line-height: 1.4;
   opacity: 0.75;
   transition: opacity 0.15s;
@@ -577,9 +598,25 @@ button {
   background: var(--campo);
 }
 
+/*
+ * Altura de UMA linha, fixada, e só o conteúdo faz crescer.
+ *
+ * LÓGICA DO LUCIANO: a altura vinha do `rows=1`, e o placeholder de campo
+ * bloqueado ("Aceite os termos para começar") é mais longo que a largura do
+ * campo num celular — o texto quebrava em duas linhas e a caixa abria já
+ * expandida, antes de a pessoa digitar coisa alguma. Com a altura presa em uma
+ * linha, quem decide crescer é o `scrollHeight` do que foi digitado, que é o
+ * comportamento pretendido; o placeholder longo passa a ser cortado, como no
+ * WhatsApp.
+ *
+ * Em `em` para acompanhar o tamanho do texto escolhido no painel de
+ * acessibilidade: em px, aumentar a fonte deixaria a linha cortada pela metade.
+ */
 .barra-envio textarea {
   flex: 1;
-  max-height: 100px;
+  height: 1.4em;
+  min-height: 1.4em;
+  max-height: 6em;
   padding: 5px 0;
   border: 0;
   background: none;
@@ -587,6 +624,7 @@ button {
   font: inherit;
   line-height: 1.4;
   resize: none;
+  overflow-x: hidden;
 }
 
 /* O anel fica na cápsula inteira, e não no textarea: desenhado no textarea ele
@@ -617,11 +655,9 @@ button {
   place-items: center;
 }
 
-@media (prefers-color-scheme: dark) {
-  .enviar {
-    background: #00a884;
-    color: #111b21;
-  }
+:root[data-tema='escuro'] .enviar {
+  background: #00a884;
+  color: #111b21;
 }
 
 .enviar:disabled {
@@ -670,7 +706,7 @@ button {
   border-radius: 22px;
   background: var(--campo);
   color: var(--texto);
-  font-size: 14px;
+  font-size: 0.99em;
 }
 
 .ponto-gravacao {
@@ -710,7 +746,7 @@ button {
   padding: 4px 10px;
   border-radius: 16px;
   color: var(--acento);
-  font-size: 13.5px;
+  font-size: 0.95em;
   font-weight: 600;
 }
 
@@ -723,7 +759,7 @@ button {
   padding: 8px 14px;
   background: var(--aviso);
   color: var(--aviso-texto);
-  font-size: 13px;
+  font-size: 0.92em;
   text-align: center;
 }
 
@@ -777,21 +813,21 @@ button {
 
 .folha h2 {
   margin: 0 0 6px;
-  font-size: 18px;
+  font-size: 1.27em;
   font-weight: 600;
 }
 
 .folha p.sub {
   margin: 0 0 20px;
   color: var(--texto-fraco);
-  font-size: 13.5px;
+  font-size: 0.95em;
   line-height: 1.45;
 }
 
 .folha label {
   display: block;
   margin-bottom: 10px;
-  font-size: 13.5px;
+  font-size: 0.95em;
   font-weight: 600;
 }
 
@@ -829,7 +865,7 @@ button {
   padding: 9px 0;
   border: 1px solid var(--borda);
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.88em;
 }
 
 .nps button.ativa {
@@ -843,7 +879,7 @@ button {
   justify-content: space-between;
   margin-top: 6px;
   color: var(--texto-fraco);
-  font-size: 11.5px;
+  font-size: 0.81em;
 }
 
 .folha textarea {
@@ -895,4 +931,204 @@ button {
   color: #fff;
   font-size: 30px;
   place-items: center;
+}
+
+/* --- Painel de acessibilidade -------------------------------------------- */
+
+/*
+ * Veio do painel de configurações da versão B, e é a peça que faltava: este
+ * chat mede tudo em px para imitar o WhatsApp, então ignorava a fonte do
+ * sistema. Quem usa o telefone com a fonte no máximo — boa parte de quem vai
+ * testar no posto — não conseguiria ler as respostas que veio avaliar.
+ *
+ * Entra deslizando pela direita, como uma tela de configuração de aplicativo,
+ * e não como caixa no meio: a conversa continua visível atrás, e a pessoa vê
+ * que não saiu do chat.
+ */
+.painel-ajustes {
+  display: flex;
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  right: 0;
+  flex-direction: column;
+  width: min(26rem, 100%);
+  height: 100dvh;
+  background: var(--painel);
+  color: var(--texto);
+  animation: entrar-lateral 0.18s ease-out;
+}
+
+@keyframes entrar-lateral {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .painel-ajustes {
+    animation: none;
+  }
+}
+
+.painel-topo {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  background: var(--topo);
+  color: var(--topo-texto);
+}
+
+.painel-topo h2 {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 500;
+}
+
+.painel-topo button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  place-items: center;
+}
+
+.painel-corpo {
+  flex: 1;
+  padding: 8px 16px calc(24px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+
+.painel-secao {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.painel-secao:last-child {
+  border-bottom: 0;
+}
+
+.painel-secao h3 {
+  margin: 0 0 12px;
+  color: var(--acento);
+  font-size: 0.92em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Passo a passo, e não um controle contínuo: um slider exige mira fina —
+   justamente o que falta a quem tem tremor, que é parte do público. */
+.escala-passo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.escala-passo button {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 48px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--barra);
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.escala-passo button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.escala-atual {
+  flex: 1;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* A amostra repete as medidas do balão da conversa, então o efeito aparece
+   aqui exatamente como vai aparecer lá — sem fechar o painel para descobrir. */
+.amostra {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--fundo-chat);
+}
+
+.amostra-balao {
+  max-width: 90%;
+  padding: 6px 9px 8px;
+  border-radius: 7.5px;
+  background: var(--balao-entrada);
+  box-shadow: var(--sombra);
+  line-height: 1.45;
+}
+
+.opcoes-tema {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.opcoes-tema button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.opcoes-tema button:hover {
+  background: var(--barra);
+}
+
+.opcao-texto strong {
+  display: block;
+  font-weight: 500;
+}
+
+.opcao-texto small {
+  color: var(--texto-fraco);
+  font-size: 0.85em;
+}
+
+.marcador {
+  display: grid;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--texto-fraco);
+  border-radius: 50%;
+  place-items: center;
+}
+
+.opcoes-tema button.escolhido .marcador {
+  border-color: var(--acento);
+}
+
+.opcoes-tema button.escolhido .marcador::after {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--acento);
+  content: '';
+}
+
+.painel-sobre {
+  margin: 0 0 10px;
+  color: var(--texto-fraco);
+  font-size: 0.92em;
+  line-height: 1.55;
+}
+
+.painel-sobre:last-child {
+  margin-bottom: 0;
 }

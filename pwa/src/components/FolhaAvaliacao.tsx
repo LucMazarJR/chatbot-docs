@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+
+import { useFocoPreso } from '@/lib/usar-foco-preso';
 
 type Props = {
   onEnviar: (avaliacao: {
@@ -26,60 +28,7 @@ export function FolhaAvaliacao({ onEnviar, onVoltar }: Props) {
   const [enviada, setEnviada] = useState(false);
   const folhaRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * Foco preso dentro da folha, e Esc para desistir.
-   *
-   * LÓGICA DO LUCIANO: a folha se declarava `aria-modal="true"` e não era modal
-   * coisa nenhuma. O foco continuava na conversa atrás dela, então quem navega
-   * por teclado abria a avaliação e seguia tabulando pelos balões, pelos
-   * polegares e pelo campo de mensagem — tudo invisível sob a cortina — sem
-   * nunca alcançar as estrelas. E não havia como fechar sem o mouse.
-   *
-   * O `previamenteFocado` devolve o foco a quem abriu: sem isso, fechar a folha
-   * joga o foco no começo da página, e a pessoa recomeça a conversa do zero.
-   */
-  useEffect(() => {
-    const previamenteFocado = document.activeElement as HTMLElement | null;
-    const focaveis = () =>
-      Array.from(
-        folhaRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), textarea, [href], input, select',
-        ) ?? [],
-      );
-
-    focaveis()[0]?.focus();
-
-    const aoTeclar = (evento: KeyboardEvent) => {
-      if (evento.key === 'Escape') {
-        evento.preventDefault();
-        onVoltar();
-        return;
-      }
-      if (evento.key !== 'Tab') return;
-
-      const lista = focaveis();
-      if (lista.length === 0) return;
-      const primeiro = lista[0];
-      const ultimo = lista[lista.length - 1];
-
-      // Só interfere nas bordas: no meio da lista, o Tab do navegador já faz a
-      // coisa certa, e reimplementá-lo seria trocar um comportamento testado
-      // por um palpite.
-      if (evento.shiftKey && document.activeElement === primeiro) {
-        evento.preventDefault();
-        ultimo.focus();
-      } else if (!evento.shiftKey && document.activeElement === ultimo) {
-        evento.preventDefault();
-        primeiro.focus();
-      }
-    };
-
-    document.addEventListener('keydown', aoTeclar);
-    return () => {
-      document.removeEventListener('keydown', aoTeclar);
-      previamenteFocado?.focus?.();
-    };
-  }, [onVoltar]);
+  useFocoPreso(folhaRef, onVoltar);
 
   async function enviar() {
     setEnviando(true);
