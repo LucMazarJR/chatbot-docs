@@ -587,44 +587,57 @@ button {
   background: var(--barra);
 }
 
+/*
+ * A cápsula é quem tem altura, e é ela que se alinha com os botões redondos.
+ *
+ * LÓGICA DO LUCIANO: a altura vinha só do textarea dentro dela, então a cápsula
+ * media ~34px ao lado de botões de 44px — o campo ficava flutuando acima da
+ * linha do clipe e do avião, desalinhado com o resto da barra. Com min-height
+ * igual à do botão e o conteúdo centrado, os três assentam na mesma linha, e a
+ * cápsula só cresce quando a mensagem passa de uma linha.
+ */
 .barra-envio .campo {
   display: flex;
   flex: 1;
-  align-items: flex-end;
+  align-items: center;
   gap: 6px;
   min-width: 0;
+  min-height: 44px;
   padding: 6px 10px;
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--campo);
 }
 
 /*
- * Altura de UMA linha, fixada, e só o conteúdo faz crescer.
+ * Altura de UMA linha, e só o que for digitado faz crescer.
  *
- * LÓGICA DO LUCIANO: a altura vinha do `rows=1`, e o placeholder de campo
- * bloqueado ("Aceite os termos para começar") é mais longo que a largura do
- * campo num celular — o texto quebrava em duas linhas e a caixa abria já
- * expandida, antes de a pessoa digitar coisa alguma. Com a altura presa em uma
- * linha, quem decide crescer é o `scrollHeight` do que foi digitado, que é o
- * comportamento pretendido; o placeholder longo passa a ser cortado, como no
- * WhatsApp.
+ * LÓGICA DO LUCIANO: `padding: 0` aqui NÃO é enfeite. O `box-sizing: border-box`
+ * global faz o `height` incluir o padding, então `height: 1.4em` com `padding:
+ * 5px 0` deixava menos de 10px para uma linha que precisa de 20 — o texto não
+ * cabia na própria caixa e nascia com barra de rolagem, tanto o placeholder
+ * quanto o que a pessoa digitava. O respiro em volta do texto passou a ser o
+ * padding da cápsula, que é onde ele deveria estar desde o começo.
  *
- * Em `em` para acompanhar o tamanho do texto escolhido no painel de
- * acessibilidade: em px, aumentar a fonte deixaria a linha cortada pela metade.
+ * A folga de 1.6em sobre a linha de 1.4em evita a barra de rolagem de 1px que
+ * aparece quando o `scrollHeight` arredonda para cima (1.4 × 14.2px = 19.88px,
+ * que o navegador trata como 20).
+ *
+ * Tudo em `em` para acompanhar o tamanho escolhido no painel de acessibilidade:
+ * em px, aumentar a fonte cortaria a linha ao meio de novo.
  */
 .barra-envio textarea {
   flex: 1;
-  height: 1.4em;
-  min-height: 1.4em;
-  max-height: 6em;
-  padding: 5px 0;
+  height: 1.6em;
+  min-height: 1.6em;
+  /* Quatro linhas; daí em diante rola. */
+  max-height: 5.6em;
+  padding: 0;
   border: 0;
   background: none;
   color: var(--texto);
   font: inherit;
   line-height: 1.4;
   resize: none;
-  overflow-x: hidden;
 }
 
 /* O anel fica na cápsula inteira, e não no textarea: desenhado no textarea ele
@@ -640,8 +653,19 @@ button {
   outline-offset: 2px;
 }
 
+/*
+ * O placeholder não quebra linha.
+ *
+ * Diferente do texto digitado, ele não tem como crescer a caixa — quando
+ * quebrava, a segunda linha ficava fora da área visível e o campo nascia com
+ * barra de rolagem, sem nada escrito nele. Cortar com reticências é o que o
+ * WhatsApp faz, e mantém o campo de uma linha em qualquer tamanho de fonte.
+ */
 .barra-envio textarea::placeholder {
+  overflow: hidden;
   color: var(--texto-fraco);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .enviar {

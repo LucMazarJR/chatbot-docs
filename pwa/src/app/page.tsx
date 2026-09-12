@@ -705,7 +705,7 @@ export default function Pagina() {
                   ? 'Conversa encerrada'
                   : aceitou
                     ? 'Mensagem'
-                    : 'Aceite os termos para começar'
+                    : 'Aceite para começar'
               }
               enterKeyHint="send"
               maxLength={1000}
