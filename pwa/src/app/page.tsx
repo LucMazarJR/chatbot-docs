@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 
 import { aguardarResposta } from '@/lib/aguardar-resposta';
 import { Balao, Digitando } from '@/components/Balao';
 import { BotoesRapidos, type BotaoRapido } from '@/components/BotoesRapidos';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
+import { FolhaApagar } from '@/components/FolhaApagar';
 import { PainelAjustes } from '@/components/PainelAjustes';
 import { RegistrarSW } from '@/components/RegistrarSW';
 import {
@@ -118,6 +120,7 @@ export default function Pagina() {
   const [digitando, setDigitando] = useState(false);
   const [avaliando, setAvaliando] = useState(false);
   const [ajustando, setAjustando] = useState(false);
+  const [apagandoConversa, setApagandoConversa] = useState(false);
   const [encerrada, setEncerrada] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [texto, setTexto] = useState('');
@@ -569,6 +572,9 @@ export default function Pagina() {
             >
               Acessibilidade
             </button>
+            <Link href="/privacidade" role="menuitem" onClick={() => setMenuAberto(false)}>
+              Privacidade
+            </Link>
             <div className="menu-divisor" />
             <button
               type="button"
@@ -580,6 +586,23 @@ export default function Pagina() {
             >
               Encerrar e avaliar
             </button>
+            {/* Por último, e em vermelho: é a única opção do menu que não tem
+                volta. Some com a conversa encerrada porque, ao avaliar, a chave
+                da sessão já saiu do aparelho — o pedido passaria a falhar, e o
+                caminho certo é o contato da página de privacidade. */}
+            {!encerrada && sessaoId && (
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-perigo"
+                onClick={() => {
+                  setMenuAberto(false);
+                  setApagandoConversa(true);
+                }}
+              >
+                Apagar minha conversa
+              </button>
+            )}
           </div>
         )}
 
@@ -598,7 +621,7 @@ export default function Pagina() {
           <div className="aviso-chat">
             Este é um <b>protótipo em teste</b>. As mensagens são registradas para avaliarmos a
             qualidade das respostas. Por favor, <b>não informe dados pessoais</b> como CPF, cartão
-            do SUS ou endereço.
+            do SUS ou endereço. <Link href="/privacidade">Como tratamos seus dados</Link>
           </div>
 
           {itens.map((item, indice) => (
@@ -774,6 +797,10 @@ export default function Pagina() {
       </section>
 
       {ajustando && <PainelAjustes aoFechar={() => setAjustando(false)} />}
+
+      {apagandoConversa && sessaoId && (
+        <FolhaApagar sessaoId={sessaoId} aoVoltar={() => setApagandoConversa(false)} />
+      )}
 
       {avaliando && (
         <FolhaAvaliacao

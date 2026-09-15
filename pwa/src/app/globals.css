@@ -1165,3 +1165,135 @@ button {
 .painel-sobre:last-child {
   margin-bottom: 0;
 }
+
+/* --- Privacidade e exclusão ---------------------------------------------- */
+
+.aviso-chat a,
+.painel-sobre a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* O menu tinha só botões; o link de privacidade precisa da mesma forma, senão
+   vira a única linha sublinhada e azul no meio de itens de menu. */
+.menu a {
+  display: block;
+  padding: 12px 20px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.menu a:hover {
+  background: var(--barra);
+}
+
+/* Vermelho só na única opção sem volta. #b3261e dá 6.5:1 sobre o painel claro;
+   no escuro o mesmo tom some, e o rosado dá 9:1. */
+.menu .menu-perigo,
+.aviso-erro {
+  color: #b3261e;
+}
+
+:root[data-tema='escuro'] .menu .menu-perigo,
+:root[data-tema='escuro'] .aviso-erro {
+  color: #ffb4ab;
+}
+
+.folha .enviar-avaliacao.perigo {
+  background: #b3261e;
+  color: #fff;
+}
+
+.aviso-erro {
+  margin: 0 0 14px;
+  font-size: 0.92em;
+  line-height: 1.5;
+}
+
+/*
+ * Página de privacidade.
+ *
+ * Mesma cara do painel de acessibilidade — cabeçalho verde com seta de voltar —
+ * para ler como uma tela do mesmo aplicativo, e não como um documento jurídico
+ * que abriu por engano. Largura limitada porque linha de texto longa demais
+ * cansa, e quem lê isto está justamente decidindo se confia no chat.
+ */
+.privacidade {
+  min-height: 100dvh;
+  background: var(--painel);
+  color: var(--texto);
+}
+
+.privacidade-topo {
+  display: flex;
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  background: var(--topo);
+  color: var(--topo-texto);
+}
+
+.privacidade-topo a {
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: inherit;
+  place-items: center;
+}
+
+.privacidade-topo h1 {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 500;
+}
+
+.privacidade-corpo {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 8px 20px calc(32px + env(safe-area-inset-bottom));
+  line-height: 1.6;
+}
+
+.privacidade-corpo section {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.privacidade-corpo h2 {
+  margin: 0 0 10px;
+  color: var(--acento);
+  font-size: 0.92em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.privacidade-corpo p {
+  margin: 0 0 10px;
+}
+
+.privacidade-corpo ul {
+  margin: 0 0 10px;
+  padding-left: 1.2em;
+}
+
+.privacidade-corpo li {
+  margin-bottom: 8px;
+}
+
+.privacidade-corpo a {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+.privacidade-voltar {
+  padding-top: 20px;
+  text-align: center;
+}

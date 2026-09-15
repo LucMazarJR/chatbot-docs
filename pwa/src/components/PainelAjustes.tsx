@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import Link from 'next/link';
 
 import {
   aplicarEscala,
@@ -39,10 +40,7 @@ export function PainelAjustes({ aoFechar }: { aoFechar: () => void }) {
   const [escala, setEscala] = useState<Escala>(() => lerEscala());
   const painelRef = useRef<HTMLDivElement>(null);
 
-  // `useCallback` porque o hook do foco depende desta função: sem isso ele
-  // religaria o ouvinte de teclado a cada renderização, e cada toque no A+ é
-  // uma renderização.
-  const fechar = useCallback(() => aoFechar(), [aoFechar]);
+  const fechar = aoFechar;
   useFocoPreso(painelRef, fechar);
 
   const indice = ESCALAS.findIndex((e) => e.id === escala.id);
@@ -148,6 +146,9 @@ export function PainelAjustes({ aoFechar }: { aoFechar: () => void }) {
               Por isso, <b>não compartilhe dados pessoais reais</b>: CPF, RG, cartão do SUS,
               senhas, dados bancários, endereço completo ou informações de saúde suas ou de
               outra pessoa.
+            </p>
+            <p className="painel-sobre">
+              <Link href="/privacidade">Como tratamos seus dados</Link>
             </p>
           </section>
         </div>
