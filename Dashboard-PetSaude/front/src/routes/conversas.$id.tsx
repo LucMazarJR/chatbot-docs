@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 import { GateShell } from "@/components/gate";
+import { ApagarConversa } from "@/components/apagar-conversa";
 import { exigirAdmin } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
 import { SeloVersao, formatarData } from "./conversas.index";
@@ -56,6 +57,9 @@ function ConversaPage() {
               <p className="text-sm text-muted-foreground">
                 {formatarData(sessao.iniciadaEm)} · {duracao(sessao.iniciadaEm, sessao.encerradaEm)}
               </p>
+              <div className="mt-2 -ml-3">
+                <ApagarConversa id={id} />
+              </div>
 
               {sessao.avaliacao && (
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">

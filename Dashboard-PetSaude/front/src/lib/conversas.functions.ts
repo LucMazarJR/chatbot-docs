@@ -131,3 +131,18 @@ export const detalharConversa = createServerFn({ method: "GET" })
     async ({ data }): Promise<{ sessao: ConversaResumida; mensagens: MensagemConversa[] } | null> =>
       apiFetch(`/conversas/${encodeURIComponent(data.id)}`),
   );
+
+/**
+ * Exclusão a pedido da pessoa. Apaga a conversa e troca as cópias das perguntas
+ * guardadas pela curadoria por uma marca — ver ConversasService.apagar.
+ */
+export const apagarConversa = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(
+    async ({
+      data,
+    }: {
+      data: { id: string };
+    }): Promise<{ ok: true; mensagens: number; sugestoes: number; rodadas: number }> =>
+      apiFetch(`/conversas/${encodeURIComponent(data.id)}`, { method: "DELETE" }),
+  );
