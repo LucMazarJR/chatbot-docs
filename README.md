@@ -71,6 +71,7 @@ O passo a passo com as armadilhas está em [docs/handoff-notebook.md](docs/hando
 | [docs/chatbot.md](docs/chatbot.md) | Como funciona e como instalar do zero |
 | [docs/prototipo-pwa.md](docs/prototipo-pwa.md) | O protótipo PWA de validação: subir, distribuir aos participantes e ler os resultados |
 | [docs/proposta-rag.md](docs/proposta-rag.md) | O RAG determinístico: decisão, medições e resultados |
+| [AGENTS.md](AGENTS.md) | Conduta do agente e skills (`.github/skills/`) |
 | [docs/depende-de-voce.md](docs/depende-de-voce.md) | **Decisões e providências que só você/a prefeitura pode resolver** |
 | [backend/README.md](backend/README.md) | Arquitetura do gateway e referência da API |
 | [docs/faq-scripts.md](docs/faq-scripts.md) | Scripts de ingestão de FAQs |

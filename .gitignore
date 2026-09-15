@@ -6,6 +6,10 @@
 credentials.json
 scripts/credentials.json
 
+# ADS do Windows (NTFS) — não versionar
+*:Zone.Identifier
+**/*:Zone.Identifier
+
 # Logs
 *.log
 

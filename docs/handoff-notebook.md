@@ -30,7 +30,7 @@ O gateway é um backend próprio que **substituiu o WAHA**. Ele isola o Baileys 
 
 Serviços no `docker-compose.yml`: `whatsapp-gateway`, `n8n`, `redis`, `cloudflared`, `postgres`.
 
-Documentação: [chatbot.md](chatbot.md) (arquitetura do gateway), [depende-de-voce.md](depende-de-voce.md) (decisões pendentes), [proposta-rag.md](proposta-rag.md) (o RAG determinístico, já adotado, com as medições), [faq-scripts.md](faq-scripts.md) (ingestão).
+Documentação: [chatbot.md](chatbot.md) (arquitetura do gateway), [depende-de-voce.md](depende-de-voce.md) (decisões pendentes), [proposta-rag.md](proposta-rag.md) (o RAG determinístico, já adotado, com as medições), [faq-scripts.md](faq-scripts.md) (ingestão). Conduta do agente: [AGENTS.md](../AGENTS.md) e [docs/progresso/PLANO_IMPLEMENTACAO.md](progresso/PLANO_IMPLEMENTACAO.md).
 
 ---
 
