@@ -25,4 +25,4 @@ Não usar `docs/03-compilacao/` (Bot_Pan).
 
 Compose / `docker-compose.franca.yml` · n8n webhook 403/404 · Mongo `test` vs `ministerio_saude` · índice `vector_index_3072` · Gemini 429 · SSH `172.21.31.167:22022` · QR do gateway · token n8n dessincronizado do `.env`
 
-Não colar `.env`, PAT, URI com senha. Sugerir commit `docs(infra): registra tentativa ...` se o usuário quiser versionar.
+Não colar `.env`, PAT, URI com senha. Sugerir commit no padrão do skill `commit` se o usuário quiser versionar.

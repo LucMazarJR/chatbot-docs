@@ -21,7 +21,7 @@ O clone local ganhou conduta de agente (`AGENTS.md`, regra Cursor, skills adapta
 - Dois remotos: `origin` = GitHub, `gitness` = PetSaudeGrupo1/chatbot-docs.
 - `importe` mescla os dois; `exporte` manda ao Gitness e pergunta pelo GitHub.
 - Skills mobile/APK/`atualizar-kit` inativas. GLPI só com `tools/glpi/`.
-- Commit no formato já do repo (`tipo(escopo): descricao`), sem gitmoji SAMU.
+- Commit no padrão do kit: `<gitmoji> <tipo>(<escopo>): <mensagem>_DD-MM-AA_hh-mm`.
 
 ## Próximas ações
 

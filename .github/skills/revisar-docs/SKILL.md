@@ -15,4 +15,4 @@ Escopo padrão: `docs/`. Relatório em `docs/progresso/AUDITORIA_DOCS-DD_MM_AA.m
 4. Fluxos n8n (`whatsapp-chatbot.json`, `pwa-chatbot.json`) vs rotas nas docs
 5. Menções a WAHA, `/admin` do PWA ou `PWA_ADMIN_PASSWORD` (legado)
 
-Classificar: crítico / importante / leve. Corrigir só com confirmação de escopo. Commit: `docs: ...` (skill `commit`).
+Classificar: crítico / importante / leve. Corrigir só com confirmação de escopo. Commit: skill `commit`.

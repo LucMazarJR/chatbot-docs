@@ -7,7 +7,7 @@ Kit original: pmf-dev-kit / Bot_Pan / SAMU. **Adaptado** a este repositório. Co
 | Skill | Quando usar |
 |---|---|
 | `oncoto-oncovo` | Início de sessão, "onde estamos", antes de deploy |
-| `commit` | Mensagem e `git commit` (só se o usuário pedir) |
+| `commit` | `gitmoji tipo(escopo): descricao_DD-MM-AA_hh-mm` (só se o usuário pedir) |
 | `importe` | Fetch GitHub **e** Gitness; ponderar e mesclar os dois no local |
 | `exporte` | Push no Gitness por padrão; **sempre perguntar** se também envia ao GitHub |
 | `atualizar` | Diagnóstico dos dois remotos — delega a importe ou exporte |

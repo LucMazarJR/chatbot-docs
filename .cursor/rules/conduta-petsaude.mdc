@@ -9,6 +9,7 @@ Siga `AGENTS.md` na raiz. Skills em `.github/skills/`. Matriz em `.github/skills
 
 - Início de sessão ou "onde estamos": skill `oncoto-oncovo`.
 - Commit / push / pull: skills `commit`, `exporte`, `importe`, `atualizar`. `importe` mescla `origin` (GitHub) e `gitness`. `exporte` manda ao Gitness e **sempre pergunta** se também envia ao GitHub.
+- Commit: `<gitmoji> <tipo>(<escopo>): <mensagem-sem-acentos>_DD-MM-AA_hh-mm` (skill `commit`).
 - Não commitar `.env`. Não `--force` em `main`. Não alterar `git config`.
 - Host `172.21.31.167`: portas `3800`–`3804` e `5534`. Compose com `-f docker-compose.franca.yml`. Sem `cloudflared`. Sem profile `dashboard` se não existir `Dashboard-PetSaude/`.
 - Embedding `gemini-embedding-2` / 3072 / `SEMANTIC_SIMILARITY` em scripts, n8n e dashboard.

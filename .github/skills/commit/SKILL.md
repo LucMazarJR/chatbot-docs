@@ -1,29 +1,46 @@
 ---
 name: commit
-description: "Commits deste repositório no formato tipo(escopo): descricao. Use quando o usuario pedir commit. Nao usar gitmoji nem timestamp SAMU."
+description: "Commits padronizados PET-SAUDE — gitmoji + conventional + timestamp PT-BR. Use quando o usuario pedir commit."
 ---
 
 # Skill: commit
 
-Só executar se o usuário pediu commit. Seguir o protocolo git do usuário (status, diff, log; não alterar `git config`; não `--no-verify`).
+Só executar se o usuário pediu commit. Protocolo git do usuário: status, diff, log; não alterar `git config`; não `--no-verify`.
 
-## Formato
+## Formato obrigatório
 
 ```text
-tipo(escopo): descricao em portugues
+<gitmoji> <tipo>(<escopo>): <mensagem-em-pt-br-sem-acentos>_DD-MM-AA_hh-mm
 ```
 
-Tipos: `feat`, `fix`, `docs`, `refactor`, `chore`.  
-Escopos: `pwa`, `n8n`, `gateway`, `compose`, `infra`, `docs`, `scripts`.
+| Parte | Regra |
+|---|---|
+| gitmoji | No início, coerente com o tipo |
+| tipo | `feat` `fix` `docs` `chore` `refactor` `test` `perf` |
+| escopo | `pwa` `n8n` `gateway` `compose` `infra` `docs` `scripts` `skills` |
+| mensagem | Português-BR, sem acento, uma intenção só |
+| timestamp | `_DD-MM-AA_hh-mm` no fuso `America/Sao_Paulo` |
 
-Exemplos deste repo: `docs(infra): mapa de portas do PET no host 172.21.31.167` · `feat(pwa): ...`
+### Gitmoji
 
-**Proibido:** gitmoji; sufixo `_DD-MM-AA_hh-mm` do SAMU/Bot_Pan.
+| Tipo | Emoji |
+|---|---|
+| feat | ✨ |
+| fix | 🐛 |
+| docs | 📝 |
+| refactor | ♻️ |
+| chore | 🔧 |
+| test | ✅ |
+| perf | ⚡ |
+
+### Exemplo
+
+`📝 docs(skills): restaurar padrao de commit com gitmoji_14-09-26_21-10`
 
 ## Não incluir
 
-`.env`, `.env.*`, tokens, `credentials.json`, `node_modules/`, `Dashboard-PetSaude/` (repo separado).
+`.env`, `.env.*`, tokens, `credentials.json`, `node_modules/`, `Dashboard-PetSaude/`, `*:Zone.Identifier`.
 
 ## Depois do commit
 
-Se o usuário também pediu push: skill `exporte` (Gitness padrão; perguntar se envia ao GitHub).
+Skill `exporte`: Gitness por padrão; **perguntar** se envia ao GitHub.

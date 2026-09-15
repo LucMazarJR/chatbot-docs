@@ -38,16 +38,15 @@ Dashboard de FAQs vive em repositório próprio (`Dashboard-PetSaude`). Sem essa
 
 ## Commit
 
-Formato deste repositório (já no histórico):
+Padrão rígido (skill `commit`):
 
 ```text
-tipo(escopo): descricao em portugues, sem acento se possivel
+<gitmoji> <tipo>(<escopo>): <mensagem-em-pt-br-sem-acentos>_DD-MM-AA_hh-mm
 ```
 
-Tipos: `feat`, `fix`, `docs`, `refactor`, `chore`.  
-Escopos: `pwa`, `n8n`, `gateway`, `compose`, `infra`, `docs`, `scripts`.
-
-Não usar gitmoji nem sufixo `_DD-MM-AA` do kit SAMU/Bot_Pan.
+Tipos: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`.  
+Escopos: `pwa`, `n8n`, `gateway`, `compose`, `infra`, `docs`, `scripts`, `skills`.  
+Timestamp no fuso `America/Sao_Paulo`. Exemplo: `✨ feat(pwa): abrir o chat sem saudacao_14-09-26_21-10`.
 
 ## Docker neste host (`172.21.31.167`)
 
