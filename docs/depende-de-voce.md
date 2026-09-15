@@ -20,6 +20,9 @@ O grupo já teve uma versão rodando em **n8n + Telegram**. A migração para o 
 | **Chip dedicado** | Já existe. Vira número institucional quando for para a prefeitura |
 | **Rodar na máquina local** | Suficiente para teste. VPS só quando sair do grupo |
 | **LGPD do conteúdo das FAQs** | Já sendo tratada pelo grupo, na plataforma de gestão de FAQs |
+| **Gemini só na cota gratuita** | Sem billing ativo no Google Cloud. Quando a cota do dia acaba, o bot para de responder até o dia seguinte — por isso o checklist de cota em [prototipo-pwa.md](prototipo-pwa.md#levar-para-um-posto-de-saúde) antes de cada teste |
+| **Condensação de query adiada** | Perguntas de continuação ("como chego lá?") seguem falhando. O atalho barato foi medido e reprovado ([chatbot.md](chatbot.md#o-atalho-da-condensação-não-funciona)); a correção completa custa uma chamada de LLM a mais por mensagem e fica para ser levantada depois |
+| **Segredos do n8n mantidos** | A interface do n8n ficou alcançável pela internet até ser restrita a `/webhook/*` no Cloudflare. Os segredos guardados nele (URI do Atlas, chaves do Gemini, senha do Redis, tokens dos webhooks) continuam os mesmos, por decisão consciente |
 
 ---
 
@@ -90,38 +93,15 @@ docker compose logs -f whatsapp-gateway
 
 ## O que ainda preciso de você agora
 
-Só dois itens — e os dois afetam o teste, não só a produção.
+Nada bloqueia o teste hoje. Os dois itens que estavam aqui foram resolvidos:
 
-### 1. Nome do índice vetorial no MongoDB Atlas 🔴
+- **Nome do índice vetorial.** Os quatro lugares usam `vector_index_3072` com 3072 dimensões: os dois fluxos do n8n, o [enviar_dados.py](../scripts/enviar_dados.py), que cria o índice, e o [limpar_banco.py](../scripts/limpar_banco.py), que o recria. Recriar o ambiente do zero volta a funcionar, e rodar o `limpar_banco.py` deixou de quebrar a busca.
+- **Cota do Gemini.** Decidido: só a cota gratuita — ver [Decisões já tomadas](#decisões-já-tomadas-não-são-pendências).
 
-Este é um bug latente que quebra toda a busca de FAQs **em silêncio**. Há três valores conflitantes:
+Duas observações que continuam valendo:
 
-| Onde | Nome do índice | Dimensões |
-|---|---|---|
-| Workflow do n8n | `vector_index_3072` | — |
-| [scripts/enviar_dados.py](../scripts/enviar_dados.py) (cria) | `vector_index` | 3072 |
-| [scripts/limpar_banco.py](../scripts/limpar_banco.py) (recria) | `vector_index` | **768** |
-
-Duas consequências concretas:
-
-- Nenhum script cria `vector_index_3072`, que é o índice que o n8n de fato consulta. Ele deve ter sido criado à mão no painel do Atlas — ou seja, **recriar o ambiente do zero não funciona hoje**.
-- **Rodar `limpar_banco.py` quebra a busca.** Ele derruba o índice e recria com 768 dimensões, incompatível com os vetores de 3072 que os embeddings geram. A partir daí o bot responde "não encontrei essa informação" para tudo, sem erro nenhum aparecer.
-
-> ⚠️ Enquanto isso não for decidido, **não rode `limpar_banco.py`**.
-
-**Por que agora:** o grupo está construindo a plataforma de gestão de FAQs que vai substituir a lógica dos scripts Python. Fixar o nome canônico agora evita que a plataforma nova nasça com a mesma divergência — ela vai precisar criar e consultar esse índice também.
-
-**Decisão que preciso:** qual é o nome canônico? Com a resposta, alinho os três lugares num commit só.
-
-### 2. Cota do Gemini e dona da chave 🟠
-
-O modelo é `gemini-2.5-flash-lite` na **cota gratuita**. Com o grupo inteiro testando, essa cota acaba rápido — e quando acaba, o bot simplesmente para de responder.
-
-Também vale olhar: a credencial do Gemini cadastrada no n8n se chama **"Felipe Gemini"**. É a chave pessoal de outra pessoa. Para teste tudo bem, mas quando o projeto crescer isso precisa virar uma chave do projeto, não de um indivíduo — se essa pessoa sair do grupo ou revogar a chave, o bot cai.
-
-**Preciso saber:** há billing ativo no Google Cloud, ou é só a cota gratuita? Vale a pena definir um teto de gastos com alerta antes de abrir o teste para mais gente.
-
-Vale conferir também o tier do MongoDB Atlas: se for M0 (gratuito), há limite de conexões simultâneas e de armazenamento.
+- O fluxo do WhatsApp ainda usa a credencial **"Felipe Gemini"**, chave pessoal de outra pessoa; o do protótipo já usa a própria (**"Gemini PWA"**). Enquanto o WhatsApp for só teste isso não pesa, mas antes de ele atender alguém a chave precisa ser do projeto — se a pessoa sair do grupo ou revogar a chave, o bot cai.
+- Vale conferir o tier do MongoDB Atlas: se for M0 (gratuito), há limite de conexões simultâneas e de armazenamento.
 
 ---
 
@@ -158,16 +138,24 @@ Precisa de política de backup para três volumes: `wa_sessions` (credenciais do
 
 ### LGPD das conversas
 
-Uma distinção que importa: a LGPD do **conteúdo das FAQs** já está sendo tratada pelo grupo. As **conversas** — mensagens de cidadãos reais — são outro conjunto de dados, e ainda em aberto. Elas se enquadram no Art. 11 (dados pessoais sensíveis), o regime mais restritivo da lei:
+Uma distinção que importa: a LGPD do **conteúdo das FAQs** já está sendo tratada pelo grupo. As **conversas** — mensagens de cidadãos reais — são outro conjunto de dados, e se enquadram no Art. 11 (dados pessoais sensíveis), o regime mais restritivo da lei.
 
-- [ ] Base legal do tratamento (para órgão público, normalmente execução de política pública — Art. 11, II, "b")
-- [ ] Encarregado de dados (DPO) designado
-- [ ] Política de privacidade publicada
-- [ ] Aviso na primeira mensagem: que é canal automatizado, que as mensagens são registradas, onde consultar a política
-- [ ] Prazo de retenção das conversas
-- [ ] Fluxo de opt-out ("PARAR") e de exercício de direitos do titular
+**Já feito, no protótipo PWA:**
 
-Do lado técnico já está feito o que dá para fazer sem essas definições: o gateway **nunca grava o conteúdo das mensagens em log** (registra só o tamanho do texto) e os segredos são mascarados.
+- [x] **Base legal para o teste:** consentimento (Art. 7º, I, e Art. 11, I). A conversa só começa depois de tocar em *Aceitar*, e a data do aceite ou da recusa fica gravada na sessão.
+- [x] **Política de privacidade publicada** em `/privacidade`, escrita para quem está no posto: o que fica registrado, para que, quem mais recebe (Gemini e MongoDB Atlas), por quanto tempo e como exercer os direitos. O prazo que ela mostra é lido do ambiente, então a página não promete um número diferente do que o banco aplica.
+- [x] **Aviso antes da primeira pergunta:** o pedido de aceite diz que é um protótipo e que as mensagens ficam registradas, e a política tem link no aviso do topo da conversa, no menu e no painel de acessibilidade.
+- [x] **Prazo de retenção aplicado pelo banco:** as conversas se apagam sozinhas em `PWA_RETENCAO_DIAS` (180 por padrão), por índice TTL. A memória do agente no Redis expira em 1 hora, e as execuções do n8n são podadas em 14 dias.
+- [x] **Exclusão a pedido do titular,** por duas portas: a própria pessoa, no menu do chat (*Apagar minha conversa*), ou a equipe, pela transcrição em `/conversas` do dashboard, para quem não tem mais a conversa no aparelho. As duas apagam também as cópias das perguntas que a curadoria guarda em `sugestoes_faq` e `curadoria_rodadas`, e a do dashboard fica registrada no histórico sem nenhum conteúdo.
+
+**Continua dependendo da instituição:**
+
+- [ ] **Base legal para o serviço de verdade.** Consentimento serve a um teste com voluntários. Para um órgão público atendendo a população, a base costuma ser execução de política pública (Art. 11, II, "b"), e quem define é a instituição.
+- [ ] **Encarregado de dados (DPO)** designado. Quando houver, o contato vai em `PWA_CONTATO_PRIVACIDADE` e a página de privacidade passa a mostrá-lo; hoje ela orienta a procurar a pessoa responsável pelo teste.
+- [ ] **Política oficial do órgão.** A página do protótipo descreve o protótipo, não substitui a política da instituição.
+- [ ] **Opt-out ("PARAR") no WhatsApp.** O canal do WhatsApp ainda não atende ninguém; quando atender, precisa do mesmo direito de exclusão que o protótipo já tem.
+
+No gateway do WhatsApp, o conteúdo das mensagens **nunca vai para o log** (fica registrado só o tamanho do texto) e os segredos são mascarados.
 
 ### Identificação do cliente
 
@@ -190,10 +178,12 @@ Nada do que está acima exige reescrever o projeto. O que já está no lugar:
 
 | Item | Depende de | Quando |
 |---|---|---|
-| Nome do índice vetorial | **Você** | **Agora** — a busca já está frágil |
-| Cota/billing do Gemini e dona da chave | **Você** | **Agora** — a cota gratuita acaba no teste |
+| Nome do índice vetorial | — | ✅ Resolvido: `vector_index_3072` em todos os lugares |
+| Cota do Gemini | — | ✅ Decidido: só a cota gratuita |
+| Chave do Gemini do fluxo do WhatsApp | Você | Antes de o WhatsApp atender alguém |
 | Número institucional | Prefeitura | Ao sair do teste |
 | API oficial da Meta | Prefeitura (CNPJ, documentos) | Começar semanas antes de precisar |
 | Hospedagem em VPS | Você + orçamento | Ao sair do teste |
-| LGPD das conversas | Prefeitura / DPO | Antes de atender cidadãos |
+| LGPD das conversas — protótipo | — | ✅ Consentimento, política, retenção e exclusão feitos |
+| LGPD das conversas — serviço real | Prefeitura / DPO | Antes de atender cidadãos |
 | Identificação do cliente | Prefeitura | Destrava LGPD, Meta e nome do bot |
