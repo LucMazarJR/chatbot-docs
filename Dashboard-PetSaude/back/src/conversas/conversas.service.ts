@@ -1,10 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage } from 'mongoose';
 
 import { Sessao, SessaoDocument } from './schemas/sessao.schema';
 import { Mensagem, MensagemDocument } from './schemas/mensagem.schema';
 import { CONEXAO_PROTOTIPO } from './conexao';
+import { ActivityService } from '../activity/activity.service';
+import { Rodada, RodadaDocument } from '../curadoria/schemas/rodada.schema';
+import { Sugestao, SugestaoDocument } from '../curadoria/schemas/sugestao.schema';
+
+/** O mesmo texto que o PWA usa, para as duas portas de exclusão deixarem o mesmo rastro. */
+export const MARCA_APAGADA = '[apagada a pedido da pessoa]';
 
 export type Periodo = 'hoje' | '7d' | '30d' | 'tudo';
 export type FiltroVersao = 'a' | 'b' | 'todas';
@@ -34,6 +40,11 @@ export class ConversasService {
         private readonly sessaoModel: Model<SessaoDocument>,
         @InjectModel(Mensagem.name, CONEXAO_PROTOTIPO)
         private readonly mensagemModel: Model<MensagemDocument>,
+        @InjectModel(Sugestao.name)
+        private readonly sugestaoModel: Model<SugestaoDocument>,
+        @InjectModel(Rodada.name)
+        private readonly rodadaModel: Model<RodadaDocument>,
+        private readonly activityService: ActivityService,
     ) { }
 
     /** Início do intervalo, ou null quando o filtro é "tudo". */
@@ -254,6 +265,73 @@ export class ConversasService {
             .exec();
 
         return { sessao, mensagens };
+    }
+
+    /**
+     * Apaga uma conversa a pedido de quem a teve.
+     *
+     * LÓGICA DO LUCIANO: é a outra porta do direito de exclusão. O próprio chat
+     * já deixa a pessoa apagar a conversa — mas só enquanto ela está no aparelho.
+     * Quem trocou de celular, limpou o navegador ou fez o teste no aparelho de
+     * outra pessoa não tem mais como, e o pedido chega à equipe. Esta rota é
+     * para esse caso.
+     *
+     * Faz o mesmo que o PWA, e na mesma ordem: as CÓPIAS primeiro (sugestões e
+     * rodadas da curadoria), a conversa depois. Se algo falhar no meio, a
+     * conversa continua na lista e o pedido pode ser repetido — na ordem inversa
+     * ela sumiria da tela deixando cópias para trás.
+     *
+     * A auditoria registra quem apagou, quando e quantos registros, e NENHUM
+     * conteúdo: guardar o texto no log de uma exclusão desfaria a exclusão.
+     */
+    async apagar(id: string, actor: { id?: string; name: string }) {
+        const sessao = await this.sessaoModel.findById(id).select('_id').lean().exec();
+        if (!sessao) throw new NotFoundException('Conversa nao encontrada');
+
+        const sugestoes = await this.sugestaoModel
+            .updateMany(
+                { 'origens.sessaoId': id },
+                { $set: { 'origens.$[origem].pergunta': MARCA_APAGADA } },
+                { arrayFilters: [{ 'origem.sessaoId': id }] },
+            )
+            .exec();
+
+        const rodadas = await this.rodadaModel
+            .updateMany(
+                { 'lacunas.sessaoId': id },
+                {
+                    $set: {
+                        'lacunas.$[lacuna].pergunta': MARCA_APAGADA,
+                        // Inteira, e não só o trecho: o texto do modelo pode repetir a
+                        // pergunta com outras palavras, e não dá para separar com
+                        // segurança. Custa a auditoria da rodada, que é o preço certo.
+                        respostaBruta: MARCA_APAGADA,
+                    },
+                },
+                { arrayFilters: [{ 'lacuna.sessaoId': id }] },
+            )
+            .exec();
+
+        const mensagens = await this.mensagemModel.deleteMany({ sessaoId: id }).exec();
+        await this.sessaoModel.deleteOne({ _id: id }).exec();
+
+        const resultado = {
+            mensagens: mensagens.deletedCount,
+            sugestoes: sugestoes.modifiedCount,
+            rodadas: rodadas.modifiedCount,
+        };
+
+        void this.activityService.registrar({
+            actor_name: actor.name,
+            actor_id: actor.id,
+            action: 'excluir',
+            entity_type: 'conversa',
+            entity_id: id,
+            target: 'Conversa apagada a pedido da pessoa',
+            after: resultado,
+        });
+
+        return { ok: true, ...resultado };
     }
 
     /** Uma linha por mensagem, para abrir em planilha. */

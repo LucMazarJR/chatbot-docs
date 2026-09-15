@@ -1,6 +1,8 @@
-import { Controller, Get, Header, Param, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Header, Param, Query } from '@nestjs/common';
 
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { ConversasService } from './conversas.service';
 import { ListarConversasQueryDto } from './dto/listar-conversas-query.dto';
 
@@ -44,5 +46,11 @@ export class ConversasController {
     @Get(':id')
     detalhar(@Param('id') id: string) {
         return this.conversas.detalhar(id);
+    }
+
+    /** Pedido de exclusão que chegou à equipe por fora do chat. */
+    @Delete(':id')
+    apagar(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+        return this.conversas.apagar(id, { id: user.id, name: user.name });
     }
 }

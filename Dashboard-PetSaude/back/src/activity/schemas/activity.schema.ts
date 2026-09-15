@@ -7,6 +7,7 @@ export type ActivityDocument = Activity & Document;
 export type TipoEntidade =
     | 'faq'
     | 'categoria'
+    | 'conversa'
     | 'usuario'
     | 'sessao'
     | 'regra_importacao'
@@ -26,6 +27,10 @@ export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
     // daquele assunto de uma vez. É a alteração de conteúdo com maior alcance
     // do sistema, e o registro dela tem que durar o mesmo que o das FAQs.
     categoria: 730,
+    // Exclusão de conversa a pedido do titular. O registro NÃO guarda conteúdo
+    // nenhum, só o id e as contagens — é a prova de que o pedido foi atendido, e
+    // essa prova precisa durar o mesmo que o histórico de conteúdo.
+    conversa: 730,
     // Criar conta, trocar papel, redefinir senha de terceiro. Fica entre os
     // dois: é ato administrativo, mas identifica pessoas.
     usuario: 365,
