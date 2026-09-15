@@ -68,6 +68,10 @@ PWA_PORT=8080
 PWA_MONGO_DB=pwa_prototipo
 N8N_PWA_WEBHOOK_URL=http://n8n:5678/webhook/pwa-chat
 N8N_PWA_WEBHOOK_TOKEN=<o token gerado>
+
+# opcionais
+PWA_RETENCAO_DIAS=180
+PWA_CONTATO_PRIVACIDADE=<e-mail ou telefone para pedidos sobre os dados>
 ```
 
 ⚠️ **`GEMINI_API_KEY_2` precisa ser de outro projeto Google.** A cota gratuita é por projeto: duas chaves do mesmo projeto dividem o mesmo balde de 500 chats/dia, e o "isolamento" seria só aparente — uma tarde de testes derrubaria o bot do WhatsApp.
@@ -203,6 +207,21 @@ Sob cada resposta do bot há **👍/👎**. É o dado mais valioso da validaçã
 
 A avaliação final abre pelo menu (**Encerrar e avaliar**) ou sozinha, após 2 minutos parado com pelo menos 3 perguntas feitas. São três campos, todos opcionais: nota ★1–5, NPS 0–10 e um comentário.
 
+Antes da primeira pergunta o bot pede o **aceite**, com dois botões, e o campo só libera depois de *Aceitar*; a data do aceite ou da recusa fica gravada na sessão. Não há saudação nem atalhos de assunto: aceitou, o chat está pronto para a pergunta, e o que o assistente entende, entende do texto.
+
+O **menu ⋮** tem quatro itens:
+
+- **Acessibilidade** — tamanho do texto em quatro degraus, com uma amostra que mostra o efeito na hora, e tema claro, escuro ou automático. Existe porque o chat mede tudo em px para imitar o WhatsApp e por isso ignora a fonte do sistema, e no posto muita gente usa o celular com a fonte no máximo.
+- **Privacidade** — a página `/privacidade`, que também tem link no aviso do topo da conversa.
+- **Encerrar e avaliar** — abre a avaliação.
+- **Apagar minha conversa** — depois de confirmar, apaga a conversa e as cópias das perguntas guardadas pela curadoria. Some quando a conversa já foi encerrada, porque a chave sai do aparelho ao avaliar; nesse caso a equipe apaga pela transcrição no dashboard.
+
+O **clipe e o microfone** simulam a experiência do WhatsApp, mas nada sai do aparelho: o bot responde que só lê texto, e fica registrado só que houve a tentativa, com tipo, tamanho e duração — o nome do arquivo não é guardado. Servem para medir quanta gente tenta mandar foto do exame ou áudio em vez de digitar.
+
+Dá para conversar só pelo **teclado ou com leitor de tela**: o foco fica preso nos diálogos e o Esc fecha, um atalho pula direto para o campo de mensagem, e a espera ("digitando…") e os tiques de entrega são anunciados em palavras.
+
+As conversas **se apagam sozinhas** depois de `PWA_RETENCAO_DIAS` (180 por padrão), por um índice TTL que o próprio PWA cria ao conectar no banco. Mudar o prazo depois é seguro: o índice existente é ajustado, não recriado.
+
 ### O painel de conversas
 
 **Não fica mais no PWA.** Migrou para o Dashboard-PetSaúde, em **`/conversas`**, e só abre para quem tem papel `admin` — o conteúdo é relato de sintoma e pedido de atendimento escritos por cidadãos identificáveis pelo que contam, e a senha única de antes não tinha identidade nem registro de quem leu o quê.
@@ -211,9 +230,11 @@ Cartões no topo agrupados por assunto (uso, qualidade, desempenho), filtros de 
 
 **Clique numa resposta do bot** para abrir os bastidores dela: cada pergunta da base que a busca trouxe, com o score e se passou do limiar. Cada linha leva à FAQ pelo id, para quem revisa ir da resposta ruim direto ao documento que precisa de conserto.
 
-> Esse painel é o retorno mais direto do protótipo. O `LIMIAR_SCORE = 0.82` do fluxo foi estimado a partir de **cinco consultas manuais** ([whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json), nó *Montar contexto*). Olhar os scores numa resposta marcada com 👎 mostra se o corte está alto demais (o trecho certo ficou de fora por pouco) ou baixo demais (entrou ruído que confundiu o agente).
+> Esse painel é o retorno mais direto do protótipo, e foi com ele que o `LIMIAR_SCORE = 0.82` deixou de ser a estimativa de cinco consultas manuais. Com 81 perguntas de participantes, baixar o corte para 0,80 ganharia 2 respostas corretas e deixaria entrar 8 contextos irrelevantes a mais, então o valor ficou. A conclusão está no nó *Montar contexto* dos dois fluxos: pergunta sem resposta aqui é **falta de conteúdo na base**, não corte apertado — e é isso que a curadoria resolve.
 
-Exportação em **CSV** (uma linha por mensagem, abre no Excel) e **JSON** (sessões com a transcrição aninhada).
+Exportação em **CSV**, uma linha por mensagem, que abre no Excel.
+
+Na transcrição, **Apagar a pedido da pessoa** atende um pedido de exclusão que chegou à equipe por fora do chat — de quem trocou de celular ou limpou o navegador. Fica no histórico quem apagou e quando, sem nenhum conteúdo.
 
 ### O que o protótipo alimenta no dashboard
 
@@ -267,18 +288,19 @@ node -e "const {MongoClient}=require('mongodb');(async()=>{const c=new MongoClie
 
 **Exporte o CSV antes.** O `dropDatabase` não pergunta duas vezes.
 
+Ele não alcança as **cópias das perguntas** que a curadoria guardou em `ministerio_saude` (`sugestoes_faq` e `curadoria_rodadas`). É de propósito: a sugestão é material da base de conteúdo e precisa sobreviver ao protótipo. Apagar também essas cópias é outra operação, sobre outro banco.
+
 ---
 
-## Quando o bot responde "Não consegui responder agora"
+## Quando o bot responde com uma mensagem de falha
 
-Esse é o texto de indisponibilidade — quer dizer que a chamada ao n8n falhou. A partir da versão atual, o **motivo fica gravado** e aparece na tela de revisão, junto da resposta que falhou. Os casos, e como distingui-los pelo tempo:
+São três mensagens, e cada uma aponta um lugar diferente para procurar. O motivo técnico fica gravado na própria mensagem e aparece na transcrição da conversa, em `/conversas` no dashboard ("falhou: …").
 
-| Latência | Provável causa |
-|---|---|
-| **0 ms** | `N8N_PWA_WEBHOOK_URL` ou `N8N_PWA_WEBHOOK_TOKEN` não definidos no ambiente |
-| **< 1 s** | DNS ou rota: a URL aponta para `http://n8n:5678` fora da rede do compose (o nome não existe na Vercel), ou o fluxo não está publicado (404) |
-| **1–3 s** | Token errado — o n8n devolve 403. `N8N_PWA_WEBHOOK_TOKEN` e a credencial `PWA Webhook Token` são independentes, e mudar só um quebra tudo |
-| **45 s** | Tempo limite: o Gemini está lento ou sem cota, ou o PC que hospeda o n8n caiu |
+| O que a pessoa vê | O que aconteceu | Onde olhar |
+|---|---|---|
+| **"O assistente está temporariamente fora do ar"** | A pergunta nem chegou ao fluxo: `N8N_PWA_WEBHOOK_URL` ou `N8N_PWA_WEBHOOK_TOKEN` ausentes, n8n desligado ou inalcançável, fluxo não publicado (404), token errado (401/403) ou túnel sem destino (502/503) | O motivo gravado na mensagem. `N8N_PWA_WEBHOOK_TOKEN` e a credencial `PWA Webhook Token` do n8n são independentes, e mudar só um quebra tudo. Na Vercel, `http://n8n:5678` não existe: esse nome só vale dentro do compose |
+| **"Não consegui responder agora"** | O fluxo recebeu a pergunta, mas o agente falhou e devolveu a resposta de indisponibilidade — por exemplo, fim da cota gratuita do Gemini ou erro do modelo | As execuções do n8n, no nó que falhou |
+| **"Demorei demais para responder desta vez"** | O fluxo aceitou a pergunta e a resposta não voltou em 4 minutos, ou a entrega bateu no tempo limite do túnel (408, 504, 524) | As execuções do n8n. Se a execução terminou bem e a resposta não chegou, o problema é o retorno: `PWA_PUBLIC_URL` precisa ser um endereço que o **container do n8n** alcance — no Docker, `http://pwa:8080` |
 
 Teste a rota isolada com o comando do [Passo 5](#5-testar-a-rota-isolada-sem-navegador) — se ela responder e o PWA não, o problema está na configuração do PWA, não no fluxo.
 
