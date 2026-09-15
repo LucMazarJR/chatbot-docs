@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 const FOCAVEIS = 'button:not([disabled]), textarea, [href], input:not([type="file"]), select';
 
@@ -15,11 +15,23 @@ const FOCAVEIS = 'button:not([disabled]), textarea, [href], input:not([type="fil
  *
  * Devolver o foco a quem abriu é a outra metade. Sem isso, fechar o diálogo
  * joga o foco no começo da página e a pessoa refaz o caminho inteiro.
+ *
+ * `aoFechar` fica numa ref, e o efeito depende só do alvo. Quem chama costuma
+ * passar uma função criada na hora; com ela nas dependências, o efeito rodava
+ * de novo a cada renderização da página — e cada rodada devolve o foco ao
+ * primeiro botão. Com a folha de avaliação aberta, uma resposta do assistente
+ * chegando no fundo arrancava o cursor do campo de comentário no meio da frase.
  */
 export function useFocoPreso(
   alvo: RefObject<HTMLElement | null>,
   aoFechar: () => void,
 ): void {
+  const aoFecharRef = useRef(aoFechar);
+
+  useEffect(() => {
+    aoFecharRef.current = aoFechar;
+  });
+
   useEffect(() => {
     const previamenteFocado = document.activeElement as HTMLElement | null;
     const focaveis = () =>
@@ -30,7 +42,7 @@ export function useFocoPreso(
     const aoTeclar = (evento: KeyboardEvent) => {
       if (evento.key === 'Escape') {
         evento.preventDefault();
-        aoFechar();
+        aoFecharRef.current();
         return;
       }
       if (evento.key !== 'Tab') return;
@@ -57,5 +69,5 @@ export function useFocoPreso(
       document.removeEventListener('keydown', aoTeclar);
       previamenteFocado?.focus?.();
     };
-  }, [alvo, aoFechar]);
+  }, [alvo]);
 }
