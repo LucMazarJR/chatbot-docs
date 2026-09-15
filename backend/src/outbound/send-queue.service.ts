@@ -18,7 +18,7 @@ const RATE_WINDOW_MS = 60_000;
  * 3. **Teto de mensagens por minuto** em janela deslizante.
  *
  * Isto é mitigação, não garantia: quem garante que o número não cai é a
- * WhatsApp Cloud API oficial — ver `docs/depende-de-voce.md`.
+ * WhatsApp Cloud API oficial — ver `docs/caminho-para-producao.md`.
  *
  * Fila em memória é adequada à Fase 1 (uma réplica). Com mais de um processo
  * ela deixa de valer, e é aí que entra o BullMQ da Fase 2.

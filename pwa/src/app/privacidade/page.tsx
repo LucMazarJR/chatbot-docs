@@ -23,7 +23,7 @@ export const metadata: Metadata = {
  *
  * O que ainda é decisão da instituição (encarregado de dados, política oficial
  * do órgão) não aparece aqui como se estivesse resolvido — está listado em
- * docs/depende-de-voce.md.
+ * docs/privacidade-e-lgpd.md.
  */
 export default function Privacidade() {
   const dias = diasDeRetencao();

@@ -215,7 +215,7 @@ services:
       DB_RUN_MIGRATIONS: "true"
       MONGODB_URI: ${MONGODB_URI:?defina MONGODB_URI no .env}
       GEMINI_API_KEY: ${GEMINI_API_KEY:?defina GEMINI_API_KEY no .env}
-      # Precisa ser o MESMO modelo da base e do nó do n8n. Ver docs/handoff-notebook.md.
+      # Precisa ser o MESMO modelo da base e do nó do n8n. Ver docs/base-de-faqs.md.
       GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-2}
       GEMINI_TASK_TYPE: ${GEMINI_TASK_TYPE:-SEMANTIC_SIMILARITY}
       # Banco das conversas do protótipo PWA, no mesmo cluster. Segunda conexão

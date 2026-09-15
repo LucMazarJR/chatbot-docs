@@ -16,8 +16,7 @@ import type { Mensagem, Sessao } from './tipos';
  *    tem isso dentro — sem risco de levar FAQ junto.
  *
  * O banco é escolhido EXPLICITAMENTE por nome, e não pelo caminho da
- * `MONGODB_URI`. Essa é a armadilha nº 1 do projeto (ver docs/chatbot.md,
- * Passo 1): uma URI sem nome de banco faz o driver assumir `test` em silêncio,
+ * `MONGODB_URI`. Essa é a armadilha nº 1 do projeto (ver docs/armadilhas.md): uma URI sem nome de banco faz o driver assumir `test` em silêncio,
  * sem erro nenhum.
  */
 

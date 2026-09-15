@@ -2,9 +2,9 @@
 
 Interface web com cara de WhatsApp, que roda **o mesmo fluxo de RAG** do canal em produção, pede uma nota ao final e registra tudo para análise.
 
-Existe por um motivo prático: validar a **qualidade das respostas** com usuários reais. Pelo WhatsApp isso é ruim de fazer — exige parear um número, ninguém consegue observar a interação, e as conversas não são guardadas (decisão deliberada, ver [depende-de-voce.md](depende-de-voce.md#7-lgpd--dado-de-saúde-é-dado-sensível)).
+Existe por um motivo prático: validar a **qualidade das respostas** com usuários reais. Pelo WhatsApp isso é ruim de fazer — exige parear um número, ninguém consegue observar a interação, e as conversas não são guardadas (decisão deliberada, ver [privacidade-e-lgpd.md](privacidade-e-lgpd.md)).
 
-> ⚠️ **Aqui as conversas SÃO gravadas.** É o objetivo do protótipo, e por isso a tela de entrada avisa o participante e pede que não informe dado pessoal. Ao fim da validação, [apague a base](#ao-fim-da-validação).
+> ⚠️ **Aqui as conversas SÃO gravadas.** É o objetivo do protótipo, e por isso a conversa só começa depois do aceite, que pede para não informar dado pessoal. Ao fim da validação, [apague a base](#ao-fim-da-validação).
 
 ---
 
@@ -175,7 +175,7 @@ O túnel **já expõe** essa rota, autenticada — um POST sem o `X-Webhook-Toke
 
 **Nada no código.** As mesmas variáveis, o mesmo Next. Três detalhes já resolvidos, mas que valem saber:
 
-- **`output: 'standalone'` é desligado na Vercel** — ver [Armadilhas](#armadilhas).
+- **`output: 'standalone'` é desligado na Vercel** — ver [armadilhas.md](armadilhas.md#protótipo-pwa).
 - **O teto de 60s da Vercel deixou de importar.** Era o problema central: 35% das respostas eram geradas pelo Gemini e mortas no caminho de volta. Com o retorno assíncrono, cada requisição dura milissegundos e a espera acontece em consultas curtas.
 - **O limite por IP vive no Mongo**, não em memória. Em serverless cada requisição pode cair numa instância diferente, e instância fria começa zerada: um contador em memória marcaria "1 de 40" para sempre e não seguraria a cota.
 
@@ -183,7 +183,7 @@ O túnel **já expõe** essa rota, autenticada — um POST sem o `X-Webhook-Toke
 
 A Vercel resolve a página, **não o cérebro**. Se o PC dormir, o Docker parar ou a internet cair, o túnel morre e toda mensagem vira a tela de indisponibilidade. Para um teste em campo isso significa: o PC precisa estar ligado, acordado e conectado durante toda a sessão.
 
-Se em algum momento o protótipo precisar rodar sem depender da sua máquina, o passo é levar o n8n para um servidor — decisão de hospedagem que já está registrada em [depende-de-voce.md](depende-de-voce.md#quando-sair-do-teste).
+Se em algum momento o protótipo precisar rodar sem depender da sua máquina, o passo é levar o n8n para um servidor — decisão de hospedagem que já está registrada em [caminho-para-producao.md](caminho-para-producao.md).
 
 ### Conferir se o Atlas aceita a Vercel
 
@@ -251,12 +251,12 @@ O registro das conversas não é descartável como o protótipo: é dele que sai
 
 ## Roteiro de teste com participante
 
-O mesmo do [chatbot.md](chatbot.md#passo-7--testar-de-ponta-a-ponta), que já cobre os modos de falha conhecidos:
+O mesmo do [instalacao.md](instalacao.md#8-testar-de-ponta-a-ponta), que já cobre os modos de falha conhecidos:
 
 1. Uma saudação (`oi`).
 2. Uma pergunta com resposta na base.
 3. Uma pergunta fora de escopo — **tem que admitir que não sabe**, não inventar.
-4. Três perguntas seguidas sobre assuntos diferentes — as três respostas precisam ser diferentes entre si (o teste do "bot viciado" de [proposta-rag.md](proposta-rag.md)).
+4. Três perguntas seguidas sobre assuntos diferentes — as três respostas precisam ser diferentes entre si (o teste do "bot viciado" de [arquitetura.md](arquitetura.md#por-que-a-busca-é-obrigatória)).
 
 ---
 
@@ -310,20 +310,4 @@ Na Vercel, o motivo também sai nos logs da função (**Deployments → Function
 
 ## Armadilhas
 
-**Instalar como aplicativo exige HTTPS.** Por IP da rede local o chat funciona normalmente, mas o navegador recusa registrar o service worker e o "Adicionar à tela de início" não aparece. Não é defeito do protótipo.
-
-**`output: 'standalone'` derruba o build na Vercel.** Ele é obrigatório para a imagem Docker não passar de 1 GB, e proibido na Vercel: o build de lá termina com um passo próprio que procura os arquivos de rastreio no formato padrão, que o modo standalone não produz. O erro é
-
-```
-ENOENT: no such file or directory, open '.next/next-server.js.nft.json'
-```
-
-— que não menciona `output` nem `standalone`, e leva a procurar o problema no lugar errado. O [next.config.ts](../pwa/next.config.ts) resolve com `process.env.VERCEL ? undefined : 'standalone'`. Mesma família da armadilha do `NITRO_PRESET` no front do dashboard ([chatbot.md](chatbot.md#armadilhas-já-descobertas)): o alvo do build precisa diferir entre o Docker e a plataforma.
-
-**`HOSTNAME=0.0.0.0` no Dockerfile não é decorativo.** O servidor gerado pelo `output: standalone` do Next escuta só em `localhost` *dentro* do container; sem essa variável, a porta publicada responde *connection refused* e o container parece saudável.
-
-**Um `data:` URI de SVG não enxerga as variáveis CSS da página.** O padrão de fundo do chat é renderizado em contexto isolado — por isso a cor do traço está fixa dentro do SVG e o tema escuro troca a imagem inteira. Usar `var(--x)` ali dentro faz o fundo sumir, sem erro nenhum no console.
-
-**O limite de 40 mensagens por IP a cada 10 minutos é proposital.** Com o acesso aberto, uma aba deixada segurando F5 queimaria a cota do dia. Se um teste presencial legítimo esbarrar nele (muitos celulares atrás do mesmo NAT), o valor está em `pwa/src/lib/limite.ts`.
-
-**Trocar o `N8N_PWA_WEBHOOK_TOKEN` exige mexer em dois lugares** — o `.env` (que alimenta o container) e a credencial `PWA Webhook Token` do n8n, que é independente. Mudar só um faz toda mensagem cair na indisponibilidade. Depois: `docker compose up -d pwa` (recriar, não reiniciar — a variável é injetada na criação).
+As deste protótipo estão com as demais, em [armadilhas.md](armadilhas.md#protótipo-pwa) — build na Vercel, `HOSTNAME` no Dockerfile, o SVG de fundo, o limite por IP e a troca do token do webhook.
