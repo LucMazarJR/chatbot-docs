@@ -144,7 +144,7 @@ export class FaqsService {
      * entrava num espaço vetorial ligeiramente diferente do resto da base: o nó
      * do n8n recupera o trecho por um texto e pontua por outro. Não dá erro em
      * lugar nenhum — só ranqueia mal, que é o defeito descrito em
-     * docs/proposta-rag.md.
+     * docs/arquitetura.md.
      *
      * Não lança: a FAQ é gravada mesmo sem vetor, para não perder o conteúdo já
      * digitado. Quem chama recebe `falha` e decide — o formulário manual segue
