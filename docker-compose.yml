@@ -110,6 +110,12 @@ services:
       # ao PWA. É o mesmo do webhook: os dois lados da conversa entre n8n e PWA
       # compartilham um segredo só.
       PWA_CALLBACK_TOKEN: ${N8N_PWA_WEBHOOK_TOKEN:-}
+      # Cada execução guarda a pergunta do cidadão e a resposta. Estes são os
+      # valores padrão do n8n, escritos aqui de propósito: a imagem é `latest`, e
+      # um padrão que mudasse numa atualização mudaria em silêncio quanto tempo
+      # conversa de saúde fica guardada. 336 horas = 14 dias.
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: 336
     depends_on:
       redis:
         condition: service_healthy
@@ -146,6 +152,19 @@ services:
       # do caminho da URI: ver o comentário em pwa/src/lib/db.ts.
       MONGODB_URI: ${MONGODB_URI:?defina MONGODB_URI no .env}
       PWA_MONGO_DB: ${PWA_MONGO_DB:-pwa_prototipo}
+
+      # Banco das FAQs, onde a curadoria guarda cópias das perguntas. O PWA só
+      # escreve lá para apagar essas cópias quando a pessoa apaga a conversa.
+      FAQ_MONGO_DB: ${FAQ_MONGO_DB:-ministerio_saude}
+
+      # Prazo em dias até a conversa se apagar sozinha (índice TTL no Mongo). É o
+      # número que a página /privacidade mostra — mudar aqui muda o que se promete.
+      PWA_RETENCAO_DIAS: ${PWA_RETENCAO_DIAS:-180}
+
+      # Onde a pessoa pede acesso ou exclusão dos dados quando não tem mais a
+      # conversa no aparelho. Vazio, a página de privacidade orienta a procurar a
+      # pessoa responsável pelo teste.
+      PWA_CONTATO_PRIVACIDADE: ${PWA_CONTATO_PRIVACIDADE:-}
 
       # Nome do serviço na rede do compose — não passa pelo Cloudflare Tunnel.
       N8N_PWA_WEBHOOK_URL: ${N8N_PWA_WEBHOOK_URL:-http://n8n:5678/webhook/pwa-chat}
