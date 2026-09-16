@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
+import { contaDaRequisicao } from '@/lib/conta/sessao';
 import { mensagens, sessoes } from '@/lib/db';
 import type { Sessao } from '@/lib/tipos';
 
@@ -45,6 +46,20 @@ export async function autenticarSessao(
 
     if (!sessao) {
         return { erro: Response.json({ erro: 'sessão não encontrada' }, { status: 404 }) };
+    }
+
+    // Conversa de conta: quem prova ser dono é o cookie da conta, e só ele. A
+    // chave do `localStorage` pode até vir junto — é a da conversa anônima que a
+    // pessoa tenha no `/` — e é ignorada aqui.
+    //
+    // Este ramo só existe para sessões com `usuarioId`. Toda conversa do `/` é
+    // anônima e segue pela regra da chave, logo abaixo, sem mudança nenhuma.
+    if (sessao.usuarioId) {
+        const conta = await contaDaRequisicao(requisicao);
+        if (conta?._id !== sessao.usuarioId) {
+            return { erro: Response.json({ erro: 'sessão não encontrada' }, { status: 404 }) };
+        }
+        return { sessao };
     }
 
     if (!sessao.chave) return { sessao };

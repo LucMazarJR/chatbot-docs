@@ -24,7 +24,9 @@ export async function DELETE(requisicao: Request, { params }: Contexto) {
   const autenticada = await autenticarSessao(requisicao, id);
   if ('erro' in autenticada) return autenticada.erro;
 
-  if (!autenticada.sessao.chave) {
+  // Conversa de conta chega aqui já autenticada pelo cookie; só a sessão antiga,
+  // sem chave e sem conta, fica barrada.
+  if (!autenticada.sessao.chave && !autenticada.sessao.usuarioId) {
     return Response.json({ erro: 'sessão não encontrada' }, { status: 404 });
   }
 
