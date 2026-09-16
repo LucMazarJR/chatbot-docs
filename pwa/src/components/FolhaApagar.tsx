@@ -18,7 +18,16 @@ type Estado = 'confirmar' | 'apagando' | 'apagada' | 'erro';
  * passam a começar uma conversa nova — deixar a pessoa diante de um chat que
  * ainda mostra as mensagens apagadas faria parecer que a exclusão não funcionou.
  */
-export function FolhaApagar({ sessaoId, aoVoltar }: { sessaoId: string; aoVoltar: () => void }) {
+export function FolhaApagar({
+  sessaoId,
+  aoVoltar,
+  esquecerNoAparelho = true,
+}: {
+  sessaoId: string;
+  aoVoltar: () => void;
+  /** Tirar a sessão do `localStorage` depois de apagar. Só faz sentido no chat anônimo. */
+  esquecerNoAparelho?: boolean;
+}) {
   const [estado, setEstado] = useState<Estado>('confirmar');
   const folhaRef = useRef<HTMLDivElement>(null);
   const recomecarRef = useRef<HTMLButtonElement>(null);
@@ -43,7 +52,7 @@ export function FolhaApagar({ sessaoId, aoVoltar }: { sessaoId: string; aoVoltar
       });
       if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
 
-      esquecerSessao();
+      if (esquecerNoAparelho) esquecerSessao();
       setEstado('apagada');
     } catch {
       setEstado('erro');
