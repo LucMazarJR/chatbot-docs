@@ -159,6 +159,7 @@ function ConversasPage() {
                     <span className="flex items-center gap-2 text-base font-semibold">
                       <SeloVersao versao={conversa.versao} />
                       {conversa.nome}
+                      <SeloConta usuarioId={conversa.usuarioId} />
                     </span>
                     <Marcas conversa={conversa} />
                   </span>
@@ -245,6 +246,26 @@ function AvisoDaFila() {
       </span>
       <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
     </Link>
+  );
+}
+
+/**
+ * Marca a conversa feita com conta — sem dizer de quem.
+ *
+ * Saber que a conversa tem conta ajuda a ler os números (quem tem conta volta,
+ * quem é anônimo raramente volta). Saber QUEM é não ajuda a analisar resposta
+ * nenhuma, e expõe o relato de saúde de uma pessoa identificada a quem só
+ * precisava avaliar o assistente.
+ */
+export function SeloConta({ usuarioId }: { usuarioId?: string }) {
+  if (!usuarioId) return null;
+  return (
+    <span
+      title="Conversa feita com conta"
+      className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+    >
+      com conta
+    </span>
   );
 }
 

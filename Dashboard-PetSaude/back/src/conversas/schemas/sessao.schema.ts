@@ -51,6 +51,16 @@ export class Sessao {
 
     @Prop({ type: AvaliacaoSchema, default: null })
     avaliacao: Avaliacao | null;
+
+    /**
+     * A conta dona da conversa, quando a conversa foi feita com login.
+     *
+     * O painel mostra só que a conversa TEM conta, nunca de quem: quem analisa
+     * respostas não precisa saber de quem é o relato de saúde. O id fica aqui
+     * para a tela de avisos, que precisa saber quem pode recebê-los.
+     */
+    @Prop({ type: String })
+    usuarioId?: string;
 }
 
 export const SessaoSchema = SchemaFactory.createForClass(Sessao);

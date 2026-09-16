@@ -75,6 +75,8 @@ export type ConversaResumida = {
   semResposta: number;
   erros: number;
   latenciaMaxima: number | null;
+  /** Presente quando a conversa foi feita com conta. O painel só mostra que existe. */
+  usuarioId?: string;
 };
 
 export type EstatisticasConversas = {

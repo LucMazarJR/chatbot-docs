@@ -7,7 +7,7 @@ import { GateShell } from "@/components/gate";
 import { ApagarConversa } from "@/components/apagar-conversa";
 import { exigirAdmin } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
-import { SeloVersao, formatarData } from "./conversas.index";
+import { SeloConta, SeloVersao, formatarData } from "./conversas.index";
 
 export const Route = createFileRoute("/conversas/$id")({
   beforeLoad: () => exigirAdmin(),
@@ -53,6 +53,7 @@ function ConversaPage() {
               <h2 className="flex items-center gap-2 text-xl font-semibold">
                 <SeloVersao versao={sessao.versao} />
                 {sessao.nome}
+                <SeloConta usuarioId={sessao.usuarioId} />
               </h2>
               <p className="text-sm text-muted-foreground">
                 {formatarData(sessao.iniciadaEm)} · {duracao(sessao.iniciadaEm, sessao.encerradaEm)}
