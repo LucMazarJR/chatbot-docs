@@ -26,9 +26,20 @@ type Registro = {
   expiraEm: Date;
 };
 
-export async function dentroDoLimite(chave: string): Promise<boolean> {
+/**
+ * @param opcoes Janela e teto próprios. Sem eles, vale o limite das mensagens.
+ *
+ * Login pede um teto bem mais baixo que conversa: 40 tentativas de senha em 10
+ * minutos já é adivinhação, não esquecimento.
+ */
+export async function dentroDoLimite(
+  chave: string,
+  opcoes: { janelaMs?: number; maximo?: number } = {},
+): Promise<boolean> {
+  const JANELA_MS_EFETIVA = opcoes.janelaMs ?? JANELA_MS;
+  const MAX_EFETIVO = opcoes.maximo ?? MAX_POR_JANELA;
   const agora = new Date();
-  const corte = new Date(agora.getTime() - JANELA_MS);
+  const corte = new Date(agora.getTime() - JANELA_MS_EFETIVA);
 
   try {
     const col = await limites();
@@ -38,14 +49,14 @@ export async function dentroDoLimite(chave: string): Promise<boolean> {
       {
         // `$slice` negativo mantém só as últimas marcas: sem ele o documento
         // cresceria sem teto enquanto o IP continuasse ativo.
-        $push: { marcas: { $each: [agora], $slice: -(MAX_POR_JANELA + 1) } },
-        $set: { expiraEm: new Date(agora.getTime() + JANELA_MS) },
+        $push: { marcas: { $each: [agora], $slice: -(MAX_EFETIVO + 1) } },
+        $set: { expiraEm: new Date(agora.getTime() + JANELA_MS_EFETIVA) },
       },
       { upsert: true, returnDocument: 'after' },
     );
 
     const recentes = (registro?.marcas ?? []).filter((marca) => new Date(marca) > corte);
-    return recentes.length <= MAX_POR_JANELA;
+    return recentes.length <= MAX_EFETIVO;
   } catch {
     // Falha ao contar não pode impedir alguém de conversar: o limite existe
     // para proteger a cota, não para ser um portão. Deixa passar e segue.
