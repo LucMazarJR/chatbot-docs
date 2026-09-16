@@ -291,6 +291,67 @@
   gap: 10px;
 }
 
+.st-lista-conversas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.st-lista-conversas li + li {
+  border-top: 1px solid var(--borda);
+}
+
+.st .st-lista-conversas a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 56px;
+  padding: 10px 0;
+  color: var(--texto);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.st-conversa-pergunta {
+  overflow-wrap: anywhere;
+}
+
+/* Conversa anterior: o mesmo visual do chat, sem barra de digitação. */
+.st-transcricao {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.st-transcricao-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--topo);
+  color: var(--topo-texto);
+}
+
+.st .st-transcricao-topo a {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  color: inherit;
+  font-size: 1.4em;
+  text-decoration: none;
+}
+
+.st-transcricao-topo strong {
+  display: block;
+  font-weight: 500;
+}
+
+.st-transcricao-topo span {
+  font-size: 0.85em;
+}
+
 .st-voltar {
   margin: 0 0 12px;
 }

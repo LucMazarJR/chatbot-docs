@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { PainelConta } from '@/components/conta/PainelConta';
+import { conversasDaConta } from '@/lib/conta/conversas';
 import { contaAtual } from '@/lib/conta/servidor';
 import { contaPublica } from '@/lib/conta/sessao';
 
@@ -12,7 +13,7 @@ export default async function Conta() {
 
   return (
     <main className="st-pagina">
-      <PainelConta conta={contaPublica(usuario)} />
+      <PainelConta conta={contaPublica(usuario)} conversas={await conversasDaConta(usuario._id)} />
     </main>
   );
 }

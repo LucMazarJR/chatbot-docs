@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import type { ConversaResumida } from '@/lib/conta/conversas';
 import type { ContaPublica } from '@/lib/conta/tipos';
 
 /**
@@ -11,7 +12,13 @@ import type { ContaPublica } from '@/lib/conta/tipos';
  * o botão que confirma aparece no lugar do que pediu, com o que vai acontecer
  * escrito ao lado. Sem desfazer, a pessoa precisa ler antes de tocar.
  */
-export function PainelConta({ conta }: { conta: ContaPublica }) {
+export function PainelConta({
+  conta,
+  conversas,
+}: {
+  conta: ContaPublica;
+  conversas: ConversaResumida[];
+}) {
   const [confirmando, setConfirmando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -73,6 +80,28 @@ export function PainelConta({ conta }: { conta: ContaPublica }) {
         <button type="button" className="st-botao st-botao-secundario" onClick={sair} disabled={ocupado}>
           Sair desta conta
         </button>
+      </section>
+
+      <section className="st-cartao">
+        <h2>Suas conversas</h2>
+        {conversas.length === 0 ? (
+          <p className="st-dica">Nenhuma conversa ainda. As perguntas que você fizer aparecem aqui.</p>
+        ) : (
+          <ul className="st-lista-conversas">
+            {conversas.map((conversa) => (
+              <li key={conversa.id}>
+                <a href={conversa.encerrada ? `/staging/conversas/${conversa.id}` : '/staging'}>
+                  <span className="st-conversa-pergunta">{conversa.primeiraPergunta}</span>
+                  <span className="st-dica">
+                    {new Date(conversa.iniciadaEm).toLocaleDateString('pt-BR')} ·{' '}
+                    {conversa.perguntas} {conversa.perguntas === 1 ? 'pergunta' : 'perguntas'}
+                    {conversa.encerrada ? '' : ' · em andamento'}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="st-cartao st-zona-perigo">
