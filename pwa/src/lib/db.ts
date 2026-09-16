@@ -2,7 +2,12 @@ import { MongoClient, MongoServerError, type Collection, type Db } from 'mongodb
 
 import type { SessaoDeConta, Usuario } from './conta/tipos';
 import type { RegistroDeLimite } from './limite';
+import type { Notificacao } from './notificacoes/tipos';
+import type { InscricaoPush } from './push/tipos';
 import type { Mensagem, Sessao } from './tipos';
+
+/** Configuração guardada no banco, hoje só as chaves VAPID. */
+type Configuracao = { _id: string; publica: string; privada: string; criadaEm: Date };
 
 /**
  * Persistência do protótipo.
@@ -96,6 +101,18 @@ export async function contasSessoes(): Promise<Collection<SessaoDeConta>> {
   return (await banco()).collection<SessaoDeConta>('contas_sessoes');
 }
 
+export async function inscricoesPush(): Promise<Collection<InscricaoPush>> {
+  return (await banco()).collection<InscricaoPush>('inscricoes_push');
+}
+
+export async function notificacoes(): Promise<Collection<Notificacao>> {
+  return (await banco()).collection<Notificacao>('notificacoes');
+}
+
+export async function configuracoes(): Promise<Collection<Configuracao>> {
+  return (await banco()).collection<Configuracao>('configuracoes');
+}
+
 /**
  * `createIndex` é idempotente: rodar na primeira conexão não custa nada e
  * garante que uma base recriada do zero já nasça indexada.
@@ -127,6 +144,15 @@ async function criarIndices(db: Db) {
       ),
     db.collection('contas_sessoes').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
     db.collection('contas_sessoes').createIndex({ usuarioId: 1 }),
+    // Avisos. A fila é lida sempre por "o que está pendente e já venceu", do
+    // mais antigo para o mais novo — o índice é exatamente essa consulta.
+    db.collection('notificacoes').createIndex({ estado: 1, enviarEm: 1 }),
+    db.collection('notificacoes').createIndex({ usuarioId: 1, criadaEm: -1 }),
+    db.collection('notificacoes').createIndex({ loteId: 1 }),
+    // Aviso que saiu da fila some sozinho depois de um tempo. `expiraEm` só é
+    // preenchido na saída, então nada pendente é apagado por engano.
+    db.collection('notificacoes').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
+    db.collection('inscricoes_push').createIndex({ usuarioId: 1 }),
     // O histórico de uma conta, e a exclusão em cascata. Parcial porque a
     // imensa maioria das sessões é anônima e não precisa ocupar o índice.
     db
