@@ -352,6 +352,59 @@
   font-size: 0.85em;
 }
 
+/* Diagnóstico do aparelho: cada linha é um limite do push na web. */
+.st-diagnostico {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.st-diagnostico li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+}
+
+/* O estado não depende só da cor: o símbolo diz a mesma coisa para quem não
+   distingue verde de vermelho. */
+.st-diagnostico li::before {
+  display: grid;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.8em;
+  font-weight: 700;
+  place-items: center;
+}
+
+.st-diagnostico .st-ok::before {
+  background: var(--acento);
+  color: #fff;
+  content: '✓';
+}
+
+.st-diagnostico .st-falta::before {
+  background: var(--barra);
+  color: var(--texto-fraco);
+  content: '–';
+}
+
+.st-orientacao {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--aviso);
+  color: var(--aviso-texto);
+  line-height: 1.5;
+}
+
+.st-detalhe-aviso {
+  font-size: 1.1em;
+  white-space: pre-line;
+}
+
 .st-voltar {
   margin: 0 0 12px;
 }

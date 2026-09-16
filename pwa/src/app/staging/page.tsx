@@ -18,7 +18,10 @@ export default async function Staging() {
   return (
     <Conversa
       modo="conta"
-      itensDeMenu={[{ rotulo: 'Minha conta', href: '/staging/conta' }]}
+      itensDeMenu={[
+        { rotulo: 'Avisos', href: '/staging/avisos' },
+        { rotulo: 'Minha conta', href: '/staging/conta' },
+      ]}
     />
   );
 }
