@@ -62,6 +62,12 @@ const config: NextConfig = {
         source: '/sw.js',
         headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
       },
+      // O do staging também: é ele que trata os avisos, e uma versão presa em
+      // cache continuaria mostrando notificação do jeito antigo.
+      {
+        source: '/staging/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
       {
         source: '/:caminho*',
         headers: CABECALHOS_DE_SEGURANCA,

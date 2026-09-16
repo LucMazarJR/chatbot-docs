@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { RegistrarSWStaging } from '@/components/avisos/RegistrarSWStaging';
+
 import './staging.css';
 
 /**
@@ -16,11 +18,16 @@ import './staging.css';
 export const metadata: Metadata = {
   title: 'Assistente de Saúde · testes',
   robots: { index: false, follow: false },
+  // Manifest próprio, com escopo /staging/: instalado pela tela de início, o
+  // app abre aqui e não no chat de campo. No iPhone, é essa instalação que
+  // libera os avisos.
+  manifest: '/staging/manifest.webmanifest',
 };
 
 export default function LayoutStaging({ children }: { children: React.ReactNode }) {
   return (
     <div className="st">
+      <RegistrarSWStaging />
       <p className="st-faixa">Ambiente de testes — contas e avisos em validação</p>
       <div className="st-conteudo">{children}</div>
     </div>
