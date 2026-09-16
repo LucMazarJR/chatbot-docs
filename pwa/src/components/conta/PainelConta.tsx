@@ -42,6 +42,10 @@ export function PainelConta({ conta }: { conta: ContaPublica }) {
 
   return (
     <>
+      <p className="st-voltar">
+        <a href="/staging">← Voltar para a conversa</a>
+      </p>
+
       <header className="st-marca">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icons/avatar.png" alt="" width={56} height={56} />

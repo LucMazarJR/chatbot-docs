@@ -6,10 +6,18 @@
  * variáveis do chat, então tema escuro e tamanho de texto valem aqui também.
  */
 
+/*
+ * Altura fixa, e quem rola é o conteúdo.
+ *
+ * O chat foi desenhado para ocupar a tela inteira (`#app` com 100dvh), e aqui
+ * ele divide a altura com a faixa de testes. Com `min-height` o chat passaria da
+ * tela pela altura da faixa, e a barra de digitação ficaria escondida abaixo da
+ * dobra no celular.
+ */
 .st {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
   background: var(--fundo-chat);
   color: var(--texto);
 }
@@ -34,9 +42,28 @@
 
 .st-conteudo {
   display: flex;
+  position: relative;
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
+}
+
+/* O chat dentro do staging: ocupa o que sobra abaixo da faixa. */
+.st-conteudo > #app {
+  height: 100%;
+}
+
+/* A faixa já reservou o espaço do notch; o cabeçalho do chat reservaria de
+   novo, e sobraria um vão no topo dos iPhones. */
+.st-conteudo .topo {
+  padding-top: 10px;
+}
+
+/* O menu ⋮ se posiciona pelo topo da área de conteúdo (ver `position: relative`
+   acima), e não mais da tela — senão abriria por cima do cabeçalho. */
+.st-conteudo .menu {
+  top: 52px;
 }
 
 .st-pagina {
@@ -262,6 +289,17 @@
 .st-acoes {
   display: flex;
   gap: 10px;
+}
+
+.st-voltar {
+  margin: 0 0 12px;
+}
+
+.st-voltar a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
 }
 
 .st-zona-perigo h2 {
