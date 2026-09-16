@@ -69,6 +69,15 @@ export type Sessao = {
    */
   consentimentoEm?: Date | null;
   consentimentoRecusadoEm?: Date | null;
+
+  /**
+   * A conta dona desta conversa, quando houver.
+   *
+   * Ausente em toda conversa anônima — que é o caso do `/`. É este campo que
+   * decide como a sessão se autentica: com conta, pelo cookie dela; sem conta,
+   * pela chave, exatamente como antes (ver `sessao-autenticada.ts`).
+   */
+  usuarioId?: string;
 };
 
 export type Avaliacao = {

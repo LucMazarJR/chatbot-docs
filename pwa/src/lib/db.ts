@@ -1,5 +1,6 @@
 import { MongoClient, MongoServerError, type Collection, type Db } from 'mongodb';
 
+import type { SessaoDeConta, Usuario } from './conta/tipos';
 import type { RegistroDeLimite } from './limite';
 import type { Mensagem, Sessao } from './tipos';
 
@@ -16,8 +17,9 @@ import type { Mensagem, Sessao } from './tipos';
  *    tem isso dentro — sem risco de levar FAQ junto.
  *
  * O banco é escolhido EXPLICITAMENTE por nome, e não pelo caminho da
- * `MONGODB_URI`. Essa é a armadilha nº 1 do projeto (ver docs/armadilhas.md): uma URI sem nome de banco faz o driver assumir `test` em silêncio,
- * sem erro nenhum.
+ * `MONGODB_URI`. Essa é a armadilha nº 1 do projeto (ver docs/armadilhas.md):
+ * uma URI sem nome de banco faz o driver assumir `test` em silêncio, sem erro
+ * nenhum.
  */
 
 const NOME_BANCO_PADRAO = 'pwa_prototipo';
@@ -86,6 +88,14 @@ export async function limites(): Promise<Collection<RegistroDeLimite>> {
   return (await banco()).collection<RegistroDeLimite>('limites');
 }
 
+export async function usuarios(): Promise<Collection<Usuario>> {
+  return (await banco()).collection<Usuario>('usuarios');
+}
+
+export async function contasSessoes(): Promise<Collection<SessaoDeConta>> {
+  return (await banco()).collection<SessaoDeConta>('contas_sessoes');
+}
+
 /**
  * `createIndex` é idempotente: rodar na primeira conexão não custa nada e
  * garante que uma base recriada do zero já nasça indexada.
@@ -102,6 +112,29 @@ async function criarIndices(db: Db) {
     // O contador de limite se apaga sozinho: sem TTL, a coleção acumularia um
     // documento por IP para sempre.
     db.collection('limites').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
+
+    // Contas. O índice único no e-mail normalizado é a garantia contra duas
+    // contas para a mesma pessoa: a checagem antes do insert é uma corrida,
+    // o índice não.
+    db.collection('usuarios').createIndex({ emailNormalizado: 1 }, { unique: true }),
+    // Único só entre quem TEM googleSub. Com `sparse` não funcionaria: o campo
+    // existe com `null` nas contas de senha, e dois nulos violariam o único.
+    db
+      .collection('usuarios')
+      .createIndex(
+        { googleSub: 1 },
+        { unique: true, partialFilterExpression: { googleSub: { $type: 'string' } } },
+      ),
+    db.collection('contas_sessoes').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
+    db.collection('contas_sessoes').createIndex({ usuarioId: 1 }),
+    // O histórico de uma conta, e a exclusão em cascata. Parcial porque a
+    // imensa maioria das sessões é anônima e não precisa ocupar o índice.
+    db
+      .collection('sessoes')
+      .createIndex(
+        { usuarioId: 1, iniciadaEm: -1 },
+        { partialFilterExpression: { usuarioId: { $type: 'string' } } },
+      ),
   ]);
 
   await Promise.all([
