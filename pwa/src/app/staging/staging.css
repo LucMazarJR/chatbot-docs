@@ -1,0 +1,273 @@
+/*
+ * Telas do ambiente de testes.
+ *
+ * Tudo com prefixo `st-`, carregado só pela moldura de /staging: nada daqui
+ * pode vazar para o `/`, que está em teste de campo. As cores vêm das mesmas
+ * variáveis do chat, então tema escuro e tamanho de texto valem aqui também.
+ */
+
+.st {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--fundo-chat);
+  color: var(--texto);
+}
+
+.st a {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+/* Amarelo de aviso de sistema: diz, sem assustar, que isto não é o app final. */
+.st-faixa {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 12px;
+  padding-top: calc(6px + env(safe-area-inset-top));
+  background: var(--aviso);
+  color: var(--aviso-texto);
+  font-size: 0.85em;
+  font-weight: 600;
+  text-align: center;
+}
+
+.st-conteudo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.st-pagina {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 24px 16px calc(32px + env(safe-area-inset-bottom));
+}
+
+.st-marca {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.st-marca img {
+  border-radius: 50%;
+}
+
+.st-marca h1 {
+  margin: 10px 0 4px;
+  font-size: 1.4em;
+  font-weight: 600;
+}
+
+.st-marca p {
+  margin: 0;
+  color: var(--texto-fraco);
+  line-height: 1.5;
+}
+
+.st-cartao {
+  margin-bottom: 16px;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--painel);
+  box-shadow: var(--sombra);
+}
+
+.st-cartao h2 {
+  margin: 0 0 8px;
+  font-size: 1.05em;
+}
+
+.st-cartao p {
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.st-abas {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--barra);
+}
+
+.st-abas button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 9px;
+  color: var(--texto-fraco);
+  font-weight: 600;
+}
+
+.st-abas button[aria-selected='true'] {
+  background: var(--painel);
+  box-shadow: var(--sombra);
+  color: var(--texto);
+}
+
+.st-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.st-campo label {
+  font-weight: 600;
+}
+
+.st-campo input {
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--campo);
+  color: var(--texto);
+  font: inherit;
+}
+
+.st-dica {
+  color: var(--texto-fraco);
+  font-size: 0.88em;
+  font-weight: 400;
+}
+
+.st-marcar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+
+.st-marcar input {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--acento);
+}
+
+.st-botao {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 24px;
+  background: var(--acento);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* #00a884 com texto branco dá 3:1 — abaixo do mínimo. O botão de enviar do
+   chat escuro já resolve assim. */
+:root[data-tema='escuro'] .st-botao {
+  color: #111b21;
+}
+
+.st-botao:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.st-botao-secundario,
+:root[data-tema='escuro'] .st-botao-secundario {
+  border: 1px solid var(--acento);
+  background: transparent;
+  color: var(--acento);
+}
+
+.st-perigo {
+  background: #b3261e;
+  color: #fff;
+}
+
+:root[data-tema='escuro'] .st-perigo {
+  background: #ffb4ab;
+  color: #3a0906;
+}
+
+.st-erro {
+  margin: 0 0 14px;
+  color: #b3261e;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+:root[data-tema='escuro'] .st-erro {
+  color: #ffb4ab;
+}
+
+.st-aviso-ok {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--aviso);
+  color: var(--aviso-texto);
+  font-weight: 600;
+}
+
+.st-separador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--texto-fraco);
+  font-size: 0.9em;
+}
+
+.st-separador::before,
+.st-separador::after {
+  flex: 1;
+  height: 1px;
+  background: var(--borda);
+  content: '';
+}
+
+.st a.st-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 1px solid var(--borda);
+  border-radius: 24px;
+  background: var(--painel);
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.st-dados {
+  margin: 0 0 18px;
+}
+
+.st-dados div {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.st-dados dt {
+  color: var(--texto-fraco);
+  font-size: 0.88em;
+}
+
+.st-dados dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.st-acoes {
+  display: flex;
+  gap: 10px;
+}
+
+.st-zona-perigo h2 {
+  color: #b3261e;
+}
+
+:root[data-tema='escuro'] .st-zona-perigo h2 {
+  color: #ffb4ab;
+}
