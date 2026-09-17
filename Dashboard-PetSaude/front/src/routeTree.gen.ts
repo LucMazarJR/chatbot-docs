@@ -15,6 +15,7 @@ import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as CuradoriaRouteImport } from './routes/curadoria'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as NotificacoesRouteImport } from './routes/notificacoes'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as CategoriasIndexRouteImport } from './routes/categorias.index'
 import { Route as CategoriasCategoriaRouteImport } from './routes/categorias.$categoria'
@@ -50,6 +51,11 @@ const ImportarRoute = ImportarRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificacoesRoute = NotificacoesRouteImport.update({
+  id: '/notificacoes',
+  path: '/notificacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UsuariosRoute = UsuariosRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
+  '/notificacoes': typeof NotificacoesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
+  '/notificacoes': typeof NotificacoesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
+  '/notificacoes': typeof NotificacoesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/curadoria'
     | '/importar'
     | '/login'
+    | '/notificacoes'
     | '/usuarios'
     | '/categorias/$categoria'
     | '/conversas/$id'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/curadoria'
     | '/importar'
     | '/login'
+    | '/notificacoes'
     | '/usuarios'
     | '/categorias/$categoria'
     | '/conversas/$id'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/curadoria'
     | '/importar'
     | '/login'
+    | '/notificacoes'
     | '/usuarios'
     | '/categorias/$categoria'
     | '/conversas/$id'
@@ -178,6 +190,7 @@ export interface RootRouteChildren {
   CuradoriaRoute: typeof CuradoriaRoute
   ImportarRoute: typeof ImportarRoute
   LoginRoute: typeof LoginRoute
+  NotificacoesRoute: typeof NotificacoesRoute
   UsuariosRoute: typeof UsuariosRoute
   CategoriasCategoriaRoute: typeof CategoriasCategoriaRoute
   ConversasIdRoute: typeof ConversasIdRoute
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notificacoes': {
+      id: '/notificacoes'
+      path: '/notificacoes'
+      fullPath: '/notificacoes'
+      preLoaderRoute: typeof NotificacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/usuarios': {
@@ -282,6 +302,7 @@ const rootRouteChildren: RootRouteChildren = {
   CuradoriaRoute: CuradoriaRoute,
   ImportarRoute: ImportarRoute,
   LoginRoute: LoginRoute,
+  NotificacoesRoute: NotificacoesRoute,
   UsuariosRoute: UsuariosRoute,
   CategoriasCategoriaRoute: CategoriasCategoriaRoute,
   ConversasIdRoute: ConversasIdRoute,
