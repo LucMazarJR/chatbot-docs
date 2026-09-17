@@ -12,6 +12,8 @@ Cada uma destas custou tempo, e quase todas **quebram em silêncio**: nada estou
 
 **Porta 5432 ocupada por Postgres nativo.** O container falha com *"socket forbidden"*, mensagem que não sugere conflito de porta. Troque `POSTGRES_HOST_PORT` no `.env` (ex.: `55432`).
 
+**No Git Bash, `docker exec` recebe caminho do Windows.** `docker exec pwa node /app/teste.js` vira `C:/Program Files/Git/app/teste.js` antes de chegar ao container, e o erro é *"Cannot find module"* de um caminho que ninguém digitou. Rode com `MSYS_NO_PATHCONV=1` ou pelo PowerShell.
+
 ---
 
 ## WhatsApp e sessão
@@ -63,6 +65,10 @@ Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só
 
 **As duas formas de subir disputam as portas 3333 e 5173.** Container e `pnpm start:dev` não convivem.
 
+**Tipo TypeScript derivado de lista num `@Prop` derruba o boot do Nest.** `type X = (typeof LISTA)[number]` num campo do schema compila, mas o Mongoose não consegue inferir o tipo em tempo de execução e o módulo recusa subir com *"Cannot determine a type for the … field"*. O `tsc` passa; só o teste do service ou o boot acusam. Declare `@Prop({ type: String })`.
+
+**`$ne: null` numa expressão de agregação conta campo ausente como preenchido.** Em `$cond`, campo que não existe não é igual a `null`, e a contagem de "exibidas" contaria todo aviso antigo. Use `$gt: [campo, null]`.
+
 ---
 
 ## Protótipo PWA
@@ -84,3 +90,19 @@ ENOENT: no such file or directory, open '.next/next-server.js.nft.json'
 **O limite de 40 mensagens por IP a cada 10 minutos é proposital.** Com acesso aberto, uma aba segurando F5 queimaria a cota do dia. Se um teste presencial legítimo esbarrar nele (muitos celulares atrás do mesmo NAT), o valor está em `pwa/src/lib/limite.ts`.
 
 **Instalar como aplicativo exige HTTPS.** Por IP da rede local o chat funciona, mas o navegador recusa registrar o service worker e o "Adicionar à tela de início" não aparece. Não é defeito do protótipo.
+
+---
+
+## Contas e avisos push
+
+**Trocar as chaves VAPID desliga todos os aparelhos.** Apagar o documento `vapid` de `pwa_prototipo.configuracoes`, derrubar o banco do protótipo ou preencher `VAPID_*` com outro par faz os serviços de push responderem 401/403, e o despachante apaga as inscrições uma a uma, sem alarme nenhum. Cada pessoa precisa ativar os avisos de novo.
+
+**No iPhone, push só existe no app da Tela de Início.** Numa aba do Safari o navegador nem oferece a permissão, e parece que o botão não faz nada. A tela de avisos detecta e explica, mas quem testa sem ler a frase conclui que "não funciona no iPhone".
+
+**Na Vercel, os avisos ficam "Na fila" para sempre** se o container do Docker não estiver no ar: o relógio que envia só roda lá. Não há erro — o aviso só não sai, e vence.
+
+**Documento de aviso com um campo de nome errado fica parado na fila.** Quem grava na fila por fora do dashboard precisa do formato exato de [notificacoes-push.md](notificacoes-push.md#a-fila); o despachante não reclama de documento que não reconhece, só não o encontra.
+
+**O endereço de volta do Google não pode vir de `PWA_PUBLIC_URL`.** No Docker ela é `http://pwa:8080`, que só o n8n alcança. O login usa os cabeçalhos `x-forwarded-*`; se um proxy novo não os repassar, o Google responde `redirect_uri_mismatch` com um endereço interno.
+
+**O cookie da conta vale para o site inteiro, inclusive o `/`.** Por isso a conversa só é ligada à conta com `comConta: true` explícito, e nunca por existir o cookie. Deduzir a conta do cookie faria alguém logado no staging que abrisse o `/` ter a conversa anônima gravada na conta.
