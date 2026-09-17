@@ -4,7 +4,17 @@ import { z } from "zod";
 import { apiFetch } from "./api.server";
 import type { Paginated } from "./faq.functions";
 
-export const TIPOS_ENTIDADE = ["faq", "usuario", "sessao", "regra_importacao", "sistema"] as const;
+/** Espelha `TIPOS_ENTIDADE` de back/src/activity/schemas/activity.schema.ts. */
+export const TIPOS_ENTIDADE = [
+  "faq",
+  "categoria",
+  "conversa",
+  "notificacao",
+  "usuario",
+  "sessao",
+  "regra_importacao",
+  "sistema",
+] as const;
 
 export type TipoEntidade = (typeof TIPOS_ENTIDADE)[number];
 

@@ -35,8 +35,22 @@ const TODOS = "__todos__";
  * (`login_recusado`), não como frase. Se a frase fosse gravada, mudar o texto da
  * tela exigiria reescrever o histórico inteiro, e registros antigos ficariam com
  * a redação velha. A tradução mora aqui.
+ *
+ * A mesma ação quer dizer coisas diferentes em áreas diferentes: `excluir` numa
+ * conversa não é "Pergunta excluída". Por isso a chave `área:ação` vem primeiro,
+ * e a ação sozinha fica como reserva.
  */
 const ACOES: Record<string, { rotulo: string; verbo: string }> = {
+  "categoria:inserir": { rotulo: "Categoria criada", verbo: "criou a categoria" },
+  "categoria:editar": { rotulo: "Categoria editada", verbo: "editou a categoria" },
+  "categoria:desativar": { rotulo: "Categoria desativada", verbo: "desativou a categoria" },
+  "categoria:padronizar": { rotulo: "Grafia padronizada", verbo: "padronizou a grafia de" },
+  "categoria:excluir": { rotulo: "Categoria excluída", verbo: "excluiu a categoria" },
+  "conversa:excluir": { rotulo: "Conversa apagada", verbo: "atendeu um pedido de exclusão:" },
+  "sistema:curadoria": { rotulo: "Análise de perguntas sem resposta", verbo: "rodou a análise:" },
+  "sistema:descartar": { rotulo: "Sugestão descartada", verbo: "descartou a sugestão" },
+  "notificacao:agendar": { rotulo: "Aviso agendado", verbo: "agendou" },
+  "notificacao:cancelar": { rotulo: "Aviso cancelado", verbo: "cancelou" },
   inserir: { rotulo: "Pergunta criada", verbo: "criou" },
   editar: { rotulo: "Pergunta editada", verbo: "editou" },
   excluir: { rotulo: "Pergunta excluída", verbo: "excluiu" },
@@ -56,6 +70,9 @@ const ACOES: Record<string, { rotulo: string; verbo: string }> = {
 
 const TIPOS: { valor: TipoEntidade; rotulo: string }[] = [
   { valor: "faq", rotulo: "Perguntas" },
+  { valor: "categoria", rotulo: "Categorias" },
+  { valor: "conversa", rotulo: "Conversas" },
+  { valor: "notificacao", rotulo: "Avisos" },
   { valor: "usuario", rotulo: "Contas" },
   { valor: "sessao", rotulo: "Acessos" },
   { valor: "regra_importacao", rotulo: "Regra de leitura" },
@@ -72,6 +89,18 @@ const NOME_CAMPO: Record<string, string> = {
   email: "E-mail",
   role: "Papel",
   isActive: "Ativa",
+  perguntas_ajustadas: "Perguntas ajustadas",
+  mensagens: "Mensagens apagadas",
+  sugestoes: "Sugestões",
+  rodadas: "Rodadas",
+  fora_de_escopo: "Fora de escopo",
+  modelo: "Modelo",
+  tipo: "Tipo",
+  destinatarios: "Pessoas",
+  enviarEm: "Enviar em",
+  validaAte: "Vale até",
+  mostrarDetalhe: "Detalhe na tela bloqueada",
+  canceladas: "Canceladas",
 };
 
 export const Route = createFileRoute("/auditoria")({
@@ -127,7 +156,8 @@ function Diferenca({ registro }: { registro: RegistroAuditoria }) {
 
 function Linha({ registro }: { registro: RegistroAuditoria }) {
   const [aberto, setAberto] = useState(false);
-  const acao = ACOES[registro.action] ?? { rotulo: registro.action, verbo: registro.action };
+  const acao = ACOES[`${registro.entity_type}:${registro.action}`] ??
+    ACOES[registro.action] ?? { rotulo: registro.action, verbo: registro.action };
   const temDetalhe = Boolean(registro.before || registro.after);
   const recusado = registro.status === "negado";
 
