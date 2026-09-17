@@ -151,6 +151,65 @@ export default function Privacidade() {
           </ul>
         </section>
 
+        {/* As duas seções abaixo valem só para o ambiente de testes com conta
+            (/staging). O cadastro de lá aponta para esta página, e o aceite
+            dado ali precisa se referir a algo escrito. */}
+        <section>
+          <h2>Se você criar uma conta</h2>
+          <p>
+            Contas existem só na versão em teste com login. Quem usa o chat sem conta pode pular
+            esta parte.
+          </p>
+          <ul>
+            <li>
+              Guardamos seu <b>e-mail</b>, o nome se você informar e a data em que aceitou os termos.
+              A senha é guardada de um jeito que ninguém consegue lê-la, nem a equipe.
+            </li>
+            <li>
+              Se você entrar com o <b>Google</b>, ele fica sabendo que você entrou neste assistente, e
+              nós recebemos do Google seu nome e seu e-mail. O login não envia suas conversas ao
+              Google.
+            </li>
+            <li>
+              Suas conversas ficam ligadas à conta, para você vê-las em outro aparelho. O prazo é o
+              mesmo: <b>se apagam sozinhas {dias} dias</b> depois de começar.
+            </li>
+            <li>Quem da equipe lê as conversas para avaliar as respostas não vê o seu e-mail.</li>
+            <li>
+              Podemos usar esses dados porque você deu seu consentimento ao criar a conta. A conta fica
+              guardada até você apagá-la: em <b>Minha conta</b>, <b>Apagar minha conta</b> apaga a
+              conta, as conversas, os avisos e os aparelhos cadastrados.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Se você ativar os avisos</h2>
+          <ul>
+            <li>
+              Guardamos o endereço que o navegador do seu celular cria para receber avisos, e o tipo
+              de aparelho.
+            </li>
+            <li>
+              O aviso passa pelo serviço de notificações do Google, da Apple ou da Mozilla, conforme o
+              seu navegador. Ele vai <b>cifrado</b>: esses serviços entregam, mas não leem o texto.
+            </li>
+            <li>
+              Na tela bloqueada aparece só <b>“Você tem um lembrete”</b>. O texto aparece quando você
+              abre o aviso, com a conta aberta — a não ser em um aviso em que a equipe escolha mostrar
+              o texto também na tela bloqueada.
+            </li>
+            <li>
+              Registramos se o aviso apareceu e se você tocou nele, para saber se os avisos funcionam
+              em cada tipo de celular. Os avisos se apagam 90 dias depois de enviados.
+            </li>
+            <li>
+              Para parar de receber: em <b>Avisos</b>, toque em <b>Desativar</b>, ou bloqueie as
+              notificações nas configurações do navegador.
+            </li>
+          </ul>
+        </section>
+
         <p className="privacidade-voltar">
           <Link href="/">Voltar para a conversa</Link>
         </p>
