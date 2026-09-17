@@ -262,7 +262,7 @@ export function FormularioAviso() {
               <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
                 Ninguém ativou os avisos ainda. A pessoa precisa entrar no chat em{" "}
                 <code>/staging</code>, abrir <strong>Avisos</strong> no menu e tocar em{" "}
-                <strong>Ativar avisos</strong>, no aparelho em que quer receber.
+                <strong>Ativar avisos neste aparelho</strong>, no aparelho em que quer receber.
                 {(destinatarios.data?.contasSemAparelho ?? 0) > 0 &&
                   ` Há ${pessoas(destinatarios.data!.contasSemAparelho)} com conta, mas sem aparelho ativado.`}
               </p>
