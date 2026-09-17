@@ -46,6 +46,29 @@ O que a exclusão **não** alcança, e por quê:
 
 ---
 
+## Contas e avisos, no `/staging`
+
+Só existem na rota de validação — ver [contas-de-usuario.md](contas-de-usuario.md) e [notificacoes-push.md](notificacoes-push.md). O `/` continua sem conta.
+
+| O que | Onde | Por quanto tempo |
+|---|---|---|
+| A conta: e-mail, nome opcional, hash da senha, id do Google, data do aceite | `usuarios` | **Até a pessoa apagar a conta** — não há prazo automático |
+| As sessões de login: o hash do token e o tipo de aparelho | `contas_sessoes` | 30 dias, por TTL |
+| As conversas feitas com a conta | `sessoes`, `mensagens` | O mesmo `PWA_RETENCAO_DIAS` das anônimas |
+| Os aparelhos com avisos ativados: endereço no serviço de push, chaves e tipo de aparelho | `inscricoes_push` | Até a pessoa desativar, o aparelho deixar de existir para o serviço (é removido no envio seguinte) ou a conta ser apagada |
+| Os avisos: texto escrito pela equipe e os recibos de exibição e abertura | `notificacoes` | 90 dias depois de sair da fila, por TTL |
+
+- **Base legal: o aceite no cadastro**, com data. Ele cobre as conversas da conta, e por isso o chat com conta não pede o aceite de novo. Pelo Google, a conta nova só é criada se a pessoa marcou o aceite antes de tocar no botão.
+- **O aviso é dado de saúde sobre a pessoa**, mesmo escrito pela equipe: "sua coleta de sangue é amanhã" diz o que ela vai fazer. Por isso a tela bloqueada mostra só "Você tem um lembrete", e o texto aparece dentro do app, com a conta logada. Mostrar o texto na tela bloqueada é uma escolha explícita, por aviso, e o formulário explica o risco antes.
+- **Quem mais recebe:**
+  - Os **serviços de push** do Google, da Apple ou da Mozilla, conforme o navegador, entregam o aviso ao aparelho. O conteúdo vai cifrado de ponta a ponta até o aparelho (RFC 8291); o serviço vê só que houve uma entrega, quando e de que tamanho.
+  - O **Google**, se a pessoa entrar com ele: fica sabendo que ela entrou neste app, e o app recebe o nome, o e-mail e o id da conta Google. Nada das conversas vai para o Google por esse caminho.
+- **Na equipe**, `/conversas` mostra só que a conversa tem conta, nunca o e-mail. Os e-mails aparecem apenas em `/notificacoes`, para quem tem papel `admin` escolher quem recebe. O histórico registra quem agendou ou cancelou um aviso, o tipo e quantas pessoas — nunca o texto nem quem recebeu.
+- **Apagar a conta** leva as conversas (com as cópias da curadoria, pelo mesmo caminho da exclusão de conversa), os avisos, os aparelhos e as sessões, e a conta por último.
+- **Senha**: guardada só como hash `scrypt`. As sessões guardam o hash do token, nunca o token.
+
+---
+
 ## O que depende da instituição
 
 Estes não são itens técnicos — nenhum código resolve:
@@ -55,5 +78,7 @@ Estes não são itens técnicos — nenhum código resolve:
 - [ ] **Política de privacidade oficial do órgão.** A página do protótipo descreve o protótipo; não substitui a política da instituição.
 - [ ] **Opt-out no WhatsApp ("PARAR")** e exercício de direitos no canal. Hoje o canal não persiste conversa, o que reduz o problema, mas não o elimina — a Meta e o provedor guardam o que trafega.
 - [ ] **Prazo de retenção definido pela área**, se for diferente dos 180 dias que o protótipo aplica hoje.
+- [ ] **Prazo para contas inativas.** Hoje a conta só some quando a pessoa a apaga. Se contas e avisos saírem da validação, é preciso decidir depois de quanto tempo sem uso a conta é apagada, e avisar antes.
+- [ ] **Uso de lembretes com dado de saúde.** Mandar lembrete de exame ou consulta por push é tratamento de dado sensível para uma finalidade nova, com operadores novos (os serviços de push). Precisa estar previsto na base legal e na política do serviço de verdade.
 
 Ver também [caminho-para-producao.md](caminho-para-producao.md), que reúne o que precisa estar pronto antes de atender cidadãos de verdade.
