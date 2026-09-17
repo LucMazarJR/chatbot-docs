@@ -183,6 +183,21 @@ services:
       # cabeçalho encaminhado já traz o domínio público, que é alcançável.
       PWA_PUBLIC_URL: ${PWA_PUBLIC_URL:-http://pwa:8080}
 
+      # --- Contas e avisos, no /staging ---------------------------------------
+      # Login com Google. Vazias, o botão não aparece e o e-mail com senha
+      # continua funcionando. A credencial: docs/contas-de-usuario.md.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      # "desligado" para o relógio interno que envia os avisos a cada 30 s — só
+      # se outro relógio passar a chamar /api/notificacoes/despachar.
+      PWA_DESPACHANTE: ${PWA_DESPACHANTE:-}
+      # Vazias, o PWA gera o par de chaves na primeira vez e o guarda no banco,
+      # e todo ambiente que usa o mesmo banco envia com as mesmas chaves. Ver
+      # docs/notificacoes-push.md antes de preencher.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+
     ports:
       # Sem o 127.0.0.1 dos demais serviços: durante um teste presencial os
       # celulares precisam alcançar esta porta pela rede local.
