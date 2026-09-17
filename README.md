@@ -65,6 +65,8 @@ O passo a passo completo está em [docs/instalacao.md](docs/instalacao.md).
 | [docs/instalacao.md](docs/instalacao.md) | Subir tudo do zero numa máquina nova, com checklist e verificações que não gastam cota |
 | [docs/base-de-faqs.md](docs/base-de-faqs.md) | O conteúdo: formato do documento, índice vetorial, ingestão pelo Drive e manutenção dos embeddings |
 | [docs/prototipo-pwa.md](docs/prototipo-pwa.md) | O protótipo de validação: subir, distribuir aos participantes e ler os resultados |
+| [docs/contas-de-usuario.md](docs/contas-de-usuario.md) | Contas no chat (`/staging`): senha, sessão, chat com conta e login com Google, com o passo a passo da credencial |
+| [docs/notificacoes-push.md](docs/notificacoes-push.md) | Avisos push: a fila, o despachante, as chaves, os recibos e os limites por plataforma |
 | [docs/armadilhas.md](docs/armadilhas.md) | **O que quebra em silêncio.** Comece por aqui quando algo estranho acontecer |
 | [docs/privacidade-e-lgpd.md](docs/privacidade-e-lgpd.md) | O que é guardado, por quanto tempo, quem alcança, e o que depende da instituição |
 | [docs/caminho-para-producao.md](docs/caminho-para-producao.md) | O que precisa estar resolvido antes de atender cidadãos de verdade |

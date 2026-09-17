@@ -63,6 +63,17 @@ O protótipo já cumpre consentimento, política, retenção e exclusão — o q
 
 ---
 
+## Contas e avisos push
+
+Estão em validação no `/staging` do protótipo. Antes de contar com eles para lembrar alguém de um exame:
+
+- **Os números da validação.** A matriz de [notificacoes-push.md](notificacoes-push.md#os-limites-e-como-medi-los) preenchida com aparelhos reais — em especial iPhone instalado na Tela de Início e Android com economia de bateria. Se a taxa de exibição for baixa num tipo de aparelho comum no público, o push não pode ser o único canal do lembrete.
+- **Um servidor para o despachante.** Ele roda no container do PWA; com o PC desligado, nenhum aviso sai e os vencidos são descartados.
+- **Confirmação de e-mail.** Sem envio de e-mail, a conta de senha não prova que o endereço é de quem a criou. O vínculo com o Google já se protege disso, mas recuperar senha e avisar o dono do endereço dependem de um serviço de envio.
+- **As decisões de LGPD** de contas e lembretes, listadas em [privacidade-e-lgpd.md](privacidade-e-lgpd.md#o-que-depende-da-instituição).
+
+---
+
 ## Identificação do cliente
 
 Quando houver definição de qual prefeitura ou secretaria, isso destrava de uma vez a política de privacidade, a base legal, o perfil na Meta e o nome oficial do bot.

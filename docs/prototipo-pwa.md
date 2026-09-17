@@ -164,6 +164,7 @@ O túnel **já expõe** essa rota, autenticada — um POST sem o `X-Webhook-Toke
 | `PWA_MONGO_DB` | `pwa_prototipo` |
 | `N8N_PWA_WEBHOOK_URL` | `https://petbot.lucianomjr.dev/webhook/pwa-chat` — **a URL do túnel, não `http://n8n:5678`** |
 | `N8N_PWA_WEBHOOK_TOKEN` | o mesmo do `.env` |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | opcionais — só para o login com Google no `/staging` ([contas-de-usuario.md](contas-de-usuario.md#criar-a-credencial)) |
 
 4. Deploy.
 
@@ -178,6 +179,7 @@ O túnel **já expõe** essa rota, autenticada — um POST sem o `X-Webhook-Toke
 - **`output: 'standalone'` é desligado na Vercel** — ver [armadilhas.md](armadilhas.md#protótipo-pwa).
 - **O teto de 60s da Vercel deixou de importar.** Era o problema central: 35% das respostas eram geradas pelo Gemini e mortas no caminho de volta. Com o retorno assíncrono, cada requisição dura milissegundos e a espera acontece em consultas curtas.
 - **O limite por IP vive no Mongo**, não em memória. Em serverless cada requisição pode cair numa instância diferente, e instância fria começa zerada: um contador em memória marcaria "1 de 40" para sempre e não seguraria a cota.
+- **Os avisos push não saem da Vercel.** O relógio que os envia só roda no servidor do Docker. Como os dois usam o mesmo banco e as mesmas chaves, quem ativa os avisos pela Vercel recebe o que o container do PC enviar — desde que ele esteja no ar. Ver [notificacoes-push.md](notificacoes-push.md#o-relógio).
 
 ### Continua dependendo da sua máquina
 
@@ -221,6 +223,14 @@ O **clipe e o microfone** simulam a experiência do WhatsApp, mas nada sai do ap
 Dá para conversar só pelo **teclado ou com leitor de tela**: o foco fica preso nos diálogos e o Esc fecha, um atalho pula direto para o campo de mensagem, e a espera ("digitando…") e os tiques de entrega são anunciados em palavras.
 
 As conversas **se apagam sozinhas** depois de `PWA_RETENCAO_DIAS` (180 por padrão), por um índice TTL que o próprio PWA cria ao conectar no banco. Mudar o prazo depois é seguro: o índice existente é ajustado, não recriado.
+
+### Contas e avisos — `/staging`
+
+Uma rota de validação no **mesmo app e nos mesmos bancos**, sem link a partir do `/` e com uma faixa dizendo que é ambiente de testes. Nela o chat é o mesmo, mas ligado a uma **conta** — e-mail e senha, ou Google quando houver credencial —, com histórico em qualquer aparelho e **avisos push** que a equipe envia pelo dashboard.
+
+O `/` não muda em nada: continua anônimo, com o mesmo service worker e o mesmo manifest. Tudo do staging mora em `pwa/src/app/staging/`, e levá-lo para o `/` depois é mover a pasta.
+
+Como funciona cada parte, e como medir se o push chega em cada tipo de celular: [contas-de-usuario.md](contas-de-usuario.md) e [notificacoes-push.md](notificacoes-push.md).
 
 ### O painel de conversas
 
@@ -287,6 +297,8 @@ node -e "const {MongoClient}=require('mongodb');(async()=>{const c=new MongoClie
 ```
 
 **Exporte o CSV antes.** O `dropDatabase` não pergunta duas vezes.
+
+O banco do protótipo guarda também o que é do `/staging`: as **contas**, os aparelhos inscritos, os avisos e as **chaves VAPID** (em `configuracoes`). Apagá-lo apaga as contas, e as chaves novas geradas depois fazem todo aparelho precisar ativar os avisos de novo. Para apagar só as conversas anônimas, filtre `sessoes` e `mensagens` sem `usuarioId` em vez de derrubar o banco.
 
 Ele não alcança as **cópias das perguntas** que a curadoria guardou em `ministerio_saude` (`sugestoes_faq` e `curadoria_rodadas`). É de propósito: a sugestão é material da base de conteúdo e precisa sobreviver ao protótipo. Apagar também essas cópias é outra operação, sobre outro banco.
 
