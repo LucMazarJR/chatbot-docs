@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 
 import { ActivityService } from './activity.service';
-import { Activity, RETENCAO_DIAS } from './schemas/activity.schema';
+import { Activity, RETENCAO_DIAS, TIPOS_ENTIDADE } from './schemas/activity.schema';
 
 /**
  * O registro de auditoria.
@@ -92,10 +92,10 @@ describe('ActivityService', () => {
     it('todo registro nasce com data de expiracao', async () => {
       // Sem `expires_at` o indice TTL nao apaga o documento nunca, e o prazo de
       // retencao vira so uma frase na tela.
-      for (const tipo of ['faq', 'usuario', 'sessao', 'regra_importacao', 'sistema'] as const) {
+      for (const tipo of TIPOS_ENTIDADE) {
         await service.registrar({ actor_name: 'Ana', action: 'x', entity_type: tipo });
       }
-      expect(gravados).toHaveLength(5);
+      expect(gravados).toHaveLength(TIPOS_ENTIDADE.length);
       expect(gravados.every((g) => g.expires_at instanceof Date)).toBe(true);
     });
   });

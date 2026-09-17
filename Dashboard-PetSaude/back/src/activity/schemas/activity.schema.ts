@@ -3,15 +3,25 @@ import { Document } from 'mongoose';
 
 export type ActivityDocument = Activity & Document;
 
-/** O que foi mexido. Define também por quanto tempo o registro é guardado. */
-export type TipoEntidade =
-    | 'faq'
-    | 'categoria'
-    | 'conversa'
-    | 'usuario'
-    | 'sessao'
-    | 'regra_importacao'
-    | 'sistema';
+/**
+ * O que foi mexido. Define também por quanto tempo o registro é guardado.
+ *
+ * Uma lista só, da qual saem o tipo e o filtro da API: com a lista repetida no
+ * DTO, `categoria` e `conversa` passaram a ser gravados sem que a tela de
+ * histórico conseguisse filtrar por eles.
+ */
+export const TIPOS_ENTIDADE = [
+    'faq',
+    'categoria',
+    'conversa',
+    'notificacao',
+    'usuario',
+    'sessao',
+    'regra_importacao',
+    'sistema',
+] as const;
+
+export type TipoEntidade = (typeof TIPOS_ENTIDADE)[number];
 
 /** Registro de acesso vive menos que registro de alteração de conteúdo. */
 export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
@@ -31,6 +41,10 @@ export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
     // nenhum, só o id e as contagens — é a prova de que o pedido foi atendido, e
     // essa prova precisa durar o mesmo que o histórico de conteúdo.
     conversa: 730,
+    // Aviso agendado ou cancelado pela equipe. O registro guarda o tipo e
+    // quantas pessoas, nunca o texto nem quem recebeu: o texto de um lembrete
+    // pode dizer qual exame a pessoa vai fazer.
+    notificacao: 365,
     // Criar conta, trocar papel, redefinir senha de terceiro. Fica entre os
     // dois: é ato administrativo, mas identifica pessoas.
     usuario: 365,
@@ -60,7 +74,9 @@ export class Activity {
     @Prop()
     target: string;
 
-    @Prop({ default: 'faq' })
+    // `type: String` explícito: o tipo derivado da lista não deixa o Mongoose
+    // inferir o campo, e o schema recusaria subir.
+    @Prop({ type: String, default: 'faq' })
     entity_type: TipoEntidade;
 
     /**

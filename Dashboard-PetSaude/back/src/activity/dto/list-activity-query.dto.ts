@@ -1,9 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsISO8601, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
-import type { TipoEntidade } from '../schemas/activity.schema';
-
-const TIPOS: TipoEntidade[] = ['faq', 'usuario', 'sessao', 'regra_importacao', 'sistema'];
+import { TIPOS_ENTIDADE, type TipoEntidade } from '../schemas/activity.schema';
 
 export class ListActivityQueryDto {
     @IsOptional()
@@ -25,7 +23,7 @@ export class ListActivityQueryDto {
     actorId?: string;
 
     @IsOptional()
-    @IsIn(TIPOS)
+    @IsIn(TIPOS_ENTIDADE)
     entityType?: TipoEntidade;
 
     @IsOptional()
