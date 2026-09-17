@@ -53,12 +53,12 @@ Para criar um aviso por fora do dashboard, grave o documento com **todos** os ca
 ### Estados
 
 ```
- pendente ──► enviando ──► enviada
-    ▲            │   └───► falhou     (nenhum aparelho aceitou, ou a conta não tem aparelho)
-    └────────────┘                    
-  retentativa      └─────► expirada   (passou de validaAte antes de sair)
+ pendente ──► enviando ─┬─► enviada
+    ▲                   ├─► falhou     (nenhum aparelho aceitou, ou a conta não tem aparelho)
+    │                   ├─► expirada   (passou de validaAte antes de sair)
+    └── retentativa ────┘
 
- pendente ──► cancelada               (pelo dashboard, só enquanto pendente)
+ pendente ──► cancelada                (pelo dashboard, só enquanto pendente)
 ```
 
 `expirada`, `falhou`, `enviada` e `cancelada` são finais: o aviso ganha `expiraEm` e some **90 dias** depois.
@@ -143,7 +143,7 @@ O chat do `/` está em teste de campo e não pode mudar. Por isso o staging tem 
 
 ## As telas
 
-**No chat, `/staging/avisos`** — diagnóstico do aparelho (conexão segura, suporte a push, app instalado, permissão, inscrição ativa), com uma frase dizendo o que fazer quando algo impede; **Ativar avisos**, que precisa de um toque porque o navegador só pede permissão a partir de um gesto; **Enviar um teste para mim**, limitado a 10 a cada 10 minutos; e a lista dos avisos recebidos. Tocar num aviso abre `/staging/avisos/:id`, com o texto completo.
+**No chat, `/staging/avisos`** — diagnóstico do aparelho (conexão segura, suporte a push, app instalado, permissão, inscrição ativa), com uma frase dizendo o que fazer quando algo impede; **Ativar avisos neste aparelho**, que precisa de um toque porque o navegador só pede permissão a partir de um gesto; **Enviar um teste para mim**, limitado a 10 a cada 10 minutos; e a lista dos avisos recebidos. Tocar num aviso abre `/staging/avisos/:id`, com o texto completo.
 
 **No dashboard, `/notificacoes`** (só admin, marcada "em teste" no menu) — o formulário, com a prévia do que aparece na tela bloqueada, e a lista dos envios: quantos na fila, enviados, exibidos, abertos, não saíram e cancelados. Cada envio abre por plataforma e por pessoa. O histórico registra quem agendou e cancelou, o tipo e quantas pessoas — **nunca o texto nem quem recebeu**.
 
@@ -168,7 +168,7 @@ O push na web não se comporta igual em todo lugar. A tabela é o que se espera 
 
 **Para medir:**
 
-1. Em cada aparelho, pelo endereço **HTTPS** do chat: entrar em `/staging`, criar a conta, abrir **Avisos** e tocar em **Ativar avisos**. No iPhone, antes, adicionar à Tela de Início e abrir por lá.
+1. Em cada aparelho, pelo endereço **HTTPS** do chat: entrar em `/staging`, criar a conta, abrir **Avisos** e tocar em **Ativar avisos neste aparelho**. No iPhone, antes, adicionar à Tela de Início e abrir por lá.
 2. Tocar em **Enviar um teste para mim** e conferir se chega. Isso valida o aparelho sozinho.
 3. No dashboard, em `/notificacoes`, mandar um aviso para todas as contas.
 4. Abrir o envio em **Por plataforma e por pessoa**. *Aceitas* × *Exibidas* por plataforma é a taxa de entrega real; *Abertas* mostra se alguém toca.
