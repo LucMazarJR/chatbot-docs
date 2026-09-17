@@ -1,38 +1,16 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  FolderOpen,
-  History,
-  ListChecks,
-  LogOut,
-  Menu,
-  Settings,
-  Stethoscope,
-  Upload,
-  Users, MessagesSquare, Sparkles } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { getSession, logout, type UserRole } from "@/lib/auth.functions";
+import { getSession, logout } from "@/lib/auth.functions";
+import { barraAbertaGuardada } from "@/lib/preferencia-barra";
 import { listActivity } from "@/lib/faq.functions";
-import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { TrocarSenhaObrigatoria } from "@/components/trocar-senha";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-
-const ROTULO_PAPEL: Record<UserRole, string> = {
-  admin: "Administrador",
-  editor: "Editor",
-  leitor: "Leitor",
-};
+import { BarraLateral, IrPara } from "@/components/barra-lateral";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 /**
  * Estado da sessão para os componentes.
@@ -57,60 +35,27 @@ export function usePodeEscrever() {
   return usuario?.role === "admin" || usuario?.role === "editor";
 }
 
-type Destino = {
-  para:
-    | "/"
-    | "/categorias"
-    | "/conversas"
-    | "/curadoria"
-    | "/importar"
-    | "/auditoria"
-    | "/usuarios"
-    | "/configuracoes";
-  rotulo: string;
-  Icone: typeof ListChecks;
-  /** Quem vê. Vazio = todo mundo autenticado. */
-  papeis?: UserRole[];
-};
-
-const DESTINOS: Destino[] = [
-  { para: "/", rotulo: "FAQs", Icone: ListChecks },
-  { para: "/categorias", rotulo: "Categorias", Icone: FolderOpen },
-  // Conversas do chatbot: relato de sintoma e pedido de atendimento escritos
-  // por cidadãos. Só admin, como Histórico e Usuários.
-  { para: "/conversas", rotulo: "Conversas", Icone: MessagesSquare, papeis: ["admin"] },
-  // A fila expõe o que cidadãos escreveram no chat, com o id da conversa de
-  // origem — mesmo material das Conversas, mesma regra.
-  { para: "/curadoria", rotulo: "Sem resposta", Icone: Sparkles, papeis: ["admin"] },
-  { para: "/importar", rotulo: "Importar", Icone: Upload, papeis: ["admin", "editor"] },
-  { para: "/auditoria", rotulo: "Histórico", Icone: History, papeis: ["admin"] },
-  { para: "/usuarios", rotulo: "Usuários", Icone: Users, papeis: ["admin"] },
-  { para: "/configuracoes", rotulo: "Configurações", Icone: Settings, papeis: ["admin"] },
-];
-
-function destinosDe(papel: UserRole | undefined): Destino[] {
-  if (!papel) return [];
-  return DESTINOS.filter((d) => !d.papeis || d.papeis.includes(papel));
-}
-
 /**
- * Cabeçalho e moldura de toda página autenticada.
+ * Moldura de toda página autenticada: barra lateral, barra do topo e conteúdo.
  *
  * LÓGICA DO LUCIANO: a navegação está aqui, e não num route layout, porque não
  * existe um — cada página importa o GateShell e se envolve nele (ver
- * routes/README.md). Antes eram dois botões soltos num `justify-between` sem
- * quebra; com cinco destinos isso não cabia mais em tela nenhuma, e em 360px já
- * não cabia antes. Agora: barra horizontal a partir de `md`, gaveta abaixo
- * disso.
+ * routes/README.md). Por isso trocar a moldura troca a navegação de todas as
+ * telas de uma vez, sem editar nenhuma rota.
+ *
+ * Era uma barra horizontal com oito destinos, já no limite da largura, e cada
+ * funcionalidade nova piorava. Virou barra lateral agrupada por área, que
+ * recolhe para ícones no desktop e vira gaveta no celular, e os destinos moram
+ * em `lib/navegacao.ts`.
  */
 export function GateShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const sair = useServerFn(logout);
   const { carregando, autenticado, usuario, precisaTrocarSenha } = useSession();
-  const [menuAberto, setMenuAberto] = useState(false);
 
-  const destinos = destinosDe(usuario?.role);
+  // O componente da barra grava a escolha num cookie, mas não a relê ao carregar.
+  const [barraAberta, setBarraAberta] = useState(barraAbertaGuardada);
 
   /**
    * Encerra a sessão e leva para o login.
@@ -142,111 +87,39 @@ export function GateShell({ children }: { children: React.ReactNode }) {
   // antes de renderizar (ver lib/guardas.ts).
 
   return (
-    <div className="min-h-screen bg-background">
+    <SidebarProvider open={barraAberta} onOpenChange={setBarraAberta}>
       <Toaster position="top-center" />
 
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 sm:py-4">
-          <Link to="/" className="flex min-w-0 items-center gap-2.5">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
-              <Stethoscope className="size-5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-base font-semibold leading-tight">
-                Central de FAQs
-              </span>
-              {/* O subtítulo some abaixo de sm: em 360px ele empurrava os botões
-                  para fora da tela. */}
-              <span className="hidden text-xs text-muted-foreground sm:block">
-                PET-SAÚDE · base do chatbot
-              </span>
-            </span>
-          </Link>
+      {autenticado && usuario && (
+        <BarraLateral usuario={usuario} onSair={() => void encerrarSessao()} />
+      )}
 
-          <div className="ml-auto flex items-center gap-1">
-            {autenticado && usuario && (
-              <>
-                <nav className="hidden items-center gap-0.5 md:flex">
-                  {destinos.map(({ para, rotulo, Icone }) => (
-                    <Button key={para} asChild variant="ghost" size="sm">
-                      <Link
-                        to={para}
-                        activeOptions={{ exact: para === "/" }}
-                        activeProps={{ "data-ativo": "true" }}
-                        className="data-[ativo=true]:bg-secondary data-[ativo=true]:font-semibold data-[ativo=true]:text-secondary-foreground"
-                      >
-                        <Icone className="size-4" /> {rotulo}
-                      </Link>
-                    </Button>
-                  ))}
-                  <span className="mx-2 hidden text-xs text-muted-foreground lg:inline">
-                    {usuario.name}
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={() => void encerrarSessao()}>
-                    <LogOut className="size-4" />
-                    <span className="sr-only">Sair</span>
-                  </Button>
-                </nav>
+      <SidebarInset className="min-w-0 bg-background">
+        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card px-3 py-2 sm:px-4">
+          {autenticado && usuario && (
+            <>
+              {/* 44px: alvo de toque confortável; o padrão do componente é 28px. */}
+              <SidebarTrigger className="size-11" />
+              <span className="truncate text-sm font-semibold md:hidden">Central de FAQs</span>
+              <IrPara papel={usuario.role} />
+            </>
+          )}
+        </header>
 
-                <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu">
-                      <Menu className="size-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-72">
-                    <SheetHeader>
-                      <SheetTitle>{usuario.name}</SheetTitle>
-                      <SheetDescription>{ROTULO_PAPEL[usuario.role]}</SheetDescription>
-                    </SheetHeader>
-
-                    <nav className="flex flex-col gap-1 px-4">
-                      {destinos.map(({ para, rotulo, Icone }) => (
-                        <Button
-                          key={para}
-                          asChild
-                          variant="ghost"
-                          // h-11: alvo de toque de 44px, o mínimo confortável no
-                          // celular. O `size="sm"` padrão dá 32px.
-                          className="h-11 justify-start"
-                          onClick={() => setMenuAberto(false)}
-                        >
-                          <Link to={para} activeOptions={{ exact: para === "/" }}>
-                            <Icone className="size-4" /> {rotulo}
-                          </Link>
-                        </Button>
-                      ))}
-                      <Button
-                        variant="ghost"
-                        className="h-11 justify-start text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setMenuAberto(false);
-                          void encerrarSessao();
-                        }}
-                      >
-                        <LogOut className="size-4" /> Sair
-                      </Button>
-                    </nav>
-                  </SheetContent>
-                </Sheet>
-              </>
-            )}
-          </div>
+        {/* `div`, e não `main`: o SidebarInset já é o <main> da página. */}
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+          {carregando ? (
+            <p className="text-sm text-muted-foreground">Carregando…</p>
+          ) : precisaTrocarSenha ? (
+            // Bloqueia o conteudo inteiro: sem isto, a marcacao no banco seria
+            // decorativa e a senha escolhida por outra pessoa valeria para sempre.
+            <TrocarSenhaObrigatoria />
+          ) : (
+            children
+          )}
         </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-        {carregando ? (
-          <p className="text-sm text-muted-foreground">Carregando…</p>
-        ) : precisaTrocarSenha ? (
-          // Bloqueia o conteudo inteiro: sem isto, a marcacao no banco seria
-          // decorativa e a senha escolhida por outra pessoa valeria para sempre.
-          <TrocarSenhaObrigatoria />
-        ) : (
-          children
-        )}
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
