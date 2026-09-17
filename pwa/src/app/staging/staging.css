@@ -267,6 +267,18 @@
   text-decoration: none;
 }
 
+/* Na aba de criar conta, antes do aceite: visível, para a pessoa saber que a
+   opção existe, mas sem levar a lugar nenhum. */
+.st a.st-google[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.st-google + .st-dica,
+.st-dica + .st-google {
+  margin-top: 8px;
+}
+
 .st-dados {
   margin: 0 0 18px;
 }
