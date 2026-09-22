@@ -35,7 +35,7 @@ describe('origemPublica', () => {
 
 describe('fluxo', () => {
   it('a URL leva state, nonce e o desafio S256, nunca o verificador', () => {
-    const fluxo = novoFluxo(true);
+    const fluxo = novoFluxo();
     const url = new URL(urlDeAutorizacao(fluxo, 'cliente.apps.googleusercontent.com', 'https://x.org/volta'));
 
     expect(url.searchParams.get('state')).toBe(fluxo.state);
@@ -46,7 +46,7 @@ describe('fluxo', () => {
   });
 
   it('o cookie devolve o mesmo estado', () => {
-    const fluxo = novoFluxo(false);
+    const fluxo = novoFluxo();
     const cookie = cookieDoFluxo(fluxo, true);
     const [par] = cookie.split(';');
 

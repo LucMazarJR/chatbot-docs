@@ -28,7 +28,6 @@ type Motivo =
   | 'expirado'
   | 'erro'
   | 'email-nao-verificado'
-  | 'sem-conta'
   | 'conflito';
 
 /**
@@ -72,24 +71,45 @@ export async function GET(requisicao: Request) {
     return falhar('expirado', fluxo ? 'state diferente' : 'sem cookie do fluxo');
   }
 
+  const corpoDaTroca = new URLSearchParams({
+    code: codigo,
+    client_id: clientId,
+    client_secret: clientSecret,
+    redirect_uri: `${origem}${CAMINHO_DO_RETORNO}`,
+    grant_type: 'authorization_code',
+    code_verifier: fluxo.verificador,
+  });
+
   let idToken: string;
   try {
-    const resposta = await fetch(URL_DO_TOKEN, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code: codigo,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: `${origem}${CAMINHO_DO_RETORNO}`,
-        grant_type: 'authorization_code',
-        code_verifier: fluxo.verificador,
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    const dados = (await resposta.json().catch(() => ({}))) as { id_token?: string; error?: string };
-    if (!resposta.ok || !dados.id_token) {
-      return falhar('erro', `troca do código respondeu ${resposta.status} ${dados.error ?? ''}`.trim());
+    // Duas tentativas: a primeira saída HTTPS de um container recém-criado
+    // falha de vez em quando antes de a rede assentar, e a pessoa vê "não foi
+    // possível entrar" sem nada de errado com a credencial. Sem resposta, o
+    // código continua valendo; se por acaso tiver sido consumido, o Google
+    // responde `invalid_grant` e a mensagem sai igual.
+    let ultimoErro: Error | null = null;
+    let dados: { id_token?: string; error?: string } | null = null;
+    let status = 0;
+
+    for (let tentativa = 0; tentativa < 2 && !dados; tentativa += 1) {
+      try {
+        const resposta = await fetch(URL_DO_TOKEN, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: corpoDaTroca,
+          signal: AbortSignal.timeout(10_000),
+        });
+        status = resposta.status;
+        dados = (await resposta.json().catch(() => ({}))) as { id_token?: string; error?: string };
+      } catch (erro) {
+        ultimoErro = erro as Error;
+        console.warn(`[conta/google] troca do código não respondeu (tentativa ${tentativa + 1}): ${ultimoErro.message}`);
+      }
+    }
+
+    if (!dados) return falhar('erro', `troca do código não respondeu: ${ultimoErro?.message}`);
+    if (status < 200 || status >= 300 || !dados.id_token) {
+      return falhar('erro', `troca do código respondeu ${status} ${dados.error ?? ''}`.trim());
     }
     idToken = dados.id_token;
   } catch (erro) {
@@ -110,7 +130,7 @@ export async function GET(requisicao: Request) {
     col.findOne({ emailNormalizado: perfil.email }),
   ]);
 
-  const decisao = decidirVinculo(porSub, porEmail, perfil, fluxo.aceite);
+  const decisao = decidirVinculo(porSub, porEmail, perfil);
   let usuarioId: string;
 
   switch (decisao.acao) {
@@ -148,8 +168,8 @@ export async function GET(requisicao: Request) {
         senhaHash: null,
         googleSub: perfil.sub,
         nome: perfil.nome,
-        // O aceite foi marcado na tela antes de ir ao Google; é ele que
-        // autoriza esta conta a existir.
+        // O aceite está na frase ao lado do botão do Google; a data dele é a
+        // base legal para guardar as conversas desta conta.
         consentimentoEm: agora,
         criadoEm: agora,
       };
@@ -164,9 +184,6 @@ export async function GET(requisicao: Request) {
       usuarioId = usuario._id;
       break;
     }
-
-    case 'pedir-aceite':
-      return falhar('sem-conta');
 
     case 'conflito':
       return falhar('conflito');

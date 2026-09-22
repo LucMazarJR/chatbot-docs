@@ -18,8 +18,6 @@ export type DecisaoDeVinculo =
    */
   | { acao: 'vincular'; usuario: Usuario; revogarSenha: boolean }
   | { acao: 'criar' }
-  /** Não há conta, e a pessoa não aceitou os termos antes de vir. */
-  | { acao: 'pedir-aceite' }
   /** O e-mail já pertence a uma conta ligada a OUTRO Google. */
   | { acao: 'conflito' };
 
@@ -40,14 +38,14 @@ export type DecisaoDeVinculo =
  *    pelo Google — lendo as conversas e os avisos de saúde dele. Por isso, nesse
  *    caso, a senha é apagada e as sessões abertas caem. Quem era o dono de fato
  *    não perde nada: continua entrando pelo Google.
- * 3. Não achou: cria, mas só com o aceite dos termos, que é a base legal para
- *    guardar as conversas. O aceite vem da tela, antes do redirecionamento.
+ * 3. Não achou nenhuma: cria a conta. Entrar e criar são o mesmo toque — ninguém
+ *    precisa saber de antemão se já tem conta aqui. O aceite dos termos vem da
+ *    frase ao lado do botão, e fica gravado com a data na conta criada.
  */
 export function decidirVinculo(
   porSub: Usuario | null,
   porEmail: Usuario | null,
   perfil: PerfilGoogle,
-  aceitouOsTermos: boolean,
 ): DecisaoDeVinculo {
   if (porSub) return { acao: 'entrar', usuario: porSub };
 
@@ -56,5 +54,5 @@ export function decidirVinculo(
     return { acao: 'vincular', usuario: porEmail, revogarSenha: !porEmail.emailVerificado };
   }
 
-  return aceitouOsTermos ? { acao: 'criar' } : { acao: 'pedir-aceite' };
+  return { acao: 'criar' };
 }

@@ -6,9 +6,9 @@ export const dynamic = 'force-dynamic';
 /**
  * Começo do login com Google: guarda o estado num cookie e manda para o Google.
  *
- * `?aceite=1` vem da aba "Criar conta", com a caixa dos termos marcada. É o que
- * autoriza o retorno a criar uma conta nova; sem ele, o retorno só entra em
- * conta que já existe.
+ * Entrar e criar conta são o mesmo caminho — quem não tem conta aqui ganha uma
+ * na volta. O aceite dos termos está na frase ao lado do botão, e é gravado com
+ * a data na conta criada.
  */
 export async function GET(requisicao: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -17,7 +17,7 @@ export async function GET(requisicao: Request) {
   }
 
   const origem = origemPublica(requisicao);
-  const fluxo = novoFluxo(new URL(requisicao.url).searchParams.get('aceite') === '1');
+  const fluxo = novoFluxo();
 
   return new Response(null, {
     status: 302,

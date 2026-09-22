@@ -51,12 +51,10 @@ export type EstadoDoFluxo = {
   state: string;
   verificador: string;
   nonce: string;
-  /** A pessoa marcou o aceite dos termos antes de ir ao Google. */
-  aceite: boolean;
 };
 
-export function novoFluxo(aceite: boolean): EstadoDoFluxo {
-  return { state: aleatorio(), verificador: aleatorio(), nonce: aleatorio(), aceite };
+export function novoFluxo(): EstadoDoFluxo {
+  return { state: aleatorio(), verificador: aleatorio(), nonce: aleatorio() };
 }
 
 export function urlDeAutorizacao(fluxo: EstadoDoFluxo, clientId: string, redirectUri: string): string {
@@ -110,7 +108,7 @@ export function lerFluxo(cabecalhoCookie: string | null): EstadoDoFluxo | null {
     try {
       const fluxo = JSON.parse(Buffer.from(resto.join('='), 'base64url').toString('utf8')) as EstadoDoFluxo;
       if (typeof fluxo.state === 'string' && typeof fluxo.verificador === 'string' && typeof fluxo.nonce === 'string') {
-        return { ...fluxo, aceite: fluxo.aceite === true };
+        return { state: fluxo.state, verificador: fluxo.verificador, nonce: fluxo.nonce };
       }
     } catch {
       return null;
