@@ -45,7 +45,9 @@ export function FormularioEntrar({ googleAtivo }: { googleAtivo: boolean }) {
     }
     if (criando && !aceite) {
       return {
-        mensagem: 'Falta aceitar os termos, aqui embaixo — é o que nos permite guardar a conversa.',
+        // Sem "acima" nem "abaixo": a caixa muda de lugar conforme o teclado do
+        // celular abre. O destaque e o foco é que apontam para ela.
+        mensagem: 'Falta aceitar os termos destacados — é o que nos permite guardar a conversa.',
         campo: aceiteRef.current,
         aceite: true,
       };
