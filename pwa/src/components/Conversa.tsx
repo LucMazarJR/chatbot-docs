@@ -78,13 +78,27 @@ const PEDIDO_DE_ACEITE = [
 const ACEITE_RECUSADO = [
   'Tudo bem, e obrigado por avisar. 🙂',
   '',
-  'Sem o aceite eu não posso registrar a conversa, e sem registro não consigo responder. Se mudar de ideia, é só tocar em *Aceitar* acima.',
+  'Sem o aceite eu não posso registrar a conversa, e sem registro não consigo responder. Se mudar de ideia, é só tocar em *Aceitar* aqui embaixo.',
 ].join('\n');
 
 const BOTOES_DE_ACEITE: BotaoRapido[] = [
   { rotulo: 'Aceitar', valor: 'aceitar' },
   { rotulo: 'Agora não', valor: 'recusar' },
 ];
+
+/**
+ * O caminho de volta, junto da mensagem de recusa.
+ *
+ * LÓGICA DO LUCIANO: escolher um botão some com os outros, senão uma conversa
+ * retomada convidaria ao clique duplo. Só que isso levava embora o *Aceitar*
+ * que a mensagem de recusa manda tocar: a frase apontava para um botão que já
+ * não existia. Quem disse "agora não" e mudou de ideia tem onde tocar, sem
+ * precisar recarregar a página.
+ */
+const BOTAO_DE_ACEITE_DEPOIS: BotaoRapido[] = [{ rotulo: 'Aceitar', valor: 'aceitar' }];
+
+/** A chave do pedido inicial e a da mensagem de recusa, que também aceita. */
+const CHAVES_DE_ACEITE = ['aceite', 'aceite-depois'];
 
 function horaAgora(quando: Date = new Date()) {
   return quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -352,7 +366,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   async function escolherBotao(item: Item, botao: BotaoRapido) {
     marcarEscolha(item.chave, botao.valor);
 
-    if (item.chave !== 'aceite') {
+    if (!CHAVES_DE_ACEITE.includes(item.chave)) {
       // Sugestão de assunto: vale como pergunta digitada.
       void enviarTexto(botao.valor);
       return;
@@ -374,7 +388,17 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
     // Aceitou: o campo é liberado e recebe o foco na hora. Nada de saudação —
     // quem acabou de tocar em "Aceitar" quer perguntar, não ser cumprimentado.
     if (aceitando) campoRef.current?.focus();
-    else adicionarBot(ACEITE_RECUSADO, null);
+    else
+      setItens((atuais) => [
+        ...atuais,
+        {
+          chave: 'aceite-depois',
+          papel: 'bot',
+          texto: ACEITE_RECUSADO,
+          hora: horaAgora(),
+          botoes: BOTAO_DE_ACEITE_DEPOIS,
+        },
+      ]);
   }
 
   // --- Envio ---------------------------------------------------------------
@@ -653,6 +677,23 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
                 {item.rotulo}
               </Link>
             ))}
+            {/* Sair fica aqui, e não só dentro de "Minha conta": quem está num
+                aparelho emprestado precisa achar a saída de onde está, sem
+                atravessar outra tela. */}
+            {comConta && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuAberto(false);
+                  void fetch('/api/conta/sair', { method: 'POST' }).finally(() =>
+                    window.location.assign('/staging/entrar'),
+                  );
+                }}
+              >
+                Sair da conta
+              </button>
+            )}
             <div className="menu-divisor" />
             <button
               type="button"
