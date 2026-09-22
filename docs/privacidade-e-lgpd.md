@@ -58,7 +58,7 @@ Só existem na rota de validação — ver [contas-de-usuario.md](contas-de-usua
 | Os aparelhos com avisos ativados: endereço no serviço de push, chaves e tipo de aparelho | `inscricoes_push` | Até a pessoa desativar, o aparelho deixar de existir para o serviço (é removido no envio seguinte) ou a conta ser apagada |
 | Os avisos: texto escrito pela equipe e os recibos de exibição e abertura | `notificacoes` | 90 dias depois de sair da fila, por TTL |
 
-- **Base legal: o aceite no cadastro**, com data. Ele cobre as conversas da conta, e por isso o chat com conta não pede o aceite de novo. Pelo Google, a conta nova só é criada se a pessoa marcou o aceite antes de tocar no botão.
+- **Base legal: o aceite no cadastro**, com data. Ele cobre as conversas da conta, e por isso o chat com conta não pede o aceite de novo. Pelo Google, o aceite está escrito ao lado do botão, e a data fica gravada na conta criada.
 - **O aviso é dado de saúde sobre a pessoa**, mesmo escrito pela equipe: "sua coleta de sangue é amanhã" diz o que ela vai fazer. Por isso a tela bloqueada mostra só "Você tem um lembrete", e o texto aparece dentro do app, com a conta logada. Mostrar o texto na tela bloqueada é uma escolha explícita, por aviso, e o formulário explica o risco antes.
 - **Quem mais recebe:**
   - Os **serviços de push** do Google, da Apple ou da Mozilla, conforme o navegador, entregam o aviso ao aparelho. O conteúdo vai cifrado de ponta a ponta até o aparelho (RFC 8291); o serviço vê só que houve uma entrega, quando e de que tamanho.

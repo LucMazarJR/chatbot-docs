@@ -68,6 +68,8 @@ Não existe envio de e-mail no projeto. Por isso uma conta de senha tem `emailVe
 - `POST /api/sessoes` com `comConta: true` cria a sessão com `usuarioId` e sem chave. Sessão com `usuarioId` só abre com o cookie da própria conta — a chave não vale para ela.
 - **O `/` segue exatamente o caminho de antes.** A conta nunca é deduzida do cookie: só `comConta: true` explícito liga uma conversa a ela. Sem isso, alguém logado no staging que abrisse o `/` no mesmo navegador teria a conversa anônima gravada na conta.
 
+O menu ⋮ do chat com conta ganha **Avisos**, **Minha conta** e **Sair da conta** — a saída fica onde a pessoa está, e não só dentro de outra tela, porque o aparelho pode ser emprestado.
+
 No dashboard, `/conversas` mostra só um selo **"com conta"**, nunca o e-mail: quem analisa respostas não precisa saber de quem é o relato de saúde.
 
 ### Apagar a conta
@@ -88,9 +90,9 @@ O código está pronto e **desligado até haver credencial**: sem `GOOGLE_CLIENT
 
 Authorization code com PKCE e nonce, escrito à mão em [pwa/src/lib/conta/google.ts](../pwa/src/lib/conta/google.ts), sem NextAuth — uma biblioteca traria um modelo próprio de sessão e de usuário que brigaria com o que já existe.
 
-1. `GET /api/conta/google` gera `state`, verificador PKCE e `nonce`, guarda os três num cookie de 10 minutos restrito a `/api/conta/google`, e manda para o Google pedindo `openid email profile` e a escolha de conta.
+1. `GET /api/conta/google` gera `state`, verificador PKCE e `nonce`, guarda os três num cookie de 10 minutos restrito a `/api/conta/google`, e manda para o Google pedindo `openid email profile` e a escolha de conta. Entrar e criar conta são o mesmo botão: quem ainda não tem conta ganha uma na volta.
 2. O Google devolve em `GET /api/conta/google/retorno`. O `state` precisa bater com o do cookie.
-3. O código é trocado pelo `id_token` direto no endpoint de token do Google. Como o token chega por TLS, em resposta a um código que só este servidor podia trocar, a assinatura não é conferida (OpenID Connect Core, 3.1.3.7); **emissor, audiência, validade e nonce são**, e o e-mail precisa estar verificado no Google.
+3. O código é trocado pelo `id_token` direto no endpoint de token do Google, com uma segunda tentativa quando a chamada não completa — a primeira saída HTTPS de um container recém-criado falha de vez em quando, e isso virava "não foi possível entrar" sem nada de errado com a credencial. Como o token chega por TLS, em resposta a um código que só este servidor podia trocar, a assinatura não é conferida (OpenID Connect Core, 3.1.3.7); **emissor, audiência, validade e nonce são**, e o e-mail precisa estar verificado no Google.
 4. As regras de vínculo decidem, e a sessão abre no mesmo cookie `pwa_conta` do login por senha.
 
 Todo desfecho volta para `/staging/entrar?google=<motivo>`, com uma frase que diz o que fazer. O detalhe técnico vai só para o log do container, sem e-mail.
@@ -105,7 +107,7 @@ O endereço de volta é montado dos cabeçalhos `x-forwarded-host` e `x-forwarde
 2. **Existe conta de senha com o mesmo e-mail** → vincula e marca o e-mail como verificado.
    - Se o e-mail dessa conta **nunca tinha sido provado**, o vínculo **apaga a senha e derruba todas as sessões abertas**. Sem isso, alguém que cadastrou antes o e-mail de outra pessoa continuaria entrando pela senha na conta que o dono de verdade passou a usar pelo Google, lendo as conversas e os avisos de saúde dele. O dono não perde nada: continua entrando pelo Google.
    - Se a conta já está ligada a **outro** Google → recusa.
-3. **Não existe conta** → cria, mas só se a pessoa marcou o aceite dos termos na aba **Criar conta** antes de tocar no botão. Pela aba **Entrar**, sem conta, a tela volta pedindo o aceite.
+3. **Não existe conta** → cria. O aceite dos termos está escrito ao lado do botão do Google, e a data dele fica gravada na conta — é a base legal para guardar as conversas. Obrigar a marcar uma caixa antes de um botão que também serve para entrar deixava o fluxo confuso: quem já tinha conta não sabia em qual aba tocar.
 
 ### Criar a credencial
 
