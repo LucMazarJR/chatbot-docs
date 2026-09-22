@@ -170,6 +170,16 @@
   line-height: 1.45;
 }
 
+/* Quando o cadastro esbarrou no aceite: a caixa fica marcada como o que falta,
+   e não só a frase de erro lá em cima. */
+.st-marcar-falta {
+  margin: 0 -8px 14px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--aviso);
+  color: var(--aviso-texto);
+}
+
 .st-marcar input {
   flex: 0 0 auto;
   width: 22px;
@@ -267,16 +277,11 @@
   text-decoration: none;
 }
 
-/* Na aba de criar conta, antes do aceite: visível, para a pessoa saber que a
-   opção existe, mas sem levar a lugar nenhum. */
-.st a.st-google[aria-disabled='true'] {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.st-google + .st-dica,
-.st-dica + .st-google {
-  margin-top: 8px;
+/* O aceite dos termos que vale para o botão do Google, logo abaixo dele. */
+.st-termos-google {
+  display: block;
+  margin: 10px 0 0;
+  line-height: 1.45;
 }
 
 .st-dados {

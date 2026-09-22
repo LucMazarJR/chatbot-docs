@@ -13,8 +13,6 @@ export const dynamic = 'force-dynamic';
  */
 const VOLTA_DO_GOOGLE: Record<string, string> = {
   cancelado: 'O login com Google foi cancelado.',
-  'sem-conta':
-    'Ainda não existe conta com esse Google. Para criar, marque o aceite dos termos abaixo e toque em Entrar com Google de novo.',
   conflito:
     'Este e-mail já está ligado a outra conta do Google. Entre com a conta do Google usada da primeira vez.',
   'email-nao-verificado':
@@ -56,10 +54,7 @@ export default async function Entrar({
         </p>
       )}
 
-      <FormularioEntrar
-        googleAtivo={googleConfigurado()}
-        modoInicial={google === 'sem-conta' ? 'criar' : 'entrar'}
-      />
+      <FormularioEntrar googleAtivo={googleConfigurado()} />
     </main>
   );
 }

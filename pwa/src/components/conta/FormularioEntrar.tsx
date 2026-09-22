@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 
 type Modo = 'entrar' | 'criar';
@@ -11,14 +11,8 @@ type Modo = 'entrar' | 'criar';
  * Duas abas, e não duas páginas: quem não lembra se já criou conta tenta uma e
  * troca para a outra sem perder o que digitou.
  */
-export function FormularioEntrar({
-  googleAtivo,
-  modoInicial = 'entrar',
-}: {
-  googleAtivo: boolean;
-  modoInicial?: Modo;
-}) {
-  const [modo, setModo] = useState<Modo>(modoInicial);
+export function FormularioEntrar({ googleAtivo }: { googleAtivo: boolean }) {
+  const [modo, setModo] = useState<Modo>('entrar');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [nome, setNome] = useState('');
@@ -26,12 +20,50 @@ export function FormularioEntrar({
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [faltaAceite, setFaltaAceite] = useState(false);
+
+  const emailRef = useRef<HTMLInputElement>(null);
+  const senhaRef = useRef<HTMLInputElement>(null);
+  const aceiteRef = useRef<HTMLInputElement>(null);
 
   const id = useId();
   const criando = modo === 'criar';
 
+  /**
+   * Nada de botão desabilitado esperando a pessoa adivinhar o que falta.
+   *
+   * LÓGICA DO LUCIANO: o aceite é obrigatório, mas travar o botão não diz isso
+   * — quem não marcou a caixa vê um botão apagado e conclui que o cadastro está
+   * quebrado. Aqui o toque sempre vale: quando falta alguma coisa, a frase diz
+   * qual é, o foco vai para o campo, e a caixa do aceite fica destacada.
+   */
+  function oQueFalta(): { mensagem: string; campo: HTMLInputElement | null; aceite?: boolean } | null {
+    if (!email.trim()) return { mensagem: 'Informe o seu e-mail.', campo: emailRef.current };
+    if (!senha) return { mensagem: 'Informe a senha.', campo: senhaRef.current };
+    if (criando && senha.length < 8) {
+      return { mensagem: 'A senha precisa ter ao menos 8 caracteres.', campo: senhaRef.current };
+    }
+    if (criando && !aceite) {
+      return {
+        mensagem: 'Falta aceitar os termos, aqui embaixo — é o que nos permite guardar a conversa.',
+        campo: aceiteRef.current,
+        aceite: true,
+      };
+    }
+    return null;
+  }
+
   async function enviar(evento: FormEvent) {
     evento.preventDefault();
+
+    const falta = oQueFalta();
+    setFaltaAceite(falta?.aceite === true);
+    if (falta) {
+      setErro(falta.mensagem);
+      falta.campo?.focus();
+      return;
+    }
+
     setErro(null);
     setEnviando(true);
 
@@ -105,6 +137,7 @@ export function FormularioEntrar({
           <label htmlFor={`${id}-email`}>E-mail</label>
           <input
             id={`${id}-email`}
+            ref={emailRef}
             type="email"
             inputMode="email"
             autoComplete="email"
@@ -118,6 +151,7 @@ export function FormularioEntrar({
           <label htmlFor={`${id}-senha`}>Senha</label>
           <input
             id={`${id}-senha`}
+            ref={senhaRef}
             type={mostrarSenha ? 'text' : 'password'}
             autoComplete={criando ? 'new-password' : 'current-password'}
             required
@@ -147,12 +181,19 @@ export function FormularioEntrar({
         </label>
 
         {criando && (
-          <label className="st-marcar">
+          <label className={faltaAceite && !aceite ? 'st-marcar st-marcar-falta' : 'st-marcar'}>
             <input
+              ref={aceiteRef}
               type="checkbox"
               checked={aceite}
-              onChange={(evento) => setAceite(evento.target.checked)}
-              required
+              aria-invalid={faltaAceite && !aceite ? true : undefined}
+              onChange={(evento) => {
+                setAceite(evento.target.checked);
+                if (evento.target.checked) {
+                  setFaltaAceite(false);
+                  setErro(null);
+                }
+              }}
             />
             <span>
               Aceito que minhas conversas fiquem guardadas na conta para a equipe avaliar as
@@ -171,11 +212,7 @@ export function FormularioEntrar({
           </p>
         )}
 
-        <button
-          type="submit"
-          className="st-botao"
-          disabled={enviando || !email || !senha || (criando && !aceite)}
-        >
+        <button type="submit" className="st-botao" disabled={enviando}>
           {enviando ? 'Aguarde…' : criando ? 'Criar conta' : 'Entrar'}
         </button>
       </form>
@@ -188,20 +225,10 @@ export function FormularioEntrar({
           {/* Link, e não fetch: o login do Google é uma sequência de
               redirecionamentos entre sites, que só a navegação completa faz.
 
-              Na aba de criar, o link só existe com o aceite marcado, e leva o
-              aceite junto: é o que permite ao retorno criar a conta. Na aba de
-              entrar, vai sem aceite e só entra em conta que já existe. */}
-          {criando && !aceite ? (
-            <p className="st-dica" id={`${id}-dica-google`}>
-              Para criar a conta com o Google, marque o aceite dos termos acima.
-            </p>
-          ) : null}
-          <a
-            className="st-google"
-            href={criando ? (aceite ? '/api/conta/google?aceite=1' : undefined) : '/api/conta/google'}
-            aria-disabled={criando && !aceite ? true : undefined}
-            aria-describedby={criando && !aceite ? `${id}-dica-google` : undefined}
-          >
+              Serve para entrar e para criar: quem ainda não tem conta ganha uma
+              na volta, sem precisar saber de antemão em qual aba está. Por isso
+              o aceite dos termos vem escrito aqui, logo abaixo do botão. */}
+          <a className="st-google" href="/api/conta/google" aria-describedby={`${id}-termos-google`}>
             <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
               <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z" />
               <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
@@ -210,6 +237,11 @@ export function FormularioEntrar({
             </svg>
             Entrar com Google
           </a>
+          <p className="st-dica st-termos-google" id={`${id}-termos-google`}>
+            Se ainda não tiver conta, ela é criada na hora. Ao entrar com o Google você aceita que
+            suas conversas fiquem guardadas na conta para a equipe avaliar as respostas, como
+            descrito em <Link href="/privacidade" target="_blank">Como tratamos seus dados</Link>.
+          </p>
         </>
       )}
     </section>
