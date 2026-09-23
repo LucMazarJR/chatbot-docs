@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Stethoscope } from "lucide-react";
+import { Eye, EyeOff, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
 import { login } from "@/lib/auth.functions";
@@ -28,6 +28,8 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [revelar, setRevelar] = useState(false);
+  const [esqueceu, setEsqueceu] = useState(false);
 
   const enviar = async (evento: React.FormEvent) => {
     evento.preventDefault();
@@ -75,10 +77,25 @@ function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="senha">Senha</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="senha">Senha</Label>
+              {/* Errar uma letra de uma senha mascarada parece "esqueci a senha". */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => setRevelar((v) => !v)}
+                aria-pressed={revelar}
+                aria-controls="senha"
+              >
+                {revelar ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                {revelar ? "Ocultar" : "Mostrar"}
+              </Button>
+            </div>
             <Input
               id="senha"
-              type="password"
+              type={revelar ? "text" : "password"}
               autoComplete="current-password"
               required
               value={senha}
@@ -91,9 +108,33 @@ function LoginPage() {
           </Button>
         </form>
 
-        <p className="text-center text-xs text-muted-foreground">
-          Não tem acesso? Peça a um administrador para criar sua conta.
-        </p>
+        {/*
+          LÓGICA DO LUCIANO: não existe envio de e-mail no projeto, então não há
+          redefinição automática. Mas quem esqueceu a senha precisa saber o que
+          fazer sem ter de perguntar a ninguém como perguntar: antes a tela só
+          falava de criar conta. Os nomes dos administradores não aparecem aqui
+          de propósito: esta página é pública, e listar quem tem acesso total
+          seria entregar os alvos.
+        */}
+        <div className="space-y-2 text-center text-xs text-muted-foreground">
+          <button
+            type="button"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+            aria-expanded={esqueceu}
+            aria-controls="ajuda-senha"
+            onClick={() => setEsqueceu((v) => !v)}
+          >
+            Esqueci minha senha
+          </button>
+          {esqueceu && (
+            <p id="ajuda-senha" className="rounded-md bg-muted/60 p-3 text-left text-foreground">
+              Peça a um administrador do painel para redefinir sua senha. Ele cria uma senha
+              provisória, e no primeiro acesso você escolhe a sua. Quando o navegador perguntar,
+              deixe ele salvar a senha nova.
+            </p>
+          )}
+          <p>Não tem acesso? Peça a um administrador para criar sua conta.</p>
+        </div>
       </div>
     </main>
   );
