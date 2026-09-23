@@ -25,6 +25,7 @@ import {
 } from '@/lib/sessao-local';
 import { formatarDuracao, useGravador } from '@/lib/usar-gravador';
 import type { Papel, TipoAnexo } from '@/lib/tipos';
+import { Carregando } from '@/components/Carregando';
 import { hora } from '@/lib/datas';
 
 const INATIVIDADE_MS = 2 * 60 * 1000;
@@ -743,6 +744,17 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
             qualidade das respostas. Por favor, <b>não informe dados pessoais</b> como CPF, cartão
             do SUS ou endereço. <Link href="/privacidade">Como tratamos seus dados</Link>
           </div>
+
+          {/* Enquanto a conversa abre, a área ficava em branco: sem o pedido
+              de aceite, sem as mensagens anteriores, sem nada que dissesse que
+              algo estava vindo. */}
+          {!sessaoId && !falhaAoAbrir && <Carregando texto="Abrindo a conversa…" variante="balao" />}
+
+          {/* Com conta não há pedido de aceite, então a conversa nova abria
+              vazia, sem dizer por onde começar. */}
+          {comConta && sessaoId && itens.length === 0 && (
+            <p className="carregando carregando-balao">Faça sua pergunta aqui embaixo.</p>
+          )}
 
           {itens.map((item, indice) => (
             <div key={item.chave}>
