@@ -18,7 +18,18 @@ export async function GET(requisicao: Request) {
     .find(
       // Pendente ainda não chegou; mostrar seria anunciar um aviso futuro antes da hora.
       { usuarioId: conta._id, estado: { $nin: ['pendente', 'enviando', 'cancelada'] } },
-      { projection: { tipo: 1, detalhe: 1, estado: 1, criadaEm: 1, enviadaEm: 1, abertaEm: 1 } },
+      {
+        projection: {
+          tipo: 1,
+          detalhe: 1,
+          estado: 1,
+          criadaEm: 1,
+          enviadaEm: 1,
+          recebidaEm: 1,
+          exibidaEm: 1,
+          abertaEm: 1,
+        },
+      },
     )
     .sort({ criadaEm: -1 })
     .limit(50)
@@ -33,6 +44,8 @@ export async function GET(requisicao: Request) {
       estado: aviso.estado,
       criadaEm: aviso.criadaEm,
       enviadaEm: aviso.enviadaEm,
+      recebida: Boolean(aviso.recebidaEm),
+      exibida: Boolean(aviso.exibidaEm),
       aberta: Boolean(aviso.abertaEm),
     })),
   });

@@ -24,7 +24,8 @@ export async function POST(requisicao: Request) {
     endpoint?: string;
   };
 
-  const campo = corpo.evento === 'exibida' ? 'exibidaEm' : corpo.evento === 'aberta' ? 'abertaEm' : null;
+  const CAMPOS = { recebida: 'recebidaEm', exibida: 'exibidaEm', aberta: 'abertaEm' } as const;
+  const campo = CAMPOS[corpo.evento as keyof typeof CAMPOS] ?? null;
   if (!campo || typeof corpo.id !== 'string' || typeof corpo.recibo !== 'string') {
     return Response.json({ erro: 'recibo inválido' }, { status: 400 });
   }

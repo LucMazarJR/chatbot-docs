@@ -33,6 +33,11 @@ export type Entrega = {
   em: Date;
   /** Do navegador inscrito — é o que permite medir os limites por plataforma. */
   userAgent: string;
+  /**
+   * O push chegou a este aparelho. Opcional porque avisos gravados antes do
+   * recibo de chegada não têm o campo.
+   */
+  recebidaEm?: Date | null;
   exibidaEm: Date | null;
   abertaEm: Date | null;
 };
@@ -62,6 +67,14 @@ export type Notificacao = {
   criadaEm: Date;
   criadaPor: string;
   enviadaEm: Date | null;
+  /**
+   * Primeira vez que o push chegou a algum aparelho, antes de ele tentar mostrar.
+   *
+   * Separado de `exibidaEm` porque são falhas diferentes: não chegou é entrega
+   * (bateria, rede, serviço de push); chegou e não apareceu é o celular
+   * bloqueando notificação. Opcional porque o painel grava avisos sem ele.
+   */
+  recebidaEm?: Date | null;
   /** Primeira vez que algum aparelho mostrou o aviso. */
   exibidaEm: Date | null;
   /** Primeira vez que alguém tocou nele. */

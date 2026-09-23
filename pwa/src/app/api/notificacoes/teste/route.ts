@@ -49,6 +49,7 @@ export async function POST(requisicao: Request) {
     criadaEm: agora,
     criadaPor: 'teste da própria pessoa',
     enviadaEm: null,
+    recebidaEm: null,
     exibidaEm: null,
     abertaEm: null,
     expiraEm: null,

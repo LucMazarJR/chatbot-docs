@@ -145,6 +145,7 @@ async function processar(aviso: Notificacao, resultado: ResultadoDespacho): Prom
         codigo,
         em: new Date(),
         userAgent: aparelho.userAgent,
+        recebidaEm: null,
         exibidaEm: null,
         abertaEm: null,
       };

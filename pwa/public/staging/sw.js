@@ -39,8 +39,14 @@ self.addEventListener('push', (evento) => {
     data: { id: dados.id, recibo: dados.recibo, url: dados.url || '/staging/avisos' },
   };
 
+  // "Recebida" sai antes de tudo, e "exibida" só depois de a notificação ter
+  // sido mostrada de fato. Antes os dois saíam juntos, e um celular que
+  // bloqueava a notificação parecia igual a um que nem recebia o aviso.
   evento.waitUntil(
-    Promise.all([self.registration.showNotification(titulo, opcoes), enviarRecibo(dados, 'exibida')]),
+    Promise.all([
+      enviarRecibo(dados, 'recebida'),
+      self.registration.showNotification(titulo, opcoes).then(() => enviarRecibo(dados, 'exibida')),
+    ]),
   );
 });
 
