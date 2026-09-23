@@ -341,6 +341,14 @@ button {
   background: var(--barra);
 }
 
+/* Separa o item que apaga a conversa dos demais. A classe era usada no menu e
+   não existia aqui, então o separador não aparecia. */
+.menu-divisor {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--borda);
+}
+
 /* --- Área das mensagens -------------------------------------------------- */
 
 .mensagens {
