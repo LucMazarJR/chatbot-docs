@@ -4,13 +4,17 @@
  * LÓGICA DO LUCIANO: a escolha fica no localStorage e a classe `.dark` no
  * <html>. O script abaixo roda no <head>, antes da primeira pintura: aplicado
  * depois, pelo React, quem usa o tema escuro via um clarão branco a cada
- * página aberta. Sem escolha guardada, vale o tema do sistema.
+ * página aberta.
+ *
+ * Sem escolha guardada, o painel abre claro, mesmo com o sistema no escuro:
+ * decisão do projeto, para a equipe ver o painel igual em todo computador. O
+ * escuro vale só para quem escolheu no botão.
  */
 export type Tema = "claro" | "escuro";
 
 const CHAVE = "painel:tema";
 
-export const SCRIPT_DO_TEMA = `(function(){try{var t=localStorage.getItem("${CHAVE}");var e=t?t==="escuro":window.matchMedia("(prefers-color-scheme: dark)").matches;if(e)document.documentElement.classList.add("dark")}catch(_){}})();`;
+export const SCRIPT_DO_TEMA = `(function(){try{var t=localStorage.getItem("${CHAVE}");if(t==="escuro")document.documentElement.classList.add("dark")}catch(_){}})();`;
 
 export function temaAtual(): Tema {
   return document.documentElement.classList.contains("dark") ? "escuro" : "claro";
