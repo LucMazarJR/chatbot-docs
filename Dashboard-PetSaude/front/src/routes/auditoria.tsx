@@ -25,6 +25,10 @@ import {
 import { fimDoDia, inicioDoDia } from "@/components/filtros-faq";
 import { exigirAdmin } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoFalha, EstadoVazio } from "@/components/estado";
+import { Selo } from "@/components/selo";
+import { dataEHora } from "@/lib/datas";
 
 const POR_PAGINA = 25;
 const TODOS = "__todos__";
@@ -163,27 +167,29 @@ function Linha({ registro }: { registro: RegistroAuditoria }) {
   const recusado = registro.status === "negado";
 
   return (
-    <li
-      className={
-        recusado
-          ? "rounded-lg border border-destructive/40 bg-destructive/5 p-4"
-          : "rounded-lg border border-border panel-surface p-4"
-      }
-    >
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        {recusado && <ShieldAlert className="size-4 shrink-0 text-destructive" />}
-        <strong className="text-sm">{registro.actor_name}</strong>
-        <span className="text-sm text-muted-foreground">{acao.verbo}</span>
-        {registro.question && (
-          <span className="min-w-0 break-words text-sm">“{registro.question}”</span>
-        )}
-        <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-          {new Date(registro.created_at).toLocaleString("pt-BR")}
+    <li className="border-b border-border px-4 py-3.5 last:border-b-0 sm:px-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-4">
+        <p className="min-w-0 flex-1 break-words text-[15px]">
+          {recusado && (
+            <Selo
+              tom="erro"
+              icone={<ShieldAlert aria-hidden="true" />}
+              className="mr-2 align-middle"
+            >
+              Recusada
+            </Selo>
+          )}
+          <strong className="font-semibold">{registro.actor_name}</strong>{" "}
+          <span className="text-muted-foreground">{acao.verbo}</span>
+          {registro.question && <> “{registro.question}”</>}
+        </p>
+        <span className="shrink-0 text-sm text-muted-foreground">
+          {dataEHora(registro.created_at)}
         </span>
       </div>
 
       {registro.batch_id && (
-        <p className="mt-1 text-xs text-muted-foreground">Parte de uma importação em lote</p>
+        <p className="mt-1 text-sm text-muted-foreground">Parte de uma importação em lote</p>
       )}
 
       {temDetalhe && (
@@ -192,7 +198,7 @@ function Linha({ registro }: { registro: RegistroAuditoria }) {
             type="button"
             variant="ghost"
             size="sm"
-            className="mt-2 h-8 px-2"
+            className="-ml-3 mt-1"
             aria-expanded={aberto}
             onClick={() => setAberto((v) => !v)}
           >
@@ -255,40 +261,42 @@ function PainelAuditoria() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Histórico</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tudo que foi criado, alterado ou excluído, e quem fez. Inclui entradas no sistema e
-          tentativas recusadas.
-        </p>
-      </div>
+      <CabecalhoPagina
+        titulo="Histórico"
+        frase="Tudo que foi criado, alterado ou excluído, e quem fez. Inclui entradas no sistema e tentativas recusadas."
+      />
 
-      <section className="rounded-lg border border-border panel-surface">
-        <div className="flex flex-wrap items-center gap-2 p-3">
+      <section className="rounded-xl border border-border bg-card">
+        <div className="flex flex-wrap items-center gap-2.5 p-3">
           <Button
             type="button"
             variant="outline"
-            size="sm"
             aria-expanded={filtrosAbertos}
             onClick={() => setFiltrosAbertos((v) => !v)}
           >
-            <Filter className="size-4" /> Filtros
+            <Filter /> Filtros
             {ativos > 0 && (
-              <span className="ml-1 rounded-full bg-primary px-1.5 text-[11px] text-primary-foreground">
+              <span className="rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground">
                 {ativos}
               </span>
             )}
           </Button>
 
           {ativos > 0 && (
-            <Button type="button" variant="ghost" size="sm" onClick={limpar}>
-              <X className="size-4" /> Limpar
+            <Button type="button" variant="ghost" onClick={limpar}>
+              <X /> Limpar
             </Button>
           )}
 
-          <p className="ml-auto text-sm text-muted-foreground">
-            {historico.isLoading ? "Carregando…" : `${historico.data?.total ?? 0} registro(s)`}
-          </p>
+          {/* O total só com a resposta: "0 registros" durante a espera diria
+              que nada aconteceu. */}
+          {historico.data && (
+            <p className="ml-auto text-[15px] text-muted-foreground" aria-live="polite">
+              {historico.data.total === 1
+                ? "1 registro"
+                : `${historico.data.total.toLocaleString("pt-BR")} registros`}
+            </p>
+          )}
         </div>
 
         {filtrosAbertos && (
@@ -381,17 +389,28 @@ function PainelAuditoria() {
       </section>
 
       {historico.isError ? (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive">
-          Não foi possível carregar o histórico. Tente recarregar a página.
-        </p>
+        <EstadoFalha onTentarDeNovo={() => historico.refetch()} tentando={historico.isFetching}>
+          Não foi possível carregar o histórico. Confira a internet e tente de novo.
+        </EstadoFalha>
       ) : historico.isLoading && !historico.data ? (
         <Carregando texto="Carregando o histórico…" />
       ) : itens.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground sm:p-8">
-          {ativos > 0 ? "Nenhum registro com estes filtros." : "Nada registrado ainda."}
-        </p>
+        <EstadoVazio
+          titulo={ativos > 0 ? "Nenhum registro com estes filtros" : "Nada registrado ainda"}
+          acao={
+            ativos > 0 ? (
+              <Button variant="outline" onClick={limpar}>
+                Limpar os filtros
+              </Button>
+            ) : undefined
+          }
+        >
+          {ativos > 0
+            ? "Tente outro período ou outra pessoa."
+            : "Cada alteração feita no painel passa a aparecer aqui."}
+        </EstadoVazio>
       ) : (
-        <ul className="space-y-2">
+        <ul className="overflow-hidden rounded-xl border border-border bg-card">
           {itens.map((r) => (
             <Linha key={r.id} registro={r} />
           ))}
@@ -409,7 +428,7 @@ function PainelAuditoria() {
         de gente identificada, e um prazo curto é o que sustenta guardá-lo. Se a
         regra não estiver visível, ninguém confere se ela está sendo cumprida.
       */}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Entradas e tentativas de acesso são apagadas automaticamente após 90 dias. Alterações de
         conteúdo ficam guardadas por 2 anos.
       </p>
