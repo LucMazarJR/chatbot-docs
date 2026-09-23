@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+
+import { Carregando } from '@/components/Carregando';
 import { dataEHora } from '@/lib/datas';
 
 type Diagnostico = {
@@ -102,18 +104,30 @@ function impedimento(diagnostico: Diagnostico): string | null {
 export function PainelAvisos() {
   const [diagnostico, setDiagnostico] = useState<Diagnostico | null>(null);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
+  // Três estados, e não uma lista que começa vazia: "Nenhum aviso ainda." antes
+  // de a resposta chegar diz que não existe nada, e é mentira.
+  const [lista, setLista] = useState<'carregando' | 'pronta' | 'falhou'>('carregando');
   const [ocupado, setOcupado] = useState(false);
   const [mensagem, setMensagem] = useState<{ texto: string; erro: boolean } | null>(null);
 
-  const atualizar = useCallback(async () => {
-    setDiagnostico(await diagnosticar());
+  const carregarAvisos = useCallback(async () => {
     try {
       const resposta = await fetch('/api/notificacoes');
-      if (resposta.ok) setAvisos(((await resposta.json()) as { avisos: Aviso[] }).avisos);
+      if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+      setAvisos(((await resposta.json()) as { avisos: Aviso[] }).avisos);
+      setLista('pronta');
     } catch {
-      // A lista é complementar; o diagnóstico continua útil sem ela.
+      // Numa atualização depois de uma ação, a lista que já estava na tela
+      // continua valendo: trocá-la por erro apagaria o que a pessoa já via.
+      setLista((atual) => (atual === 'pronta' ? atual : 'falhou'));
     }
   }, []);
+
+  // Em paralelo: a lista vem da rede e o diagnóstico é local, e esperar um pelo
+  // outro só atrasava a lista.
+  const atualizar = useCallback(async () => {
+    await Promise.all([diagnosticar().then(setDiagnostico), carregarAvisos()]);
+  }, [carregarAvisos]);
 
   useEffect(() => {
     void atualizar();
@@ -204,7 +218,7 @@ export function PainelAvisos() {
     }
   }
 
-  if (!diagnostico) return <p className="st-dica">Verificando este aparelho…</p>;
+  if (!diagnostico) return <Carregando texto="Verificando este aparelho…" />;
 
   const bloqueio = impedimento(diagnostico);
 
@@ -255,8 +269,28 @@ export function PainelAvisos() {
 
       <section className="st-cartao">
         <h2>Avisos recebidos</h2>
-        {avisos.length === 0 ? (
-          <p className="st-dica">Nenhum aviso ainda.</p>
+        {lista === 'carregando' ? (
+          <Carregando texto="Buscando seus avisos…" variante="linha" />
+        ) : lista === 'falhou' ? (
+          <>
+            <p className="st-erro" role="alert">
+              Não consegui buscar seus avisos agora. Confira a internet e tente de novo.
+            </p>
+            <button
+              type="button"
+              className="st-botao st-botao-secundario"
+              onClick={() => {
+                setLista('carregando');
+                void carregarAvisos();
+              }}
+            >
+              Tentar de novo
+            </button>
+          </>
+        ) : avisos.length === 0 ? (
+          <p className="st-dica">
+            Nenhum aviso ainda. Quando a equipe de saúde mandar um lembrete, ele aparece aqui.
+          </p>
         ) : (
           <ul className="st-lista-conversas">
             {avisos.map((aviso) => (
