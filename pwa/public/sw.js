@@ -58,3 +58,79 @@ self.addEventListener('fetch', (evento) => {
       }),
   );
 });
+
+/*
+ * Avisos que caíram aqui por engano.
+ *
+ * LÓGICA DO LUCIANO: o chat de campo não usa push, mas este service worker tem
+ * escopo no site inteiro, e aparelhos ativaram os avisos do /staging com a
+ * inscrição presa nele (ver docs/armadilhas.md, "serviceWorker.ready"). Sem
+ * estes dois ouvintes, o push chegava, nada era mostrado, e o Chrome exibia o
+ * genérico "Este site foi atualizado em segundo plano".
+ *
+ * Mesma lógica do /staging/sw.js, de propósito: o aviso aparece igual, e os
+ * recibos medem igual, venha de qual service worker vier. Para quem só usa o
+ * chat de campo nada muda: sem inscrição, nenhum push chega aqui.
+ */
+self.addEventListener('push', (evento) => {
+  let dados = {};
+  try {
+    dados = evento.data ? evento.data.json() : {};
+  } catch {
+    dados = {};
+  }
+
+  const titulo = dados.titulo || 'Novo aviso';
+  const opcoes = {
+    body: dados.corpo || 'Toque para ver.',
+    icon: '/icons/icone-192.png',
+    badge: '/icons/icone-192.png',
+    tag: dados.tag,
+    lang: 'pt-BR',
+    data: { id: dados.id, recibo: dados.recibo, url: dados.url || '/staging/avisos' },
+  };
+
+  evento.waitUntil(
+    Promise.all([
+      enviarRecibo(dados, 'recebida'),
+      self.registration.showNotification(titulo, opcoes).then(() => enviarRecibo(dados, 'exibida')),
+    ]),
+  );
+});
+
+self.addEventListener('notificationclick', (evento) => {
+  evento.notification.close();
+  const dados = evento.notification.data || {};
+  const destino = new URL(dados.url || '/staging/avisos', self.location.origin).href;
+
+  evento.waitUntil(
+    Promise.all([
+      enviarRecibo(dados, 'aberta'),
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((janelas) => {
+        const doApp = janelas.find((janela) => janela.url.startsWith(`${self.location.origin}/staging`));
+        if (doApp) return doApp.navigate(destino).then((janela) => janela && janela.focus());
+        return self.clients.openWindow(destino);
+      }),
+    ]),
+  );
+});
+
+async function enviarRecibo(dados, evento) {
+  if (!dados || !dados.id || !dados.recibo) return;
+  let endpoint = null;
+  try {
+    const inscricao = await self.registration.pushManager.getSubscription();
+    endpoint = inscricao ? inscricao.endpoint : null;
+  } catch {
+    endpoint = null;
+  }
+  try {
+    await fetch('/api/notificacoes/recibos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: dados.id, recibo: dados.recibo, evento, endpoint }),
+    });
+  } catch {
+    // Sem rede no momento em que o aviso chegou. É estatística; o aviso já apareceu.
+  }
+}
