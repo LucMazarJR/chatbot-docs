@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 
 import { GateShell } from "@/components/gate";
 import { getFilaCuradoria } from "@/lib/curadoria.functions";
@@ -15,6 +15,13 @@ import {
   type Situacao,
 } from "@/lib/conversas.functions";
 import { Carregando } from "@/components/carregando";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoFalha, EstadoVazio } from "@/components/estado";
+import { Segmentos } from "@/components/segmentos";
+import { Selo, type TomDoSelo } from "@/components/selo";
+import { SeloConta, SeloVersao } from "@/components/selos-conversa";
+import { Button } from "@/components/ui/button";
+import { diaEHora } from "@/lib/datas";
 
 type Busca = { periodo?: Periodo; versao?: FiltroVersao; situacao?: Situacao };
 
@@ -52,7 +59,7 @@ const VERSOES: { valor: FiltroVersao; rotulo: string }[] = [
 
 const SITUACOES: { valor: Situacao; rotulo: string; titulo?: string }[] = [
   { valor: "validas", rotulo: "Com interação" },
-  { valor: "negativos", rotulo: "Resposta ruim" },
+  { valor: "negativos", rotulo: "Voto negativo" },
   { valor: "nota-baixa", rotulo: "Nota ≤ 3" },
   { valor: "sem-resposta", rotulo: "Não encontrou" },
   { valor: "com-erro", rotulo: "Falhou" },
@@ -85,352 +92,256 @@ function ConversasPage() {
 
   return (
     <GateShell>
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold">Conversas do chatbot</h2>
-          <p className="text-sm text-muted-foreground">
-            O que os participantes perguntaram no protótipo, e de quais perguntas da base cada
-            resposta saiu.
-          </p>
-        </div>
+      <div className="space-y-5">
+        <CabecalhoPagina
+          titulo="Conversas"
+          frase="O que as pessoas perguntaram ao chatbot e como foram as respostas."
+        />
 
-        {/* Os três recortes ficam em grupos rotulados porque respondem a
-            perguntas diferentes: quando, qual interface, o que deu errado. */}
-        <div className="flex flex-wrap gap-x-6 gap-y-3 rounded-lg border border-border panel-surface p-4">
-          <GrupoDeFiltro rotulo="Período">
-            {PERIODOS.map(({ valor, rotulo }) => (
-              <Chip
-                key={valor}
-                ativo={periodo === valor}
-                onClick={() => navigate({ search: (a) => ({ ...a, periodo: valor }) })}
-              >
-                {rotulo}
-              </Chip>
-            ))}
-          </GrupoDeFiltro>
-
-          <GrupoDeFiltro rotulo="Interface">
-            {VERSOES.map(({ valor, rotulo }) => (
-              <Chip
-                key={valor}
-                ativo={versao === valor}
-                onClick={() => navigate({ search: (a) => ({ ...a, versao: valor }) })}
-              >
-                {rotulo}
-              </Chip>
-            ))}
-          </GrupoDeFiltro>
-
-          <GrupoDeFiltro rotulo="Situação">
-            {SITUACOES.map(({ valor, rotulo, titulo }) => (
-              <Chip
-                key={valor}
-                ativo={situacao === valor}
-                titulo={titulo}
-                onClick={() => navigate({ search: (a) => ({ ...a, situacao: valor }) })}
-              >
-                {rotulo}
-              </Chip>
-            ))}
-          </GrupoDeFiltro>
-        </div>
-
-        <AvisoDaFila />
-
-        {/* Os números surgiam do nada e empurravam a lista para baixo. */}
+        {/* Os números surgiam do nada e empurravam a lista para baixo: o
+            espaço fica reservado pelo sinal de carregamento. */}
         {estatisticas.data ? (
           <Numeros dados={estatisticas.data} />
-        ) : estatisticas.isLoading ? (
+        ) : estatisticas.isError ? (
+          <EstadoFalha
+            onTentarDeNovo={() => estatisticas.refetch()}
+            tentando={estatisticas.isFetching}
+          >
+            Não foi possível calcular os números. Confira a internet e tente de novo.
+          </EstadoFalha>
+        ) : (
           <Carregando compacto texto="Calculando os números…" />
-        ) : null}
+        )}
+
+        {/* Três recortes, cada um no seu trilho: quando, o que aconteceu, e
+            qual interface. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmentos
+            rotulo="Período"
+            opcoes={PERIODOS}
+            valor={periodo}
+            aoMudar={(valor) => navigate({ search: (a) => ({ ...a, periodo: valor }) })}
+          />
+          <Segmentos
+            rotulo="Situação"
+            opcoes={SITUACOES}
+            valor={situacao}
+            aoMudar={(valor) => navigate({ search: (a) => ({ ...a, situacao: valor }) })}
+          />
+          <Segmentos
+            rotulo="Interface"
+            opcoes={VERSOES}
+            valor={versao}
+            aoMudar={(valor) => navigate({ search: (a) => ({ ...a, versao: valor }) })}
+          />
+        </div>
 
         {conversas.isError ? (
-          <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
-            Não foi possível carregar as conversas. Verifique a conexão e tente recarregar.
-          </p>
+          <EstadoFalha onTentarDeNovo={() => conversas.refetch()} tentando={conversas.isFetching}>
+            Não foi possível carregar as conversas. Confira a internet e tente de novo.
+          </EstadoFalha>
         ) : conversas.isLoading ? (
           <Carregando texto="Carregando as conversas…" />
         ) : lista.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
-            Nenhuma conversa com esses filtros.
-          </p>
+          <EstadoVazio
+            titulo="Nenhuma conversa com esses filtros"
+            acao={
+              periodo !== "tudo" || situacao !== "validas" || versao !== "todas" ? (
+                <Button variant="outline" onClick={() => navigate({ search: {} })}>
+                  Ver todas as conversas
+                </Button>
+              ) : undefined
+            }
+          >
+            {periodo === "hoje"
+              ? "Ninguém conversou com o chatbot hoje ainda."
+              : "Troque o período ou a situação para ver outras."}
+          </EstadoVazio>
         ) : (
-          <ul className="space-y-3">
-            {lista.map((conversa) => (
-              <li key={conversa._id}>
-                <Link
-                  to="/conversas/$id"
-                  params={{ id: conversa._id }}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border panel-surface p-4 sm:p-5 transition-colors hover:border-primary/50 hover:bg-accent/40"
-                >
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2 text-base font-semibold">
-                      <SeloVersao versao={conversa.versao} />
-                      {conversa.nome}
-                      <SeloConta usuarioId={conversa.usuarioId} />
-                    </span>
-                    <Marcas conversa={conversa} />
-                  </span>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <div
+              aria-hidden="true"
+              className="hidden grid-cols-[minmax(0,1.3fr)_130px_100px_90px_minmax(0,1fr)_20px] gap-4 border-b border-border px-5 py-3 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground lg:grid"
+            >
+              <span>Participante</span>
+              <span>Quando</span>
+              <span>Perguntas</span>
+              <span>Nota</span>
+              <span>Situação</span>
+              <span />
+            </div>
+            <ul aria-label="Conversas">
+              {lista.map((conversa) => (
+                <LinhaConversa key={conversa._id} conversa={conversa} />
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </GateShell>
   );
 }
 
-function GrupoDeFiltro({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {rotulo}
-      </span>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
-  );
-}
-
-function Chip({
-  ativo,
-  titulo,
-  onClick,
-  children,
-}: {
-  ativo: boolean;
-  titulo?: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={titulo}
-      onClick={onClick}
-      className={
-        "rounded-full border px-3 py-1 text-xs transition-colors " +
-        (ativo
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground")
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
 /**
- * Quantas perguntas sem resposta esperam análise.
+ * A situação da conversa em uma palavra, pela ordem do que mais pede atenção.
  *
- * LÓGICA DO LUCIANO: fica aqui, e não só na tela da fila, porque esta é a tela
- * que alguém abre para ver como o chatbot foi. "Não encontrou" era um número
- * entre os outros indicadores, e um número não pede nada a ninguém. Com o
- * contador e o caminho ao lado, a lacuna deixa de ser diagnóstico e vira tarefa.
- *
- * Só aparece quando há fila: um aviso permanente de "0 pendentes" é ruído.
+ * Antes cada conversa trazia até sete pílulas ("2 ruim", "1 boa", "até 45s"),
+ * e ler a lista era ler todas. O selo diz o principal; o detalhe está na
+ * conversa aberta.
  */
-function AvisoDaFila() {
-  const fila = useQuery({ queryKey: ["curadoria-fila"], queryFn: () => getFilaCuradoria() });
+function situacaoDe(c: ConversaResumida): { texto: string; tom: TomDoSelo } {
+  if (c.erros > 0) return { texto: c.erros === 1 ? "Falhou" : `${c.erros} falharam`, tom: "erro" };
+  if (c.negativos > 0) return { texto: "Voto negativo", tom: "erro" };
+  if (c.semResposta > 0) return { texto: "Sem resposta", tom: "atencao" };
+  if (c.qtdPerguntas === 0) return { texto: "Sem interação", tom: "neutro" };
+  if (c.avaliacao) return { texto: "Avaliada", tom: "sucesso" };
+  return { texto: "Respondida", tom: "neutro" };
+}
 
-  const pendentes = fila.data?.pendentes ?? 0;
-  if (pendentes === 0) return null;
+function LinhaConversa({ conversa }: { conversa: ConversaResumida }) {
+  const situacao = situacaoDe(conversa);
+  const estrelas = conversa.avaliacao?.estrelas;
+  const lenta = conversa.latenciaMaxima != null && conversa.latenciaMaxima >= 30_000;
+  const perguntas = `${conversa.qtdPerguntas} ${conversa.qtdPerguntas === 1 ? "pergunta" : "perguntas"}`;
 
   return (
-    <Link
-      to="/curadoria"
-      className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 transition-colors hover:border-primary/50"
-    >
-      <span className="flex items-start gap-2 text-sm">
-        <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
-        <span>
-          <strong>
-            {pendentes} {pendentes === 1 ? "pergunta" : "perguntas"} sem resposta
-          </strong>{" "}
-          {pendentes === 1 ? "aguarda" : "aguardam"} análise
-          {fila.data?.prontoParaRodar ? " — já dá para rodar uma rodada" : ""}.
+    <li className="border-b border-border last:border-b-0">
+      <Link
+        to="/conversas/$id"
+        params={{ id: conversa._id }}
+        className="grid min-h-[60px] grid-cols-[minmax(0,1fr)_20px] items-center gap-x-4 gap-y-1.5 px-4 py-3 text-[15px] text-foreground transition-colors hover:bg-surface-2 sm:px-5 lg:grid-cols-[minmax(0,1.3fr)_130px_100px_90px_minmax(0,1fr)_20px] lg:py-0"
+      >
+        <span className="flex min-w-0 flex-wrap items-center gap-2">
+          <SeloVersao versao={conversa.versao} />
+          <strong className="font-semibold">{conversa.nome}</strong>
+          <SeloConta usuarioId={conversa.usuarioId} />
         </span>
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-    </Link>
+        <ChevronRight
+          aria-hidden="true"
+          className="row-span-2 size-[18px] text-muted-foreground lg:order-last lg:row-span-1"
+        />
+        {/* No celular, quando, perguntas, nota e situação viram uma linha só. */}
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground lg:contents lg:text-[15px]">
+          <span>{diaEHora(conversa.iniciadaEm)}</span>
+          <span className="text-foreground lg:text-[15px]">
+            <span className="lg:hidden">{perguntas}</span>
+            <span className="hidden lg:inline">{conversa.qtdPerguntas}</span>
+          </span>
+          {estrelas != null ? (
+            <span className="flex items-center gap-1 text-foreground">
+              <Star aria-hidden="true" className="size-[15px] fill-warning text-warning" />
+              <span className="sr-only">Nota </span>
+              {estrelas}
+            </span>
+          ) : (
+            <span>sem nota</span>
+          )}
+          <span className="flex flex-wrap gap-1.5">
+            <Selo tom={situacao.tom}>{situacao.texto}</Selo>
+            {lenta && (
+              <Selo tom="atencao">até {Math.round((conversa.latenciaMaxima ?? 0) / 1000)} s</Selo>
+            )}
+          </span>
+        </span>
+      </Link>
+    </li>
   );
 }
 
 /**
- * Marca a conversa feita com conta — sem dizer de quem.
+ * Quatro números, cada um com o contexto que o torna legível.
  *
- * Saber que a conversa tem conta ajuda a ler os números (quem tem conta volta,
- * quem é anônimo raramente volta). Saber QUEM é não ajuda a analisar resposta
- * nenhuma, e expõe o relato de saúde de uma pessoa identificada a quem só
- * precisava avaliar o assistente.
- */
-export function SeloConta({ usuarioId }: { usuarioId?: string }) {
-  if (!usuarioId) return null;
-  return (
-    <span
-      title="Conversa feita com conta"
-      className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-    >
-      com conta
-    </span>
-  );
-}
-
-export function SeloVersao({ versao }: { versao?: "a" | "b" }) {
-  // Sessões anteriores às duas interfaces não têm o campo: contam como "a",
-  // que era a única que existia.
-  const letra = (versao ?? "a").toUpperCase();
-  return (
-    <span
-      title={`Interface ${letra}`}
-      className={
-        "inline-grid size-5 place-items-center rounded text-[10px] font-bold text-white " +
-        (versao === "b" ? "bg-[#6b5bd2]" : "bg-primary")
-      }
-    >
-      {letra}
-    </span>
-  );
-}
-
-function Marcas({ conversa }: { conversa: ConversaResumida }) {
-  const marcas: { texto: string; tom?: "boa" | "ruim" | "alerta" }[] = [];
-
-  if (conversa.qtdPerguntas === 0) marcas.push({ texto: "sem interação · fora da análise" });
-  else
-    marcas.push({
-      texto: `${conversa.qtdPerguntas} ${conversa.qtdPerguntas === 1 ? "pergunta" : "perguntas"}`,
-    });
-
-  if (conversa.avaliacao?.estrelas != null)
-    marcas.push({ texto: "★".repeat(conversa.avaliacao.estrelas) });
-  if (conversa.avaliacao?.nps != null) marcas.push({ texto: `NPS ${conversa.avaliacao.nps}` });
-  if (conversa.negativos > 0) marcas.push({ texto: `${conversa.negativos} ruim`, tom: "ruim" });
-  if (conversa.positivos > 0) marcas.push({ texto: `${conversa.positivos} boa`, tom: "boa" });
-  if (conversa.semResposta > 0)
-    marcas.push({ texto: `${conversa.semResposta} sem resposta`, tom: "alerta" });
-  if (conversa.erros > 0) marcas.push({ texto: `${conversa.erros} falhou`, tom: "ruim" });
-  if (conversa.latenciaMaxima != null && conversa.latenciaMaxima >= 30_000)
-    marcas.push({ texto: `até ${Math.round(conversa.latenciaMaxima / 1000)}s`, tom: "alerta" });
-
-  return (
-    <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-      <span>{formatarData(conversa.iniciadaEm)}</span>
-      {marcas.map(({ texto, tom }) => (
-        <span
-          key={texto}
-          className={
-            "rounded-full border px-2 py-0.5 " +
-            (tom === "boa"
-              ? "border-success/50 text-success"
-              : tom === "ruim"
-                ? "border-destructive/50 text-destructive"
-                : tom === "alerta"
-                  ? "border-warning/50 text-warning"
-                  : "border-border")
-          }
-        >
-          {texto}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-/**
- * Os números do topo, agrupados por pergunta.
- *
- * Uma fileira única de dez cartões iguais obriga a ler todos para achar um.
- * Separados por assunto — quanto usaram, se gostaram, se aguentou —, dá para ir
- * direto ao que interessa. Só o que precisa de atenção ganha cor.
+ * LÓGICA DO LUCIANO: eram dez cartões iguais em três grupos, e um número solto
+ * ("84") não diz se é bom ou ruim. Cada cartão agora responde a uma pergunta
+ * (quanto usaram, se gostaram, onde faltou resposta, se aguentou) e traz na
+ * linha de baixo o que dá sentido ao número. Só o que pede atenção ganha cor.
  */
 function Numeros({ dados }: { dados: EstatisticasConversas }) {
-  const grupos: { titulo: string; itens: [string, string, boolean?][] }[] = [
-    {
-      titulo: "Uso",
-      itens: [
-        ["Conversas", String(dados.sessoes)],
-        ["Perguntas", String(dados.respostas)],
-        ["Avaliadas", `${dados.sessoesAvaliadas}/${dados.sessoes}`],
-      ],
-    },
-    {
-      titulo: "Qualidade",
-      itens: [
-        ["Nota média", dados.notaMedia ? `${dados.notaMedia.toFixed(1)} ★` : "—"],
-        ["NPS", dados.npsScore != null ? String(dados.npsScore) : "—"],
-        [
-          "Não encontrou",
-          dados.percentualSemResposta != null ? `${dados.percentualSemResposta.toFixed(0)}%` : "—",
-          (dados.percentualSemResposta ?? 0) >= 30,
-        ],
-      ],
-    },
-    {
-      titulo: "Desempenho",
-      itens: [
-        [
-          "Tempo médio",
-          dados.latenciaMedia ? `${(dados.latenciaMedia / 1000).toFixed(1)}s` : "—",
-          (dados.latenciaMedia ?? 0) >= 30_000,
-        ],
-        ["Acima de 30s", String(dados.respostasLentas), dados.respostasLentas > 0],
-        ["Falhas", String(dados.erros), dados.erros > 0],
-      ],
-    },
-  ];
+  const fila = useQuery({ queryKey: ["curadoria-fila"], queryFn: () => getFilaCuradoria() });
+  const pendentes = fila.data?.pendentes ?? 0;
+  const semResposta = dados.percentualSemResposta;
+  const segundos = (ms: number) => `${(ms / 1000).toFixed(1).replace(".", ",")} s`;
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {grupos.map(({ titulo, itens }) => (
-          <section key={titulo}>
-            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {titulo}
-            </h3>
-            <div className="grid grid-cols-3 gap-2">
-              {itens.map(([rotulo, valor, alerta]) => (
-                <div
-                  key={rotulo}
-                  className={
-                    "rounded-lg border panel-surface p-3 " +
-                    (alerta ? "border-warning/60" : "border-border")
-                  }
-                >
-                  <span
-                    className={
-                      "block text-lg font-semibold tabular-nums " + (alerta ? "text-warning" : "")
-                    }
-                  >
-                    {valor}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">{rotulo}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-3.5">
+        <CartaoNumero
+          rotulo="Conversas"
+          valor={dados.sessoes.toLocaleString("pt-BR")}
+          contexto={`${dados.respostas.toLocaleString("pt-BR")} perguntas feitas`}
+        />
+        <CartaoNumero
+          rotulo="Nota média"
+          valor={dados.notaMedia ? dados.notaMedia.toFixed(1).replace(".", ",") : "sem nota"}
+          contexto={
+            `${dados.sessoesAvaliadas} ${dados.sessoesAvaliadas === 1 ? "avaliação" : "avaliações"}, de 1 a 5` +
+            (dados.npsScore != null ? ` · NPS ${dados.npsScore}` : "")
+          }
+        />
+        <CartaoNumero
+          rotulo="Sem resposta"
+          valor={semResposta != null ? `${semResposta.toFixed(0)}%` : "nenhuma"}
+          tom={(semResposta ?? 0) >= 30 ? "warning" : undefined}
+          contexto={
+            // A lacuna vira tarefa: o número vem com o caminho para a fila.
+            pendentes > 0 ? (
+              <Link to="/curadoria" className="text-foreground underline underline-offset-2 hover:text-primary">
+                {pendentes} {pendentes === 1 ? "espera" : "esperam"} análise na fila
+              </Link>
+            ) : (
+              "das perguntas feitas"
+            )
+          }
+        />
+        <CartaoNumero
+          rotulo="Falhas"
+          valor={dados.erros.toLocaleString("pt-BR")}
+          tom={dados.erros > 0 ? "destructive" : undefined}
+          contexto={
+            dados.latenciaMedia
+              ? `tempo médio de resposta: ${segundos(dados.latenciaMedia)}` +
+                (dados.respostasLentas > 0 ? ` · ${dados.respostasLentas} acima de 30 s` : "")
+              : "sem respostas no período"
+          }
+        />
       </div>
 
       {/* Dito em voz baixa, mas dito: sem isto alguém compara o total daqui com
           o número de links distribuídos e conclui que sumiram sessões. */}
       {dados.sessoesVazias > 0 && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {dados.sessoesVazias}{" "}
-          {dados.sessoesVazias === 1 ? "visita não entrou" : "visitas não entraram"} nos números
-          acima — abriram a página e saíram sem perguntar nada. Aparecem no filtro “Todas”.
+          {dados.sessoesVazias === 1 ? "visita não entrou" : "visitas não entraram"} nos números:
+          abriram a página e saíram sem perguntar nada. Aparecem na situação “Todas”.
         </p>
       )}
     </div>
   );
 }
 
-export function formatarData(valor: string) {
-  return new Date(valor).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function CartaoNumero({
+  rotulo,
+  valor,
+  contexto,
+  tom,
+}: {
+  rotulo: string;
+  valor: string;
+  contexto: React.ReactNode;
+  tom?: "warning" | "destructive";
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-border bg-card px-4 py-3.5 lg:px-5 lg:py-[18px]">
+      <span className="text-sm font-medium text-muted-foreground">{rotulo}</span>
+      <strong
+        className={
+          "text-[26px] font-semibold leading-tight tabular-nums lg:text-[32px] " +
+          (tom === "warning" ? "text-warning" : tom === "destructive" ? "text-destructive" : "")
+        }
+      >
+        {valor}
+      </strong>
+      <span className="text-sm text-muted-foreground">{contexto}</span>
+    </div>
+  );
 }

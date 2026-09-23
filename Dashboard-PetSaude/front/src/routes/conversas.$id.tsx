@@ -7,7 +7,8 @@ import { GateShell } from "@/components/gate";
 import { ApagarConversa } from "@/components/apagar-conversa";
 import { exigirAdmin } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
-import { SeloConta, SeloVersao, formatarData } from "./conversas.index";
+import { SeloConta, SeloVersao } from "@/components/selos-conversa";
+import { diaEHora } from "@/lib/datas";
 import { Carregando } from "@/components/carregando";
 
 export const Route = createFileRoute("/conversas/$id")({
@@ -57,7 +58,7 @@ function ConversaPage() {
                 <SeloConta usuarioId={sessao.usuarioId} />
               </h2>
               <p className="text-sm text-muted-foreground">
-                {formatarData(sessao.iniciadaEm)} · {duracao(sessao.iniciadaEm, sessao.encerradaEm)}
+                {diaEHora(sessao.iniciadaEm)} · {duracao(sessao.iniciadaEm, sessao.encerradaEm)}
               </p>
               <div className="mt-2 -ml-3">
                 <ApagarConversa id={id} />
