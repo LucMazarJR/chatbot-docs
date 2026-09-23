@@ -56,12 +56,10 @@ export async function POST(requisicao: Request) {
 
   // Vale o TEXTO da resposta, e não a ausência de trechos.
   //
-  // Antes, `temContexto === false` sozinho já marcava a mensagem como lacuna da
-  // base. Mas o prompt manda o agente saudar sem depender de trecho nenhum:
-  // "oi", "olá" e "bom dia" chegavam aqui sem contexto, eram respondidos
-  // corretamente, e mesmo assim entravam na conta. Na primeira rodada de testes
-  // isso foi 8 das 28 marcações — 29% do indicador era ruído, e o indicador é
-  // justamente o que diz se a base precisa crescer.
+  // Com `temContexto === false` sozinho, toda saudação contaria como lacuna da
+  // base: o prompt manda o agente responder "oi", "olá" e "bom dia" sem trecho
+  // nenhum, e a resposta está certa. Numa rodada de testes isso deu 8 de 28
+  // marcações, ou 29% de ruído no indicador que diz se a base precisa crescer.
   const semResposta = RE_NAO_ENCONTREI.test(resposta);
 
   await col.updateOne(
