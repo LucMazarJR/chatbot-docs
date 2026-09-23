@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { ehVersaoAntiga, recarregarParaVersaoNova } from "../lib/versao-nova";
 
 function NotFoundComponent() {
   return (
@@ -35,9 +36,11 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const versaoAntiga = ehVersaoAntiga(error);
   useEffect(() => {
+    if (versaoAntiga && recarregarParaVersaoNova()) return;
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+  }, [error, versaoAntiga]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -51,6 +54,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
+              // Arquivo de tela que sumiu só volta com a página inteira.
+              if (versaoAntiga) {
+                window.location.reload();
+                return;
+              }
               router.invalidate();
               reset();
             }}
@@ -125,6 +133,16 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // A falha de arquivo de tela nem sempre chega à tela de erro: quando o Vite
+  // pré-carrega a próxima tela, ela vem por este evento.
+  useEffect(() => {
+    const aoFalhar = (evento: Event) => {
+      if (recarregarParaVersaoNova()) evento.preventDefault();
+    };
+    window.addEventListener("vite:preloadError", aoFalhar);
+    return () => window.removeEventListener("vite:preloadError", aoFalhar);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
