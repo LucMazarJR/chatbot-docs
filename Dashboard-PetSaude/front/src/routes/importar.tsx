@@ -6,6 +6,9 @@ import { FileUp, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { GateShell, usePodeEscrever, useSession } from "@/components/gate";
+import { Carregando } from "@/components/carregando";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoVazio } from "@/components/estado";
 import { ModeloBotoes } from "@/components/modelo-botoes";
 import { PreviaImportacao, type FaqEditavel } from "@/components/previa-importacao";
 import { Button } from "@/components/ui/button";
@@ -58,6 +61,9 @@ const ROTULO_ESTADO: Record<Job["estado"], string> = {
   erro: "Não foi possível concluir",
 };
 
+/** "1 pergunta", "3 perguntas": sem o "(s)", que se lê como formulário. */
+const perguntas = (n: number) => `${n} ${n === 1 ? "pergunta" : "perguntas"}`;
+
 function AreaDeArquivo({
   aoEscolher,
   desabilitado,
@@ -83,15 +89,15 @@ function AreaDeArquivo({
         const solto = e.dataTransfer.files?.[0];
         if (solto) aoEscolher(solto);
       }}
-      className={`rounded-lg border-2 border-dashed p-6 text-center transition-colors sm:p-8 ${
-        arrastando ? "border-primary bg-primary/5" : "border-border"
+      className={`rounded-xl border-2 border-dashed bg-card p-6 text-center transition-colors sm:p-8 ${
+        arrastando ? "border-primary bg-primary-soft" : "border-border"
       }`}
     >
       <FileUp className="mx-auto size-8 text-muted-foreground" />
-      <p className="mt-3 text-sm font-medium">
+      <p className="mt-3 text-[15px] font-semibold">
         {arquivo ? arquivo.name : "Arraste o arquivo aqui"}
       </p>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-1 text-sm text-muted-foreground">
         Planilha do Excel ou documento do Word, até 10 MB
       </p>
 
@@ -116,7 +122,7 @@ function AreaDeArquivo({
         disabled={desabilitado}
         onClick={() => input.current?.click()}
       >
-        <Upload className="size-4" /> Escolher arquivo
+        <Upload /> Escolher arquivo
       </Button>
     </div>
   );
@@ -127,10 +133,10 @@ function Andamento({ job, ehAdmin, aoParar }: { job: Job; ehAdmin: boolean; aoPa
   const semVetor = job.contadores.semEmbedding ?? 0;
 
   return (
-    <section className="rounded-lg border border-border panel-surface p-4 sm:p-5">
+    <section role="status" className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold">{ROTULO_ESTADO[job.estado]}</h2>
-        <p className="text-xs text-muted-foreground">
+        <h2 className="text-lg font-semibold">{ROTULO_ESTADO[job.estado]}</h2>
+        <p className="text-sm text-muted-foreground">
           {job.processados} de {job.total} · iniciado por {job.atorNome}
         </p>
       </div>
@@ -149,12 +155,15 @@ function Andamento({ job, ehAdmin, aoParar }: { job: Job; ehAdmin: boolean; aoPa
         // A FAQ entrou mas o chatbot nao a encontra. Sem este aviso, o defeito
         // so apareceria semanas depois, quando alguem notasse que uma pergunta
         // nunca e respondida.
-        <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-          {semVetor} pergunta(s) foram salvas, mas{" "}
+        <p className="mt-3 rounded-lg bg-warning-soft p-3 text-[15px]">
+          {semVetor === 1 ? "1 pergunta foi salva" : `${semVetor} perguntas foram salvas`}, mas{" "}
           <strong>o chatbot ainda não consegue encontrá-las</strong>.{" "}
           {ehAdmin ? "" : "Avise um administrador para concluir. "}
           {ehAdmin ? (
-            <Link to="/configuracoes" className="underline underline-offset-2">
+            <Link
+              to="/configuracoes"
+              className="font-semibold text-primary underline underline-offset-2"
+            >
               Concluir em Configurações
             </Link>
           ) : null}
@@ -164,11 +173,13 @@ function Andamento({ job, ehAdmin, aoParar }: { job: Job; ehAdmin: boolean; aoPa
       {job.erros.length > 0 && (
         <details className="mt-3">
           <summary className="cursor-pointer text-sm text-muted-foreground">
-            {job.erros.length + job.errosOmitidos} linha(s) com problema
+            {job.erros.length + job.errosOmitidos === 1
+              ? "1 linha com problema"
+              : `${job.erros.length + job.errosOmitidos} linhas com problema`}
           </summary>
           <ul className="mt-2 space-y-1">
             {job.erros.map((erro, i) => (
-              <li key={i} className="break-words text-xs text-destructive">
+              <li key={i} className="break-words text-sm text-destructive">
                 linha {erro.linha}: {erro.mensagem}
               </li>
             ))}
@@ -178,7 +189,7 @@ function Andamento({ job, ehAdmin, aoParar }: { job: Job; ehAdmin: boolean; aoPa
 
       {job.estado === "rodando" ? (
         <Button type="button" variant="outline" size="sm" className="mt-4" onClick={aoParar}>
-          <X className="size-4" /> Parar
+          <X /> Parar
         </Button>
       ) : (
         (job.contadores.inseridas ?? 0) > 0 && (
@@ -284,7 +295,15 @@ function PainelImportacao() {
 
   const processar = async (escolhido: File) => {
     if (!script.data) {
-      toast.error("A leitura de documentos não está configurada. Fale com um administrador.");
+      // Três motivos diferentes, três frases: dizer "não está configurada"
+      // enquanto a regra só está chegando mandava a pessoa chamar um admin à toa.
+      toast.error(
+        script.isLoading
+          ? "A regra de leitura ainda está carregando. Tente de novo em alguns segundos."
+          : script.isError
+            ? "Não foi possível carregar a regra de leitura. Confira a internet e tente de novo."
+            : "A leitura de documentos não está configurada. Fale com um administrador.",
+      );
       return;
     }
 
@@ -324,7 +343,8 @@ function PainelImportacao() {
         (i) => i.estado === "duplicada" || i.parecida,
       ).length;
       toast.success(
-        `${novas} nova(s), ${repetidas} já existente(s), ` +
+        `${novas} ${novas === 1 ? "nova" : "novas"}, ` +
+          `${repetidas} ${repetidas === 1 ? "já existente" : "já existentes"}, ` +
           `${resultado.resumo.invalidas} com problema.`,
       );
     } catch (erro) {
@@ -350,7 +370,8 @@ function PainelImportacao() {
       );
       return revalidar(comEdicao, true);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível revalidar"),
+    onError: (erro: Error) =>
+      toast.error(erro.message || "Não foi possível conferir a edição. Tente de novo."),
   });
 
   const mutAssunto = useMutation({
@@ -365,7 +386,8 @@ function PainelImportacao() {
       return revalidar(comAssunto, true);
     },
     onSuccess: () => toast.success("Assunto aplicado a todas as linhas."),
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível aplicar"),
+    onError: (erro: Error) =>
+      toast.error(erro.message || "Não foi possível aplicar o assunto. Tente de novo."),
   });
 
   const mutCommit = useMutation({
@@ -387,11 +409,14 @@ function PainelImportacao() {
     onSuccess: (resultado) => {
       setConfirmando(false);
       setJobId(resultado.jobId);
-      toast.success(`Salvando ${resultado.total} pergunta(s).`);
+      toast.success(`Salvando ${perguntas(resultado.total)}.`);
     },
     onError: (erro: Error) => {
       setConfirmando(false);
-      toast.error(erro.message || "Não foi possível iniciar a importação");
+      toast.error(
+        erro.message ||
+          "Não foi possível começar a importação. Confira a internet e tente de novo.",
+      );
     },
   });
 
@@ -407,29 +432,26 @@ function PainelImportacao() {
 
   if (!podeEscrever) {
     return (
-      <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-        Seu perfil é apenas de leitura. Peça a um editor ou administrador para importar.
-      </p>
+      <EstadoVazio titulo="Seu perfil é só de leitura">
+        Peça a um editor ou administrador para importar perguntas.
+      </EstadoVazio>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Importar perguntas</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Envie uma planilha ou um documento no formato do modelo. Nada é salvo antes de você
-          conferir a prévia.
-        </p>
-      </div>
+      <CabecalhoPagina
+        titulo="Importar perguntas"
+        frase="Envie uma planilha ou um documento no formato do modelo. Nada é salvo antes de você conferir a prévia."
+      />
 
-      <section className="rounded-lg border border-border panel-surface p-4 sm:p-5">
-        <h2 className="text-base font-semibold">Não tem o modelo?</h2>
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+        <h2 className="text-lg font-semibold">Não tem o modelo?</h2>
         <p className="mt-1 mb-3 text-sm text-muted-foreground">
           Baixe o arquivo em branco, preencha e envie de volta. Ele já vem com um exemplo preenchido
           e sempre no formato que a leitura espera.
         </p>
-        <ModeloBotoes codigo={script.data?.code} desabilitado={script.isLoading} />
+        <ModeloBotoes codigo={script.data?.code} carregando={script.isLoading} />
       </section>
 
       <AreaDeArquivo
@@ -438,14 +460,14 @@ function PainelImportacao() {
         desabilitado={lendo || rodando}
       />
 
-      {lendo && <p className="text-sm text-muted-foreground">Lendo o arquivo…</p>}
+      {lendo && <Carregando compacto texto="Lendo o arquivo…" />}
 
       {avisos.length > 0 && (
-        <section className="rounded-lg border border-warning/40 bg-warning/10 p-4">
-          <h2 className="text-sm font-semibold">Avisos da leitura</h2>
+        <section className="rounded-xl bg-warning-soft p-4">
+          <h2 className="text-[15px] font-semibold">Avisos da leitura</h2>
           <ul className="mt-2 space-y-1">
             {avisos.map((aviso, i) => (
-              <li key={i} className="break-words text-sm text-muted-foreground">
+              <li key={i} className="break-words text-[15px]">
                 {aviso.linha > 0 ? `linha ${aviso.linha}: ` : ""}
                 {aviso.mensagem}
               </li>
@@ -457,13 +479,23 @@ function PainelImportacao() {
       {itens.length > 0 && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">Prévia · {totalSelecionado} selecionada(s)</h2>
+            <h2 className="text-lg font-semibold">
+              Prévia · {totalSelecionado === 1 ? "1 marcada" : `${totalSelecionado} marcadas`}
+            </h2>
+            {/* Aceita o toque e diz o que falta: apagado, o botão não explicava
+                que era preciso marcar alguma linha. */}
             <Button
               type="button"
-              disabled={totalSelecionado === 0 || rodando || mutCommit.isPending}
-              onClick={() => setConfirmando(true)}
+              disabled={rodando || mutCommit.isPending}
+              onClick={() => {
+                if (totalSelecionado === 0) {
+                  toast.info("Marque na prévia as perguntas que quer importar.");
+                  return;
+                }
+                setConfirmando(true);
+              }}
             >
-              Importar {totalSelecionado > 0 ? `${totalSelecionado} pergunta(s)` : ""}
+              {totalSelecionado > 0 ? `Importar ${perguntas(totalSelecionado)}` : "Importar"}
             </Button>
           </div>
 
@@ -471,14 +503,14 @@ function PainelImportacao() {
             LÓGICA DO LUCIANO: o assunto do lote é editável aqui porque, quando
             o documento não diz qual é, ele vem do NOME DO ARQUIVO. No arquivo
             real que motivou isto, um .docx baixado duas vezes, o assunto saiu
-            como "violencia contra as mulheres (1)" — com o "(1)" do download
+            como "violencia contra as mulheres (1)", com o "(1)" do download
             duplicado. Isso entraria na base e viraria uma categoria permanente,
             visível para sempre na tela de assuntos, e ninguém repararia até
             alguém estranhar a lista.
           */}
-          <div className="rounded-lg border border-border panel-surface p-4">
+          <div className="rounded-xl border border-border bg-card p-4">
             <Label htmlFor="assunto-do-lote">Assunto de todas estas perguntas</Label>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               Quando o documento não indica o assunto, ele é deduzido do nome do arquivo. Confira
               antes de importar.
             </p>
@@ -494,8 +526,14 @@ function PainelImportacao() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={assuntoLote.trim().length < 2 || rodando || mutAssunto.isPending}
-                onClick={() => mutAssunto.mutate(assuntoLote.trim().toLowerCase())}
+                disabled={rodando || mutAssunto.isPending}
+                onClick={() => {
+                  if (assuntoLote.trim().length < 2) {
+                    toast.info("Escreva o assunto, com ao menos 2 letras.");
+                    return;
+                  }
+                  mutAssunto.mutate(assuntoLote.trim().toLowerCase());
+                }}
               >
                 Aplicar a todas
               </Button>
@@ -517,7 +555,7 @@ function PainelImportacao() {
       <AlertDialog open={confirmando} onOpenChange={setConfirmando}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Importar {totalSelecionado} pergunta(s)?</AlertDialogTitle>
+            <AlertDialogTitle>Importar {perguntas(totalSelecionado)}?</AlertDialogTitle>
             <AlertDialogDescription>
               Cada pergunta precisa ser preparada para a busca do chatbot, o que leva alguns
               segundos por linha. Você pode fechar a aba: o trabalho continua e o andamento

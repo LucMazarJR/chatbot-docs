@@ -42,6 +42,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { exigirSessao } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoFalha, EstadoVazio } from "@/components/estado";
+import { Selo, type TomDoSelo } from "@/components/selo";
 
 export const Route = createFileRoute("/categorias/")({
   beforeLoad: () => exigirSessao(),
@@ -68,33 +71,33 @@ export const Route = createFileRoute("/categorias/")({
  * O que cada motivo significa em uma frase, e o quanto ele pesa.
  *
  * LÓGICA DO LUCIANO: a diferença entre estes quatro é a diferença entre
- * trabalhos completamente distintos. `variante` é mecânico — a chave já disse
+ * trabalhos completamente distintos. `variante` é mecânico: a chave já disse
  * que é o mesmo assunto, só falta escrever igual, e um botão resolve o grupo
  * inteiro. `fora_da_lista` precisa de alguém da saúde decidindo se aquilo é um
  * assunto de verdade. Misturar os dois numa lista só de "problemas" é o que
  * fazia a curadoria parecer impossível: 236 itens sem fila nem prioridade.
  */
-const MOTIVOS: Record<MotivoRevisao, { rotulo: string; explicacao: string; tom: string }> = {
+const MOTIVOS: Record<MotivoRevisao, { rotulo: string; explicacao: string; tom: TomDoSelo }> = {
   variante: {
     rotulo: "Grafia diferente",
     explicacao: "É um assunto da lista, escrito de outro jeito. Padronizar resolve o grupo todo.",
-    tom: "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400",
+    tom: "atencao",
   },
   fora_da_lista: {
     rotulo: "Fora da lista",
     explicacao: "Nenhum assunto oficial corresponde. Alguém precisa decidir o destino.",
-    tom: "border-destructive/40 bg-destructive/5 text-destructive",
+    tom: "erro",
   },
   inativa: {
     rotulo: "Assunto aposentado",
     explicacao:
       "A categoria existe, mas foi desativada. As perguntas continuam apontando para ela.",
-    tom: "border-muted-foreground/30 bg-muted text-muted-foreground",
+    tom: "neutro",
   },
   sem_categoria: {
     rotulo: "Sem categoria",
     explicacao: "O campo está vazio. A pergunta entra na busca sem assunto nenhum.",
-    tom: "border-destructive/40 bg-destructive/5 text-destructive",
+    tom: "erro",
   },
 };
 
@@ -119,35 +122,41 @@ function CategoriasPage() {
 
   return (
     <GateShell>
-      <div className="space-y-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">Categorias</h2>
-            <p className="text-sm text-muted-foreground">
-              {categorias.length === 0
-                ? "A lista de assuntos ainda não foi definida"
-                : `${categorias.length} ${categorias.length === 1 ? "assunto" : "assuntos"} na lista oficial`}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {podeDefinir && (
-              <Button
-                onClick={() => {
-                  setEmEdicao(null);
-                  setFormAberto(true);
-                }}
-              >
-                <Plus className="size-4" /> Nova categoria
-              </Button>
-            )}
-            <InsertFaqButton />
-          </div>
-        </div>
+      <div className="space-y-6">
+        <CabecalhoPagina
+          titulo="Categorias"
+          frase={
+            // "Lista ainda não definida" só com a resposta na mão: durante a
+            // espera, a lista vazia é só a que ainda não chegou.
+            !listaQuery.data
+              ? "Os assuntos oficiais em que as perguntas se organizam."
+              : categorias.length === 0
+                ? "A lista de assuntos ainda não foi definida."
+                : `${categorias.length} ${categorias.length === 1 ? "assunto" : "assuntos"} na lista oficial.`
+          }
+          acoes={
+            <>
+              <InsertFaqButton label="Inserir pergunta" />
+              {podeDefinir && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEmEdicao(null);
+                    setFormAberto(true);
+                  }}
+                >
+                  <Plus /> Nova categoria
+                </Button>
+              )}
+            </>
+          }
+        />
 
         <ListaOficial
           categorias={categorias}
           carregando={listaQuery.isLoading}
           erro={listaQuery.isError}
+          tentarDeNovo={() => listaQuery.refetch()}
           podeDefinir={podeDefinir}
           onEditar={(categoria) => {
             setEmEdicao(categoria);
@@ -155,7 +164,21 @@ function CategoriasPage() {
           }}
         />
 
-        <Revisao revisao={revisao} carregando={revisaoQuery.isLoading} podeDefinir={podeDefinir} />
+        {revisaoQuery.isError ? (
+          <EstadoFalha
+            onTentarDeNovo={() => revisaoQuery.refetch()}
+            tentando={revisaoQuery.isFetching}
+          >
+            Não foi possível ver quais perguntas precisam de revisão. Confira a internet e tente de
+            novo.
+          </EstadoFalha>
+        ) : (
+          <Revisao
+            revisao={revisao}
+            carregando={revisaoQuery.isLoading}
+            podeDefinir={podeDefinir}
+          />
+        )}
       </div>
 
       <DialogoCategoria aberto={formAberto} onOpenChange={setFormAberto} categoria={emEdicao} />
@@ -167,20 +190,22 @@ function ListaOficial({
   categorias,
   carregando,
   erro,
+  tentarDeNovo,
   podeDefinir,
   onEditar,
 }: {
   categorias: Categoria[];
   carregando: boolean;
   erro: boolean;
+  tentarDeNovo: () => void;
   podeDefinir: boolean;
   onEditar: (categoria: Categoria) => void;
 }) {
   if (erro) {
     return (
-      <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
-        Não foi possível carregar os assuntos. Verifique a conexão e tente recarregar.
-      </p>
+      <EstadoFalha onTentarDeNovo={tentarDeNovo}>
+        Não foi possível carregar os assuntos. Confira a internet e tente de novo.
+      </EstadoFalha>
     );
   }
 
@@ -188,14 +213,11 @@ function ListaOficial({
 
   if (categorias.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border p-6 text-center sm:p-8">
-        <p className="text-sm font-medium">A lista de assuntos começa vazia, de propósito</p>
-        <p className="mx-auto mt-2 max-w-prose text-sm text-muted-foreground">
-          Quem define quais assuntos existem é a equipe de saúde. Enquanto a lista estiver vazia, o
-          formulário de FAQ continua aceitando texto livre — e todas as perguntas da base aparecem
-          abaixo como fora da lista, que é verdade, mas não ajuda ninguém.
-        </p>
-      </div>
+      <EstadoVazio titulo="A lista de assuntos começa vazia, de propósito">
+        Quem define quais assuntos existem é a equipe de saúde. Enquanto a lista estiver vazia, o
+        formulário de FAQ continua aceitando texto livre, e todas as perguntas da base aparecem
+        abaixo como fora da lista.
+      </EstadoVazio>
     );
   }
 
@@ -204,19 +226,15 @@ function ListaOficial({
       {categorias.map((categoria) => (
         <li
           key={categoria.id}
-          className="flex flex-col justify-between gap-3 rounded-lg border border-border panel-surface p-4 sm:p-5"
+          className="flex flex-col justify-between gap-3 rounded-xl border border-border bg-card p-4 sm:p-5"
         >
           <div>
             <div className="flex items-start justify-between gap-2">
               <span className="text-base font-semibold">{categoria.nome}</span>
-              {!categoria.ativa && (
-                <span className="shrink-0 rounded-full border border-muted-foreground/30 bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  aposentado
-                </span>
-              )}
+              {!categoria.ativa && <Selo>Aposentado</Selo>}
             </div>
             {categoria.descricao && (
-              <p className="mt-1 text-xs text-muted-foreground">{categoria.descricao}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{categoria.descricao}</p>
             )}
           </div>
 
@@ -224,10 +242,10 @@ function ListaOficial({
             <Link
               to="/categorias/$categoria"
               params={{ categoria: categoria.nome }}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary hover:underline"
             >
               {categoria.faqs} {categoria.faqs === 1 ? "pergunta" : "perguntas"}
-              <ChevronRight className="size-3.5" />
+              <ChevronRight className="size-4" />
             </Link>
             {podeDefinir && (
               <div className="flex gap-1">
@@ -262,10 +280,10 @@ function Revisao({
   if (revisao.grupos.length === 0) {
     return (
       <section className="space-y-3">
-        <h3 className="text-base font-semibold">Precisa de revisão</h3>
-        <p className="rounded-lg border border-border panel-surface p-4 text-sm text-muted-foreground">
-          Nenhuma pergunta está fora da lista. Toda FAQ ativa aponta para um assunto oficial.
-        </p>
+        <h2 className="text-lg font-semibold">Precisa de revisão</h2>
+        <EstadoVazio titulo="Nenhuma pergunta fora da lista">
+          Toda FAQ ativa aponta para um assunto oficial.
+        </EstadoVazio>
       </section>
     );
   }
@@ -273,8 +291,8 @@ function Revisao({
   return (
     <section className="space-y-3">
       <div>
-        <h3 className="text-base font-semibold">Precisa de revisão</h3>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-lg font-semibold">Precisa de revisão</h2>
+        <p className="text-[15px] text-muted-foreground">
           {revisao.resumo.faqs} {revisao.resumo.faqs === 1 ? "pergunta" : "perguntas"} em{" "}
           {revisao.resumo.grupos} {revisao.resumo.grupos === 1 ? "assunto" : "assuntos"} que não
           fecham com a lista. Os que afetam mais perguntas vêm primeiro.
@@ -282,10 +300,10 @@ function Revisao({
       </div>
 
       {revisao.listaVazia && (
-        <p className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+        <p className="flex items-start gap-2.5 rounded-lg bg-warning-soft p-4 text-[15px] text-foreground">
+          <AlertTriangle className="mt-0.5 size-[18px] shrink-0 text-warning" />
           <span>
-            Com a lista vazia, tudo aparece aqui. Cadastre os assuntos primeiro — quando um nome
+            Com a lista vazia, tudo aparece aqui. Cadastre os assuntos primeiro: quando um nome
             desta lista virar categoria oficial, as perguntas dele saem daqui sem mais nenhum
             trabalho, e sem regerar vetor nenhum.
           </span>
@@ -318,22 +336,23 @@ function CartaoRevisao({ grupo, podeDefinir }: { grupo: GrupoRevisao; podeDefini
       await queryClient.invalidateQueries({ queryKey: ["categorias-revisao"] });
       toast.success(`"${grupo.categoria}" entrou na lista oficial`);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível adicionar"),
+    onError: (erro: Error) =>
+      toast.error(
+        erro.message || "Não foi possível adicionar. Confira a internet e tente de novo.",
+      ),
   });
 
   return (
-    <li className="rounded-lg border border-border panel-surface p-4 sm:p-5">
+    <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-base font-semibold">{grupo.categoria || "(campo vazio)"}</span>
-            <span className={`rounded-full border px-2 py-0.5 text-xs ${motivo.tom}`}>
-              {motivo.rotulo}
-            </span>
+            <Selo tom={motivo.tom}>{motivo.rotulo}</Selo>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{motivo.explicacao}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{motivo.explicacao}</p>
           {grupo.sugestao && (
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               Assunto oficial correspondente: <strong>{grupo.sugestao}</strong>
             </p>
           )}
@@ -343,10 +362,10 @@ function CartaoRevisao({ grupo, podeDefinir }: { grupo: GrupoRevisao; podeDefini
           <Link
             to="/categorias/$categoria"
             params={{ categoria: grupo.categoria || "Sem categoria" }}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary hover:underline"
           >
             {grupo.quantidade} {grupo.quantidade === 1 ? "pergunta" : "perguntas"}
-            <ChevronRight className="size-3.5" />
+            <ChevronRight className="size-4" />
           </Link>
           {podeDefinir && grupo.motivo === "fora_da_lista" && (
             <Button
@@ -364,7 +383,7 @@ function CartaoRevisao({ grupo, podeDefinir }: { grupo: GrupoRevisao; podeDefini
       {grupo.exemplos.length > 0 && (
         <ul className="mt-3 space-y-1 border-t border-border pt-3">
           {grupo.exemplos.map((exemplo) => (
-            <li key={exemplo.id} className="truncate text-xs text-muted-foreground">
+            <li key={exemplo.id} className="truncate text-sm text-muted-foreground">
               <Link to="/faqs/$id" params={{ id: exemplo.id }} className="hover:text-foreground">
                 {exemplo.question}
               </Link>
@@ -423,7 +442,7 @@ function DialogoCategoria({
       if (reindexar > 0) {
         // Renomear reescreve o assunto dentro do texto que virou vetor. Sem
         // este aviso, a busca continuaria encontrando as perguntas pelo nome
-        // antigo — sem erro em lugar nenhum.
+        // antigo, sem erro em lugar nenhum.
         toast.success(
           `Categoria salva. ${reindexar} ${reindexar === 1 ? "pergunta precisa" : "perguntas precisam"} ser reindexada${reindexar === 1 ? "" : "s"} em Configurações.`,
         );
@@ -432,7 +451,8 @@ function DialogoCategoria({
       }
       onOpenChange(false);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível salvar"),
+    onError: (erro: Error) =>
+      toast.error(erro.message || "Não foi possível salvar. Confira a internet e tente de novo."),
   });
 
   const padronizar = useMutation({
@@ -445,10 +465,14 @@ function DialogoCategoria({
           : `${resultado.ajustadas} ${resultado.ajustadas === 1 ? "pergunta passou" : "perguntas passaram"} a usar "${categoria?.nome}". Reindexe em Configurações.`,
       );
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível padronizar"),
+    onError: (erro: Error) =>
+      toast.error(
+        erro.message || "Não foi possível padronizar. Confira a internet e tente de novo.",
+      ),
   });
 
   const valido = nome.trim().length >= 2;
+  const [tentou, setTentou] = useState(false);
 
   return (
     <Dialog open={aberto} onOpenChange={onOpenChange}>
@@ -471,7 +495,14 @@ function DialogoCategoria({
               maxLength={60}
               onChange={(e) => setNome(e.target.value)}
               placeholder="Ex.: Exames de sangue"
+              aria-invalid={tentou && !valido ? true : undefined}
+              aria-describedby="categoria-nome-falta"
             />
+            {tentou && !valido && (
+              <p id="categoria-nome-falta" className="text-sm font-semibold text-destructive">
+                Dê um nome ao assunto, com ao menos 2 letras.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -497,8 +528,8 @@ function DialogoCategoria({
                 />
                 <span>
                   Aposentar este assunto
-                  <span className="block text-xs text-muted-foreground">
-                    Some do formulário de FAQ, mas continua existindo — as perguntas que o usam
+                  <span className="block text-sm text-muted-foreground">
+                    Some do formulário de FAQ, mas continua existindo: as perguntas que o usam
                     passam a aparecer em "precisa de revisão".
                   </span>
                 </span>
@@ -506,7 +537,7 @@ function DialogoCategoria({
 
               <div className="rounded-lg border border-border p-3">
                 <p className="text-sm font-medium">Padronizar grafia</p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Reescreve "{categoria.nome.toLowerCase()}", "{categoria.nome.toUpperCase()}" e
                   variantes com acento para <strong>{categoria.nome}</strong>.
                 </p>
@@ -530,7 +561,14 @@ function DialogoCategoria({
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button disabled={!valido || salvar.isPending} onClick={() => salvar.mutate()}>
+          {/* Aceita o toque e diz o que falta, ao lado do campo. */}
+          <Button
+            disabled={salvar.isPending}
+            onClick={() => {
+              setTentou(true);
+              if (valido) salvar.mutate();
+            }}
+          >
             {salvar.isPending ? "Salvando…" : categoria ? "Salvar" : "Criar"}
           </Button>
         </DialogFooter>
@@ -553,12 +591,18 @@ function BotaoExcluir({ categoria }: { categoria: Categoria }) {
       setAberto(false);
     },
     // O backend recusa excluir assunto em uso e devolve a contagem na mensagem.
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível excluir"),
+    onError: (erro: Error) =>
+      toast.error(erro.message || "Não foi possível excluir. Confira a internet e tente de novo."),
   });
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setAberto(true)}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-destructive hover:bg-destructive-soft hover:text-destructive"
+        onClick={() => setAberto(true)}
+      >
         Excluir
       </Button>
       <AlertDialog open={aberto} onOpenChange={setAberto}>
@@ -573,6 +617,8 @@ function BotaoExcluir({ categoria }: { categoria: Categoria }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={mutation.isPending}
               onClick={(e) => {
                 e.preventDefault();
                 mutation.mutate();

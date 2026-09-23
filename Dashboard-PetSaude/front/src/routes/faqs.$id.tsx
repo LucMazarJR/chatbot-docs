@@ -7,9 +7,12 @@ import { FaqCard } from "@/components/faq-shared";
 import { exigirSessao } from "@/lib/guardas";
 import { getFaq } from "@/lib/faq.functions";
 import { Carregando } from "@/components/carregando";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoFalha } from "@/components/estado";
+import { Button } from "@/components/ui/button";
 
 /**
- * Uma pergunta isolada, com o mesmo cartão da listagem — e portanto os mesmos
+ * Uma pergunta isolada, com o cartão completo e os mesmos
  * botões de editar e excluir.
  *
  * O destino dos links vindos da tela de conversas: da resposta ruim direto ao
@@ -32,23 +35,30 @@ function FaqPage() {
 
   return (
     <GateShell>
-      <div className="space-y-6">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Todas as perguntas
-        </Link>
+      <div className="space-y-5">
+        <CabecalhoPagina
+          antes={
+            <Button asChild variant="outline" size="icon" aria-label="Voltar para as perguntas">
+              <Link to="/">
+                <ArrowLeft />
+              </Link>
+            </Button>
+          }
+          titulo="Pergunta"
+          frase="Como está na base que o chatbot lê para responder."
+        />
 
         {faq.isError ? (
-          <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
-            Pergunta não encontrada. Ela pode ter sido excluída depois da conversa.
-          </p>
+          <EstadoFalha onTentarDeNovo={() => faq.refetch()} tentando={faq.isFetching}>
+            Não foi possível abrir esta pergunta. Ela pode ter sido excluída depois da conversa; se
+            não foi, confira a internet e tente de novo.
+          </EstadoFalha>
         ) : faq.isLoading ? (
           <Carregando texto="Carregando a pergunta…" />
         ) : faq.data ? (
-          <FaqCard faq={faq.data} />
+          <ul>
+            <FaqCard faq={faq.data} />
+          </ul>
         ) : null}
       </div>
     </GateShell>

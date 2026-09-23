@@ -17,16 +17,21 @@ import { lerModeloDoScript, type ModeloDoScript } from "@/lib/sandbox";
  */
 export function ModeloBotoes({
   codigo,
-  desabilitado,
+  carregando,
 }: {
   codigo: string | undefined;
-  desabilitado?: boolean;
+  /** A regra ainda está chegando: o toque avisa, em vez de um botão apagado. */
+  carregando?: boolean;
 }) {
   const [gerando, setGerando] = useState<"xlsx" | "docx" | null>(null);
 
   const gerar = async (formato: "xlsx" | "docx") => {
     if (!codigo) {
-      toast.error("A leitura de documentos nao esta configurada.");
+      toast.error(
+        carregando
+          ? "A regra de leitura ainda está carregando. Tente de novo em alguns segundos."
+          : "A leitura de documentos não está configurada. Fale com um administrador.",
+      );
       return;
     }
 
@@ -39,7 +44,7 @@ export function ModeloBotoes({
         // Script sem `modelo` ainda deve conseguir gerar um arquivo: as colunas
         // padrão cobrem o caso, e um aviso é melhor que um botão que não faz
         // nada. Quem editou o script vai querer saber que esqueceu do export.
-        toast.warning("A regra nao descreve o formato. Gerando com o modelo padrao.", {
+        toast.warning("A regra não descreve o formato. Gerando com o modelo padrão.", {
           description: erro instanceof Error ? erro.message : undefined,
         });
       }
@@ -47,9 +52,12 @@ export function ModeloBotoes({
       if (formato === "xlsx") await baixarModeloExcel(modelo);
       else await baixarModeloWord(modelo);
     } catch (erro) {
-      toast.error("Nao foi possivel gerar o modelo", {
-        description: erro instanceof Error ? erro.message : String(erro),
-      });
+      toast.error(
+        "Não foi possível gerar o modelo. Tente de novo; se continuar, avise quem cuida da regra de leitura.",
+        {
+          description: erro instanceof Error ? erro.message : String(erro),
+        },
+      );
     } finally {
       setGerando(null);
     }
@@ -60,19 +68,19 @@ export function ModeloBotoes({
       <Button
         type="button"
         variant="outline"
-        disabled={desabilitado || gerando !== null}
+        disabled={gerando !== null}
         onClick={() => void gerar("xlsx")}
       >
-        <FileSpreadsheet className="size-4" />
+        <FileSpreadsheet />
         {gerando === "xlsx" ? "Gerando…" : "Modelo em Excel"}
       </Button>
       <Button
         type="button"
         variant="outline"
-        disabled={desabilitado || gerando !== null}
+        disabled={gerando !== null}
         onClick={() => void gerar("docx")}
       >
-        <FileText className="size-4" />
+        <FileText />
         {gerando === "docx" ? "Gerando…" : "Modelo em Word"}
       </Button>
     </div>

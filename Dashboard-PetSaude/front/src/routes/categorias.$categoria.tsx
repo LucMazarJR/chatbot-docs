@@ -7,7 +7,10 @@ import { listFaqs, SEM_CATEGORIA } from "@/lib/faq.functions";
 import { GateShell } from "@/components/gate";
 import { FaqPagination } from "@/components/faq-pagination";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
+import { FaqLinha, InsertFaqButton, SearchField } from "@/components/faq-shared";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoFalha, EstadoVazio } from "@/components/estado";
+import { Button } from "@/components/ui/button";
 import { exigirSessao } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
 
@@ -84,56 +87,74 @@ function CategoryPage() {
 
   return (
     <GateShell>
-      <div className="space-y-6">
-        <Link
-          to="/categorias"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> Todas as categorias
-        </Link>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">{categoria}</h2>
-            <p className="text-sm text-muted-foreground">
-              {total} {total === 1 ? "pergunta" : "perguntas"}
-              {totalPaginas > 1 ? ` · página ${page} de ${totalPaginas}` : ""}
-            </p>
-          </div>
-          <InsertFaqButton
-            defaultCategory={categoria === "Sem categoria" ? undefined : categoria}
-          />
-        </div>
+      <div className="space-y-5">
+        <CabecalhoPagina
+          antes={
+            <Button asChild variant="outline" size="icon" aria-label="Voltar para Categorias">
+              <Link to="/categorias">
+                <ArrowLeft />
+              </Link>
+            </Button>
+          }
+          titulo={categoria}
+          frase={
+            // O total só com a resposta: "0 perguntas" durante a espera diria
+            // que o assunto está vazio.
+            faqsQuery.data
+              ? `${total} ${total === 1 ? "pergunta" : "perguntas"} neste assunto.`
+              : "As perguntas deste assunto."
+          }
+          acoes={
+            <InsertFaqButton
+              label="Inserir pergunta"
+              defaultCategory={categoria === "Sem categoria" ? undefined : categoria}
+            />
+          }
+        />
 
         <SearchField
           value={termo}
           onChange={aplicarBusca}
-          placeholder="Pesquisar nesta categoria por pergunta ou tag…"
+          placeholder="Pesquisar neste assunto por pergunta ou tag…"
         />
 
         {faqsQuery.isError ? (
-          <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
-            Não foi possível carregar as perguntas. Verifique a conexão e tente recarregar.
-          </p>
+          <EstadoFalha onTentarDeNovo={() => faqsQuery.refetch()} tentando={faqsQuery.isFetching}>
+            Não foi possível carregar as perguntas. Confira a internet e tente de novo.
+          </EstadoFalha>
         ) : faqsQuery.isLoading && !faqsQuery.data ? (
           <Carregando texto="Carregando as perguntas deste assunto…" />
         ) : faqs.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
-            Nenhuma pergunta nesta categoria.
-          </p>
+          <EstadoVazio
+            titulo={termo ? "Nenhuma pergunta com esta busca" : "Nenhuma pergunta neste assunto"}
+          >
+            {termo
+              ? "Tente outra palavra."
+              : "As perguntas cadastradas com este assunto aparecem aqui."}
+          </EstadoVazio>
         ) : (
-          <ul className="space-y-3">
-            {faqs.map((faq) => (
-              <FaqCard key={faq.id} faq={faq} />
-            ))}
-          </ul>
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <ul aria-label={`Perguntas de ${categoria}`}>
+              {faqs.map((faq) => (
+                <FaqLinha key={faq.id} faq={faq} />
+              ))}
+            </ul>
+            {totalPaginas > 1 && (
+              <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-[15px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <span>
+                  Página {page} de {totalPaginas}
+                </span>
+                <FaqPagination
+                  page={page}
+                  totalPages={totalPaginas}
+                  onPageChange={(destino) =>
+                    navigate({ search: (atual) => ({ ...atual, page: destino }) })
+                  }
+                />
+              </div>
+            )}
+          </div>
         )}
-
-        <FaqPagination
-          page={page}
-          totalPages={totalPaginas}
-          onPageChange={(destino) => navigate({ search: (atual) => ({ ...atual, page: destino }) })}
-        />
       </div>
     </GateShell>
   );
