@@ -2,14 +2,14 @@
 
 Chatbot que recebe mensagens do WhatsApp, consulta uma base de FAQs vetorial e responde com o modelo Gemini.
 
-Projeto do **PET-SAÚDE** — Programa de Educação pelo Trabalho para a Saúde, do Ministério da Saúde, em que grupos de estudantes desenvolvem projetos aplicados. O domínio é saúde humana e serviços públicos de saúde.
+Projeto do **PET-SAÚDE**: Programa de Educação pelo Trabalho para a Saúde, do Ministério da Saúde, em que grupos de estudantes desenvolvem projetos aplicados. O domínio é saúde humana e serviços públicos de saúde.
 
 Quatro peças, responsabilidades separadas:
 
-- **[backend/](backend/)** — gateway próprio de WhatsApp em NestJS. Dono do canal: conexão, sessão, deduplicação, política anti-ban e formatação. **Substitui o WAHA.**
-- **[n8n/](n8n/)** — dono da inteligência: agente Gemini, busca vetorial e memória da conversa.
-- **[pwa/](pwa/)** — protótipo de validação: o mesmo RAG numa interface web com cara de WhatsApp, que pede uma nota ao final e registra as conversas para análise.
-- **Dashboard-PetSaúde** — painel de gestão das FAQs, em [repositório próprio](https://github.com/LucMazarJR/Dashboard-PetSaude). Escreve na mesma base que o chatbot lê.
+- **[backend/](backend/)**: gateway próprio de WhatsApp em NestJS. Dono do canal: conexão, sessão, deduplicação, política anti-ban e formatação. **Substitui o WAHA.**
+- **[n8n/](n8n/)**, dono da inteligência: agente Gemini, busca vetorial e memória da conversa.
+- **[pwa/](pwa/)**, protótipo de validação: o mesmo RAG numa interface web com cara de WhatsApp, que pede uma nota ao final e registra as conversas para análise.
+- **Dashboard-PetSaúde**: painel de gestão das FAQs, em [repositório próprio](https://github.com/LucMazarJR/Dashboard-PetSaude). Escreve na mesma base que o chatbot lê.
 
 ## Estrutura
 
@@ -28,8 +28,8 @@ chatbot-docs/
 │   └── README.md              # arquitetura interna e API do gateway
 ├── docs/                      # ver a tabela abaixo
 ├── n8n/
-│   ├── whatsapp-chatbot.json  # fluxo do canal — rota /webhook/whatsapp
-│   └── pwa-chatbot.json       # fluxo do protótipo — rota /webhook/pwa-chat
+│   ├── whatsapp-chatbot.json  # fluxo do canal, rota /webhook/whatsapp
+│   └── pwa-chatbot.json       # fluxo do protótipo, rota /webhook/pwa-chat
 ├── pwa/                       # protótipo de validação (Next.js + TypeScript)
 │   ├── src/app/               # o chat e as rotas de API que falam com o n8n e o Mongo
 │   ├── src/lib/               # Mongo, contrato com o n8n e formatação do WhatsApp
@@ -49,7 +49,7 @@ docker compose up -d --build
 
 # 3. Pareie o WhatsApp
 #    Antes: desconecte todos os aparelhos no WhatsApp do celular.
-#    O QR não sai desenhado no log com NODE_ENV=production — baixe o PNG.
+#    O QR não sai desenhado no log com NODE_ENV=production: baixe o PNG.
 
 # 4. Importe o fluxo no n8n: http://localhost:5678
 #    Arquivo: n8n/whatsapp-chatbot.json

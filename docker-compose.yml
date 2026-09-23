@@ -64,7 +64,7 @@ services:
       WA_MAX_MSG_PER_MINUTE: ${WA_MAX_MSG_PER_MINUTE:-20}
       WA_MAX_TYPING_MS: ${WA_MAX_TYPING_MS:-4000}
 
-      # Nome do serviço na rede do compose — não passa pelo Cloudflare Tunnel.
+      # Nome do serviço na rede do compose: não passa pelo Cloudflare Tunnel.
       N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://n8n:5678/webhook/whatsapp}
       N8N_WEBHOOK_TOKEN: ${N8N_WEBHOOK_TOKEN:?defina N8N_WEBHOOK_TOKEN no .env}
       N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:?defina N8N_WEBHOOK_SECRET no .env}
@@ -103,7 +103,7 @@ services:
       GATEWAY_API_KEY: ${GATEWAY_API_KEY}
       GATEWAY_URL: ${GATEWAY_URL:-http://whatsapp-gateway:3000}
       # Sem isto o n8n recusa `{{ $env.* }}` nas expressões ("access to env vars
-      # denied") e os nós HTTP saem com URL e X-Api-Key vazios — o fluxo executa
+      # denied") e os nós HTTP saem com URL e X-Api-Key vazios: o fluxo executa
       # até o fim sem erro visível e nenhuma mensagem chega ao cidadão.
       N8N_BLOCK_ENV_ACCESS_IN_NODE: false
       # Token que o fluxo do protótipo apresenta ao devolver a resposta pronta
@@ -158,7 +158,7 @@ services:
       FAQ_MONGO_DB: ${FAQ_MONGO_DB:-ministerio_saude}
 
       # Prazo em dias até a conversa se apagar sozinha (índice TTL no Mongo). É o
-      # número que a página /privacidade mostra — mudar aqui muda o que se promete.
+      # número que a página /privacidade mostra: mudar aqui muda o que se promete.
       PWA_RETENCAO_DIAS: ${PWA_RETENCAO_DIAS:-180}
 
       # Onde a pessoa pede acesso ou exclusão dos dados quando não tem mais a
@@ -166,7 +166,7 @@ services:
       # pessoa responsável pelo teste.
       PWA_CONTATO_PRIVACIDADE: ${PWA_CONTATO_PRIVACIDADE:-}
 
-      # Nome do serviço na rede do compose — não passa pelo Cloudflare Tunnel.
+      # Nome do serviço na rede do compose: não passa pelo Cloudflare Tunnel.
       N8N_PWA_WEBHOOK_URL: ${N8N_PWA_WEBHOOK_URL:-http://n8n:5678/webhook/pwa-chat}
       # Mesmo segredo dos dois sentidos: o PWA o apresenta ao entregar a
       # pergunta, e exige o mesmo de volta quando o n8n devolve a resposta em
@@ -178,7 +178,7 @@ services:
       # Precisa ser fixo aqui e não deduzido do cabeçalho `Host`: o Host diz como
       # o NAVEGADOR chegou (localhost:8080, o IP da rede, o domínio do túnel), e
       # nenhum desses endereços significa a mesma coisa dentro do container do
-      # n8n — `localhost` lá é o próprio n8n, e a resposta morria com
+      # n8n: `localhost` lá é o próprio n8n, e a resposta morria com
       # ECONNREFUSED. Na Vercel a variável fica vazia de propósito: lá o
       # cabeçalho encaminhado já traz o domínio público, que é alcançável.
       PWA_PUBLIC_URL: ${PWA_PUBLIC_URL:-http://pwa:8080}
@@ -188,7 +188,7 @@ services:
       # continua funcionando. A credencial: docs/contas-de-usuario.md.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      # "desligado" para o relógio interno que envia os avisos a cada 30 s — só
+      # "desligado" para o relógio interno que envia os avisos a cada 30 s, só
       # se outro relógio passar a chamar /api/notificacoes/despachar.
       PWA_DESPACHANTE: ${PWA_DESPACHANTE:-}
       # Gatilhos de avisos (pwa/src/gatilhos). Vazio desliga todos.
@@ -214,7 +214,7 @@ services:
   # ele, `docker compose up -d` continua funcionando para quem clonou só este
   # repositório e não tem a pasta.
   #
-  # Para subir tudo junto, defina COMPOSE_PROFILES=dashboard no .env — aí o
+  # Para subir tudo junto, defina COMPOSE_PROFILES=dashboard no .env: aí o
   # `docker compose up -d` normal já inclui os dois.
   dashboard-api:
     profiles: ["dashboard"]
@@ -237,7 +237,7 @@ services:
       GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-2}
       GEMINI_TASK_TYPE: ${GEMINI_TASK_TYPE:-SEMANTIC_SIMILARITY}
       # Banco das conversas do protótipo PWA, no mesmo cluster. Segunda conexão
-      # do Nest — ver src/conversas/conexao.ts.
+      # do Nest: ver src/conversas/conexao.ts.
       PWA_MONGO_DB: ${PWA_MONGO_DB:-pwa_prototipo}
       JWT_SECRET: ${DASHBOARD_JWT_SECRET:?defina DASHBOARD_JWT_SECRET no .env}
       JWT_EXPIRES_IN_SECONDS: ${DASHBOARD_JWT_EXPIRES_IN_SECONDS:-28800}
