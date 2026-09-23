@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, Search, Stethoscope } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { LogOut, Moon, Search, Sun } from "lucide-react";
 
 import type { UserRole } from "@/lib/auth.functions";
+import { getFilaCuradoria } from "@/lib/curadoria.functions";
 import { gruposDe } from "@/lib/navegacao";
+import { aplicarTema, temaAtual, type Tema } from "@/lib/tema";
 import {
   Sidebar,
   SidebarContent,
@@ -35,6 +38,14 @@ const ROTULO_PAPEL: Record<UserRole, string> = {
   leitor: "Leitor",
 };
 
+/** Duas letras do nome, para o círculo do rodapé do menu. */
+function iniciais(nome: string): string {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  const primeira = partes[0]?.[0] ?? "";
+  const ultima = partes.length > 1 ? (partes[partes.length - 1][0] ?? "") : "";
+  return (primeira + ultima).toUpperCase() || "?";
+}
+
 /** O destino está aberto? A home só por igualdade; as demais incluem as subpáginas. */
 function ativo(caminho: string, para: string): boolean {
   if (para === "/") return caminho === "/" || caminho.startsWith("/faqs/");
@@ -58,6 +69,17 @@ export function BarraLateral({
   const { isMobile, setOpenMobile } = useSidebar();
   const grupos = gruposDe(usuario.role);
 
+  // O número ao lado de "Sem resposta" é o trabalho esperando. Só admin vê a
+  // tela, e só para admin a consulta roda. Enquanto não chega, nada aparece:
+  // um zero provisório diria que não há nada para fazer.
+  const fila = useQuery({
+    queryKey: ["curadoria-fila"],
+    queryFn: () => getFilaCuradoria(),
+    enabled: usuario.role === "admin",
+    staleTime: 60_000,
+  });
+  const pendentes = fila.data?.pendentes ?? 0;
+
   // No celular a barra é uma gaveta por cima do conteúdo: escolhida a tela, ela
   // precisa sair da frente.
   const aoEscolher = () => {
@@ -71,14 +93,16 @@ export function BarraLateral({
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="Central de FAQs">
               <Link to="/" onClick={aoEscolher}>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary">
-                  <Stethoscope className="size-5" />
-                </span>
+                <img
+                  src="/logo-pet-saude.png"
+                  alt=""
+                  width={36}
+                  height={36}
+                  className="size-9 shrink-0 rounded-full bg-white"
+                />
                 <span className="min-w-0 leading-tight">
-                  <span className="block truncate font-semibold">Central de FAQs</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    PET-SAÚDE · base do chatbot
-                  </span>
+                  <span className="block truncate text-base font-semibold">Central de FAQs</span>
+                  <span className="block truncate text-[13px] text-sidebar-muted">PET-Saúde</span>
                 </span>
               </Link>
             </SidebarMenuButton>
@@ -104,7 +128,19 @@ export function BarraLateral({
                         <span>{destino.rotulo}</span>
                       </Link>
                     </SidebarMenuButton>
-                    {destino.emTeste && <SidebarMenuBadge>teste</SidebarMenuBadge>}
+                    {destino.para === "/curadoria" && pendentes > 0 && (
+                      <SidebarMenuBadge
+                        aria-label={`${pendentes} esperando análise`}
+                        className="peer-data-[size=default]/menu-button:top-3 h-5 min-w-6 rounded-full bg-sidebar-contador px-2 text-[13px] font-bold text-sidebar-contador-foreground peer-hover/menu-button:text-sidebar-contador-foreground peer-data-[active=true]/menu-button:text-sidebar-contador-foreground"
+                      >
+                        {pendentes}
+                      </SidebarMenuBadge>
+                    )}
+                    {destino.emTeste && (
+                      <SidebarMenuBadge className="peer-data-[size=default]/menu-button:top-3 text-xs font-normal text-sidebar-muted peer-hover/menu-button:text-sidebar-muted peer-data-[active=true]/menu-button:text-sidebar-muted">
+                        em teste
+                      </SidebarMenuBadge>
+                    )}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -116,9 +152,17 @@ export function BarraLateral({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="min-w-0 px-2 py-1 text-xs group-data-[collapsible=icon]:hidden">
-              <span className="block truncate font-medium text-foreground">{usuario.name}</span>
-              <span className="text-muted-foreground">{ROTULO_PAPEL[usuario.role]}</span>
+            <div className="flex min-w-0 items-center gap-3 px-2 py-1.5 group-data-[collapsible=icon]:hidden">
+              <span
+                aria-hidden="true"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sm font-semibold"
+              >
+                {iniciais(usuario.name)}
+              </span>
+              <span className="min-w-0 text-sm leading-tight">
+                <span className="block truncate font-semibold">{usuario.name}</span>
+                <span className="text-sidebar-muted">{ROTULO_PAPEL[usuario.role]}</span>
+              </span>
             </div>
           </SidebarMenuItem>
           <SidebarMenuItem>
@@ -163,14 +207,14 @@ export function IrPara({ papel }: { papel: UserRole }) {
       <button
         type="button"
         onClick={() => setAberto(true)}
-        className="ml-auto flex h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:h-9"
+        className="ml-auto flex h-11 min-w-11 items-center gap-2.5 rounded-md border border-border bg-background px-3.5 text-[15px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:w-72"
       >
-        <Search className="size-4" />
+        <Search className="size-[18px] shrink-0" />
         {/* No celular só a lupa aparece, mas o nome continua para o leitor de tela. */}
         <span className="sr-only sm:not-sr-only">Ir para…</span>
         <kbd
           aria-hidden="true"
-          className="hidden rounded border border-border bg-muted px-1.5 font-mono text-[10px] sm:inline"
+          className="ml-auto hidden rounded-md border border-border px-1.5 font-mono text-xs font-semibold sm:inline"
         >
           Ctrl K
         </kbd>
@@ -200,9 +244,7 @@ export function IrPara({ papel }: { papel: UserRole }) {
                   <destino.Icone />
                   <span>{destino.rotulo}</span>
                   {destino.emTeste && (
-                    <span className="ml-auto rounded-full border border-border px-1.5 text-[10px] text-muted-foreground">
-                      teste
-                    </span>
+                    <span className="ml-auto text-xs text-muted-foreground">em teste</span>
                   )}
                 </CommandItem>
               ))}
@@ -212,4 +254,62 @@ export function IrPara({ papel }: { papel: UserRole }) {
       </CommandDialog>
     </>
   );
+}
+
+/**
+ * Claro ou escuro. O estado real vive na classe do <html>, que o script do
+ * <head> já aplicou; aqui só se lê depois de montar, porque no servidor não há
+ * como saber o tema de quem vai abrir.
+ */
+export function BotaoTema() {
+  const [tema, setTema] = useState<Tema | null>(null);
+  useEffect(() => setTema(temaAtual()), []);
+
+  const proximo: Tema = tema === "escuro" ? "claro" : "escuro";
+  const rotulo = proximo === "escuro" ? "Usar o tema escuro" : "Usar o tema claro";
+
+  return (
+    <button
+      type="button"
+      aria-label={rotulo}
+      title={rotulo}
+      onClick={() => {
+        aplicarTema(proximo);
+        setTema(proximo);
+      }}
+      className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+    >
+      {tema === "escuro" ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}
+    </button>
+  );
+}
+
+/**
+ * "Chatbot / Conversas": onde a pessoa está, no topo de toda tela.
+ *
+ * Lê o mesmo registro do menu, então tela nova aparece aqui sem editar nada.
+ */
+export function Caminho({ papel }: { papel: UserRole }) {
+  const caminho = useRouterState({ select: (estado) => estado.location.pathname });
+  for (const grupo of gruposDe(papel)) {
+    const destino = grupo.destinos.find((d) => ativo(caminho, d.para as string));
+    if (destino) {
+      const noDetalhe = caminho !== destino.para;
+      return (
+        <nav aria-label="Você está em" className="hidden min-w-0 truncate text-sm text-muted-foreground md:block">
+          {grupo.rotulo} /{" "}
+          {noDetalhe ? (
+            <Link to={destino.para} className="hover:text-foreground hover:underline">
+              {destino.rotulo}
+            </Link>
+          ) : (
+            <span aria-current="page" className="text-foreground">
+              {destino.rotulo}
+            </span>
+          )}
+        </nav>
+      );
+    }
+  }
+  return null;
 }

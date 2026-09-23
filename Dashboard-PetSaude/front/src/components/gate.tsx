@@ -9,7 +9,7 @@ import { barraAbertaGuardada } from "@/lib/preferencia-barra";
 import { listActivity } from "@/lib/faq.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { TrocarSenhaObrigatoria } from "@/components/trocar-senha";
-import { BarraLateral, IrPara } from "@/components/barra-lateral";
+import { BarraLateral, BotaoTema, Caminho, IrPara } from "@/components/barra-lateral";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Carregando } from "@/components/carregando";
 
@@ -96,19 +96,21 @@ export function GateShell({ children }: { children: React.ReactNode }) {
       )}
 
       <SidebarInset className="min-w-0 bg-background">
-        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card px-3 py-2 sm:px-4">
+        <header className="sticky top-0 z-10 flex h-[60px] items-center gap-2 border-b border-border bg-card px-3 sm:px-6">
           {autenticado && usuario && (
             <>
               {/* 44px: alvo de toque confortável; o padrão do componente é 28px. */}
               <SidebarTrigger className="size-11" />
               <span className="truncate text-sm font-semibold md:hidden">Central de FAQs</span>
+              <Caminho papel={usuario.role} />
               <IrPara papel={usuario.role} />
             </>
           )}
+          <BotaoTema />
         </header>
 
         {/* `div`, e não `main`: o SidebarInset já é o <main> da página. */}
-        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-9 sm:py-7">
           {carregando ? (
             <Carregando texto="Conferindo o seu acesso…" />
           ) : precisaTrocarSenha ? (

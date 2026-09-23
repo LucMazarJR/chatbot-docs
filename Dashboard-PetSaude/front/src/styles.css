@@ -5,55 +5,40 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system.
+ * Design system: "índigo e névoa".
  *
  * O @theme inline mapeia as variáveis para as classes do Tailwind
  * (--color-primary -> bg-primary, text-primary). Os valores ficam em :root e
- * .dark. Todas as cores em oklch.
+ * .dark.
  *
  * Para acrescentar uma cor semântica:
  *   1. defina em :root e em .dark
  *   2. registre em @theme inline como --color-<nome>: var(--<nome>)
  *
- * LÓGICA DO LUCIANO — de onde vêm estas cores:
+ * LÓGICA DO LUCIANO: o problema das paletas anteriores (teal, depois o azul
+ * do gov.br) não era o tom da primária, era a primária não conversar com as
+ * outras cores. Verde, âmbar e vermelho vinham de lugares diferentes, cada um
+ * com a sua saturação, e a tela parecia montada com peças de kits distintos.
+ * Aqui tudo sai da mesma família:
  *
- * A paleta anterior era um teal de baixa saturação usado como fundo, borda,
- * texto e destaque ao mesmo tempo. Três problemas, todos mensuráveis:
- *
- * 1. Lavada. Cinco superfícies (card 1.000, fundo 0.985, muted 0.962,
- *    secundária 0.955, accent 0.945) viviam dentro de 5,5% de luminosidade. O
- *    olho não separa nenhum par, e o desenho todo dependia de uma borda com
- *    1,1:1 de contraste. Em celular, sob luz de posto de saúde, os cartões
- *    sumiam.
- * 2. Sem hierarquia. O item ativo do menu era `secondary` (0.955) sobre um
- *    cabeçalho branco: 4,5% de diferença, invisível. Não dava para saber em que
- *    página se estava.
- * 3. Cores competindo. `primary/12` significava sete coisas diferentes, âmbar e
- *    vermelho conviviam no mesmo cartão dizendo a mesma coisa de relance, e não
- *    havia token de sucesso nem de atenção — o âmbar era Tailwind cru a 5% de
- *    opacidade, o que fazia o aviso mais importante do app ser o elemento mais
- *    discreto da tela.
- *
- * Agora as cores vêm do Design System do gov.br, que é a linguagem visual que
- * quem trabalha em saúde pública já reconhece. Os hex de origem, e o contraste
- * medido de cada um sobre o fundo desta interface:
- *
- *   #1351B4  azul institucional   primária     6,6:1
- *   #0C326F  azul escuro          texto sobre superfície azul clara   9,8:1
- *   #168821  verde                sucesso      5,4:1  (escurecido p/ contraste)
- *   #E52207  vermelho             risco        4,9:1
- *   #FFCD07  amarelo              atenção      usado só como superfície; o
- *                                              texto de aviso é um âmbar
- *                                              escurecido, 5,6:1
+ * - Os neutros (fundo, borda, texto secundário) levam um pouco do índigo da
+ *   primária, e por isso parecem parentes dela.
+ * - Sucesso, atenção e erro têm o mesmo peso visual: nenhum grita mais que o
+ *   outro quando aparecem lado a lado.
+ * - Cada estado tem um par "forte" (texto, ícone) e "suave" (fundo de selo),
+ *   com contraste AA conferido nos dois temas.
  *
  * Cada cor tem UM significado:
- *   primary     ação e identidade
- *   secondary   estado ativo (a página em que você está)
- *   success     deu certo
- *   warning     exige atenção, mas nada quebrou
- *   destructive risco e erro
- *   muted       neutro, inativo, secundário
- *   accent      superfície de hover, e nada mais
+ *   primary       ação principal e identidade
+ *   primary-soft  selo de marca e item ativo
+ *   success       deu certo
+ *   warning       exige atenção, mas nada quebrou
+ *   destructive   risco e erro
+ *   muted         neutro, inativo, secundário
+ *   accent        superfície de hover, e nada mais
+ *
+ * O menu lateral é escuro nos dois temas: separa a navegação do trabalho sem
+ * precisar de borda.
  */
 
 @theme inline {
@@ -68,10 +53,13 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-surface-2: var(--surface-2);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-foreground: var(--primary-soft-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -80,10 +68,13 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -95,163 +86,166 @@
   --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-contador: var(--sidebar-contador);
+  --color-sidebar-contador-foreground: var(--sidebar-contador-foreground);
 }
 
 :root {
-  /* 6px. Suficiente para não parecer bruto, pequeno o bastante para não
-     parecer cartão de rede social. */
-  --radius: 0.375rem;
+  /* 8px: o bastante para não parecer bruto, pouco para não virar cartão de
+     rede social. */
+  --radius: 0.5rem;
 
-  /* O fundo desceu de 0.985 para 0.955. Parece pouco e é o que faz o cartão
-     branco existir: antes card e fundo diferiam 1,5% e a página era uma folha
-     lisa. */
-  --background: oklch(0.955 0.006 250);
-  --foreground: oklch(0.21 0.02 260);
+  --background: #f3f3f8;
+  --foreground: #1c1d33;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.02 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.02 260);
+  --card: #ffffff;
+  --card-foreground: #1c1d33;
+  /* Linha em destaque dentro de um cartão (hover de tabela, bloco citado). */
+  --surface-2: #f7f7fb;
+  --popover: #ffffff;
+  --popover-foreground: #1c1d33;
 
-  /* #1351B4 do gov.br. 6,6:1 sobre o fundo, então passa em AA até para texto
-     pequeno — o teal anterior não passava. */
-  --primary: oklch(0.46 0.169 260);
-  --primary-foreground: oklch(0.99 0 0);
+  /* 7,4:1 com texto branco, e 6,5:1 como texto sobre o fundo. */
+  --primary: #4b4fa8;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e7e7f7;
+  --primary-soft-foreground: #3a3d8c;
 
-  /* Azul bem claro para o estado ativo, com o azul escuro do gov.br por cima:
-     9,8:1 entre os dois. É o que faz o item de menu da página atual ser
-     visível, que era o pior efeito colateral da paleta antiga. */
-  --secondary: oklch(0.92 0.035 258);
-  --secondary-foreground: oklch(0.33 0.114 260);
+  /* Estado ativo (a página em que você está). */
+  --secondary: #e7e7f7;
+  --secondary-foreground: #3a3d8c;
 
-  --muted: oklch(0.94 0.006 250);
-  --muted-foreground: oklch(0.47 0.02 258);
+  --muted: #ececf4;
+  /* Texto secundário: 6,4:1 sobre o fundo, passa em AA até em letra pequena. */
+  --muted-foreground: #575a76;
 
-  /* Superfície de hover. Só isso — antes o accent era hover E pastilha de tag
-     ao mesmo tempo, então as tags pareciam botões prestes a serem clicados. */
-  --accent: oklch(0.93 0.028 258);
-  --accent-foreground: oklch(0.33 0.114 260);
+  --accent: #ececf4;
+  --accent-foreground: #1c1d33;
 
-  /* Verde do gov.br escurecido de 0.547 para 0.48: no valor original ficava em
-     4,16:1 sobre o fundo, abaixo do mínimo para texto. */
-  --success: oklch(0.48 0.15 145);
-  --success-foreground: oklch(0.99 0 0);
+  --success: #2a7657;
+  --success-foreground: #ffffff;
+  --success-soft: #e1f1e9;
 
-  /* O amarelo #FFCD07 tem 1,5:1 sobre branco — serve como superfície, nunca
-     como texto. Este é o mesmo matiz escurecido até 5,6:1, para o aviso poder
-     ser lido. */
-  --warning: oklch(0.5 0.115 75);
-  --warning-foreground: oklch(0.99 0 0);
+  --warning: #8e5d05;
+  --warning-foreground: #ffffff;
+  --warning-soft: #f8ecd4;
 
-  --destructive: oklch(0.55 0.21 29);
-  --destructive-foreground: oklch(0.99 0 0);
+  --destructive: #a83845;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #f7e2e5;
 
-  --border: oklch(0.87 0.008 255);
-  /* A borda do campo é mais escura que a borda de divisão de propósito: antes
-     eram 0.88 e 0.9, dois por cento de diferença, e um input não parecia um
-     input. */
-  --input: oklch(0.8 0.012 255);
-  --ring: oklch(0.46 0.169 260);
+  --border: #dcddea;
+  /* A borda do campo é mais escura que a de divisão: com as duas iguais, um
+     campo não parece campo. */
+  --input: #c3c5d8;
+  --ring: #4b4fa8;
 
-  /* Série de gráficos: a primeira é a cor da marca; as demais se distinguem
-     por matiz E por luminosidade, para continuarem legíveis impressas em preto
-     e branco — relatório de saúde acaba impresso. */
-  --chart-1: oklch(0.46 0.169 260);
-  --chart-2: oklch(0.48 0.15 145);
-  --chart-3: oklch(0.62 0.13 200);
-  --chart-4: oklch(0.7 0.13 60);
-  --chart-5: oklch(0.55 0.21 29);
+  /* Série de gráficos: distintas por matiz E por luminosidade, para
+     continuarem legíveis impressas em preto e branco. */
+  --chart-1: #4b4fa8;
+  --chart-2: #2a7657;
+  --chart-3: #8e5d05;
+  --chart-4: #a83845;
+  --chart-5: #9a9dc9;
 
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.21 0.02 260);
-  --sidebar-primary: oklch(0.46 0.169 260);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.92 0.035 258);
-  --sidebar-accent-foreground: oklch(0.33 0.114 260);
-  --sidebar-border: oklch(0.87 0.008 255);
-  --sidebar-ring: oklch(0.46 0.169 260);
+  --sidebar: #1f2140;
+  --sidebar-foreground: #e6e7f5;
+  --sidebar-muted: #a9accb;
+  --sidebar-primary: #a5a8f0;
+  --sidebar-primary-foreground: #191a40;
+  --sidebar-accent: #34376a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #34376a;
+  --sidebar-ring: #a5a8f0;
+  /* Contador de pendências no menu: o único amarelo da interface, para ser a
+     primeira coisa que o olho acha na barra escura. */
+  --sidebar-contador: #f2c66d;
+  --sidebar-contador-foreground: #2a1e05;
 
-  --font-display: "Newsreader", ui-serif, Georgia, serif;
-  --font-body: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
-  --font-display: var(--font-display);
   --font-sans: var(--font-body);
 }
 
 /*
- * A superfície de bloco.
- *
- * Era um gradiente diagonal com sombra difusa de 32px. Continua com o mesmo
- * nome de propósito: os lugares que usam a classe não precisaram mudar, e
- * trocar a definição num lugar só é justamente o motivo de existir uma utility.
+ * A superfície de bloco. O nome ficou de uma versão anterior; os lugares que
+ * usam a classe não precisam mudar quando a definição muda.
  */
 @utility panel-surface {
   background-color: var(--color-card);
 }
 
 /*
- * O tema escuro estava no slate padrão do shadcn, sem relação com o tema claro,
- * e nada no app jamais adiciona a classe `.dark` — ninguém via. Reescrito com a
- * mesma paleta: se um dia alguém ligar o tema escuro, ele não vai produzir uma
- * tela quebrada.
+ * Tema escuro. Ligado pelo botão da barra do topo, ou pelo sistema quando a
+ * pessoa nunca escolheu (ver lib/tema.ts). A classe fica no <html>.
  */
 .dark {
-  --background: oklch(0.19 0.02 258);
-  --foreground: oklch(0.96 0.005 250);
+  --background: #15162a;
+  --foreground: #e8e8f4;
 
-  --card: oklch(0.235 0.022 258);
-  --card-foreground: oklch(0.96 0.005 250);
-  --popover: oklch(0.235 0.022 258);
-  --popover-foreground: oklch(0.96 0.005 250);
+  --card: #1e2038;
+  --card-foreground: #e8e8f4;
+  --surface-2: #191a31;
+  --popover: #1e2038;
+  --popover-foreground: #e8e8f4;
 
-  /* No escuro a cor de ação precisa ser a mais luminosa do par. */
-  --primary: oklch(0.72 0.13 255);
-  --primary-foreground: oklch(0.17 0.03 260);
+  /* No escuro a cor de ação é a mais luminosa do par. */
+  --primary: #a5a8f0;
+  --primary-foreground: #191a40;
+  --primary-soft: #2c2e5a;
+  --primary-soft-foreground: #c9cbf7;
 
-  --secondary: oklch(0.3 0.05 258);
-  --secondary-foreground: oklch(0.94 0.02 255);
+  --secondary: #2c2e5a;
+  --secondary-foreground: #c9cbf7;
 
-  --muted: oklch(0.28 0.02 258);
-  --muted-foreground: oklch(0.73 0.02 255);
+  --muted: #2a2c46;
+  --muted-foreground: #a3a5c2;
 
-  --accent: oklch(0.31 0.045 258);
-  --accent-foreground: oklch(0.94 0.02 255);
+  --accent: #2a2c46;
+  --accent-foreground: #e8e8f4;
 
-  --success: oklch(0.7 0.16 145);
-  --success-foreground: oklch(0.17 0.03 145);
+  --success: #86ccac;
+  --success-foreground: #10261d;
+  --success-soft: #1b3129;
 
-  --warning: oklch(0.8 0.14 80);
-  --warning-foreground: oklch(0.2 0.04 75);
+  --warning: #e2bc72;
+  --warning-foreground: #2a1e05;
+  --warning-soft: #3a2f18;
 
-  --destructive: oklch(0.68 0.19 29);
-  --destructive-foreground: oklch(0.99 0 0);
+  --destructive: #ee9aa4;
+  --destructive-foreground: #3a1016;
+  --destructive-soft: #3f2229;
 
-  --border: oklch(1 0 0 / 14%);
-  --input: oklch(1 0 0 / 22%);
-  --ring: oklch(0.72 0.13 255);
+  --border: #30334f;
+  --input: #444868;
+  --ring: #a5a8f0;
 
-  --chart-1: oklch(0.72 0.13 255);
-  --chart-2: oklch(0.7 0.16 145);
-  --chart-3: oklch(0.72 0.12 200);
-  --chart-4: oklch(0.78 0.13 60);
-  --chart-5: oklch(0.68 0.19 29);
+  --chart-1: #a5a8f0;
+  --chart-2: #86ccac;
+  --chart-3: #e2bc72;
+  --chart-4: #ee9aa4;
+  --chart-5: #6c6fa8;
 
-  --sidebar: oklch(0.235 0.022 258);
-  --sidebar-foreground: oklch(0.96 0.005 250);
-  --sidebar-primary: oklch(0.72 0.13 255);
-  --sidebar-primary-foreground: oklch(0.17 0.03 260);
-  --sidebar-accent: oklch(0.3 0.05 258);
-  --sidebar-accent-foreground: oklch(0.94 0.02 255);
-  --sidebar-border: oklch(1 0 0 / 14%);
-  --sidebar-ring: oklch(0.72 0.13 255);
+  --sidebar: #0f1022;
+  --sidebar-foreground: #e8e8f4;
+  --sidebar-muted: #a3a5c2;
+  --sidebar-primary: #a5a8f0;
+  --sidebar-primary-foreground: #191a40;
+  --sidebar-accent: #2c2e5a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2c2e5a;
+  --sidebar-ring: #a5a8f0;
+
+  color-scheme: dark;
 }
 
 @layer base {
@@ -268,13 +262,8 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /*
-   * A serifa fica só no título de página. Antes valia para h1, h2 e h3 — com
-   * três níveis serifados, a hierarquia sumia e cada bloco parecia uma capa.
-   */
   h1 {
-    font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
   h1,
