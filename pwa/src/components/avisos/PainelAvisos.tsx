@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { dataEHora } from '@/lib/datas';
 
 type Diagnostico = {
   seguro: boolean;
@@ -263,10 +264,7 @@ export function PainelAvisos() {
                 <a href={`/staging/avisos/${aviso.id}`}>
                   <span className="st-conversa-pergunta">{aviso.rotulo}</span>
                   <span className="st-dica">
-                    {new Date(aviso.enviadaEm ?? aviso.criadaEm).toLocaleString('pt-BR', {
-                      dateStyle: 'short',
-                      timeStyle: 'short',
-                    })}
+                    {dataEHora(aviso.enviadaEm ?? aviso.criadaEm)}
                     {aviso.estado !== 'enviada' ? ` · ${aviso.estado}` : aviso.aberta ? ' · aberto' : ''}
                   </span>
                 </a>

@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { contaAtual } from '@/lib/conta/servidor';
 import { notificacoes } from '@/lib/db';
 import { TIPOS } from '@/lib/notificacoes/tipos';
+import { dataPorExtenso, hora } from '@/lib/datas';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,11 +26,7 @@ export default async function Aviso({ params }: { params: Promise<{ id: string }
   });
   if (!aviso) notFound();
 
-  const quando = (aviso.enviadaEm ?? aviso.criadaEm).toLocaleString('pt-BR', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-    timeZone: 'America/Sao_Paulo',
-  });
+  const quando = `${dataPorExtenso(aviso.enviadaEm ?? aviso.criadaEm)}, às ${hora(aviso.enviadaEm ?? aviso.criadaEm)}`;
 
   return (
     <main className="st-pagina">

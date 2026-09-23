@@ -3,16 +3,9 @@ import { notFound, redirect } from 'next/navigation';
 import { Balao } from '@/components/Balao';
 import { conversaDaConta } from '@/lib/conta/conversas';
 import { contaAtual } from '@/lib/conta/servidor';
+import { dataPorExtenso, hora } from '@/lib/datas';
 
 export const dynamic = 'force-dynamic';
-
-function hora(quando: Date) {
-  return quando.toLocaleTimeString('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'America/Sao_Paulo',
-  });
-}
 
 /**
  * Uma conversa anterior, só para leitura.
@@ -29,12 +22,7 @@ export default async function ConversaAnterior({ params }: { params: Promise<{ i
   const conversa = await conversaDaConta(conta._id, id);
   if (!conversa) notFound();
 
-  const data = conversa.sessao.iniciadaEm.toLocaleDateString('pt-BR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'America/Sao_Paulo',
-  });
+  const data = dataPorExtenso(conversa.sessao.iniciadaEm);
 
   return (
     <div className="st-transcricao">

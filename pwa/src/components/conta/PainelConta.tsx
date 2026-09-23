@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import type { ConversaResumida } from '@/lib/conta/conversas';
 import type { ContaPublica } from '@/lib/conta/tipos';
+import { dataCurta } from '@/lib/datas';
 
 /**
  * A conta de quem está logado: quem é, sair e apagar.
@@ -45,7 +46,7 @@ export function PainelConta({
     }
   }
 
-  const criadaEm = new Date(conta.criadoEm).toLocaleDateString('pt-BR');
+  const criadaEm = dataCurta(conta.criadoEm);
 
   return (
     <>
@@ -93,7 +94,7 @@ export function PainelConta({
                 <a href={conversa.encerrada ? `/staging/conversas/${conversa.id}` : '/staging'}>
                   <span className="st-conversa-pergunta">{conversa.primeiraPergunta}</span>
                   <span className="st-dica">
-                    {new Date(conversa.iniciadaEm).toLocaleDateString('pt-BR')} ·{' '}
+                    {dataCurta(conversa.iniciadaEm)} ·{' '}
                     {conversa.perguntas} {conversa.perguntas === 1 ? 'pergunta' : 'perguntas'}
                     {conversa.encerrada ? '' : ' · em andamento'}
                   </span>

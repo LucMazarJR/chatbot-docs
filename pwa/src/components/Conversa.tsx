@@ -25,6 +25,7 @@ import {
 } from '@/lib/sessao-local';
 import { formatarDuracao, useGravador } from '@/lib/usar-gravador';
 import type { Papel, TipoAnexo } from '@/lib/tipos';
+import { hora } from '@/lib/datas';
 
 const INATIVIDADE_MS = 2 * 60 * 1000;
 const MINIMO_PERGUNTAS_PARA_AVALIAR = 3;
@@ -101,7 +102,7 @@ const BOTAO_DE_ACEITE_DEPOIS: BotaoRapido[] = [{ rotulo: 'Aceitar', valor: 'acei
 const CHAVES_DE_ACEITE = ['aceite', 'aceite-depois'];
 
 function horaAgora(quando: Date = new Date()) {
-  return quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return hora(quando);
 }
 
 function pedidoDeAceite(quando?: Date): Item {
