@@ -54,7 +54,7 @@ export class SessionsController {
   }
 
   /**
-   * `?format=png` devolve a imagem direto, para abrir no navegador e escanear —
+   * `?format=png` devolve a imagem direto, para abrir no navegador e escanear:
    * é o caminho que substitui o dashboard do WAHA no pareamento.
    */
   @Get(':sessionId/qr')

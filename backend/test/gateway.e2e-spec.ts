@@ -58,7 +58,7 @@ describe('WhatsApp Gateway (e2e)', () => {
 
     app = moduleRef.createNestApplication();
 
-    // Mesma configuração de `main.ts` — um e2e que não reproduz o bootstrap
+    // Mesma configuração de `main.ts`: um e2e que não reproduz o bootstrap
     // real testa uma aplicação que não existe.
     app.setGlobalPrefix('api/v1', { exclude: ['health/live', 'health/ready'] });
     app.useGlobalPipes(
@@ -186,7 +186,7 @@ describe('WhatsApp Gateway (e2e)', () => {
     });
 
     it('GET /api/v1/sessions/:id/qr devolve 404 quando não há QR pendente', async () => {
-      // Sessão conectada não tem QR — 404 é a resposta correta, não erro 500.
+      // Sessão conectada não tem QR: 404 é a resposta correta, não erro 500.
       await request(server)
         .get('/api/v1/sessions/default/qr')
         .set('X-Api-Key', API_KEY)

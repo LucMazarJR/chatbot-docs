@@ -12,20 +12,20 @@ const RATE_WINDOW_MS = 60_000;
  * responder instantaneamente e em rajada é o padrão mais óbvio de automação.
  * Três medidas, portanto:
  *
- * 1. **Serialização por sessão** — nunca dois envios simultâneos no mesmo número;
+ * 1. **Serialização por sessão**: nunca dois envios simultâneos no mesmo número;
  * 2. **Atraso aleatório** entre envios, em vez de um intervalo fixo (que também
  *    é um padrão detectável);
  * 3. **Teto de mensagens por minuto** em janela deslizante.
  *
  * Isto é mitigação, não garantia: quem garante que o número não cai é a
- * WhatsApp Cloud API oficial — ver `docs/caminho-para-producao.md`.
+ * WhatsApp Cloud API oficial: ver `docs/caminho-para-producao.md`.
  *
  * Fila em memória é adequada à Fase 1 (uma réplica). Com mais de um processo
  * ela deixa de valer, e é aí que entra o BullMQ da Fase 2.
  */
 @Injectable()
 export class SendQueueService {
-  /** Última promessa da cadeia de cada sessão — a serialização em si. */
+  /** Última promessa da cadeia de cada sessão: a serialização em si. */
   private readonly chains = new Map<string, Promise<unknown>>();
 
   /** Instantes dos envios recentes, para a janela deslizante. */

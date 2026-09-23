@@ -25,13 +25,13 @@ export class HealthController {
   /**
    * Liveness: o processo está vivo?
    *
-   * Não olha WhatsApp nem Redis de propósito — se olhasse, o Docker mataria o
+   * Não olha WhatsApp nem Redis de propósito: se olhasse, o Docker mataria o
    * container justamente quando ele está tentando reconectar, que é o pior
    * momento possível para reiniciar.
    */
   @Public()
   @Get('live')
-  @ApiOperation({ summary: 'Liveness — apenas confirma que o processo responde.' })
+  @ApiOperation({ summary: 'Liveness: apenas confirma que o processo responde.' })
   live(): { status: 'ok' } {
     return { status: 'ok' };
   }
@@ -39,12 +39,12 @@ export class HealthController {
   /**
    * Readiness: dá para atender de verdade?
    *
-   * Responde 503 se a sessão não está conectada ou o Redis caiu — sinal para o
+   * Responde 503 se a sessão não está conectada ou o Redis caiu: sinal para o
    * balanceador parar de mandar tráfego, sem reiniciar o processo.
    */
   @Public()
   @Get('ready')
-  @ApiOperation({ summary: 'Readiness — sessão conectada e Redis acessível.' })
+  @ApiOperation({ summary: 'Readiness: sessão conectada e Redis acessível.' })
   async ready(): Promise<ReadinessReport> {
     const sessionId = this.config.get('WA_SESSION_ID');
     const snapshot = this.provider.getSnapshot(sessionId);
