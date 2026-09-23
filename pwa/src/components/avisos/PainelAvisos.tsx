@@ -22,10 +22,13 @@ type Aviso = {
   estado: string;
   enviadaEm: string | null;
   criadaEm: string;
+  recebida: boolean;
+  exibida: boolean;
   aberta: boolean;
 };
 
 type ResultadoTeste = {
+  id: string;
   estado: string;
   motivo: string | null;
   aparelhos: { resultado: string; codigo: number | null }[];
@@ -35,6 +38,42 @@ function base64UrlParaBytes(texto: string): Uint8Array<ArrayBuffer> {
   const preenchido = texto + '='.repeat((4 - (texto.length % 4)) % 4);
   const bruto = atob(preenchido.replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(bruto, (caractere) => caractere.charCodeAt(0));
+}
+
+/** Promessa com prazo: sem ele, uma etapa que não responde deixa a tela esperando para sempre. */
+function comPrazo<T>(promessa: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promessa,
+    new Promise<T>((_, rejeitar) => setTimeout(() => rejeitar(new Error('sem resposta')), ms)),
+  ]);
+}
+
+const esperar = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+
+/**
+ * O que aconteceu com o aviso de teste neste aparelho, pelos recibos dele.
+ *
+ * LÓGICA DO LUCIANO: "o serviço aceitou" era tudo o que a tela sabia dizer, e
+ * não quer dizer que o aviso chegou. São três falhas diferentes, cada uma com um
+ * conserto diferente, e quem está com o celular na mão precisa saber qual é a
+ * dele.
+ */
+function veredito(aviso: Aviso | undefined): { texto: string; erro: boolean } {
+  if (aviso?.exibida) {
+    return { texto: 'Chegou e apareceu neste aparelho. Os avisos estão funcionando.', erro: false };
+  }
+  if (aviso?.recebida) {
+    return {
+      texto:
+        'O aviso chegou ao aparelho, mas o celular não mostrou. Nas configurações do celular, em Apps, Chrome, Notificações, confira se as notificações deste site estão permitidas.',
+      erro: true,
+    };
+  }
+  return {
+    texto:
+      'O serviço de avisos aceitou, mas o aparelho não confirmou que recebeu. Com esta tela aberta ele costuma chegar na hora. Se não chegou, o celular pode estar segurando o Chrome em segundo plano: em Configurações, Bateria, deixe o Chrome sem restrição.',
+    erro: true,
+  };
 }
 
 async function registroDoStaging(): Promise<ServiceWorkerRegistration> {
@@ -149,10 +188,15 @@ export function PainelAvisos() {
       const { chavePublica } = (await (await fetch('/api/push/chave-publica')).json()) as {
         chavePublica: string;
       };
-      const inscricao = await registro.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: base64UrlParaBytes(chavePublica),
-      });
+      // O serviço de push do navegador às vezes não responde (rede ruim, Chrome
+      // sem acesso ao Google); sem prazo, o botão ficava em "Ativando…" para sempre.
+      const inscricao = await comPrazo(
+        registro.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64UrlParaBytes(chavePublica),
+        }),
+        20_000,
+      );
 
       const resposta = await fetch('/api/push/inscricoes', {
         method: 'POST',
@@ -203,7 +247,8 @@ export function PainelAvisos() {
       }
 
       if (dados.estado === 'enviada') {
-        setMensagem({ texto: 'Teste enviado. Ele deve aparecer em alguns segundos.', erro: false });
+        // Enquanto espera, quem fala é o sinal de carregamento embaixo dos botões.
+        setMensagem(await acompanharTeste(dados.id));
       } else if (dados.aparelhos.length === 0) {
         setMensagem({ texto: 'Nenhum aparelho com avisos ativos nesta conta.', erro: true });
       } else {
@@ -215,6 +260,54 @@ export function PainelAvisos() {
     } finally {
       setOcupado(false);
       void atualizar();
+    }
+  }
+
+  /** Espera os recibos do aviso de teste por até 20 segundos. */
+  async function acompanharTeste(id: string) {
+    let aviso: Aviso | undefined;
+    for (let tentativa = 0; tentativa < 10; tentativa += 1) {
+      await esperar(2000);
+      try {
+        const resposta = await fetch('/api/notificacoes');
+        if (!resposta.ok) continue;
+        const lista = ((await resposta.json()) as { avisos: Aviso[] }).avisos;
+        setAvisos(lista);
+        aviso = lista.find((item) => item.id === id);
+        if (aviso?.exibida) break;
+      } catch {
+        // Rede oscilando: a próxima volta tenta de novo.
+      }
+    }
+    return veredito(aviso);
+  }
+
+  /**
+   * Mostra uma notificação direto daqui, sem servidor e sem serviço de push.
+   *
+   * Separa as duas metades do problema: se esta não aparece, o celular bloqueia
+   * notificações; se esta aparece e o teste pelo servidor não, o problema é a
+   * entrega.
+   */
+  async function testarTela() {
+    setMensagem(null);
+    try {
+      const registro = await comPrazo(registroDoStaging(), 10_000);
+      await registro.showNotification('Teste deste aparelho', {
+        body: 'Se você está vendo isto, este celular mostra notificações.',
+        icon: '/icons/icone-192.png',
+        tag: 'teste-local',
+      });
+      setMensagem({
+        texto:
+          'Pedi uma notificação direto a este aparelho. Se ela não apareceu, as notificações do Chrome estão bloqueadas nas configurações do celular.',
+        erro: false,
+      });
+    } catch {
+      setMensagem({
+        texto: 'Este aparelho não deixou mostrar a notificação. Confira a permissão de notificações do site.',
+        erro: true,
+      });
     }
   }
 
@@ -252,14 +345,20 @@ export function PainelAvisos() {
         )}
 
         {diagnostico.inscrito ? (
-          <div className="st-acoes">
-            <button type="button" className="st-botao st-botao-secundario" onClick={desativar} disabled={ocupado}>
-              Desativar
+          <>
+            <div className="st-acoes">
+              <button type="button" className="st-botao st-botao-secundario" onClick={desativar} disabled={ocupado}>
+                Desativar
+              </button>
+              <button type="button" className="st-botao" onClick={testar} disabled={ocupado}>
+                {ocupado ? 'Testando…' : 'Enviar um teste para mim'}
+              </button>
+            </div>
+            {ocupado && <Carregando texto="Esperando o aparelho confirmar…" variante="linha" />}
+            <button type="button" className="st-link-acao" onClick={testarTela} disabled={ocupado}>
+              O teste não aparece? Testar só a tela deste aparelho
             </button>
-            <button type="button" className="st-botao" onClick={testar} disabled={ocupado}>
-              {ocupado ? 'Enviando…' : 'Enviar um teste para mim'}
-            </button>
-          </div>
+          </>
         ) : (
           <button type="button" className="st-botao" onClick={ativar} disabled={ocupado || Boolean(bloqueio)}>
             {ocupado ? 'Ativando…' : 'Ativar avisos neste aparelho'}
@@ -299,7 +398,15 @@ export function PainelAvisos() {
                   <span className="st-conversa-pergunta">{aviso.rotulo}</span>
                   <span className="st-dica">
                     {dataEHora(aviso.enviadaEm ?? aviso.criadaEm)}
-                    {aviso.estado !== 'enviada' ? ` · ${aviso.estado}` : aviso.aberta ? ' · aberto' : ''}
+                    {aviso.estado !== 'enviada'
+                      ? ` · ${aviso.estado}`
+                      : aviso.aberta
+                        ? ' · aberto'
+                        : aviso.exibida
+                          ? ' · apareceu no aparelho'
+                          : aviso.recebida
+                            ? ' · chegou, mas não apareceu'
+                            : ' · sem confirmação do aparelho'}
                   </span>
                 </a>
               </li>

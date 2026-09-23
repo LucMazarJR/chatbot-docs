@@ -491,3 +491,21 @@
 :root[data-tema='escuro'] .st-zona-perigo h2 {
   color: #ffb4ab;
 }
+
+/* Ação secundária com cara de link: o teste local é para quando o principal
+   falhou, e não deve competir com ele. Altura de toque inteira, mesmo assim. */
+.st-link-acao {
+  display: block;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0;
+  color: var(--acento);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.st-link-acao:disabled {
+  opacity: 0.55;
+}
