@@ -6,15 +6,19 @@ Regras de trabalho, não de arquitetura. A arquitetura está em [docs/](docs/), 
 
 Tudo em português do Brasil: as respostas ao usuário durante o trabalho, os resumos, as mensagens de commit, os comentários, a documentação e o texto de tela.
 
-## Commits pequenos, na main
+## Commits pequenos, uma branch por funcionalidade
 
-Commitar por partes ao longo do trabalho, e não um commit gigante no fim. Cada commit precisa compilar e passar nos testes sozinho. Sem criar branch.
+Commitar por partes ao longo do trabalho, e não um commit gigante no fim. Cada commit precisa compilar e passar nos testes sozinho.
+
+Cada funcionalidade nova nasce numa branch própria, criada a partir da `main` (`feat/nome-curto`, ou `fix/` para correção). Quando ela está terminada e verificada, entra na `main` com `git merge --no-ff`, para o histórico mostrar onde a funcionalidade começa e termina, e a branch é apagada. Vale nos dois repositórios, o do chat e o do painel.
+
+A branch fica só na máquina. Na Vercel, branch enviada ao GitHub vira deploy de pré-visualização, que conta no mesmo limite do plano grátis.
 
 A mensagem diz o **porquê**, em português, e não só o que mudou. Sem o trailer `Co-Authored-By`.
 
 Push só depois de garantir que não quebra o que já está rodando: build, teste de unidade e a verificação contra o ambiente real da parte mexida.
 
-Commit vai sendo feito ao longo do trabalho, mas o push é um só, no fim de cada funcionalidade terminada e verificada, e quem faz é o Claude. Cada push na `main` gera deploy na Vercel, e o plano grátis tem limite de deploys por dia. No painel, publicar o back antes do front, porque o front novo pode chamar rota que só o back novo tem.
+O push é um só, da `main`, depois do merge da funcionalidade terminada e verificada, e quem faz é o Claude. Cada push na `main` gera deploy na Vercel, e o plano grátis tem limite de deploys por dia. No painel, publicar o back antes do front, porque o front novo pode chamar rota que só o back novo tem.
 
 ## É produto, não protótipo descartável
 
