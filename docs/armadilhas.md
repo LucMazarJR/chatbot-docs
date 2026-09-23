@@ -57,6 +57,8 @@ Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só
 
 ---
 
+**Sobrecarga do Gemini derruba todos os canais de uma vez.** O Google responde 503 ("high demand") por minutos seguidos num modelo, e as 3 tentativas do agente caem todas dentro do pico. O chat mostra "Não consegui responder agora" para todo mundo. Os dois fluxos têm um modelo de reserva (`Gemini reserva`, ligado ao AI Agent com *Enable Fallback Model*). A reserva é o `2.5-flash-lite`, de cota gratuita pequena: não trocar a ordem, senão a cota diária acaba antes do meio-dia.
+
 ## Dashboard
 
 **pnpm 11 recusa rodar scripts com builds pendentes.** Migrations, seed e build falham com `ERR_PNPM_IGNORED_BUILDS`, mensagem que não menciona nenhum dos três comandos. A aprovação vive no `pnpm-workspace.yaml` (`allowBuilds`).
