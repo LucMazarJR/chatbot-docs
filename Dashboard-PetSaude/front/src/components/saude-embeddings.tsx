@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Carregando } from "@/components/carregando";
+import { EstadoFalha } from "@/components/estado";
 
 const MODOS: { valor: ModoBackfill; rotulo: string; descricao: string }[] = [
   {
@@ -71,7 +72,7 @@ function Metrica({
   explicacao: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <p
         className={
           alerta && valor > 0
@@ -82,7 +83,7 @@ function Metrica({
         {valor.toLocaleString("pt-BR")}
       </p>
       <p className="mt-0.5 text-sm font-medium">{rotulo}</p>
-      <p className="mt-1 text-xs leading-snug text-muted-foreground">{explicacao}</p>
+      <p className="mt-1 text-sm leading-snug text-muted-foreground">{explicacao}</p>
     </div>
   );
 }
@@ -103,14 +104,14 @@ function ResultadoDiagnostico({ dados }: { dados: Diagnostico }) {
         : "text-muted-foreground";
 
   return (
-    <div className="mt-4 rounded-lg border border-border bg-muted/40 p-4">
+    <div className="mt-4 rounded-lg bg-surface-2 p-4">
       <p className={`flex items-start gap-2 text-sm font-medium ${cor}`}>
         <Icone className="mt-0.5 size-4 shrink-0" />
         <span>{dados.explicacao}</span>
       </p>
-      <p className="mt-2 text-xs text-muted-foreground">
-        {dados.amostradas} pergunta(s) conferidas · {(dados.similaridadeMedia * 100).toFixed(1)}% de
-        semelhança com o preparo atual
+      <p className="mt-2 text-sm text-muted-foreground">
+        {dados.amostradas} {dados.amostradas === 1 ? "pergunta conferida" : "perguntas conferidas"}{" "}
+        · {(dados.similaridadeMedia * 100).toFixed(1)}% de semelhança com o preparo atual
       </p>
     </div>
   );
@@ -151,12 +152,12 @@ function AssuntosParaRevisar() {
   const { variante, fora_da_lista, inativa, sem_categoria } = dados.resumo.porMotivo;
 
   return (
-    <div className="rounded-lg border border-border panel-surface p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <h3 className="text-sm font-semibold">Perguntas com o assunto fora da lista</h3>
       <p className="mt-1 text-sm text-muted-foreground">
         {dados.listaVazia
           ? "A lista oficial de assuntos ainda não foi definida, então toda pergunta aparece aqui."
-          : `${dados.resumo.faqs} ${dados.resumo.faqs === 1 ? "pergunta usa" : "perguntas usam"} um assunto que não está na lista, em ${dados.resumo.grupos} ${dados.resumo.grupos === 1 ? "nome" : "nomes"} diferentes. O assunto faz parte do que o chatbot busca — com ele errado, a pergunta é encontrada pelo tema errado.`}
+          : `${dados.resumo.faqs} ${dados.resumo.faqs === 1 ? "pergunta usa" : "perguntas usam"} um assunto que não está na lista, em ${dados.resumo.grupos} ${dados.resumo.grupos === 1 ? "nome" : "nomes"} diferentes. O assunto faz parte do que o chatbot busca: com ele errado, a pergunta é encontrada pelo tema errado.`}
       </p>
 
       {!dados.listaVazia && (
@@ -170,7 +171,7 @@ function AssuntosParaRevisar() {
 
       <Link
         to="/categorias"
-        className="mt-3 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+        className="mt-3 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary hover:underline"
       >
         Revisar em Categorias
         <ChevronRight className="size-4" />
@@ -205,7 +206,8 @@ export function SaudeEmbeddings() {
   const mutDiagnostico = useMutation({
     mutationFn: () => diagnosticar({ data: { quantidade: 10 } }),
     onSuccess: (dados) => setDiagnostico(dados),
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível conferir"),
+    onError: (erro: Error) =>
+      toast.error(erro.message || "Não foi possível conferir agora. Tente de novo em instantes."),
   });
 
   const mutBackfill = useMutation({
@@ -218,7 +220,8 @@ export function SaudeEmbeddings() {
       }
       await queryClient.invalidateQueries({ queryKey: ["embeddings-job"] });
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível iniciar"),
+    onError: (erro: Error) =>
+      toast.error(erro.message || "Não foi possível começar. Confira a internet e tente de novo."),
   });
 
   const dados = saude.data;
@@ -248,7 +251,9 @@ export function SaudeEmbeddings() {
       {saude.isLoading ? (
         <Carregando texto="Conferindo a base de vetores…" />
       ) : !dados ? (
-        <p className="text-sm text-destructive">Não foi possível ler o estado da base.</p>
+        <EstadoFalha onTentarDeNovo={() => saude.refetch()} tentando={saude.isFetching}>
+          Não foi possível ler o estado da base. Confira a internet e tente de novo.
+        </EstadoFalha>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -279,7 +284,7 @@ export function SaudeEmbeddings() {
               rotulo="Fora do padrão atual"
               valor={dados.modeloDivergente}
               alerta
-              explicacao="Registrado num modelo diferente do que esta configurado."
+              explicacao="Registrado num modelo diferente do que está configurado."
             />
             <Metrica
               rotulo="Sem registro"
@@ -290,7 +295,7 @@ export function SaudeEmbeddings() {
 
           <AssuntosParaRevisar />
 
-          <div className="rounded-lg border border-border panel-surface p-4">
+          <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="text-sm font-semibold">
               As perguntas antigas foram preparadas do mesmo jeito?
             </h3>
@@ -313,7 +318,7 @@ export function SaudeEmbeddings() {
             {diagnostico && <ResultadoDiagnostico dados={diagnostico} />}
           </div>
 
-          <div className="rounded-lg border border-border panel-surface p-4">
+          <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="text-sm font-semibold">Preparar perguntas para a busca</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               A preparação usa um serviço externo com limite diário. Preparar a base inteira leva
@@ -322,10 +327,12 @@ export function SaudeEmbeddings() {
             </p>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">O que preparar</label>
+              <div className="min-w-0 space-y-1.5">
+                <label htmlFor="preparar-modo" className="text-sm font-semibold">
+                  O que preparar
+                </label>
                 <Select value={modo} onValueChange={(v) => setModo(v as ModoBackfill)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger id="preparar-modo" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -338,12 +345,12 @@ export function SaudeEmbeddings() {
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
+              <div className="min-w-0 space-y-1.5">
+                <label htmlFor="preparar-limite" className="text-sm font-semibold">
                   Máximo desta vez
                 </label>
                 <Select value={String(limite)} onValueChange={(v) => setLimite(Number(v))}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger id="preparar-limite" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -387,7 +394,7 @@ function AndamentoBackfill({ job }: { job: Job }) {
   };
 
   return (
-    <div className="mt-4 rounded-lg border border-border bg-muted/40 p-4">
+    <div className="mt-4 rounded-lg bg-surface-2 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm font-medium">{rotulo[job.estado] ?? job.estado}</p>
         <p className="text-xs text-muted-foreground">

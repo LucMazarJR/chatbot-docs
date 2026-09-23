@@ -28,6 +28,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Carregando } from "@/components/carregando";
+import { EstadoFalha } from "@/components/estado";
+import { Selo } from "@/components/selo";
+import { dataCurta } from "@/lib/datas";
 
 const EXEMPLO_WORD = [
   "[ASSUNTO: Exames]",
@@ -111,7 +114,7 @@ function PainelTeste({ codigo }: { codigo: string }) {
   };
 
   return (
-    <div className="rounded-lg border border-border panel-surface p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
         <FlaskConical className="size-4" /> Testar antes de salvar
       </h3>
@@ -165,7 +168,7 @@ function PainelTeste({ codigo }: { codigo: string }) {
       </Button>
 
       {erro && (
-        <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+        <div role="alert" className="mt-3 rounded-lg bg-destructive-soft p-3">
           <p className="text-sm font-medium text-destructive">{erro.mensagem}</p>
           {erro.detalhe && (
             <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">
@@ -244,7 +247,8 @@ export function ScriptEditor() {
       setNotas("");
       await aoConcluir(`Salvo como versão ${resumo.version}.`);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível salvar"),
+    onError: (erro: Error) =>
+      toast.error(erro.message || "Não foi possível salvar. Confira a internet e tente de novo."),
   });
 
   const mutAtivar = useMutation({
@@ -253,7 +257,8 @@ export function ScriptEditor() {
       carregado.current = false;
       await aoConcluir(`Versão ${resumo.version} reativada.`);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível reativar"),
+    onError: (erro: Error) =>
+      toast.error(erro.message || "Não foi possível reativar. Confira a internet e tente de novo."),
   });
 
   const mutRestaurar = useMutation({
@@ -263,7 +268,10 @@ export function ScriptEditor() {
       setConfirmandoRestauro(false);
       await aoConcluir(`Formato padrão salvo como versão ${resumo.version}.`);
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível restaurar"),
+    onError: (erro: Error) =>
+      toast.error(
+        erro.message || "Não foi possível restaurar. Confira a internet e tente de novo.",
+      ),
   });
 
   const carregarDeArquivo = async (arquivo: File | undefined) => {
@@ -277,6 +285,15 @@ export function ScriptEditor() {
 
   if (ativo.isLoading) {
     return <Carregando texto="Carregando a regra de leitura…" />;
+  }
+  if (ativo.isError) {
+    // Sem isto, a falha abria o editor vazio, e salvar ali gravaria uma regra
+    // em branco por cima da que está em uso.
+    return (
+      <EstadoFalha onTentarDeNovo={() => ativo.refetch()} tentando={ativo.isFetching}>
+        Não foi possível carregar a regra de leitura em uso. Confira a internet e tente de novo.
+      </EstadoFalha>
+    );
   }
 
   const alterado = ativo.data ? codigo !== ativo.data.code || nome !== ativo.data.name : true;
@@ -296,7 +313,7 @@ export function ScriptEditor() {
         <p className="text-sm text-muted-foreground">
           Em uso: versão {ativo.data.version}
           {ativo.data.createdByName ? `, salva por ${ativo.data.createdByName}` : ""} em{" "}
-          {new Date(ativo.data.createdAt).toLocaleDateString("pt-BR")}
+          {dataCurta(ativo.data.createdAt)}
         </p>
       ) : (
         <p className="text-sm text-destructive">
@@ -357,7 +374,7 @@ export function ScriptEditor() {
 
       <PainelTeste codigo={codigo} />
 
-      <div className="rounded-lg border border-border panel-surface p-4">
+      <div className="rounded-xl border border-border bg-card p-4">
         <h3 className="text-sm font-semibold">Modelos em branco</h3>
         <p className="mt-1 mb-3 text-sm text-muted-foreground">
           Baixe para conferir se o formato bate com o que a regra espera. Sai do que está no editor
@@ -389,16 +406,33 @@ export function ScriptEditor() {
         </div>
       </div>
 
-      <Button
-        type="button"
-        disabled={mutSalvar.isPending || !alterado || nome.trim().length < 3}
-        onClick={() => mutSalvar.mutate()}
-      >
-        <Save className="size-4" />
-        {mutSalvar.isPending ? "Salvando…" : alterado ? "Salvar nova versão" : "Sem alterações"}
-      </Button>
+      {/* O botão aceita o toque e diz o que falta: apagado, "Sem alterações"
+          não explicava que o nome curto também impedia salvar. */}
+      <div className="space-y-2">
+        <Button
+          type="button"
+          disabled={mutSalvar.isPending}
+          onClick={() => {
+            if (!alterado) {
+              toast.info("Nada mudou desde a versão em uso.");
+              return;
+            }
+            if (nome.trim().length < 3) {
+              toast.error("Dê um nome à versão, com ao menos 3 letras.");
+              return;
+            }
+            mutSalvar.mutate();
+          }}
+        >
+          <Save />
+          {mutSalvar.isPending ? "Salvando…" : "Salvar nova versão"}
+        </Button>
+        {!alterado && (
+          <p className="text-sm text-muted-foreground">Nada mudou desde a versão em uso.</p>
+        )}
+      </div>
 
-      <div className="rounded-lg border border-border panel-surface p-4">
+      <div className="rounded-xl border border-border bg-card p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <History className="size-4" /> Versões anteriores
         </h3>
@@ -414,12 +448,11 @@ export function ScriptEditor() {
                 <span className="w-full text-xs text-muted-foreground sm:w-auto">{v.notes}</span>
               )}
               <span className="text-xs text-muted-foreground">
-                {v.createdByName ?? ""} · {new Date(v.createdAt).toLocaleDateString("pt-BR")}
+                {v.createdByName ? `${v.createdByName} · ` : ""}
+                {dataCurta(v.createdAt)}
               </span>
               {v.isActive ? (
-                <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[10px] uppercase tracking-wide text-primary">
-                  em uso
-                </span>
+                <Selo tom="marca">Em uso</Selo>
               ) : (
                 <Button
                   type="button"

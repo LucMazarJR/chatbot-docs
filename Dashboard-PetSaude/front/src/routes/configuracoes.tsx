@@ -4,6 +4,7 @@ import { GateShell } from "@/components/gate";
 import { ScriptEditor } from "@/components/script-editor";
 import { SaudeEmbeddings } from "@/components/saude-embeddings";
 import { exigirAdmin } from "@/lib/guardas";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 
 export const Route = createFileRoute("/configuracoes")({
   // Mesmo guarda de /usuarios: a decisão acontece antes de renderizar, inclusive
@@ -17,13 +18,11 @@ export const Route = createFileRoute("/configuracoes")({
 function ConfiguracoesPage() {
   return (
     <GateShell>
-      <div className="space-y-10">
-        <div>
-          <h1 className="text-2xl font-semibold">Configurações</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Como os documentos viram perguntas, e a saúde da base que o chatbot consulta.
-          </p>
-        </div>
+      <div className="space-y-8">
+        <CabecalhoPagina
+          titulo="Configurações"
+          frase="Como os documentos viram perguntas, e a saúde da base que o chatbot consulta."
+        />
 
         <ScriptEditor />
 
