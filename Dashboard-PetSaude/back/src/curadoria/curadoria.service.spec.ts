@@ -474,4 +474,26 @@ describe('CuradoriaService', () => {
       expect(doc.save).toHaveBeenCalled();
     });
   });
+
+  describe('descartar', () => {
+    it('registra no historico sem o texto da pergunta', async () => {
+      const doc = {
+        _id: '507f1f77bcf86cd799439011',
+        estado: 'pendente',
+        pergunta: 'Exame de HIV sai em quantos dias?',
+        origens: [{ mensagemId: 'b1' }, { mensagemId: 'b2' }],
+        save: jest.fn(async () => undefined),
+      };
+      (service as any).sugestaoModel.findById = jest.fn(() => ({ exec: jest.fn(async () => doc) }));
+      const registrar = (service as any).activityService.registrar as jest.Mock;
+
+      await service.descartar('507f1f77bcf86cd799439011', { name: 'Ana', id: 'u-1' });
+
+      expect(doc.estado).toBe('descartada');
+      const registro = registrar.mock.calls[0][0];
+      expect(registro).toMatchObject({ action: 'descartar', entity_id: '507f1f77bcf86cd799439011' });
+      expect(JSON.stringify(registro)).not.toContain('HIV');
+      expect(registro.target).toContain('2 perguntas de origem');
+    });
+  });
 });

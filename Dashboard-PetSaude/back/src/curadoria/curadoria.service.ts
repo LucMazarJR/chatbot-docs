@@ -630,13 +630,16 @@ export class CuradoriaService {
         sugestao.decididaPor = actor.name;
         await sugestao.save();
 
+        // Sem a pergunta da sugestão: ela é o modelo reescrevendo perguntas de
+        // cidadãos, e o histórico guarda por anos o que ninguém pediu para
+        // guardar. O id liga o registro à sugestão, que continua no banco.
         void this.activityService.registrar({
             actor_name: actor.name,
             actor_id: actor.id,
             action: 'descartar',
             entity_type: 'sistema',
             entity_id: id,
-            target: sugestao.pergunta,
+            target: `Sugestão de FAQ descartada (${sugestao.origens?.length ?? 0} perguntas de origem)`,
         });
 
         return { ok: true };
