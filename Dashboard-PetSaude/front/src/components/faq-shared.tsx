@@ -19,6 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { usePodeEscrever } from "@/components/gate";
+import { Selo } from "@/components/selo";
+import { dataCurta } from "@/lib/datas";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -54,19 +57,25 @@ export function SearchField({
   value,
   onChange,
   placeholder,
+  className,
+  inputClassName,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  className?: string;
+  inputClassName?: string;
 }) {
   return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+    <div className={cn("relative", className)}>
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
       <Input
+        type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="pl-9"
+        aria-label={placeholder.replace(/…$/, "")}
+        className={cn("pl-10", inputClassName)}
       />
     </div>
   );
@@ -77,12 +86,7 @@ export function TagRow({ tags }: { tags: string[] }) {
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       {tags.map((tag) => (
-        <span
-          key={tag}
-          className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground"
-        >
-          #{tag}
-        </span>
+        <Selo key={tag}>#{tag}</Selo>
       ))}
     </div>
   );
@@ -391,7 +395,15 @@ export function FaqFormDialog({
   );
 }
 
-export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean }) {
+/**
+ * Editar e excluir uma FAQ, com os diálogos de cada um.
+ *
+ * Mora fora do cartão porque a lista em colunas e a página da pergunta usam os
+ * mesmos botões. Quem só tem leitura não vê nada: a garantia de verdade está
+ * no backend, que exige admin ou editor para escrever, e isto evita oferecer
+ * uma ação que terminaria em 403.
+ */
+export function AcoesDaFaq({ faq, className }: { faq: Faq; className?: string }) {
   const podeEscrever = usePodeEscrever();
   const queryClient = useQueryClient();
   const remove = useServerFn(deleteFaq);
@@ -403,27 +415,83 @@ export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean 
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["faqs"] });
       await queryClient.invalidateQueries({ queryKey: ["activity"] });
-      toast.success("FAQ excluída");
+      toast.success("Pergunta excluída");
       setDeleting(false);
     },
-    onError: (error: Error) => toast.error(error.message || "Não foi possível excluir"),
+    onError: (error: Error) =>
+      toast.error(
+        error.message || "Não foi possível excluir. Confira a internet e tente de novo.",
+      ),
   });
 
+  if (!podeEscrever) return null;
+
+  return (
+    <div className={cn("flex shrink-0 items-center gap-1", className)}>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={`Editar: ${faq.question}`}
+        title="Editar"
+        onClick={() => setEditing(true)}
+      >
+        <Pencil />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={`Excluir: ${faq.question}`}
+        title="Excluir"
+        className="text-destructive hover:bg-destructive-soft hover:text-destructive"
+        onClick={() => setDeleting(true)}
+      >
+        <Trash2 />
+      </Button>
+
+      <FaqFormDialog mode="edit" faq={faq} open={editing} onOpenChange={setEditing} />
+
+      <AlertDialog open={deleting} onOpenChange={setDeleting}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir esta pergunta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{faq.question}” sai da base, e o chatbot deixa de usá-la para responder. Não
+              dá para desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                mutation.mutate();
+              }}
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/** A pergunta inteira: resposta, fonte, tags e quem mexeu. */
+export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean }) {
   const categories = faqCategories(faq);
 
   return (
-    <li className="rounded-lg border border-border panel-surface p-4 sm:p-5">
+    <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           {categories.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
-                <span
-                  key={category}
-                  className="rounded-full bg-primary/12 px-2.5 py-0.5 text-xs font-medium text-primary"
-                >
+                <Selo key={category} tom="marca">
                   {category}
-                </span>
+                </Selo>
               ))}
             </div>
           )}
@@ -431,76 +499,83 @@ export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean 
           <p
             className={
               compact
-                ? "mt-1 line-clamp-3 break-words text-sm text-muted-foreground"
-                : "mt-2 whitespace-pre-line break-words text-sm text-muted-foreground"
+                ? "mt-1 line-clamp-3 break-words text-[15px] text-muted-foreground"
+                : "mt-2 whitespace-pre-line break-words text-[15px] leading-relaxed text-muted-foreground"
             }
           >
             {faq.answer}
           </p>
           {faq.source && (
-            <p className="mt-1 break-words text-sm font-semibold text-muted-foreground">
+            <p className="mt-2 break-words text-sm font-semibold text-muted-foreground">
               Fonte: {faq.source}
             </p>
           )}
           <TagRow tags={faq.tags} />
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-3 text-[13px] text-muted-foreground">
             {faq.updated_by ? `Última alteração por ${faq.updated_by}` : "Sem registro de autor"}
             {faq.created_by ? ` · criada por ${faq.created_by}` : ""}
+            {faq.updatedAt ? ` · ${dataCurta(faq.updatedAt)}` : ""}
           </p>
         </div>
-        {/* Quem só tem leitura não vê os botões. A garantia de verdade está
-            no backend, que exige papel admin ou editor para escrever — isto
-            aqui evita oferecer uma ação que resultaria em 403. */}
-        {podeEscrever && (
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-10 sm:size-9"
-              aria-label="Editar pergunta"
-              title="Editar"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Excluir pergunta"
-              title="Excluir"
-              className="size-10 text-destructive hover:text-destructive sm:size-9"
-              onClick={() => setDeleting(true)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
+        <AcoesDaFaq faq={faq} />
+      </div>
+    </li>
+  );
+}
+
+/**
+ * Uma pergunta como linha da lista: pergunta e começo da resposta, assunto,
+ * data e as ações.
+ *
+ * LÓGICA DO LUCIANO: a lista mostrava cada FAQ como cartão completo, com a
+ * resposta inteira, a fonte e as tags. Cabiam duas por tela, e achar uma
+ * pergunta era rolar. Em colunas cabem dez, e o detalhe está a um clique na
+ * página da pergunta.
+ */
+export function FaqLinha({ faq }: { faq: Faq }) {
+  const [assunto, ...outros] = faqCategories(faq);
+
+  return (
+    <li className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-1 border-b border-border px-4 py-3.5 last:border-b-0 hover:bg-surface-2 sm:px-5 md:grid-cols-[minmax(0,1fr)_190px_120px_96px]">
+      <div className="col-span-2 min-w-0 md:col-span-1">
+        <Link
+          to="/faqs/$id"
+          params={{ id: faq.id }}
+          className="block break-words text-base font-semibold leading-snug text-foreground hover:underline"
+        >
+          {faq.question}
+        </Link>
+        <span className="mt-1 block truncate text-sm text-muted-foreground">{faq.answer}</span>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        {assunto ? (
+          <Selo tom="marca" className="max-w-full truncate" title={assunto}>
+            {assunto}
+          </Selo>
+        ) : (
+          <span className="text-sm text-muted-foreground">sem assunto</span>
+        )}
+        {outros.length > 0 && (
+          <span className="text-sm text-muted-foreground" title={outros.join(", ")}>
+            +{outros.length}
+          </span>
+        )}
+        {/* No celular a data vai junto do assunto; a coluna própria some. */}
+        {faq.updatedAt && (
+          <span className="text-sm text-muted-foreground md:hidden">
+            {dataCurta(faq.updatedAt)}
+          </span>
         )}
       </div>
-
-      <FaqFormDialog mode="edit" faq={faq} open={editing} onOpenChange={setEditing} />
-
-      <AlertDialog open={deleting} onOpenChange={setDeleting}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Deseja realmente excluir?</AlertDialogTitle>
-            <AlertDialogDescription>
-              “{faq.question}” será removida permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                mutation.mutate();
-              }}
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? "Excluindo…" : "Confirmar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <span className="hidden text-[15px] text-muted-foreground md:block">
+        {faq.updatedAt ? dataCurta(faq.updatedAt) : "sem data"}
+      </span>
+      {/* No desktop os botões aparecem ao passar o mouse ou chegar pelo
+          teclado; sempre visíveis, vinte linhas de lápis e lixeira viram ruído. */}
+      <AcoesDaFaq
+        faq={faq}
+        className="justify-end md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+      />
     </li>
   );
 }
@@ -520,7 +595,7 @@ export function InsertFaqButton({
   return (
     <>
       <Button onClick={() => setOpen(true)}>
-        <Plus className="size-4" /> {label}
+        <Plus /> {label}
       </Button>
       <FaqFormDialog
         mode="create"

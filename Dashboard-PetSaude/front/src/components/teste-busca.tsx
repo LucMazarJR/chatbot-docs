@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronDown, ChevronRight, FlaskConical } from "lucide-react";
+import { FlaskConical, X } from "lucide-react";
 
 import { testarBusca, type ResultadoBusca } from "@/lib/faq.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePodeEscrever } from "@/components/gate";
+import { Selo } from "@/components/selo";
 
 /**
  * Rodar a busca do chatbot sem passar pelo chatbot.
@@ -24,13 +25,13 @@ import { usePodeEscrever } from "@/components/gate";
  * de conteúdo realmente faltando são indistinguíveis — e a correção de cada um é
  * oposta à do outro.
  *
- * Fechado por padrão: gasta um embedding por teste, na mesma cota diária que a
- * ingestão e o chatbot dividem.
+ * Só aparece quando alguém abre pelo botão da barra de busca: cada teste gasta
+ * um embedding, na mesma cota diária que a ingestão e o chatbot dividem.
  */
-export function TesteDeBusca() {
+export function TesteDeBusca({ aoFechar }: { aoFechar: () => void }) {
   const podeEscrever = usePodeEscrever();
-  const [aberto, setAberto] = useState(false);
   const [pergunta, setPergunta] = useState("");
+  const [tentouVazio, setTentouVazio] = useState(false);
   const testar = useServerFn(testarBusca);
 
   const busca = useMutation({
@@ -43,34 +44,35 @@ export function TesteDeBusca() {
 
   const enviar = () => {
     const texto = pergunta.trim();
-    if (texto.length < 2 || busca.isPending) return;
+    if (busca.isPending) return;
+    if (texto.length < 2) {
+      setTentouVazio(true);
+      return;
+    }
     busca.mutate(texto);
   };
 
   return (
-    <section className="rounded-lg border border-border panel-surface">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-2 p-4 text-left"
-        onClick={() => setAberto((v) => !v)}
-        aria-expanded={aberto}
-      >
-        <span className="flex items-center gap-2 text-sm font-medium">
-          <FlaskConical className="size-4" />
-          Testar como o chatbot busca
-        </span>
-        {aberto ? (
-          <ChevronDown className="size-4 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="size-4 text-muted-foreground" />
-        )}
-      </button>
+    <section
+      id="teste-de-busca"
+      aria-labelledby="titulo-teste-busca"
+      className="rounded-xl border border-border bg-card"
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-border py-2 pl-4 pr-2">
+        <h2 id="titulo-teste-busca" className="flex items-center gap-2 text-base font-semibold">
+          <FlaskConical className="size-[18px]" />
+          Testar a busca do chatbot
+        </h2>
+        <Button variant="ghost" size="icon" aria-label="Fechar o teste de busca" onClick={aoFechar}>
+          <X />
+        </Button>
+      </div>
 
-      {aberto && (
-        <div className="space-y-4 border-t border-border p-4">
-          <p className="text-sm text-muted-foreground">
+      {(
+        <div className="space-y-4 p-4">
+          <p className="text-[15px] text-muted-foreground">
             Escreva a pergunta como um cidadão escreveria. A busca é a mesma do chatbot, com o
-            mesmo corte de relevância — o que aparecer aqui é o que ele teria para responder.
+            mesmo corte de relevância: o que aparecer aqui é o que ele teria para responder.
           </p>
 
           <div className="flex flex-wrap gap-2">
@@ -87,14 +89,21 @@ export function TesteDeBusca() {
               placeholder="Ex.: Onde fica a UBS?"
               className="min-w-[16rem] flex-1"
             />
-            <Button onClick={enviar} disabled={busca.isPending || pergunta.trim().length < 2}>
+            <Button onClick={enviar} disabled={busca.isPending}>
               {busca.isPending ? "Buscando…" : "Buscar"}
             </Button>
           </div>
 
+          {/* O botão aceita o toque e a frase diz o que falta: um botão apagado
+              não explica nada. */}
+          {tentouVazio && pergunta.trim().length < 2 && (
+            <p className="text-sm text-warning">Escreva a pergunta, com ao menos duas letras.</p>
+          )}
+
           {busca.isError && (
             <p className="text-sm text-destructive">
-              {(busca.error as Error).message || "Não foi possível testar agora."}
+              {(busca.error as Error).message ||
+                "Não foi possível testar agora. Confira a internet e tente de novo."}
             </p>
           )}
 
@@ -128,9 +137,7 @@ function Resultado({ dados }: { dados: ResultadoBusca }) {
         {dados.trechos.map((trecho) => (
           <li
             key={trecho.id}
-            className={`rounded-lg border p-3 ${
-              trecho.passaria ? "border-success/40 bg-success/5" : "border-border"
-            }`}
+            className="rounded-lg border border-border p-3"
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <Link
@@ -140,19 +147,12 @@ function Resultado({ dados }: { dados: ResultadoBusca }) {
               >
                 {trecho.question || "(sem pergunta)"}
               </Link>
-              <span
-                className={`shrink-0 rounded-full border px-2 py-0.5 text-xs tabular-nums ${
-                  trecho.passaria
-                    ? "border-success/40 bg-success/10 text-success"
-                    : "border-border bg-muted text-muted-foreground"
-                }`}
-              >
-                {trecho.score.toFixed(3)}
-                {trecho.passaria ? " · usado" : " · cortado"}
-              </span>
+              <Selo tom={trecho.passaria ? "sucesso" : "neutro"} className="tabular-nums">
+                {trecho.passaria ? "Usado" : "Abaixo do corte"} · {trecho.score.toFixed(3)}
+              </Selo>
             </div>
 
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               {trecho.category ?? "Sem assunto"}
               {/* A busca do fluxo não filtra por isActive: uma FAQ desativada
                   pode voltar aqui e ir para a resposta do chatbot. */}
@@ -162,7 +162,7 @@ function Resultado({ dados }: { dados: ResultadoBusca }) {
         ))}
       </ul>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Modelo: {dados.modelo}. Um teste = um embedding da cota diária.
       </p>
     </div>

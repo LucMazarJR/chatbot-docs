@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { FolderOpen } from "lucide-react";
+import { FlaskConical, FolderOpen } from "lucide-react";
 
 import {
   getFaqCategories,
@@ -11,22 +11,27 @@ import {
   type Origem,
   type Situacao,
 } from "@/lib/faq.functions";
-import { GateShell } from "@/components/gate";
+import { GateShell, usePodeEscrever } from "@/components/gate";
 import { FaqPagination } from "@/components/faq-pagination";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
-import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
+import { FaqLinha, InsertFaqButton, SearchField } from "@/components/faq-shared";
 import { TesteDeBusca } from "@/components/teste-busca";
 import {
+  BotaoFiltros,
   FILTRO_VAZIO,
-  FiltrosFaq,
+  PainelFiltros,
+  SeletorAssunto,
   contarFiltrosAtivos,
+  contarOutrosFiltros,
   fimDoDia,
   inicioDoDia,
   type ValoresFiltro,
 } from "@/components/filtros-faq";
 import { exigirSessao } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoFalha, EstadoVazio } from "@/components/estado";
 
 const POR_PAGINA = 20;
 
@@ -120,6 +125,8 @@ function BrowsePanel() {
   const [termo, setTermo] = useState(search);
   const termoAtrasado = useDebouncedValue(termo, 300);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [testeAberto, setTesteAberto] = useState(false);
+  const podeEscrever = usePodeEscrever();
 
   const valores: ValoresFiltro = {
     category: busca.category ?? "",
@@ -203,115 +210,145 @@ function BrowsePanel() {
     navigate({ search: {}, replace: true });
   };
 
+  const primeiro = (page - 1) * POR_PAGINA + 1;
+  const ultimo = Math.min(page * POR_PAGINA, totalFiltrado);
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Perguntas frequentes</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {categoriasQuery.data
-              ? `${categoriasQuery.data.totalFaqs} cadastradas em ${categoriasQuery.data.totalCategories} assuntos`
-              : "Carregando…"}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link to="/categorias">
-              <FolderOpen className="size-4" /> Assuntos
-            </Link>
-          </Button>
-          <InsertFaqButton />
-        </div>
-      </div>
-
-      {/* Acima da busca normal de propósito: as duas procuram FAQ, e é preciso
-          ficar claro que uma acha por palavra digitada e a outra por
-          significado, que é o que o chatbot faz. */}
-      <TesteDeBusca />
-
-      <SearchField
-        value={termo}
-        onChange={aplicarBusca}
-        placeholder="Pesquisar por pergunta, assunto ou tag…"
+    <div className="space-y-5">
+      <CabecalhoPagina
+        titulo="Perguntas frequentes"
+        frase={
+          // O total só aparece com a resposta na mão: um "0 perguntas"
+          // provisório diria que a base está vazia.
+          categoriasQuery.data
+            ? `${categoriasQuery.data.totalFaqs.toLocaleString("pt-BR")} perguntas em ${categoriasQuery.data.totalCategories} assuntos, lidas pelo chatbot para responder.`
+            : "As perguntas que o chatbot lê para responder."
+        }
+        acoes={
+          <>
+            <Button asChild variant="outline">
+              <Link to="/categorias">
+                <FolderOpen /> Assuntos
+              </Link>
+            </Button>
+            <InsertFaqButton label="Inserir pergunta" />
+          </>
+        }
       />
 
-      <FiltrosFaq
-        aberto={filtrosAbertos}
-        aoAlternar={() => setFiltrosAbertos((v) => !v)}
-        valores={valores}
-        aoMudar={aplicarFiltro}
-        aoLimpar={() => aplicarFiltro(FILTRO_VAZIO)}
-        categorias={categorias}
-      />
+      {/* Busca, assunto, filtros e o teste de busca numa barra só: antes eram
+          três blocos empilhados, e a lista começava abaixo da dobra. */}
+      <section
+        aria-label="Buscar e filtrar"
+        className="flex flex-col gap-2.5 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-center"
+      >
+        <SearchField
+          value={termo}
+          onChange={aplicarBusca}
+          placeholder="Pesquisar por pergunta, resposta ou tag…"
+          className="min-w-0 sm:min-w-64 sm:flex-1"
+          inputClassName="bg-background"
+        />
+        <SeletorAssunto
+          valor={valores.category}
+          aoMudar={(category) => aplicarFiltro({ category })}
+          categorias={categorias}
+        />
+        <div className="flex flex-wrap gap-2.5">
+          <BotaoFiltros
+            aberto={filtrosAbertos}
+            aoAlternar={() => setFiltrosAbertos((v) => !v)}
+            ativos={contarOutrosFiltros(valores)}
+          />
+          {/* A busca por palavra acha o texto digitado; esta mostra o que o
+              chatbot acharia por significado. Leitor não tem o que corrigir
+              com o resultado, e cada teste gasta cota. */}
+          {podeEscrever && (
+            <Button
+              type="button"
+              variant="outline"
+              aria-expanded={testeAberto}
+              aria-controls="teste-de-busca"
+              onClick={() => setTesteAberto((v) => !v)}
+            >
+              <FlaskConical /> Testar busca do chatbot
+            </Button>
+          )}
+        </div>
+      </section>
 
-      {/* Só com a resposta na mão: antes dela, "0 resultados" dizia que a
-          base estava vazia, ao lado do próprio "Carregando". */}
-      {faqsQuery.data && (
-        <p className="text-sm text-muted-foreground">
-          {totalFiltrado} {totalFiltrado === 1 ? "resultado" : "resultados"}
-          {totalPaginas > 1 ? ` · página ${page} de ${totalPaginas}` : ""}
-        </p>
+      {filtrosAbertos && (
+        <PainelFiltros
+          valores={valores}
+          aoMudar={aplicarFiltro}
+          aoLimpar={() => aplicarFiltro({ ...FILTRO_VAZIO, category: valores.category })}
+        />
       )}
 
+      {testeAberto && <TesteDeBusca aoFechar={() => setTesteAberto(false)} />}
+
       {faqsQuery.isError ? (
-        // Antes, um erro de rede caía no ramo de lista vazia e a tela dizia
-        // "0 resultados · nenhuma pergunta encontrada": o app afirmava que a
-        // base estava vazia quando na verdade tinha caído.
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center sm:p-8">
-          <p className="text-sm text-destructive">
-            Não foi possível carregar as perguntas. Verifique a conexão e tente recarregar.
-          </p>
-          {/* A mensagem do servidor aparece aqui de propósito. Sem ela, uma
-              falha intermitente vira "não funciona" e não há como distinguir
-              conexão caída de consulta que passou do tempo. */}
+        // Um erro de rede nunca vira "nenhuma pergunta encontrada": seria o
+        // painel afirmando que a base está vazia quando ele só caiu.
+        <EstadoFalha onTentarDeNovo={() => faqsQuery.refetch()} tentando={faqsQuery.isFetching}>
+          Não foi possível carregar as perguntas. Confira a internet e tente de novo.
           {faqsQuery.error instanceof Error && faqsQuery.error.message && (
-            <p className="mt-2 break-words text-xs text-muted-foreground">
+            // A mensagem do servidor ajuda a separar conexão caída de consulta
+            // que passou do tempo.
+            <span className="mt-1 block text-xs font-normal opacity-80">
               {faqsQuery.error.message}
-            </p>
+            </span>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => faqsQuery.refetch()}
-          >
-            Tentar de novo
-          </Button>
-        </div>
+        </EstadoFalha>
       ) : faqsQuery.isLoading && !faqsQuery.data ? (
         <Carregando texto="Carregando as perguntas…" />
       ) : faqs.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-6 text-center sm:p-8">
-          <p className="text-sm text-muted-foreground">
-            {temFiltro
-              ? "Nenhuma pergunta encontrada com esta busca."
-              : "Nenhuma pergunta cadastrada ainda."}
-          </p>
-          {temFiltro ? (
-            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={limparTudo}>
-              Limpar a busca e os filtros
-            </Button>
-          ) : (
-            <div className="mt-3 flex justify-center">
+        <EstadoVazio
+          titulo={temFiltro ? "Nenhuma pergunta com esta busca" : "Nenhuma pergunta cadastrada"}
+          acao={
+            temFiltro ? (
+              <Button type="button" variant="outline" onClick={limparTudo}>
+                Limpar a busca e os filtros
+              </Button>
+            ) : (
               <InsertFaqButton label="Cadastrar a primeira" />
-            </div>
-          )}
-        </div>
+            )
+          }
+        >
+          {temFiltro
+            ? "Tente outra palavra, ou tire um filtro."
+            : "As perguntas cadastradas aqui passam a ser usadas pelo chatbot."}
+        </EstadoVazio>
       ) : (
-        <ul className="space-y-3">
-          {faqs.map((faq) => (
-            <FaqCard key={faq.id} faq={faq} />
-          ))}
-        </ul>
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div
+            aria-hidden="true"
+            className="hidden grid-cols-[minmax(0,1fr)_190px_120px_96px] gap-5 border-b border-border px-5 py-3 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground md:grid"
+          >
+            <span>Pergunta</span>
+            <span>Assunto</span>
+            <span>Atualizada</span>
+            <span />
+          </div>
+          <ul aria-label="Perguntas" aria-busy={faqsQuery.isFetching}>
+            {faqs.map((faq) => (
+              <FaqLinha key={faq.id} faq={faq} />
+            ))}
+          </ul>
+          <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-[15px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <span aria-live="polite">
+              Mostrando {primeiro} a {ultimo} de {totalFiltrado.toLocaleString("pt-BR")}
+            </span>
+            <FaqPagination
+              page={page}
+              totalPages={totalPaginas}
+              onPageChange={(destino) =>
+                navigate({ search: (atual) => ({ ...atual, page: destino }) })
+              }
+            />
+          </div>
+        </div>
       )}
-
-      <FaqPagination
-        page={page}
-        totalPages={totalPaginas}
-        onPageChange={(destino) => navigate({ search: (atual) => ({ ...atual, page: destino }) })}
-      />
     </div>
   );
 }
