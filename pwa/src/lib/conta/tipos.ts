@@ -15,8 +15,7 @@ export type Usuario = {
   /**
    * Alguém provou que controla este e-mail.
    *
-   * Só o login pelo Google prova isso hoje — não existe envio de e-mail no
-   * projeto. É o campo que decide o que acontece quando um login do Google
+   * Só o login pelo Google prova isso, porque o projeto não envia e-mail. É o campo que decide o que acontece quando um login do Google
    * encontra uma conta de senha com o mesmo endereço (ver `vinculo.ts`).
    */
   emailVerificado: boolean;

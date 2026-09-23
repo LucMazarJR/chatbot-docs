@@ -6,7 +6,7 @@ import type { Notificacao } from './notificacoes/tipos';
 import type { InscricaoPush } from './push/tipos';
 import type { Mensagem, Sessao } from './tipos';
 
-/** Configuração guardada no banco, hoje só as chaves VAPID. */
+/** Configuração guardada no banco, como as chaves VAPID. */
 type Configuracao = { _id: string; publica: string; privada: string; criadaEm: Date };
 
 /**

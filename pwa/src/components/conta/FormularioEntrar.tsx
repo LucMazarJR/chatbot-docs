@@ -47,7 +47,7 @@ export function FormularioEntrar({ googleAtivo }: { googleAtivo: boolean }) {
       return {
         // Sem "acima" nem "abaixo": a caixa muda de lugar conforme o teclado do
         // celular abre. O destaque e o foco é que apontam para ela.
-        mensagem: 'Falta aceitar os termos destacados — é o que nos permite guardar a conversa.',
+        mensagem: 'Falta aceitar os termos destacados: é o que nos permite guardar a conversa.',
         campo: aceiteRef.current,
         aceite: true,
       };
@@ -78,7 +78,7 @@ export function FormularioEntrar({ googleAtivo }: { googleAtivo: boolean }) {
       const dados = (await resposta.json().catch(() => ({}))) as { erro?: string };
 
       if (!resposta.ok) {
-        setErro(dados.erro ?? 'Não foi possível continuar. Tente de novo.');
+        setErro(dados.erro ?? 'Não foi possível continuar agora. Confira a internet e tente de novo em instantes.');
         return;
       }
 

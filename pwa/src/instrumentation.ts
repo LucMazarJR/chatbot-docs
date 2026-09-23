@@ -1,7 +1,7 @@
 /**
  * Roda uma vez, quando o servidor do Next sobe.
  *
- * Hoje só liga o relógio dos avisos. As guardas existem porque este arquivo é
+ * Liga o relógio dos avisos. As guardas existem porque este arquivo é
  * chamado em lugares onde o relógio não deve existir:
  *
  * - runtime edge: não tem os módulos de Node que o envio usa;

@@ -16,8 +16,8 @@ export async function contaAtual(): Promise<Usuario | null> {
 /**
  * O login pelo Google está disponível?
  *
- * Sem as duas variáveis o botão simplesmente não aparece, e o e-mail com senha
- * continua funcionando — ligar o Google é só preenchê-las.
+ * Sem as duas variáveis o botão não aparece, e o e-mail com senha continua
+ * funcionando: ligar o Google é só preenchê-las.
  */
 export function googleConfigurado(): boolean {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);

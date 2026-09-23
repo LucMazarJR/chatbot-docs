@@ -217,7 +217,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   /**
    * Depois de um tempo parado, oferece a avaliação sozinho.
    *
-   * Sem isso, a maioria das sessões terminaria simplesmente fechando a aba, e o
+   * Sem isso, a maioria das sessões terminaria com a aba fechada, e o
    * protótipo perderia justamente o dado que ele existe para coletar. O piso de
    * perguntas evita abordar quem mal começou a conversar.
    */

@@ -7,7 +7,7 @@
  * de saúde, onde boa parte de quem vai testar tem presbiopia e usa o telefone
  * com a fonte do sistema no máximo — e o chat ignorava a fonte do sistema, por
  * medir tudo em px para imitar o WhatsApp. Sem um controle próprio, essas
- * pessoas simplesmente não conseguiriam ler as respostas que vieram avaliar, e a
+ * pessoas não conseguiriam ler as respostas que vieram avaliar, e a
  * validação mediria a visão delas em vez da qualidade do assistente.
  *
  * Fica em `localStorage`, junto da sessão: a escolha precisa sobreviver ao

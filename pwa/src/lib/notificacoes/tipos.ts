@@ -1,8 +1,8 @@
 /**
  * A fila de avisos e os tipos de aviso.
  *
- * LÓGICA DO LUCIANO: quem cria avisos (hoje o dashboard, amanhã uma integração
- * com a agenda) só escreve documentos nesta fila; quem envia é um só, o
+ * LÓGICA DO LUCIANO: quem cria avisos (o dashboard, ou uma integração com a
+ * agenda) só escreve documentos nesta fila; quem envia é um só, o
  * despachante do PWA. Um produtor novo não toca no envio, e o envio não precisa
  * saber de onde o aviso veio.
  *
