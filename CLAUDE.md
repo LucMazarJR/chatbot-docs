@@ -18,7 +18,17 @@ O chat vai para a mão de gente no posto de saúde, e o painel é a ferramenta d
 * Todo erro vira uma frase que diz o que fazer em seguida. "Erro ao salvar" não serve.
 * Funciona no celular pequeno (390 px), com teclado aberto, no tema claro e no escuro.
 * Alvo de toque de 44 px, foco visível, navegação por teclado, nome para leitor de tela.
-* Estado vazio, estado de carregando e estado de falha existem em toda tela.
+* Estado vazio, estado de carregando e estado de falha existem em toda tela, e um não se passa pelo outro.
+
+### Carregando não é vazio
+
+Tela que busca dado mostra o **sinal de carregamento** até a resposta chegar, e só então decide o que exibir:
+
+* "Nenhum aviso", "0 resultados" ou lista em branco só aparecem **depois** que a resposta chegou vazia. Mostrar isso durante a espera diz à pessoa que não existe nada, e ela vai embora antes de os dados aparecerem.
+* O sinal é o componente `Carregando` de cada projeto (`pwa/src/components/Carregando.tsx` e `Dashboard-PetSaude/front/src/components/carregando.tsx`), com o giro e uma frase que diz **o que** está chegando. Texto cinza sozinho passa despercebido.
+* Falha não é vazio nem carregando: tem frase própria e um jeito de tentar de novo.
+* Número que depende da resposta (contador, total, percentual) não aparece como zero enquanto espera.
+* Conferir no navegador com a rede lenta (DevTools, *Slow 4G*): é assim que o vazio falso aparece.
 
 ## UX antes de dar por pronto
 
