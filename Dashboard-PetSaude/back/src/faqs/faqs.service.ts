@@ -32,6 +32,12 @@ export type FiltroFaqs = {
     tag?: string;
     /** Casa com quem criou ou com quem alterou por ultimo. */
     autor?: string;
+    /**
+     * O nome de quem esta logado, para "minhas perguntas". Vem da sessao, nunca
+     * do que se digita, e casa com o nome inteiro: `autor` casa com pedaco, e
+     * "Ana" traria tambem as perguntas da "Mariana".
+     */
+    minhasDe?: string;
     origem?: 'manual' | 'importada' | 'drive';
     situacao?: 'ativas' | 'inativas' | 'todas';
     de?: string;
@@ -314,6 +320,15 @@ export class FaqsService {
             filtro.$and = [
                 ...((filtro.$and as unknown[]) ?? []),
                 { $or: [{ updated_by: autor }, { created_by: autor }] },
+            ];
+        }
+
+        const minhasDe = f.minhasDe?.trim() ?? '';
+        if (minhasDe) {
+            const eu = new RegExp(`^${this.escaparRegex(minhasDe)}$`, 'i');
+            filtro.$and = [
+                ...((filtro.$and as unknown[]) ?? []),
+                { $or: [{ updated_by: eu }, { created_by: eu }] },
             ];
         }
 
