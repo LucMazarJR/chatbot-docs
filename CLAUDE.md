@@ -14,6 +14,8 @@ A mensagem diz o **porquê**, em português, e não só o que mudou. Sem o trail
 
 Push só depois de garantir que não quebra o que já está rodando: build, teste de unidade e a verificação contra o ambiente real da parte mexida.
 
+Commit vai sendo feito ao longo do trabalho, mas o push é um só, no fim de cada funcionalidade terminada e verificada, e quem faz é o Claude. Cada push na `main` gera deploy na Vercel, e o plano grátis tem limite de deploys por dia. No painel, publicar o back antes do front, porque o front novo pode chamar rota que só o back novo tem.
+
 ## É produto, não protótipo descartável
 
 O chat vai para a mão de gente no posto de saúde, e o painel é a ferramenta de trabalho da equipe. Vale o padrão de aplicação profissional:
