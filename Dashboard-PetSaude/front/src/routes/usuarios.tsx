@@ -44,6 +44,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Carregando } from "@/components/carregando";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoFalha, EstadoVazio } from "@/components/estado";
+import { Selo } from "@/components/selo";
 
 const PAPEIS: { valor: UserRole; rotulo: string; descricao: string }[] = [
   { valor: "admin", rotulo: "Administrador", descricao: "Gerencia usuários e FAQs" },
@@ -99,31 +102,32 @@ function PainelUsuarios() {
     toast.success(mensagem);
   };
 
-  const avisar = (padrao: string) => (erro: Error) => toast.error(erro.message || padrao);
+  const avisar = (padrao: string) => (erro: Error) =>
+    toast.error(erro.message || `${padrao} Confira a internet e tente de novo.`);
 
   const mutCriar = useMutation({
     mutationFn: (dados: NovoUsuario) => criar({ data: dados }),
     onSuccess: () => aoConcluir("Usuário criado"),
-    onError: avisar("Não foi possível criar"),
+    onError: avisar("Não foi possível criar a conta."),
   });
 
   const mutAtualizar = useMutation({
     mutationFn: (dados: { id: string; role?: UserRole; isActive?: boolean }) =>
       atualizar({ data: dados }),
     onSuccess: () => aoConcluir("Usuário atualizado"),
-    onError: avisar("Não foi possível atualizar"),
+    onError: avisar("Não foi possível salvar a mudança."),
   });
 
   const mutDesativar = useMutation({
     mutationFn: (id: string) => desativar({ data: { id } }),
     onSuccess: () => aoConcluir("Usuário desativado"),
-    onError: avisar("Não foi possível desativar"),
+    onError: avisar("Não foi possível desativar a conta."),
   });
 
   const mutSenha = useMutation({
     mutationFn: (dados: { id: string; newPassword: string }) => definirSenha({ data: dados }),
     onSuccess: () => aoConcluir("Senha redefinida. O usuário precisará trocá-la ao entrar."),
-    onError: avisar("Não foi possível redefinir"),
+    onError: avisar("Não foi possível redefinir a senha."),
   });
 
   // A tela só existe para admin, mas o backend é quem garante: a rota inteira
@@ -131,33 +135,40 @@ function PainelUsuarios() {
   // devolveria 403.
   if (usuario && usuario.role !== "admin") {
     return (
-      <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground sm:p-8">
-        Somente administradores podem gerenciar usuários.
-      </p>
+      <EstadoVazio titulo="Só administradores gerenciam usuários">
+        Peça a um administrador para criar ou mudar uma conta.
+      </EstadoVazio>
     );
   }
 
   const usuarios = usuariosQuery.data ?? [];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Usuários</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {usuariosQuery.isLoading
-            ? "Carregando as contas…"
-            : usuarios.length === 1
-              ? "1 conta cadastrada"
-              : usuarios.length + " contas cadastradas"}
-        </p>
-      </div>
+    <div className="space-y-6">
+      <CabecalhoPagina
+        titulo="Usuários"
+        frase={
+          // O total só com a resposta: "0 contas" durante a espera diria que
+          // ninguém tem acesso ao painel.
+          usuariosQuery.data
+            ? `${usuarios.length === 1 ? "1 conta" : `${usuarios.length} contas`} com acesso ao painel, e o que cada uma pode fazer.`
+            : "Quem tem acesso ao painel, e o que cada conta pode fazer."
+        }
+      />
 
       <FormularioNovoUsuario aoCriar={(dados) => mutCriar.mutateAsync(dados)} />
 
-      {usuariosQuery.isLoading ? (
+      {usuariosQuery.isError ? (
+        <EstadoFalha
+          onTentarDeNovo={() => usuariosQuery.refetch()}
+          tentando={usuariosQuery.isFetching}
+        >
+          Não foi possível carregar as contas. Confira a internet e tente de novo.
+        </EstadoFalha>
+      ) : usuariosQuery.isLoading ? (
         <Carregando texto="Carregando as contas…" />
       ) : (
-        <ul className="space-y-3">
+        <ul className="overflow-hidden rounded-xl border border-border bg-card">
           {usuarios.map((u) => (
             <LinhaUsuario
               key={u.id}
@@ -245,56 +256,46 @@ function LinhaUsuario({
   aoReativar: () => void;
 }) {
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border panel-surface p-4 sm:flex-row sm:items-center sm:p-5">
+    <li className="flex flex-col gap-3 border-b border-border px-4 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:px-5">
       <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-2 font-medium">
+        <p className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
           {usuario.name}
-          {ehVoce && (
-            <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[10px] uppercase tracking-wide text-primary">
-              você
-            </span>
-          )}
-          {!usuario.isActive && (
-            <span className="rounded-full bg-destructive/12 px-2 py-0.5 text-[10px] uppercase tracking-wide text-destructive">
-              desativado
-            </span>
-          )}
+          {ehVoce && <Selo tom="marca">Você</Selo>}
+          {!usuario.isActive && <Selo tom="erro">Desativada</Selo>}
         </p>
-        <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{ROTULO_PAPEL[usuario.role]}</p>
+        <p className="truncate text-sm text-muted-foreground">
+          {usuario.email} · {ROTULO_PAPEL[usuario.role]}
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           size="sm"
-          className="h-9"
           onClick={() => aoAgir({ tipo: "papel", alvo: usuario })}
         >
-          <UserCog className="size-4" /> Papel
+          <UserCog /> Papel
         </Button>
 
         <Button
           variant="outline"
           size="sm"
-          className="h-9"
           onClick={() => aoAgir({ tipo: "senha", alvo: usuario })}
         >
-          <KeyRound className="size-4" /> Senha
+          <KeyRound /> Senha
         </Button>
 
         {usuario.isActive ? (
           <Button
-            variant="outline"
+            variant="perigo"
             size="sm"
-            className="h-9"
             onClick={() => aoAgir({ tipo: "desativar", alvo: usuario })}
           >
             Desativar
           </Button>
         ) : (
-          <Button variant="outline" size="sm" className="h-9" onClick={aoReativar}>
-            <ShieldCheck className="size-4" /> Reativar
+          <Button variant="outline" size="sm" onClick={aoReativar}>
+            <ShieldCheck /> Reativar
           </Button>
         )}
       </div>
@@ -348,7 +349,7 @@ function DialogoPapel({
           nenhum: o Select trocava o papel direto no onValueChange.
         */}
         {ehVoce && papel !== "admin" && (
-          <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          <p className="rounded-lg bg-destructive-soft p-3 text-sm font-semibold text-destructive">
             Esta é a sua conta. Ao sair de administrador você perde o acesso a esta tela, e só outro
             administrador pode devolvê-lo.
           </p>
@@ -380,7 +381,8 @@ function DialogoSenha({
 }) {
   const aberto = acao?.tipo === "senha";
   const [senha, setSenha] = useState("");
-  const curta = senha.length > 0 && senha.length < 8;
+  const [tentou, setTentou] = useState(false);
+  const curta = (tentou || senha.length > 0) && senha.length < 8;
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => !v && aoFechar()}>
@@ -408,9 +410,13 @@ function DialogoSenha({
           />
           <p
             id="ajuda-senha-provisoria"
-            className={curta ? "text-xs text-destructive" : "text-xs text-muted-foreground"}
+            className={
+              curta ? "text-sm font-semibold text-destructive" : "text-sm text-muted-foreground"
+            }
           >
-            Ao menos 8 caracteres.
+            {curta && senha.length === 0
+              ? "Escreva a senha provisória, com ao menos 8 caracteres."
+              : "Ao menos 8 caracteres."}
           </p>
         </div>
 
@@ -420,8 +426,11 @@ function DialogoSenha({
           </Button>
           <Button
             type="button"
-            disabled={salvando || senha.length < 8}
-            onClick={() => aoConfirmar(senha)}
+            disabled={salvando}
+            onClick={() => {
+              setTentou(true);
+              if (senha.length >= 8) aoConfirmar(senha);
+            }}
           >
             {salvando ? "Salvando…" : "Redefinir"}
           </Button>
@@ -480,7 +489,7 @@ function FormularioNovoUsuario({ aoCriar }: { aoCriar: (dados: NovoUsuario) => P
        * senha.
        */
       autoComplete="off"
-      className="grid gap-3 rounded-lg border border-border panel-surface p-4 sm:grid-cols-2 sm:p-5"
+      className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2 sm:p-5"
     >
       <div className="sm:col-span-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
