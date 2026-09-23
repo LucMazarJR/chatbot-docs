@@ -106,7 +106,9 @@ function baixar(blob: Blob, nomeArquivo: string): void {
 }
 
 function comData(base: string, extensao: string): string {
-  const hoje = new Date().toISOString().slice(0, 10);
+  // Data de Brasília, e não de Greenwich: com toISOString, quem baixava depois
+  // das 21h recebia um arquivo com a data de amanhã.
+  const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
   return `${base}-${hoje}.${extensao}`;
 }
 
