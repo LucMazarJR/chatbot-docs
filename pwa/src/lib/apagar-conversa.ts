@@ -18,7 +18,7 @@ export type ResultadoExclusao = {
  * LÓGICA DO LUCIANO: apagar só `sessoes` e `mensagens` daria à pessoa a
  * impressão de ter exercido o direito de exclusão enquanto o texto dela
  * continuava guardado em outro banco. As perguntas que o assistente não soube
- * responder são COPIADAS para a curadoria — nas sugestões de FAQ e no histórico
+ * responder são COPIADAS para a curadoria: nas sugestões de FAQ e no histórico
  * de cada rodada, justamente para sobreviver ao fim do protótipo. Então a
  * exclusão precisa ir até lá.
  *

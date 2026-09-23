@@ -6,7 +6,7 @@
  * despachante do PWA. Um produtor novo não toca no envio, e o envio não precisa
  * saber de onde o aviso veio.
  *
- * O dashboard grava nesta coleção — este arquivo é o dono do formato, e o
+ * O dashboard grava nesta coleção: este arquivo é o dono do formato, e o
  * espelho de lá precisa acompanhar (ver docs/notificacoes-push.md).
  */
 
@@ -31,7 +31,7 @@ export type Entrega = {
   resultado: ResultadoEntrega;
   codigo: number | null;
   em: Date;
-  /** Do navegador inscrito — é o que permite medir os limites por plataforma. */
+  /** Do navegador inscrito: é o que permite medir os limites por plataforma. */
   userAgent: string;
   /**
    * O push chegou a este aparelho. Opcional porque avisos gravados antes do
@@ -92,13 +92,13 @@ type DefinicaoDeTipo = {
 };
 
 /**
- * Texto e urgência de cada tipo — o único lugar para mantê-los.
+ * Texto e urgência de cada tipo: o único lugar para mantê-los.
  *
  * LÓGICA DO LUCIANO: o título NUNCA diz do que é o lembrete. A notificação
  * aparece na tela bloqueada, e o celular fica em cima da mesa do trabalho, na
  * mão do filho, no painel do carro. "Exame de HIV amanhã" ali é vazamento de
  * dado de saúde, e até "lembrete de exame" diz mais do que precisa. O detalhe só
- * aparece dentro do app, com a conta logada — a não ser que quem criou o aviso
+ * aparece dentro do app, com a conta logada, a não ser que quem criou o aviso
  * tenha marcado `mostrarDetalhe`.
  */
 export const TIPOS: Record<TipoNotificacao, DefinicaoDeTipo> = {

@@ -8,7 +8,7 @@ import type { CausaErro } from './tipos';
  * resposta ao cidadão leve três minutos para ficar pronta.
  *
  * Foi assim que o teto de tempo deixou de existir. Antes o fluxo só respondia no
- * fim, e a requisição ficava aberta o tempo todo — na Vercel a plataforma matava
+ * fim, e a requisição ficava aberta o tempo todo: na Vercel a plataforma matava
  * a função aos 60s e a resposta se perdia mesmo tendo sido gerada. Agora o n8n
  * trabalha sozinho e devolve o resultado pelo retorno em
  * `/api/n8n/resposta`, que grava na mensagem pendente.

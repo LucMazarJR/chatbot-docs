@@ -15,7 +15,7 @@ type Contexto = { params: Promise<{ id: string }> };
 /**
  * Transcrição da própria sessão, para o PWA se recompor depois de um refresh.
  *
- * No celular isso acontece o tempo todo — trocar de aplicativo e voltar, puxar
+ * No celular isso acontece o tempo todo: trocar de aplicativo e voltar, puxar
  * a tela para baixo sem querer. Sem esta rota, o participante voltaria para um
  * chat visualmente vazio embora a sessão continuasse viva no banco e na memória
  * do Redis, e concluiria que o protótipo se perdeu.
@@ -41,7 +41,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
   return Response.json({
     nome: sessao.nome,
     // A saudação é remontada no cliente e não existe no banco. Sem a hora de
-    // início, ela apareceria carimbada com a hora do refresh — acima de
+    // início, ela apareceria carimbada com a hora do refresh: acima de
     // mensagens mais antigas, e com o relógio andando para trás na tela.
     iniciadaEm: sessao.iniciadaEm,
     encerrada: Boolean(sessao.encerradaEm),
@@ -62,7 +62,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
  *
  * É esse desenho que permite o fluxo demorar três minutos. Antes a requisição
  * ficava aberta o tempo todo esperando, e na Vercel a plataforma matava a função
- * aos 60s — a resposta era gerada e se perdia no caminho.
+ * aos 60s: a resposta era gerada e se perdia no caminho.
  */
 export async function POST(requisicao: Request, { params }: Contexto) {
   const { id } = await params;

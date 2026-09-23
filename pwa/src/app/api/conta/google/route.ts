@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Começo do login com Google: guarda o estado num cookie e manda para o Google.
  *
- * Entrar e criar conta são o mesmo caminho — quem não tem conta aqui ganha uma
+ * Entrar e criar conta são o mesmo caminho: quem não tem conta aqui ganha uma
  * na volta. O aceite dos termos está na frase ao lado do botão, e é gravado com
  * a data na conta criada.
  */

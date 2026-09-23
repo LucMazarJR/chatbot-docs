@@ -201,7 +201,7 @@ async function diagnosticar(): Promise<Diagnostico> {
  *
  * LÓGICA DO LUCIANO: cada item desta lista é um limite do push na web, e a
  * validação existe para medir quantas pessoas esbarram em cada um. A ordem é a
- * de qual resolver primeiro — de nada adianta pedir permissão num iPhone que
+ * de qual resolver primeiro: de nada adianta pedir permissão num iPhone que
  * ainda não instalou o app, porque lá o pedido nem aparece.
  */
 function impedimento(diagnostico: Diagnostico): string | null {

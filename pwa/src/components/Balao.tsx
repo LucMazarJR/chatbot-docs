@@ -45,7 +45,7 @@ export function Balao({ papel, texto, hora, primeira, lida = false }: Props) {
           <span>{hora}</span>
           {/* Os tiques são a única indicação de que a mensagem chegou, e são
               desenho puro: para quem usa leitor de tela, um tique e dois tiques
-              azuis eram exatamente a mesma coisa — nada. */}
+              azuis eram exatamente a mesma coisa: nada. */}
           {ehSaida ? (
             <>
               <span className="sr-only">{lida ? 'Entregue' : 'Enviando'}</span>

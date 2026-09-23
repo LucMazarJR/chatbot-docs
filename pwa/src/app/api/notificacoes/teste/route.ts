@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Manda um aviso de teste para os aparelhos da própria conta, na hora.
  *
- * Passa pela mesma fila e pelo mesmo despachante de um aviso de verdade — um
+ * Passa pela mesma fila e pelo mesmo despachante de um aviso de verdade: um
  * atalho que enviasse direto provaria que o atalho funciona, e não o caminho que
  * a equipe vai usar.
  *
@@ -58,7 +58,7 @@ export async function POST(requisicao: Request) {
   const col = await notificacoes();
   await col.insertOne(aviso);
 
-  // Se o relógio estava no meio de uma rodada, esta chamada devolve aquela — que
+  // Se o relógio estava no meio de uma rodada, esta chamada devolve aquela, que
   // pode ter começado antes de o aviso existir. Uma segunda rodada o pega.
   await despachar();
   let atual = await col.findOne({ _id: aviso._id });

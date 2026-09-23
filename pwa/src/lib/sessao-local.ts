@@ -3,12 +3,12 @@
  *
  * LÓGICA DO LUCIANO: aqui ficava só o id, uma string solta. Agora é um par
  * {id, chave}, e a chave é o que separa "tenho o identificador da conversa" de
- * "sou a pessoa que a está tendo" — o id não serve como segredo, porque volta
+ * "sou a pessoa que a está tendo": o id não serve como segredo, porque volta
  * no corpo das respostas, vai para o n8n e aparece no painel de conversas.
  *
  * Um único lugar monta o cabeçalho, de propósito: são cinco rotas que precisam
  * dele, e uma esquecida significaria a tela quebrar para quem já aceitou os
- * termos — do jeito mais confuso possível, porque só acontece na segunda visita.
+ * termos: do jeito mais confuso possível, porque só acontece na segunda visita.
  */
 
 const CHAVE_ARMAZENAMENTO = 'pwa:sessao:a';
@@ -42,7 +42,7 @@ export function guardarSessao(sessao: SessaoLocal): void {
     localStorage.setItem(CHAVE_ARMAZENAMENTO, JSON.stringify(sessao));
   } catch {
     // Modo privado, cota cheia. A conversa segue nesta visita; só não é
-    // retomada depois — nada que justifique interromper quem está perguntando.
+    // retomada depois: nada que justifique interromper quem está perguntando.
   }
 }
 

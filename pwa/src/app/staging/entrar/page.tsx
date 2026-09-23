@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 /**
  * O que aconteceu na volta do Google, dito para quem está com o celular na mão.
  *
- * Cada frase diz o que fazer em seguida — "erro no login" sozinho deixa a
+ * Cada frase diz o que fazer em seguida: "erro no login" sozinho deixa a
  * pessoa tentando a mesma coisa de novo.
  */
 const VOLTA_DO_GOOGLE: Record<string, string> = {

@@ -3,15 +3,15 @@
  *
  * Duas camadas, e as duas importam para o protótipo ser fiel:
  *
- * 1. `normalizar` — porte das mesmas quatro funções de
+ * 1. `normalizar`: porte das mesmas quatro funções de
  *    backend/src/outbound/text-formatter.service.ts. No canal real, toda
  *    resposta do agente passa por elas antes de chegar ao cidadão: é a rede de
  *    segurança para quando o LLM desobedece o prompt e devolve HTML ou
  *    Markdown. O PWA não passa pelo gateway, então sem este porte o protótipo
- *    mostraria `<b>` literal numa situação em que o WhatsApp mostraria negrito
- *    — e a validação estaria medindo um defeito que não existe em produção.
+ *    mostraria `<b>` literal numa situação em que o WhatsApp mostraria negrito,
+ *    e a validação estaria medindo um defeito que não existe em produção.
  *
- * 2. `renderizar` — converte a sintaxe do WhatsApp para HTML, que é o que o
+ * 2. `renderizar`: converte a sintaxe do WhatsApp para HTML, que é o que o
  *    aplicativo real faz na tela do celular.
  *
  * Se o formatador do gateway mudar, este arquivo muda junto.

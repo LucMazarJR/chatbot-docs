@@ -13,7 +13,7 @@ type Contexto = { params: Promise<{ id: string }> };
 /**
  * Registra que alguém tentou mandar arquivo ou áudio, e responde que não dá.
  *
- * LÓGICA DO LUCIANO: o canal real só processa texto — nem o WhatsApp nem o
+ * LÓGICA DO LUCIANO: o canal real só processa texto: nem o WhatsApp nem o
  * fluxo do n8n têm caminho para áudio ou imagem. Os botões existem no protótipo
  * justamente por isso: a pergunta que a validação precisa responder é "quanta
  * gente tenta mandar foto do exame ou áudio em vez de digitar?", e essa resposta
@@ -22,7 +22,7 @@ type Contexto = { params: Promise<{ id: string }> };
  *
  * O CONTEÚDO NÃO SOBE. Nada do arquivo ou do áudio sai do aparelho: vão só o
  * tipo, o tamanho e a duração. Guardar a gravação seria acumular voz de pessoas
- * relatando problema de saúde — dado sensível, sem nenhum uso possível, já que
+ * relatando problema de saúde: dado sensível, sem nenhum uso possível, já que
  * não existe transcrição no fluxo. E o nome do arquivo fica de fora de
  * propósito: "exame_maria_silva.pdf" é exatamente o tipo de dado pessoal que o
  * aviso de consentimento pede para ninguém mandar.

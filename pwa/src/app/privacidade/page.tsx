@@ -16,13 +16,13 @@ export const metadata: Metadata = {
  * Política de privacidade do protótipo.
  *
  * LÓGICA DO LUCIANO: escrita para quem está no posto de saúde com o celular na
- * mão, não para um advogado — frases curtas, e cada item dizendo o que
+ * mão, não para um advogado: frases curtas, e cada item dizendo o que
  * acontece de fato. E só promete o que o sistema cumpre sozinho: o prazo é o do
  * índice TTL, a exclusão é a rota que apaga inclusive as cópias da curadoria, e
  * o que sai do aparelho é exatamente o que o código envia.
  *
  * O que ainda é decisão da instituição (encarregado de dados, política oficial
- * do órgão) não aparece aqui como se estivesse resolvido — está listado em
+ * do órgão) não aparece aqui como se estivesse resolvido: está listado em
  * docs/privacidade-e-lgpd.md.
  */
 export default function Privacidade() {
@@ -63,7 +63,7 @@ export default function Privacidade() {
             </li>
           </ul>
           <p>
-            Não pedimos seu nome, CPF, cartão do SUS, telefone ou endereço — e pedimos que você
+            Não pedimos seu nome, CPF, cartão do SUS, telefone ou endereço, e pedimos que você
             não escreva esses dados nas mensagens.
           </p>
         </section>
@@ -196,7 +196,7 @@ export default function Privacidade() {
             </li>
             <li>
               Na tela bloqueada aparece só <b>“Você tem um lembrete”</b>. O texto aparece quando você
-              abre o aviso, com a conta aberta — a não ser em um aviso em que a equipe escolha mostrar
+              abre o aviso, com a conta aberta, a não ser em um aviso em que a equipe escolha mostrar
               o texto também na tela bloqueada.
             </li>
             <li>

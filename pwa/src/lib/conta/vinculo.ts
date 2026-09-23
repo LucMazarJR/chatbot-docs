@@ -13,7 +13,7 @@ export type DecisaoDeVinculo =
   /**
    * Conta de senha com o mesmo e-mail: passa a aceitar o Google também.
    *
-   * `revogarSenha` quando o e-mail dela nunca tinha sido provado — ver
+   * `revogarSenha` quando o e-mail dela nunca tinha sido provado: ver
    * `decidirVinculo`.
    */
   | { acao: 'vincular'; usuario: Usuario; revogarSenha: boolean }
@@ -35,10 +35,10 @@ export type DecisaoDeVinculo =
  *    dono dele: bastava digitar o endereço de outra pessoa no cadastro, que não
  *    manda e-mail de confirmação. Se o vínculo mantivesse a senha, esse alguém
  *    continuaria entrando pela senha na conta que o dono de verdade passou a usar
- *    pelo Google — lendo as conversas e os avisos de saúde dele. Por isso, nesse
+ *    pelo Google: lendo as conversas e os avisos de saúde dele. Por isso, nesse
  *    caso, a senha é apagada e as sessões abertas caem. Quem era o dono de fato
  *    não perde nada: continua entrando pelo Google.
- * 3. Não achou nenhuma: cria a conta. Entrar e criar são o mesmo toque — ninguém
+ * 3. Não achou nenhuma: cria a conta. Entrar e criar são o mesmo toque: ninguém
  *    precisa saber de antemão se já tem conta aqui. O aceite dos termos vem da
  *    frase ao lado do botão, e fica gravado com a data na conta criada.
  */

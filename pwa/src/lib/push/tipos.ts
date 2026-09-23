@@ -1,7 +1,7 @@
 /**
  * Um aparelho que aceitou receber avisos.
  *
- * Uma conta pode ter vários — o celular e o computador —, e cada um é uma
+ * Uma conta pode ter vários (o celular e o computador), e cada um é uma
  * inscrição separada, com endpoint próprio no serviço de push do navegador.
  */
 export type InscricaoPush = {

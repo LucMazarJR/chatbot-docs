@@ -22,7 +22,7 @@ let emCache: Promise<ChavesVapid> | null = null;
  * 2. O Docker e a Vercel usam o mesmo banco, então usam as MESMAS chaves. Uma
  *    inscrição fica amarrada às chaves com que foi feita: com chaves por
  *    ambiente, quem ativou os avisos pelo endereço da Vercel pararia de recebê-
- *    los quando o despachante do Docker enviasse com as dele — 403 em silêncio.
+ *    los quando o despachante do Docker enviasse com as dele: 403 em silêncio.
  *
  * Trocar as chaves invalida todas as inscrições existentes. Por isso elas só
  * nascem uma vez, e `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` só existem para quem

@@ -39,7 +39,7 @@ export async function POST(requisicao: Request) {
     { $set: { [campo]: agora } },
   );
 
-  // Recibo errado e id inexistente respondem igual — nada a descobrir por aqui.
+  // Recibo errado e id inexistente respondem igual: nada a descobrir por aqui.
   if (aviso.matchedCount === 0) {
     const existe = await col.countDocuments({ _id: corpo.id, recibo: corpo.recibo }, { limit: 1 });
     if (existe === 0) return Response.json({ erro: 'recibo inválido' }, { status: 404 });

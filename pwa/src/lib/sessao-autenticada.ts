@@ -12,7 +12,7 @@ export const CABECALHO_CHAVE = 'x-sessao-chave';
  *
  * 32 bytes em base64url. Não é o id: o id aparece no corpo de respostas, nos
  * registros do n8n e no painel de conversas do dashboard, enquanto a chave só
- * existe em dois lugares — o documento da sessão e o `localStorage` de quem
+ * existe em dois lugares: o documento da sessão e o `localStorage` de quem
  * está conversando.
  */
 export function gerarChaveDeSessao(): string {
@@ -22,7 +22,7 @@ export function gerarChaveDeSessao(): string {
 /**
  * Confere que quem pede é dono da sessão.
  *
- * LÓGICA DO LUCIANO: até aqui bastava ter o id — um UUID — para ler a
+ * LÓGICA DO LUCIANO: até aqui bastava ter o id, um UUID, para ler a
  * transcrição inteira, mandar mensagem em nome da pessoa ou encerrar a conversa.
  * O id não é secreto: ele trafega no corpo das respostas, vai para o n8n, e
  * aparece na tela de conversas do dashboard. E o que essa transcrição contém é
@@ -34,7 +34,7 @@ export function gerarChaveDeSessao(): string {
  *
  * SESSÕES ANTIGAS CONTINUAM ABRINDO. As que foram criadas antes deste campo não
  * têm chave nenhuma guardada, e exigi-la faria o protótipo esquecer conversas
- * que estão vivas no aparelho das pessoas — trocando um risco pequeno e
+ * que estão vivas no aparelho das pessoas, trocando um risco pequeno e
  * conhecido por uma quebra certa. Toda sessão nova nasce protegida, e as antigas
  * são as da primeira rodada de testes, já encerrada.
  */
@@ -49,8 +49,8 @@ export async function autenticarSessao(
     }
 
     // Conversa de conta: quem prova ser dono é o cookie da conta, e só ele. A
-    // chave do `localStorage` pode até vir junto — é a da conversa anônima que a
-    // pessoa tenha no `/` — e é ignorada aqui.
+    // chave do `localStorage` pode até vir junto (é a da conversa anônima que a
+    // pessoa tenha no `/`), e é ignorada aqui.
     //
     // Este ramo só existe para sessões com `usuarioId`. Toda conversa do `/` é
     // anônima e segue pela regra da chave, logo abaixo, sem mudança nenhuma.
@@ -79,7 +79,7 @@ export async function autenticarSessao(
  *
  * A consulta de resposta e o voto de 👍/👎 não trazem o id da sessão, então a
  * sessão é alcançada pela mensagem. Sem isto, a rota de consulta continuaria
- * entregando o texto da resposta para quem tivesse o id da mensagem — que é o
+ * entregando o texto da resposta para quem tivesse o id da mensagem, que é o
  * mesmo conteúdo da transcrição, servido por outra porta.
  */
 export async function autenticarPelaMensagem(

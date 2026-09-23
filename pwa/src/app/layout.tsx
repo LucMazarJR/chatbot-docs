@@ -35,13 +35,13 @@ export const viewport: Viewport = {
  * Resolve o tema e a escala ANTES da primeira pintura.
  *
  * LÓGICA DO LUCIANO: precisa ser um script embutido e síncrono no <head>. Feito
- * dentro do React, ele só rodaria depois da hidratação — e quem escolheu o tema
+ * dentro do React, ele só rodaria depois da hidratação, e quem escolheu o tema
  * escuro veria a tela clara piscar em cada abertura. O trecho é o mínimo
  * possível: lê a preferência, resolve "automático" pelo sistema e carimba o
  * atributo que a folha de estilo usa.
  *
  * Se o localStorage estiver bloqueado (navegação privada), o `catch` ainda
- * carimba um tema — sem atributo nenhum a paleta escura nunca se aplicaria,
+ * carimba um tema: sem atributo nenhum a paleta escura nunca se aplicaria,
  * porque ela deixou de depender da media query.
  */
 const SCRIPT_DE_TEMA = `(function(){try{

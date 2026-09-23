@@ -6,7 +6,7 @@ export type ConversaResumida = {
   iniciadaEm: string;
   encerrada: boolean;
   perguntas: number;
-  /** A primeira pergunta, cortada — é como a pessoa reconhece a conversa na lista. */
+  /** A primeira pergunta, cortada: é como a pessoa reconhece a conversa na lista. */
   primeiraPergunta: string | null;
 };
 
@@ -54,7 +54,7 @@ export async function conversasDaConta(usuarioId: string): Promise<ConversaResum
 /**
  * Uma conversa, se for desta conta.
  *
- * Devolve nulo tanto para "não existe" quanto para "é de outra pessoa" — a
+ * Devolve nulo tanto para "não existe" quanto para "é de outra pessoa": a
  * página responde igual nos dois casos, e ninguém descobre ids alheios por
  * tentativa.
  */

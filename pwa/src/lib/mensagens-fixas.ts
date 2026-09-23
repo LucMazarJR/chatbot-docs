@@ -3,7 +3,7 @@
  *
  * Ficam separados porque são usados dos dois lados: pelo servidor, quando o
  * fluxo falha, e pelo componente do chat, quando a própria requisição ao
- * servidor falha. O módulo do n8n não serve para isso — ele lê variáveis de
+ * servidor falha. O módulo do n8n não serve para isso: ele lê variáveis de
  * ambiente e nunca deve ser importado por um componente de cliente.
  */
 
@@ -22,7 +22,7 @@ export const TEXTO_INDISPONIVEL =
  * Os tempos vêm do uso real, não de chute: a resposta leva cerca de 30s em
  * média e há casos chegando perto de 3 minutos, quando o Gemini devolve
  * sobrecarga e o agente repete a pergunta. Por isso o primeiro aviso só aparece
- * aos 20s — antes disso ele interromperia uma espera que é normal — e o segundo
+ * aos 20s (antes disso ele interromperia uma espera que é normal), e o segundo
  * aos 60s, quando a conversa já saiu de qualquer expectativa razoável.
  *
  * Nenhum dos dois expõe detalhe interno: dizem só o que muda o que a pessoa faz
@@ -39,7 +39,7 @@ export const AVISOS_DE_DEMORA = [
     ms: 60_000,
     texto:
       'Continuo trabalhando na sua pergunta. ⏳ Hoje o sistema está mais lento que o ' +
-      'normal — não precisa reenviar, é só aguardar mais um pouco.',
+      'normal: não precisa reenviar, é só aguardar mais um pouco.',
   },
 ] as const;
 
@@ -60,7 +60,7 @@ export const MS_PARA_CONSIDERAR_DEMORA = 20_000;
  * O serviço não está no ar.
  *
  * Caso típico: o Docker da máquina que hospeda o n8n está desligado. Aqui
- * "tente novamente em alguns minutos" seria mentira — nada muda até alguém
+ * "tente novamente em alguns minutos" seria mentira: nada muda até alguém
  * religar. Dizer isso, e dizer que não é problema da conexão de quem está
  * lendo, evita que a pessoa fique tentando e conclua que o celular dela é que
  * está ruim.

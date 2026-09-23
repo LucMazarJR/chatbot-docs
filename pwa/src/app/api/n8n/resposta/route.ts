@@ -31,7 +31,7 @@ type Corpo = {
  *
  * Autenticado pelo mesmo segredo que protege o webhook do n8n: sem isso,
  * qualquer um que descobrisse a URL poderia injetar respostas na conversa de um
- * participante — inclusive orientação de saúde falsa.
+ * participante, inclusive orientação de saúde falsa.
  */
 export async function POST(requisicao: Request) {
   const token = process.env.N8N_PWA_WEBHOOK_TOKEN;
@@ -45,8 +45,8 @@ export async function POST(requisicao: Request) {
 
   const col = await mensagens();
 
-  // Só preenche o que ainda está pendente. Se o n8n repetir a chamada — ele tem
-  // retry — a segunda passa direto em vez de sobrescrever a resposta e
+  // Só preenche o que ainda está pendente. Se o n8n repetir a chamada (ele tem
+  // retry), a segunda passa direto em vez de sobrescrever a resposta e
   // recalcular a latência a partir de um relógio já parado.
   const pendente = await col.findOne({ _id: mensagemId, pendente: true });
   if (!pendente) return Response.json({ ok: true, jaRegistrada: true });

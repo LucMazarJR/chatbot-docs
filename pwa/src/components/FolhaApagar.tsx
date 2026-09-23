@@ -15,7 +15,7 @@ type Estado = 'confirmar' | 'apagando' | 'apagada' | 'erro';
  * curadoria guardou, e nada disso volta.
  *
  * Depois de apagada não existe conversa para onde voltar. O "voltar" e o Esc
- * passam a começar uma conversa nova — deixar a pessoa diante de um chat que
+ * passam a começar uma conversa nova: deixar a pessoa diante de um chat que
  * ainda mostra as mensagens apagadas faria parecer que a exclusão não funcionou.
  */
 export function FolhaApagar({
@@ -100,7 +100,7 @@ export function FolhaApagar({
 
             {estado === 'erro' && (
               <p className="aviso-erro" role="alert">
-                Não consegui apagar agora. A conversa continua aqui — tente de novo em instantes.
+                Não consegui apagar agora. A conversa continua aqui: tente de novo em instantes.
               </p>
             )}
 
