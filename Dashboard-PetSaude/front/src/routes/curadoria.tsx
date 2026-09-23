@@ -40,6 +40,10 @@ import {
 } from "@/components/ui/select";
 import { exigirAdmin } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { EstadoFalha, EstadoVazio } from "@/components/estado";
+import { Selo } from "@/components/selo";
+import { dataEHora } from "@/lib/datas";
 
 export const Route = createFileRoute("/curadoria")({
   beforeLoad: () => exigirAdmin(),
@@ -91,7 +95,10 @@ function CuradoriaPage() {
       await queryClient.invalidateQueries({ queryKey: ["curadoria-job"] });
       toast.success("Análise começou");
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível analisar agora"),
+    onError: (erro: Error) =>
+      toast.error(
+        erro.message || "Não foi possível começar a análise. Confira a internet e tente de novo.",
+      ),
   });
 
   const pendentes = fila.data?.pendentes ?? 0;
@@ -100,32 +107,48 @@ function CuradoriaPage() {
 
   return (
     <GateShell>
-      <div className="space-y-8">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold">Perguntas sem resposta</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {fila.isLoading
-                ? "Carregando…"
-                : pendentes === 0
-                  ? "Nenhuma pergunta aguardando análise."
-                  : `${pendentes} ${pendentes === 1 ? "pergunta aguarda" : "perguntas aguardam"} análise. Cada rodada olha até ${tamanho} de uma vez.`}
-            </p>
-          </div>
-          <Button
-            onClick={() => disparar.mutate()}
-            disabled={rodando || disparar.isPending || pendentes === 0}
-          >
-            <Sparkles className="size-4" />
-            {rodando ? "Analisando…" : "Analisar agora"}
-          </Button>
-        </div>
+      <div className="space-y-6">
+        <CabecalhoPagina
+          titulo="Perguntas sem resposta"
+          frase={
+            // O número só com a resposta na mão: "nenhuma pergunta" durante a
+            // espera faria a equipe achar que não há trabalho.
+            fila.data
+              ? pendentes === 0
+                ? "Nenhuma pergunta esperando análise."
+                : `${pendentes} ${pendentes === 1 ? "pergunta espera" : "perguntas esperam"} análise. Cada rodada olha até ${tamanho} de uma vez.`
+              : "As perguntas que o chatbot não soube responder, a caminho de virar FAQ."
+          }
+          acoes={
+            <Button
+              onClick={() => {
+                // Fila vazia: o toque explica, em vez de um botão apagado.
+                if (fila.data && pendentes === 0) {
+                  toast.info("Não há perguntas na fila para analisar agora.");
+                  return;
+                }
+                disparar.mutate();
+              }}
+              disabled={rodando || disparar.isPending}
+            >
+              <Sparkles />
+              {rodando ? "Analisando…" : "Analisar agora"}
+            </Button>
+          }
+        />
+
+        {fila.isError && (
+          <EstadoFalha onTentarDeNovo={() => fila.refetch()} tentando={fila.isFetching}>
+            Não foi possível ver quantas perguntas esperam análise. Confira a internet e tente de
+            novo.
+          </EstadoFalha>
+        )}
 
         {job.data && <Andamento job={job.data} />}
 
         {!fila.isLoading && pendentes > 0 && !fila.data?.prontoParaRodar && (
-          <p className="flex items-start gap-2 rounded-lg border border-border panel-surface p-4 text-sm text-muted-foreground">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <p className="flex items-start gap-2.5 rounded-xl border border-border bg-card p-4 text-[15px] text-muted-foreground">
+            <AlertTriangle className="mt-0.5 size-[18px] shrink-0" />
             <span>
               Dá para analisar já, mas juntar perto de {tamanho} rende mais: é vendo várias
               perguntas juntas que dá para perceber que "onde fica a UBS" e "qual o endereço do
@@ -135,16 +158,20 @@ function CuradoriaPage() {
         )}
 
         <section className="space-y-3">
-          <h3 className="text-base font-semibold">
-            Sugestões aguardando decisão {lista.length > 0 && `(${lista.length})`}
-          </h3>
+          <h2 className="text-lg font-semibold">
+            Sugestões esperando decisão {lista.length > 0 && `(${lista.length})`}
+          </h2>
 
-          {sugestoes.isLoading ? (
+          {sugestoes.isError ? (
+            <EstadoFalha onTentarDeNovo={() => sugestoes.refetch()} tentando={sugestoes.isFetching}>
+              Não foi possível carregar as sugestões. Confira a internet e tente de novo.
+            </EstadoFalha>
+          ) : sugestoes.isLoading ? (
             <Carregando texto="Carregando as sugestões…" />
           ) : lista.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground sm:p-8">
-              Nenhuma sugestão pendente. Quando houver perguntas na fila, rode a análise.
-            </p>
+            <EstadoVazio titulo="Nenhuma sugestão esperando decisão">
+              Quando houver perguntas na fila, rode a análise para receber sugestões de FAQ.
+            </EstadoVazio>
           ) : (
             <ul className="space-y-4">
               {lista.map((sugestao) => (
@@ -188,15 +215,15 @@ function HistoricoDeRodadas() {
   const lista = rodadas.data ?? [];
 
   return (
-    <section className="rounded-lg border border-border panel-surface">
+    <section className="rounded-xl border border-border bg-card">
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-2 p-4 text-left"
+        className="flex min-h-11 w-full items-center justify-between gap-2 p-4 text-left"
         onClick={() => setAberto((v) => !v)}
         aria-expanded={aberto}
       >
-        <span className="flex items-center gap-2 text-sm font-medium">
-          <History className="size-4" />
+        <span className="flex items-center gap-2 text-[15px] font-semibold">
+          <History className="size-[18px]" />
           Histórico das análises
         </span>
         {aberto ? (
@@ -208,20 +235,24 @@ function HistoricoDeRodadas() {
 
       {aberto && (
         <div className="border-t border-border p-4">
-          {rodadas.isLoading ? (
+          {rodadas.isError ? (
+            <EstadoFalha onTentarDeNovo={() => rodadas.refetch()} tentando={rodadas.isFetching}>
+              Não foi possível carregar o histórico. Confira a internet e tente de novo.
+            </EstadoFalha>
+          ) : rodadas.isLoading ? (
             <Carregando compacto texto="Carregando o histórico das análises…" />
           ) : lista.length === 0 ? (
             <p className="text-sm text-muted-foreground">A análise ainda não foi disparada.</p>
           ) : (
             <ul className="space-y-3">
               {lista.map((rodada) => (
-                <li key={rodada.id} className="rounded-md border border-border p-3">
+                <li key={rodada.id} className="rounded-lg border border-border p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {new Date(rodada.iniciadaEm).toLocaleString("pt-BR")} · {rodada.atorNome}
+                      <p className="text-[15px] font-semibold">
+                        {dataEHora(rodada.iniciadaEm)} · {rodada.atorNome}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {rodada.perguntas.length}{" "}
                         {rodada.perguntas.length === 1 ? "pergunta" : "perguntas"} ·{" "}
                         {rodada.sugestoesCriadas.length}{" "}
@@ -231,12 +262,13 @@ function HistoricoDeRodadas() {
                         {rodada.modelo && ` · ${rodada.modelo}`}
                       </p>
                       {rodada.erro && (
-                        <p className="mt-1 text-xs text-destructive">{rodada.erro}</p>
+                        <p className="mt-1 text-sm text-destructive">{rodada.erro}</p>
                       )}
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                      aria-expanded={abertaId === rodada.id}
+                      className="min-h-11 shrink-0 text-sm font-semibold text-primary hover:underline"
                       onClick={() => setAbertaId(abertaId === rodada.id ? null : rodada.id)}
                     >
                       {abertaId === rodada.id ? "ocultar" : "ver o que foi enviado"}
@@ -262,7 +294,16 @@ function DetalheDaRodada({ id }: { id: string }) {
 
   if (rodada.isLoading)
     return <Carregando compacto className="mt-3" texto="Carregando a rodada…" />;
-  if (!rodada.data) return null;
+  if (!rodada.data)
+    return (
+      <EstadoFalha
+        className="mt-3"
+        onTentarDeNovo={() => rodada.refetch()}
+        tentando={rodada.isFetching}
+      >
+        Não foi possível carregar o que foi enviado nesta rodada. Tente de novo.
+      </EstadoFalha>
+    );
 
   return (
     <div className="mt-3 space-y-3 border-t border-border pt-3">
@@ -274,7 +315,7 @@ function DetalheDaRodada({ id }: { id: string }) {
               <Link
                 to="/conversas/$id"
                 params={{ id: lacuna.sessaoId }}
-                className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                className="shrink-0 text-sm text-primary hover:underline"
               >
                 conversa
               </Link>
@@ -282,8 +323,9 @@ function DetalheDaRodada({ id }: { id: string }) {
             {lacuna.vizinhas.length > 0 && (
               <ul className="mt-0.5 space-y-0.5">
                 {lacuna.vizinhas.map((v, i) => (
-                  <li key={i} className="text-xs text-muted-foreground">
-                    <span className="tabular-nums">{v.score.toFixed(3)}</span> · {v.question ?? "—"}
+                  <li key={i} className="text-sm text-muted-foreground">
+                    <span className="tabular-nums">{v.score.toFixed(3)}</span> ·{" "}
+                    {v.question ?? "pergunta sem texto"}
                   </li>
                 ))}
               </ul>
@@ -293,10 +335,10 @@ function DetalheDaRodada({ id }: { id: string }) {
       </ul>
 
       <details>
-        <summary className="cursor-pointer text-xs text-muted-foreground">
+        <summary className="min-h-11 cursor-pointer py-2 text-sm text-muted-foreground">
           Resposta do modelo, como veio
         </summary>
-        <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted p-2 text-xs">
+        <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-muted p-3 text-xs">
           {rodada.data.respostaBruta || "(vazia)"}
         </pre>
       </details>
@@ -309,7 +351,7 @@ function DetalheDaRodada({ id }: { id: string }) {
  *
  * LÓGICA DO LUCIANO: "fora de escopo" aparece junto das sugestões porque é
  * resultado, não descarte silencioso. Nem toda pergunta que o chatbot não
- * respondeu é conteúdo faltando — na primeira fila real havia "qual o melhor
+ * respondeu é conteúdo faltando: na primeira fila real havia "qual o melhor
  * time de futebol do brasil?" e "Hoje fiz muita coisa", e nesses o chatbot
  * acertou em não responder. Sem esta linha, a pessoa veria a fila encolher e
  * nenhuma sugestão aparecer, e concluiria que a análise falhou.
@@ -325,7 +367,7 @@ function resumoDaAnalise(contadores: Record<string, number>): string {
       : []),
   ];
 
-  return `Análise concluída — ${partes.join(", ")}`;
+  return `Análise concluída: ${partes.join(", ")}.`;
 }
 
 function Andamento({ job }: { job: NonNullable<Awaited<ReturnType<typeof getJobCuradoria>>> }) {
@@ -333,16 +375,16 @@ function Andamento({ job }: { job: NonNullable<Awaited<ReturnType<typeof getJobC
   const pct = job.total > 0 ? Math.round((job.processados / job.total) * 100) : 0;
 
   return (
-    <div className="rounded-lg border border-border panel-surface p-4">
+    <div role="status" className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium">
+        <p className="text-[15px] font-semibold">
           {rodando
             ? "Analisando as perguntas da fila…"
             : job.estado === "concluido"
               ? resumoDaAnalise(job.contadores ?? {})
               : "A última análise não terminou"}
         </p>
-        <span className="text-xs text-muted-foreground">por {job.atorNome}</span>
+        <span className="text-sm text-muted-foreground">por {job.atorNome}</span>
       </div>
       {rodando && <Progress value={pct} className="mt-2" />}
       {job.mensagem && (
@@ -396,11 +438,14 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
       await invalidar();
       toast.success(
         r.semEmbedding
-          ? "FAQ criada, mas sem preparo para a busca — reindexe em Configurações."
+          ? "FAQ criada, mas sem preparo para a busca: reindexe em Configurações."
           : "FAQ criada",
       );
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível aprovar"),
+    onError: (erro: Error) =>
+      toast.error(
+        erro.message || "Não foi possível criar a FAQ. Confira a internet e tente de novo.",
+      ),
   });
 
   const mutDescartar = useMutation({
@@ -409,25 +454,29 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
       await invalidar();
       toast.success("Sugestão descartada");
     },
-    onError: (erro: Error) => toast.error(erro.message || "Não foi possível descartar"),
+    onError: (erro: Error) =>
+      toast.error(
+        erro.message || "Não foi possível descartar. Confira a internet e tente de novo.",
+      ),
   });
 
   const semRascunho = !sugestao.rascunhoResposta.trim();
-  const podeAprovar = pergunta.trim().length >= 5 && resposta.trim().length >= 5;
+  const [falta, setFalta] = useState<string | null>(null);
+  /** O botão de aprovar aceita o toque e diz o que falta: apagado, não explicava nada. */
+  const oQueFalta = () =>
+    pergunta.trim().length < 5
+      ? "Escreva a pergunta, com ao menos 5 letras."
+      : resposta.trim().length < 5
+        ? "Escreva a resposta antes de aprovar."
+        : null;
 
   return (
-    <li className="rounded-lg border border-border panel-surface p-4 sm:p-5">
+    <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <span className="text-base font-semibold">{sugestao.pergunta}</span>
-        <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${
-            sugestao.tipo === "complemento"
-              ? "border-border bg-muted text-muted-foreground"
-              : "border-primary/30 bg-primary/10 text-primary"
-          }`}
-        >
+        <Selo tom={sugestao.tipo === "complemento" ? "neutro" : "marca"}>
           {sugestao.tipo === "complemento" ? "Complementa uma FAQ" : "FAQ nova"}
-        </span>
+        </Selo>
       </div>
 
       {sugestao.justificativa && (
@@ -438,7 +487,7 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
         <Link
           to="/faqs/$id"
           params={{ id: sugestao.faqRelacionadaId }}
-          className="mt-1 inline-flex items-center gap-1 text-sm hover:underline"
+          className="mt-1 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary hover:underline"
         >
           Ver a FAQ que já existe
           <ChevronRight className="size-3.5" />
@@ -447,21 +496,21 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
 
       {/* A rastreabilidade que motivou a fase: de qual conversa saiu cada
           pergunta. Sem isso a sugestão chega aqui como frase solta. */}
-      <div className="mt-3 rounded-md border border-border bg-muted/40 p-3">
-        <p className="text-xs font-medium text-muted-foreground">
+      <div className="mt-3 rounded-lg bg-surface-2 p-3">
+        <p className="text-sm font-semibold text-muted-foreground">
           {sugestao.origens.length}{" "}
           {sugestao.origens.length === 1 ? "pessoa perguntou" : "pessoas perguntaram"} isso:
         </p>
         <ul className="mt-1 space-y-1">
           {sugestao.origens.map((origem) => (
-            <li key={origem.mensagemId} className="flex items-start gap-2 text-sm">
+            <li key={origem.mensagemId} className="flex items-center gap-2 text-[15px]">
               <span className="min-w-0 flex-1">“{origem.pergunta}”</span>
               <Link
                 to="/conversas/$id"
                 params={{ id: origem.sessaoId }}
-                className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                className="inline-flex min-h-11 shrink-0 items-center gap-1 text-sm text-primary hover:underline"
               >
-                <MessagesSquare className="size-3.5" />
+                <MessagesSquare className="size-4" />
                 conversa
               </Link>
             </li>
@@ -470,10 +519,10 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
       </div>
 
       {semRascunho && (
-        <p className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+        <p className="mt-3 flex items-start gap-2.5 rounded-lg bg-warning-soft p-3 text-[15px] text-foreground">
+          <AlertTriangle className="mt-0.5 size-[18px] shrink-0 text-warning" />
           <span>
-            A resposta veio vazia porque a base não tinha a informação — o modelo só resume o que já
+            A resposta veio vazia porque a base não tinha a informação: o modelo só resume o que já
             existe, nunca inventa orientação de saúde. Este texto precisa ser escrito por alguém da
             equipe.
           </span>
@@ -487,7 +536,10 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
             id={`pergunta-${sugestao.id}`}
             value={pergunta}
             maxLength={300}
-            onChange={(e) => setPergunta(e.target.value)}
+            onChange={(e) => {
+              setPergunta(e.target.value);
+              setFalta(null);
+            }}
           />
         </div>
 
@@ -498,7 +550,10 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
             value={resposta}
             rows={5}
             maxLength={4000}
-            onChange={(e) => setResposta(e.target.value)}
+            onChange={(e) => {
+              setResposta(e.target.value);
+              setFalta(null);
+            }}
             placeholder="Escreva a orientação completa…"
           />
         </div>
@@ -521,7 +576,7 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
                 </SelectTrigger>
                 <SelectContent>
                   {categoria && !oficiais.some((c) => c.nome === categoria) && (
-                    <SelectItem value={categoria}>{categoria} — fora da lista</SelectItem>
+                    <SelectItem value={categoria}>{categoria} (fora da lista)</SelectItem>
                   )}
                   {oficiais.map((c) => (
                     <SelectItem key={c.id} value={c.nome}>
@@ -545,9 +600,16 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
         </div>
       </div>
 
+      {falta && (
+        <p role="alert" className="mt-3 text-[15px] font-semibold text-destructive">
+          {falta}
+        </p>
+      )}
+
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">
-          Sugerido por {sugestao.modelo ?? "modelo"} · disparado por {sugestao.criadaPor ?? "—"}
+        <span className="text-sm text-muted-foreground">
+          Sugerido por {sugestao.modelo ?? "modelo"}
+          {sugestao.criadaPor ? ` · disparado por ${sugestao.criadaPor}` : ""}
         </span>
         <div className="flex gap-2">
           <Button
@@ -558,8 +620,12 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
             Descartar
           </Button>
           <Button
-            onClick={() => mutAprovar.mutate()}
-            disabled={!podeAprovar || mutAprovar.isPending || mutDescartar.isPending}
+            onClick={() => {
+              const motivo = oQueFalta();
+              setFalta(motivo);
+              if (!motivo) mutAprovar.mutate();
+            }}
+            disabled={mutAprovar.isPending || mutDescartar.isPending}
           >
             {mutAprovar.isPending ? "Criando…" : "Aprovar e criar FAQ"}
           </Button>
@@ -585,14 +651,14 @@ function FilaBruta() {
   });
 
   return (
-    <section className="rounded-lg border border-border panel-surface">
+    <section className="rounded-xl border border-border bg-card">
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-2 p-4 text-left"
+        className="flex min-h-11 w-full items-center justify-between gap-2 p-4 text-left"
         onClick={() => setAberta((v) => !v)}
         aria-expanded={aberta}
       >
-        <span className="text-sm font-medium">Ver o que está na fila</span>
+        <span className="text-[15px] font-semibold">Ver o que está na fila</span>
         {aberta ? (
           <ChevronDown className="size-4 text-muted-foreground" />
         ) : (
@@ -602,27 +668,31 @@ function FilaBruta() {
 
       {aberta && (
         <div className="border-t border-border p-4">
-          {lacunas.isLoading ? (
+          {lacunas.isError ? (
+            <EstadoFalha onTentarDeNovo={() => lacunas.refetch()} tentando={lacunas.isFetching}>
+              Não foi possível carregar a fila. Confira a internet e tente de novo.
+            </EstadoFalha>
+          ) : lacunas.isLoading ? (
             <Carregando compacto texto="Carregando as perguntas sem resposta…" />
           ) : (lacunas.data ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">A fila está vazia.</p>
           ) : (
             <ul className="space-y-3">
               {(lacunas.data ?? []).map((lacuna) => (
-                <li key={lacuna.mensagemId} className="text-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <span className="font-medium">“{lacuna.pergunta}”</span>
+                <li key={lacuna.mensagemId} className="text-[15px]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold">“{lacuna.pergunta}”</span>
                     <Link
                       to="/conversas/$id"
                       params={{ id: lacuna.sessaoId }}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="inline-flex min-h-11 items-center text-sm text-primary hover:underline"
                     >
                       ver conversa
                     </Link>
                   </div>
                   {lacuna.vizinhas.length > 0 && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Mais próxima: “{lacuna.vizinhas[0].question ?? "—"}” (
+                    <p className="text-sm text-muted-foreground">
+                      Mais próxima: “{lacuna.vizinhas[0].question ?? "pergunta sem texto"}” (
                       {lacuna.vizinhas[0].score.toFixed(3)})
                     </p>
                   )}
