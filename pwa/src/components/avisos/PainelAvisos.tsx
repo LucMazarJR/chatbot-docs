@@ -76,11 +76,78 @@ function veredito(aviso: Aviso | undefined): { texto: string; erro: boolean } {
   };
 }
 
+/**
+ * O registro do service worker do staging, já ativo.
+ *
+ * LÓGICA DO LUCIANO: aqui estava `navigator.serviceWorker.ready`, e era por isso
+ * que os avisos não apareciam. O `ready` devolve o service worker que controla a
+ * página naquele momento, e o do chat `/` tem escopo no site inteiro: numa
+ * página do staging aberta antes de o service worker dela assumir, o `ready`
+ * devolvia o do `/`. A inscrição ia para ele, que não tem código de aviso, e o
+ * Chrome mostrava no lugar o genérico "Este site foi atualizado em segundo
+ * plano". O Google aceitava todos os envios, e nada aparecia.
+ *
+ * Agora a inscrição vai sempre para o registro que o próprio `register`
+ * devolve, esperando ele ficar ativo, que é quando o push pode ser pedido.
+ */
 async function registroDoStaging(): Promise<ServiceWorkerRegistration> {
-  await navigator.serviceWorker.register('/staging/sw.js', { scope: '/staging/' });
-  // `ready` só resolve com o service worker ATIVO — inscrever antes disso falha
-  // na primeira visita, enquanto ele ainda está instalando.
-  return navigator.serviceWorker.ready;
+  const registro = await navigator.serviceWorker.register('/staging/sw.js', { scope: '/staging/' });
+  const chegando = registro.installing ?? registro.waiting;
+  if (!registro.active && chegando) {
+    await new Promise<void>((pronto) => {
+      chegando.addEventListener('statechange', () => {
+        if (chegando.state === 'activated') pronto();
+      });
+    });
+  }
+  return registro;
+}
+
+/**
+ * Leva para o lugar certo a inscrição que ficou no service worker do `/`.
+ *
+ * Quem ativou os avisos antes da correção acima tem a inscrição presa lá, e
+ * continuaria recebendo só o aviso genérico do Chrome. Com a permissão já dada,
+ * a inscrição nova não precisa de toque, então a troca é feita sozinha ao abrir
+ * esta tela: inscreve no staging, avisa o servidor, e só então desfaz a antiga.
+ * Devolve se trocou alguma coisa.
+ */
+async function corrigirInscricaoForaDoLugar(): Promise<boolean> {
+  if (!('serviceWorker' in navigator) || !window.isSecureContext) return false;
+
+  const doChat = await navigator.serviceWorker.getRegistration('/');
+  if (!doChat || new URL(doChat.scope).pathname !== '/') return false;
+  const antiga = await doChat.pushManager.getSubscription();
+  if (!antiga) return false;
+
+  if (Notification.permission === 'granted') {
+    const registro = await comPrazo(registroDoStaging(), 15_000);
+    const { chavePublica } = (await (await fetch('/api/push/chave-publica')).json()) as {
+      chavePublica: string;
+    };
+    const nova = await comPrazo(
+      registro.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlParaBytes(chavePublica),
+      }),
+      20_000,
+    );
+    const gravou = await fetch('/api/push/inscricoes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nova.toJSON()),
+    });
+    // Sem a nova gravada, a antiga fica: um aviso genérico ainda é melhor que nenhum.
+    if (!gravou.ok) return false;
+  }
+
+  await fetch('/api/push/inscricoes', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: antiga.endpoint }),
+  });
+  await antiga.unsubscribe();
+  return true;
 }
 
 async function diagnosticar(): Promise<Diagnostico> {
@@ -92,7 +159,11 @@ async function diagnosticar(): Promise<Diagnostico> {
   if (suportaPush && window.isSecureContext) {
     try {
       const registro = await navigator.serviceWorker.getRegistration('/staging/');
-      inscrito = Boolean(await registro?.pushManager.getSubscription());
+      // `getRegistration` devolve o registro mais específico que cobre o
+      // endereço, e sem o do staging cai no do `/`. Inscrição lá não recebe
+      // aviso, então não conta como ativa.
+      const doStaging = registro && new URL(registro.scope).pathname === '/staging/';
+      inscrito = Boolean(doStaging && (await registro.pushManager.getSubscription()));
     } catch {
       inscrito = false;
     }
@@ -167,6 +238,23 @@ export function PainelAvisos() {
   const atualizar = useCallback(async () => {
     await Promise.all([diagnosticar().then(setDiagnostico), carregarAvisos()]);
   }, [carregarAvisos]);
+
+  // Uma vez por abertura da tela, antes do diagnóstico que a pessoa vai ler.
+  useEffect(() => {
+    void (async () => {
+      try {
+        if (await corrigirInscricaoForaDoLugar()) {
+          setMensagem({
+            texto: 'Ajustei os avisos deste aparelho. Toque em "Enviar um teste para mim" para conferir.',
+            erro: false,
+          });
+          setDiagnostico(await diagnosticar());
+        }
+      } catch {
+        // Sem conseguir corrigir agora, a tela segue igual; tenta de novo na próxima abertura.
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     void atualizar();
