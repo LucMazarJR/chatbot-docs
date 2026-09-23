@@ -161,7 +161,7 @@ export class CuradoriaService {
             const lacunas = await this.proximasLacunas(TAMANHO_DA_RODADA);
 
             if (lacunas.length === 0) {
-                this.jobsService.finalizar(jobId, 'concluido', 'Nao ha lacunas na fila.');
+                this.jobsService.finalizar(jobId, 'concluido', 'Não há perguntas sem resposta na fila.');
                 return;
             }
 
@@ -204,7 +204,7 @@ export class CuradoriaService {
                 this.jobsService.finalizar(
                     jobId,
                     'erro',
-                    'O modelo nao devolveu nenhum agrupamento. As lacunas seguem na fila.',
+                    'O modelo não devolveu nenhum agrupamento. As perguntas seguem na fila: tente de novo em alguns minutos.',
                 );
                 return;
             }
@@ -397,9 +397,9 @@ export class CuradoriaService {
 
     /** Uma rodada inteira, incluindo o que o modelo devolveu palavra por palavra. */
     async detalharRodada(id: string) {
-        if (!isValidObjectId(id)) throw new NotFoundException('Rodada nao encontrada');
+        if (!isValidObjectId(id)) throw new NotFoundException('Rodada não encontrada. Atualize a página de Sem resposta.');
         const doc = await this.rodadaModel.findById(id).lean().exec();
-        if (!doc) throw new NotFoundException('Rodada nao encontrada');
+        if (!doc) throw new NotFoundException('Rodada não encontrada. Atualize a página de Sem resposta.');
 
         return {
             id: String(doc._id),
@@ -586,12 +586,12 @@ export class CuradoriaService {
     ) {
         const sugestao = await this.buscar(id);
         if (sugestao.estado !== 'pendente') {
-            throw new BadRequestException('Esta sugestao ja foi decidida.');
+            throw new BadRequestException('Esta sugestão já foi decidida por outra pessoa. Atualize a página para ver a lista atual.');
         }
         if (!dados.answer?.trim()) {
             throw new BadRequestException(
-                'A resposta nao pode ficar vazia. O rascunho vem vazio quando a base nao tinha ' +
-                'a informacao — neste caso o texto precisa ser escrito por alguem da saude.',
+                'A resposta não pode ficar vazia. O rascunho vem vazio quando a base não tinha ' +
+                'a informação: neste caso, alguém da saúde precisa escrever o texto.',
             );
         }
 
@@ -622,7 +622,7 @@ export class CuradoriaService {
     async descartar(id: string, actor: { id?: string; name: string }) {
         const sugestao = await this.buscar(id);
         if (sugestao.estado !== 'pendente') {
-            throw new BadRequestException('Esta sugestao ja foi decidida.');
+            throw new BadRequestException('Esta sugestão já foi decidida por outra pessoa. Atualize a página para ver a lista atual.');
         }
 
         sugestao.estado = 'descartada';
@@ -646,9 +646,9 @@ export class CuradoriaService {
     }
 
     private async buscar(id: string): Promise<SugestaoDocument> {
-        if (!isValidObjectId(id)) throw new NotFoundException('Sugestao nao encontrada');
+        if (!isValidObjectId(id)) throw new NotFoundException('Sugestão não encontrada. Atualize a página de Sem resposta.');
         const doc = await this.sugestaoModel.findById(id).exec();
-        if (!doc) throw new NotFoundException('Sugestao nao encontrada');
+        if (!doc) throw new NotFoundException('Sugestão não encontrada. Atualize a página de Sem resposta.');
         return doc;
     }
 }

@@ -67,7 +67,7 @@ describe('EmbeddingsService — diagnostico por amostragem', () => {
     const r = await service.diagnosticar(1);
 
     expect(r.veredito).toBe('modelo_diferente');
-    expect(r.explicacao).toContain('reindexar');
+    expect(r.explicacao).toContain('reindexe');
   });
 
   it('nao afirma nada na faixa intermediaria', async () => {

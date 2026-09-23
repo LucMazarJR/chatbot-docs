@@ -284,7 +284,7 @@ export class ConversasService {
      */
     async apagar(id: string, actor: { id?: string; name: string }) {
         const sessao = await this.sessaoModel.findById(id).select('_id').lean().exec();
-        if (!sessao) throw new NotFoundException('Conversa nao encontrada');
+        if (!sessao) throw new NotFoundException('Conversa não encontrada. Ela pode ter sido apagada pelo cidadão: volte para Conversas.');
 
         const sugestoes = await this.sugestaoModel
             .updateMany(

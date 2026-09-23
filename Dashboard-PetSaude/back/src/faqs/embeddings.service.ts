@@ -252,7 +252,7 @@ export class EmbeddingsService {
                 similaridadeMedia: 0,
                 veredito: 'inconclusivo',
                 explicacao:
-                    'Nenhuma FAQ ativa tem vetor com a dimensao esperada. Nao ha o que comparar.',
+                    'Nenhuma FAQ ativa tem vetor com a dimensão esperada. Não há o que comparar.',
             };
         }
 
@@ -283,7 +283,7 @@ export class EmbeddingsService {
                 similaridadeMedia: 0,
                 veredito: 'inconclusivo',
                 explicacao:
-                    'Nao foi possivel gerar nenhum vetor de comparacao — provavelmente a cota da API acabou.',
+                    'Não foi possível gerar nenhum vetor de comparação. Provavelmente a cota da API acabou: tente de novo amanhã.',
             };
         }
 
@@ -296,17 +296,17 @@ export class EmbeddingsService {
             veredito = 'mesmo_modelo';
             explicacao =
                 `Os vetores guardados batem com os que ${this.geminiService.modeloAtual} ` +
-                'gera agora. A base ja esta no modelo configurado.';
+                'gera agora. A base já está no modelo configurado.';
         } else if (media < EmbeddingsService.LIMIAR_MODELO_DIFERENTE) {
             veredito = 'modelo_diferente';
             explicacao =
-                'Os vetores guardados sao bem diferentes dos que o modelo configurado gera. ' +
-                'A base foi indexada com outro modelo — vale reindexar antes de confiar na busca.';
+                'Os vetores guardados são bem diferentes dos que o modelo configurado gera. ' +
+                'A base foi indexada com outro modelo: reindexe antes de confiar na busca.';
         } else {
             veredito = 'inconclusivo';
             explicacao =
-                'A semelhanca ficou numa faixa intermediaria. Pode ser diferenca de texto ' +
-                'canonico (FAQs antigas embedadas sem o assunto na frente) e nao de modelo. ' +
+                'A semelhança ficou numa faixa intermediária. Pode ser diferença de texto ' +
+                'canônico (FAQs antigas indexadas sem o assunto na frente), e não de modelo. ' +
                 'Amostrar mais FAQs ajuda a decidir.';
         }
 
@@ -396,8 +396,8 @@ export class EmbeddingsService {
                         this.jobsService.finalizar(
                             jobId,
                             'cota_esgotada',
-                            'A cota da API do Gemini acabou. Rode de novo amanha — o alvo e ' +
-                            'recalculado a cada execucao, entao retoma de onde parou.',
+                            'A cota da API do Gemini acabou. Rode de novo amanhã: o alvo é ' +
+                            'recalculado a cada execução, então retoma de onde parou.',
                         );
                         return;
                     }

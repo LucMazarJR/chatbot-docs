@@ -160,7 +160,7 @@ export class ImportService {
             faq.question.length > 0 &&
             faq.question.toLowerCase() === faq.answer.toLowerCase()
         ) {
-            motivos.push('A pergunta e a resposta sao iguais.');
+            motivos.push('A pergunta e a resposta são iguais.');
         }
 
         if (faq.category.length < L.categoriaMin) {
@@ -171,7 +171,7 @@ export class ImportService {
 
         if (faq.tags.length < L.tagsMin) {
             motivos.push(
-                `Sao necessarias ao menos ${L.tagsMin} tags; esta linha tem ${faq.tags.length}.`,
+                `São necessárias ao menos ${L.tagsMin} tags; esta linha tem ${faq.tags.length}.`,
             );
         }
         const tagsRuins = faq.tags.filter(
@@ -248,7 +248,7 @@ export class ImportService {
             if (motivos.length === 0) {
                 if (jaExistem.has(n.contentHash)) {
                     estado = 'duplicada';
-                    motivos.push('Esta pergunta e resposta ja existem na base.');
+                    motivos.push('Esta pergunta e resposta já existem na base.');
                 } else if (vistosNoArquivo.has(n.contentHash)) {
                     estado = 'duplicada';
                     motivos.push('Repetida dentro do proprio arquivo.');
@@ -262,23 +262,23 @@ export class ImportService {
                     if (parecidas.has(this.faqsService.normalizarPergunta(n.faq.question))) {
                         parecida = true;
                         motivos.push(
-                            'Ja existe uma pergunta igual a esta na base, com o texto um pouco ' +
-                            'diferente. Importar vai criar uma segunda copia.',
+                            'Já existe uma pergunta igual a esta na base, com o texto um pouco ' +
+                            'diferente. Importar vai criar uma segunda cópia.',
                         );
                     }
 
                     if (temTaxonomia && n.situacaoCategoria === 'fora') {
                         foraDaLista = true;
                         motivos.push(
-                            `O assunto "${n.faq.category}" nao esta na lista oficial de ` +
-                            'categorias. A importacao continua, e a pergunta vai aparecer em ' +
-                            '"precisa de revisao".',
+                            `O assunto "${n.faq.category}" não está na lista oficial de ` +
+                            'categorias. A importação continua, e a pergunta vai aparecer em ' +
+                            '"precisa de revisão".',
                         );
                     } else if (n.situacaoCategoria === 'aposentada') {
                         foraDaLista = true;
                         motivos.push(
-                            `O assunto "${n.faq.category}" foi aposentado. A importacao ` +
-                            'continua, e a pergunta vai aparecer em "precisa de revisao".',
+                            `O assunto "${n.faq.category}" foi aposentado. A importação ` +
+                            'continua, e a pergunta vai aparecer em "precisa de revisão".',
                         );
                     }
                 }
@@ -350,7 +350,7 @@ export class ImportService {
                     this.jobsService.finalizar(
                         jobId,
                         'parado',
-                        'Interrompido a pedido. As FAQs ja inseridas continuam na base.',
+                        'Interrompido a pedido. As FAQs já inseridas continuam na base.',
                     );
                     return;
                 }
@@ -401,8 +401,8 @@ export class ImportService {
                             this.jobsService.finalizar(
                                 jobId,
                                 'cota_esgotada',
-                                'A cota da API do Gemini acabou. As FAQs ja inseridas estao na base; ' +
-                                'reenvie o mesmo arquivo depois — as que ja entraram serao puladas.',
+                                'A cota da API do Gemini acabou. As FAQs já inseridas estão na base. ' +
+                                'Reenvie o mesmo arquivo amanhã: as que já entraram serão puladas.',
                             );
                             return;
                         }

@@ -95,7 +95,7 @@ export class JobsService {
             // tela reaberta uma hora depois precisa distinguir "nunca existiu"
             // de "terminou faz tempo".
             throw new NotFoundException(
-                'Trabalho nao encontrado. Ele pode ter terminado ha mais de uma hora, ou a API foi reiniciada.',
+                'Trabalho não encontrado. Ele pode ter terminado há mais de uma hora, ou a API foi reiniciada. Confira o resultado na lista de FAQs.',
             );
         }
         return job;

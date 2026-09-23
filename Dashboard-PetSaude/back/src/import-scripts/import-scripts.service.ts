@@ -78,7 +78,7 @@ export class ImportScriptsService implements OnModuleInit {
                 await this.repo.update({ isActive: true }, { isActive: false });
                 await this.semear(
                     Number(maior?.max ?? 0) + 1,
-                    'Atualizacao automatica da regra padrao, que ninguem havia editado.',
+                    'Atualização automática da regra padrão, que ninguém havia editado.',
                 );
             }
         } catch (erro) {
@@ -117,7 +117,7 @@ export class ImportScriptsService implements OnModuleInit {
     private traduzirFalta(erro: unknown): never {
         if (ImportScriptsService.tabelaFaltando(erro)) {
             throw new ServiceUnavailableException(
-                'A tabela import_scripts ainda nao existe neste banco. ' +
+                'A tabela import_scripts ainda não existe neste banco. ' +
                 'Rode as migrations: `pnpm run migration:run` na pasta back, ' +
                 'ou suba a API com DB_RUN_MIGRATIONS=true.',
             );
@@ -179,7 +179,7 @@ export class ImportScriptsService implements OnModuleInit {
     /** Uma versão específica, com o código — para ver e comparar antes de reativar. */
     async buscarPorId(id: string): Promise<ImportScript> {
         const script = await this.repo.findOne({ where: { id } });
-        if (!script) throw new NotFoundException('Script nao encontrado.');
+        if (!script) throw new NotFoundException('Regra de leitura não encontrada. Atualize a página de Configurações.');
         return script;
     }
 
@@ -228,7 +228,7 @@ export class ImportScriptsService implements OnModuleInit {
             const repo = manager.getRepository(ImportScript);
 
             const script = await repo.findOne({ where: { id } });
-            if (!script) throw new NotFoundException('Script nao encontrado.');
+            if (!script) throw new NotFoundException('Regra de leitura não encontrada. Atualize a página de Configurações.');
 
             await repo.update({ isActive: true }, { isActive: false });
             script.isActive = true;
@@ -245,7 +245,7 @@ export class ImportScriptsService implements OnModuleInit {
             {
                 name: NOME_SCRIPT_PADRAO,
                 code: SCRIPT_PADRAO,
-                notes: 'Restauracao do script padrao embutido no codigo.',
+                notes: 'Restauração da regra padrão embutida no código.',
             },
             actor,
         );

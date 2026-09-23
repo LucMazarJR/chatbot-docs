@@ -48,7 +48,7 @@ export class FaqsController {
     @Get(':id')
     async buscarPorId(@Param('id') id: string) {
         const faq = await this.faqsService.buscarPorId(id);
-        if (!faq) throw new NotFoundException('Pergunta nao encontrada');
+        if (!faq) throw new NotFoundException('Pergunta não encontrada. Ela pode ter sido excluída: volte para as FAQs.');
         return faq;
     }
 

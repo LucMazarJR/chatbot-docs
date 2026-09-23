@@ -127,8 +127,8 @@ export class BuscaSemanticaService {
                 `Busca semantica falhou: ${erro instanceof Error ? erro.message : erro}`,
             );
             throw new ServiceUnavailableException(
-                `A busca por significado nao respondeu. Confira se o indice "${this.indice}" ` +
-                'existe no Atlas e esta ativo.',
+                `A busca por significado não respondeu. Confira se o índice "${this.indice}" ` +
+                'existe no Atlas e está ativo.',
             );
         }
 

@@ -128,7 +128,7 @@ export class GeminiService {
             // O trecho entra na mensagem porque, quando isto acontece, o que
             // veio no lugar do JSON é a única pista — costuma ser uma recusa do
             // modelo, e não um erro de formato.
-            throw new Error(`O modelo nao devolveu JSON valido. Comeco da resposta: ${texto.slice(0, 200)}`);
+            throw new Error(`O modelo não devolveu JSON válido. Começo da resposta: ${texto.slice(0, 200)}`);
         }
     }
 

@@ -194,9 +194,9 @@ export class CategoriasService {
         dados: { nome?: string; descricao?: string; ativa?: boolean },
         actor: { id?: string; name: string },
     ): Promise<{ ok: true; renomeadas: number; reindexar: number }> {
-        if (!isValidObjectId(id)) throw new NotFoundException('Categoria nao encontrada');
+        if (!isValidObjectId(id)) throw new NotFoundException('Categoria não encontrada. Ela pode ter sido apagada: volte para Categorias e atualize a lista.');
         const doc = await this.categoriaModel.findById(id).exec();
-        if (!doc) throw new NotFoundException('Categoria nao encontrada');
+        if (!doc) throw new NotFoundException('Categoria não encontrada. Ela pode ter sido apagada: volte para Categorias e atualize a lista.');
 
         const antes = { nome: doc.nome, descricao: doc.descricao, ativa: doc.ativa };
         let renomeadas = 0;
@@ -308,9 +308,9 @@ export class CategoriasService {
         id: string,
         actor: { id?: string; name: string },
     ): Promise<{ ok: true; ajustadas: number; reindexar: number }> {
-        if (!isValidObjectId(id)) throw new NotFoundException('Categoria nao encontrada');
+        if (!isValidObjectId(id)) throw new NotFoundException('Categoria não encontrada. Ela pode ter sido apagada: volte para Categorias e atualize a lista.');
         const doc = await this.categoriaModel.findById(id).lean().exec();
-        if (!doc) throw new NotFoundException('Categoria nao encontrada');
+        if (!doc) throw new NotFoundException('Categoria não encontrada. Ela pode ter sido apagada: volte para Categorias e atualize a lista.');
 
         const ajustadas = await this.renomearNasFaqs(doc.chave, doc.nome);
 
@@ -330,9 +330,9 @@ export class CategoriasService {
     }
 
     async remover(id: string, actor: { id?: string; name: string }): Promise<{ ok: true }> {
-        if (!isValidObjectId(id)) throw new NotFoundException('Categoria nao encontrada');
+        if (!isValidObjectId(id)) throw new NotFoundException('Categoria não encontrada. Ela pode ter sido apagada: volte para Categorias e atualize a lista.');
         const doc = await this.categoriaModel.findById(id).exec();
-        if (!doc) throw new NotFoundException('Categoria nao encontrada');
+        if (!doc) throw new NotFoundException('Categoria não encontrada. Ela pode ter sido apagada: volte para Categorias e atualize a lista.');
 
         const contagem = await this.contagemPorCategoria();
         const emUso = contagem.get(doc.chave) ?? 0;

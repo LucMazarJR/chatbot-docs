@@ -94,7 +94,7 @@ describe('ImportService — validacao', () => {
 
     const r = await service.validar([boa()]);
 
-    expect(r.itens[0].motivos[0]).toContain('ja existem na base');
+    expect(r.itens[0].motivos[0]).toContain('já existem na base');
   });
 
   it('pega a repeticao dentro do proprio arquivo', async () => {
@@ -121,7 +121,7 @@ describe('ImportService — validacao', () => {
     // Nao bloqueia: reenviar um documento corrigido e uso legitimo.
     expect(r.itens[0].estado).toBe('ok');
     expect(r.itens[0].parecida).toBe(true);
-    expect(r.itens[0].motivos[0]).toContain('segunda copia');
+    expect(r.itens[0].motivos[0]).toContain('segunda cópia');
   });
 
   it('nao marca como parecida quando a pergunta e mesmo nova', async () => {
@@ -152,7 +152,7 @@ describe('ImportService — validacao', () => {
       boa({ question: 'mesma coisa aqui', answer: 'Mesma Coisa Aqui' }),
     ]);
 
-    expect(r.itens[0].motivos).toContain('A pergunta e a resposta sao iguais.');
+    expect(r.itens[0].motivos).toContain('A pergunta e a resposta são iguais.');
   });
 
   it('recusa pergunta ou resposta curta demais', async () => {
@@ -248,7 +248,7 @@ describe('ImportService — validacao', () => {
       // de saúde terminar a taxonomia.
       expect(r.itens[0].estado).toBe('ok');
       expect(r.itens[0].foraDaLista).toBe(true);
-      expect(r.itens[0].motivos.join(' ')).toContain('nao esta na lista oficial');
+      expect(r.itens[0].motivos.join(' ')).toContain('não está na lista oficial');
     });
 
     it('marca tambem o assunto aposentado', async () => {
@@ -397,7 +397,7 @@ describe('ImportService — gravacao do lote', () => {
     expect(createFaq).toHaveBeenCalledTimes(2);
     // A mensagem precisa dizer o que fazer: reenviar o mesmo arquivo depois
     // pula o que ja entrou, porque a deduplicacao e por content_hash.
-    expect(job.mensagem).toContain('reenvie o mesmo arquivo');
+    expect(job.mensagem).toContain('Reenvie o mesmo arquivo');
   });
 
   it('conta separado o que entrou sem vetor por falha passageira', async () => {
