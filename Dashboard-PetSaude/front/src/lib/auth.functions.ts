@@ -76,7 +76,7 @@ export const logout = createServerFn({ method: "POST" }).handler(async () => {
  *
  * LÓGICA DO LUCIANO: POST, e não GET, apesar de ser uma leitura. Como server
  * function GET sem parâmetro, a URL era constante e nenhuma resposta trazia
- * `Cache-Control` — ou seja, nada impedia um cache intermediário, ou o bfcache
+ * `Cache-Control`, ou seja, nada impedia um cache intermediário, ou o bfcache
  * do navegador ao voltar, de repetir um `{authenticated: true}` gravado antes do
  * logout. Quem consome isto é a guarda de rota (lib/guardas.ts), que decide
  * entre mandar para o login e deixar entrar: uma resposta velha ali devolve para

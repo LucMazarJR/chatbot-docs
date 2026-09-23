@@ -29,7 +29,7 @@ import { UserSession } from './users/entities/user-session.entity';
     }),
     // LÓGICA DO LUCIANO: dois bancos, com donos bem definidos.
     //
-    // O Mongo continua dono das FAQs — a coleção faq_medicamentos é contrato
+    // O Mongo continua dono das FAQs: a coleção faq_medicamentos é contrato
     // compartilhado com a ingestão Python e com o fluxo do n8n, e mudar isso
     // quebraria o chatbot.
     //
@@ -76,7 +76,7 @@ import { UserSession } from './users/entities/user-session.entity';
             : false,
         retryAttempts: 3,
         // LÓGICA DO LUCIANO: pool pequeno de propósito. O padrão do driver pg
-        // é max: 10 — para um dashboard admin com poucos usuários simultâneos
+        // é max: 10, para um dashboard admin com poucos usuários simultâneos
         // isso é sobra, e cada conexão ociosa é uma conexão que Neon (ou
         // qualquer Postgres serverless que hiberna por inatividade) tem que
         // encerrar sozinho ou manter viva sem necessidade. idleTimeoutMillis

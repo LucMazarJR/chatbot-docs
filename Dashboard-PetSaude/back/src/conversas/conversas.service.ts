@@ -27,7 +27,7 @@ export type FiltroSituacao =
  * Leitura das conversas do protótipo PWA.
  *
  * O banco é outro (pwa_prototipo), e este service é só leitor: quem escreve é o
- * PWA. A lógica de agregação foi portada de pwa/src/lib/revisao.ts — se um dos
+ * PWA. A lógica de agregação foi portada de pwa/src/lib/revisao.ts: se um dos
  * dois mudar, o outro precisa acompanhar até o painel do PWA ser desligado.
  *
  * As agregações são deliberadamente simples e sem paginação no servidor: a
@@ -62,7 +62,7 @@ export class ConversasService {
     /**
      * Recorte de tempo e de interface.
      *
-     * Sessões antigas não têm o campo `versao` — são anteriores à existência
+     * Sessões antigas não têm o campo `versao`: são anteriores à existência
      * das duas interfaces. Contam como "a", que era a única que existia.
      */
     private filtroDeSessao(periodo: Periodo, versao: FiltroVersao): Record<string, unknown> {
@@ -84,7 +84,7 @@ export class ConversasService {
         const idsNoRecorte = noRecorte.map((s) => s._id);
 
         // Sessão sem pergunta nenhuma é visita, não conversa. Contá-la afundaria
-        // o total e a taxa de avaliação — números que alguém lê como "quantas
+        // o total e a taxa de avaliação: números que alguém lê como "quantas
         // pessoas conversaram".
         const comPergunta: string[] = await this.mensagemModel.distinct('sessaoId', {
             sessaoId: { $in: idsNoRecorte },
@@ -181,7 +181,7 @@ export class ConversasService {
             negativos: m?.negativos ?? 0,
             latenciaMedia: this.media(tempos),
             latenciaP95: this.percentil(tempos, 95),
-            // Respostas que passaram de 30s — a espera virando problema de
+            // Respostas que passaram de 30s: a espera virando problema de
             // experiência.
             respostasLentas: tempos.filter((t) => t >= 30_000).length,
         };
@@ -269,14 +269,14 @@ export class ConversasService {
      * Apaga uma conversa a pedido de quem a teve.
      *
      * LÓGICA DO LUCIANO: é a outra porta do direito de exclusão. O próprio chat
-     * já deixa a pessoa apagar a conversa — mas só enquanto ela está no aparelho.
+     * já deixa a pessoa apagar a conversa, mas só enquanto ela está no aparelho.
      * Quem trocou de celular, limpou o navegador ou fez o teste no aparelho de
      * outra pessoa não tem mais como, e o pedido chega à equipe. Esta rota é
      * para esse caso.
      *
      * Faz o mesmo que o PWA, e na mesma ordem: as CÓPIAS primeiro (sugestões e
      * rodadas da curadoria), a conversa depois. Se algo falhar no meio, a
-     * conversa continua na lista e o pedido pode ser repetido — na ordem inversa
+     * conversa continua na lista e o pedido pode ser repetido: na ordem inversa
      * ela sumiria da tela deixando cópias para trás.
      *
      * A auditoria registra quem apagou, quando e quantos registros, e NENHUM

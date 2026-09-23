@@ -11,11 +11,11 @@ import { UsersService } from './users.service';
  * Travas de conta.
  *
  * LÓGICA DO LUCIANO: são regras que ninguém percebe estarem quebradas até o dia
- * em que a instalação fica sem nenhum administrador capaz de entrar — e aí não
+ * em que a instalação fica sem nenhum administrador capaz de entrar, e aí não
  * há tela que resolva, só acesso ao banco. Por isso viram teste, e não só
  * verificação manual.
  */
-describe('UsersService — travas de conta', () => {
+describe('UsersService: travas de conta', () => {
   let service: UsersService;
   let repo: {
     findOne: jest.Mock;

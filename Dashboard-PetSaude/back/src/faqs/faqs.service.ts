@@ -65,12 +65,12 @@ export class FaqsService {
     ) {
         // LÓGICA DO LUCIANO: a exclusão definitiva de FAQs desativadas roda a cada
         // 24h e é IRREVERSÍVEL. FAQs criadas aqui têm file_id "dashboard_manual" e
-        // não existem no Google Drive — a reingestão do enviar_dados.py não as traz
+        // não existem no Google Drive: a reingestão do enviar_dados.py não as traz
         // de volta. Por isso passou a ser opt-in: só roda com FAQ_PURGE_ENABLED=true,
         // e agora registra o que apagou em vez de engolir o erro em silêncio.
         if (process.env.FAQ_PURGE_ENABLED === 'true') {
             this.logger.warn(
-                'FAQ_PURGE_ENABLED=true — FAQs desativadas há mais de 7 dias serão apagadas definitivamente a cada 24h.'
+                'FAQ_PURGE_ENABLED=true: FAQs desativadas há mais de 7 dias serão apagadas definitivamente a cada 24h.'
             );
             setInterval(() => void this.purgarFaqsDesativadas(), 1000 * 60 * 60 * 24);
         }
@@ -121,7 +121,7 @@ export class FaqsService {
 
     // LÓGICA DO LUCIANO: mesmo formato do campo "text" gravado por 'enviar_dados.py'.
     // O assunto entra junto porque muitas perguntas são idênticas entre si
-    // ("Como me preparar para o Exame?") — sem ele o agente não sabe de qual
+    // ("Como me preparar para o Exame?"): sem ele o agente não sabe de qual
     // assunto o trecho fala e pode responder sobre o errado.
     private montarTexto(categoria: string, pergunta: string, resposta: string): string {
         return [
@@ -142,18 +142,18 @@ export class FaqsService {
      * Gera o vetor da FAQ e devolve junto a procedência dele.
      *
      * LÓGICA DO LUCIANO: o texto embedado tem de ser EXATAMENTE o mesmo que vai
-     * para o campo `text` — o canônico do montarTexto, com o assunto na frente.
+     * para o campo `text`: o canônico do montarTexto, com o assunto na frente.
      * Aqui se embedava `pergunta + resposta`, sem o assunto, enquanto o `text`
      * era gravado com ele. O comentário antigo dizia que isso espelhava o
      * enviar_dados.py; espelhava, antes de o script passar a embedar o canônico
      * (enviar_dados.py:297). O resultado é que toda FAQ criada pelo dashboard
      * entrava num espaço vetorial ligeiramente diferente do resto da base: o nó
      * do n8n recupera o trecho por um texto e pontua por outro. Não dá erro em
-     * lugar nenhum — só ranqueia mal, que é o defeito descrito em
+     * lugar nenhum, só ranqueia mal, que é o defeito descrito em
      * docs/arquitetura.md.
      *
      * Não lança: a FAQ é gravada mesmo sem vetor, para não perder o conteúdo já
-     * digitado. Quem chama recebe `falha` e decide — o formulário manual segue
+     * digitado. Quem chama recebe `falha` e decide: o formulário manual segue
      * em frente, a importação em lote para quando a falha é de cota.
      */
     private async gerarVetor(texto: string): Promise<VetorGerado> {
@@ -176,7 +176,7 @@ export class FaqsService {
     }
 
     // LÓGICA DO LUCIANO: guarda de sanidade mínima. Pergunta e resposta iguais
-    // não são um FAQ, por definição — mas nada aqui verificava isso. Foi assim
+    // não são um FAQ, por definição, mas nada aqui verificava isso. Foi assim
     // que uma FAQ de teste (pergunta, resposta e categoria literalmente
     // "teste") criada pelo dashboard chegou a ser indexada e citada como
     // trecho numa conversa real com um cidadão. Fica antes da chamada ao
@@ -201,12 +201,12 @@ export class FaqsService {
     }
 
     /**
-     * Quais destes hashes já existem na base — inclusive entre as desativadas.
+     * Quais destes hashes já existem na base, inclusive entre as desativadas.
      *
      * LÓGICA DO LUCIANO: a consulta NÃO filtra por isActive de propósito. Uma
      * FAQ excluída é desativada, não apagada; ignorá-la aqui faria a
      * importação inserir uma segunda cópia do que alguém excluiu de propósito,
-     * e a base passaria a ter duas linhas com o mesmo content_hash — uma ativa
+     * e a base passaria a ter duas linhas com o mesmo content_hash: uma ativa
      * e uma não. Melhor a prévia dizer que a linha já existe.
      */
     /** A mesma normalizacao usada na busca e gravada em question_normalized. */
@@ -218,7 +218,7 @@ export class FaqsService {
      * Quais destas perguntas ja existem na base ignorando pontuacao e acento.
      *
      * LÓGICA DO LUCIANO: o content_hash pega repetição EXATA, e é o contrato
-     * compartilhado com a ingestão Python — não dá para afrouxá-lo. Mas ele
+     * compartilhado com a ingestão Python: não dá para afrouxá-lo. Mas ele
      * quebra com qualquer mudança de formatação: quando a regra de leitura
      * passou a tirar os colchetes de "P: [pergunta] R: [resposta]", as mesmas
      * FAQs que já estavam na base voltaram a aparecer como novas, e importá-las
@@ -257,7 +257,7 @@ export class FaqsService {
 
     // LÓGICA DO LUCIANO: escapa os metacaracteres antes de virar RegExp. Sem
     // isso, um cidadão digitando "(" na busca derruba a requisição com erro de
-    // regex inválida — e padrões patológicos viram um jeito barato de fazer o
+    // regex inválida, e padrões patológicos viram um jeito barato de fazer o
     // Mongo varrer a coleção inteira.
     private escaparRegex(termo: string): string {
         return termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -287,8 +287,8 @@ export class FaqsService {
                 categoria === FaqsService.SEM_CATEGORIA ? { $in: [null, ''] } : categoria;
         }
 
-        // A normalização remove pontuação, então um termo só de sinais — "(" ,
-        // "..." — vira string vazia. Testar o termo CRU deixava passar um
+        // A normalização remove pontuação, então um termo só de sinais ("(",
+        // "...") vira string vazia. Testar o termo CRU deixava passar um
         // `new RegExp('')`, que casa com tudo: buscar "(" devolvia a coleção
         // inteira como se nenhum filtro tivesse sido aplicado. Por isso a
         // verificação é feita sobre o termo já normalizado.
@@ -345,7 +345,7 @@ export class FaqsService {
 
         if (termoNormalizado) {
             // question_normalized é gravado tanto por este service quanto pelo
-            // enviar_dados.py, com a mesma normalização — por isso a busca aqui
+            // enviar_dados.py, com a mesma normalização, por isso a busca aqui
             // ignora acento sem precisar de nenhuma máquina nova.
             const termo = this.escaparRegex(termoNormalizado);
             const padrao = new RegExp(termo, 'i');
@@ -385,7 +385,7 @@ export class FaqsService {
      *
      * Existe para a tela de conversas: cada resposta do chatbot registra o
      * faqId dos trechos que a geraram, e quem revisa precisa ir do trecho ruim
-     * ao documento. Buscar pelo texto da pergunta nao serve — ha 180 FAQs com
+     * ao documento. Buscar pelo texto da pergunta nao serve: ha 180 FAQs com
      * a pergunta "Como me preparar para o Exame?", distinguidas so pelo
      * assunto.
      */
@@ -430,7 +430,7 @@ export class FaqsService {
         };
     }
 
-    /** Contagem por categoria — substitui o agrupamento que o front fazia em memória. */
+    /** Contagem por categoria: substitui o agrupamento que o front fazia em memória. */
     async getCategories() {
         const grupos = await this.faqModel.aggregate([
             { $match: { isActive: true } },
@@ -549,11 +549,11 @@ export class FaqsService {
         const textoAnterior = this.montarTexto(faq.category ?? '', faq.question, faq.answer);
         const novoTexto = this.montarTexto(cat, newQuestion, newAnswer);
 
-        // Só re-embeda se o TEXTO EMBEDADO mudou — é a diferença entre gastar
+        // Só re-embeda se o TEXTO EMBEDADO mudou: é a diferença entre gastar
         // uma chamada de API por edição de tag e não gastar.
         //
         // A comparação é do texto, e não do content_hash, porque o hash é
-        // MD5(pergunta|resposta) e ignora a categoria — enquanto a categoria
+        // MD5(pergunta|resposta) e ignora a categoria, enquanto a categoria
         // ENTRA no texto embedado, como "Assunto: ...". Comparando hashes,
         // corrigir só a categoria de uma FAQ reescrevia o campo `text` e
         // deixava o vetor descrevendo a categoria antiga, sem que nada

@@ -11,11 +11,11 @@ import { FaqsService } from './faqs.service';
  * Listagem paginada.
  *
  * LÓGICA DO LUCIANO: os dois primeiros testes cobrem defeitos que já
- * aconteceram e que não dão erro visível — um derruba a requisição só quando o
+ * aconteceram e que não dão erro visível: um derruba a requisição só quando o
  * cidadão digita um caractere específico, o outro faz linhas se repetirem entre
  * páginas. Ambos passariam despercebidos numa revisão de código.
  */
-describe('FaqsService — listagem paginada', () => {
+describe('FaqsService: listagem paginada', () => {
   let service: FaqsService;
   let ultimaConsulta: any;
   let ultimaOrdenacao: any;
@@ -259,11 +259,11 @@ describe('FaqsService — listagem paginada', () => {
  * Guarda de conteúdo: pergunta e resposta iguais não são um FAQ.
  *
  * LÓGICA DO LUCIANO: não havia NENHUMA validação de conteúdo antes desta
- * guarda — foi assim que uma FAQ com pergunta, resposta e categoria
+ * guarda: foi assim que uma FAQ com pergunta, resposta e categoria
  * literalmente "teste" foi criada pelo dashboard, indexada, e citada como
  * trecho numa conversa real com um cidadão.
  */
-describe('FaqsService — validação de conteúdo', () => {
+describe('FaqsService: validação de conteúdo', () => {
   let service: FaqsService;
   let gerarEmbedding: jest.Mock;
   let FakeFaqModel: any;
@@ -272,7 +272,7 @@ describe('FaqsService — validação de conteúdo', () => {
     gerarEmbedding = jest.fn().mockResolvedValue([0.1, 0.2, 0.3]);
 
     // `new this.faqModel(...)` em createFaq exige um construtor, não um objeto
-    // plano — por isso este mock é uma função, diferente do usado na
+    // plano, por isso este mock é uma função, diferente do usado na
     // descrição acima (que só precisa de `find`/`countDocuments`).
     FakeFaqModel = jest.fn().mockImplementation(function (this: any, doc: any) {
       Object.assign(this, doc);
@@ -350,11 +350,11 @@ describe('FaqsService — validação de conteúdo', () => {
  * LÓGICA DO LUCIANO: este é o defeito que não dá erro em lugar nenhum. O campo
  * `text` alimenta o pageContent do nó Vector Store do n8n; o embedding define o
  * ranqueamento. Se os dois forem montados a partir de strings diferentes, o bot
- * recupera um trecho e pontua por outro — e ninguém percebe até uma pergunta
+ * recupera um trecho e pontua por outro, e ninguém percebe até uma pergunta
  * simplesmente parar de ser encontrada. Por isso o teste compara os dois em vez
  * de conferir o formato de um deles.
  */
-describe('FaqsService — o texto embedado e o campo text', () => {
+describe('FaqsService: o texto embedado e o campo text', () => {
   let service: FaqsService;
   let gerarEmbedding: jest.Mock;
   let salvo: any;
@@ -414,7 +414,7 @@ describe('FaqsService — o texto embedado e o campo text', () => {
 
   it('grava a procedencia do vetor junto com ele', async () => {
     // Sem embedding_model gravado nao ha como saber depois em que modelo a base
-    // esta — e a dimensao nao responde, porque o 001 tambem produz 3072.
+    // esta, e a dimensao nao responde, porque o 001 tambem produz 3072.
     await service.createFaq(
       { question: 'Qual o horario da UBS?', answer: 'Das 7h as 19h.', categories: ['unidades'] },
       { name: 'Alguem' },

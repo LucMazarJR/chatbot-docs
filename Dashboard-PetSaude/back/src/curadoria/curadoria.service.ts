@@ -34,7 +34,7 @@ type GrupoSugerido = {
     tags?: string[];
     faqRelacionada?: string | null;
     /**
-     * `fora_de_escopo` não vira sugestão — a lacuna é encerrada e some da fila.
+     * `fora_de_escopo` não vira sugestão: a lacuna é encerrada e some da fila.
      *
      * LÓGICA DO LUCIANO: existe porque a fila real não é só conteúdo faltando.
      * Entre as 17 primeiras lacunas gravadas estavam "qual o melhor time de
@@ -86,7 +86,7 @@ export class CuradoriaService {
     /**
      * As próximas lacunas da fila, com a pergunta e as FAQs que a busca achou.
      *
-     * LÓGICA DO LUCIANO: as FAQs vizinhas NÃO são buscadas de novo — elas já
+     * LÓGICA DO LUCIANO: as FAQs vizinhas NÃO são buscadas de novo: elas já
      * estão gravadas em `trechosDebug` da própria resposta, com score e com o
      * veredito do corte, inclusive as que foram descartadas. É exatamente o que
      * o chatbot viu na hora. Refazer a busca custaria um embedding por lacuna,
@@ -105,7 +105,7 @@ export class CuradoriaService {
         if (respostas.length === 0) return [];
 
         // A pergunta do cidadão está na mensagem irmã, pareada pelo
-        // correlationId — uma por troca.
+        // correlationId: uma por troca.
         const correlationIds = respostas.map((r) => r.correlationId).filter(Boolean);
         const perguntas = await this.mensagemModel
             .find({ papel: 'user', correlationId: { $in: correlationIds } })
@@ -148,7 +148,7 @@ export class CuradoriaService {
      * Uma rodada: pega até 10 lacunas, manda UM prompt, grava as sugestões.
      *
      * LÓGICA DO LUCIANO: um prompt para as dez, e não dez prompts. Perguntas que
-     * ninguém soube responder costumam vir em cacho — "onde fica a UBS", "como
+     * ninguém soube responder costumam vir em cacho: "onde fica a UBS", "como
      * chego na UBS", "qual o endereço do posto" são a mesma FAQ faltando. Uma
      * chamada por pergunta produziria três sugestões quase iguais, e a tela de
      * aprovação viraria trabalho repetido. Ver as dez juntas é o que permite
@@ -167,7 +167,7 @@ export class CuradoriaService {
 
             // O registro nasce ANTES da chamada ao modelo, com as perguntas já
             // congeladas. Criado depois, uma falha na chamada não deixaria
-            // registro nenhum — e "rodei e não aconteceu nada" é exatamente o
+            // registro nenhum, e "rodei e não aconteceu nada" é exatamente o
             // caso em que alguém vai querer saber o que foi enviado.
             rodada = await new this.rodadaModel({
                 estado: 'rodando',
@@ -261,12 +261,12 @@ export class CuradoriaService {
 
             // Só marca como tratada DEPOIS de as sugestões estarem gravadas.
             // Invertido, uma falha no meio tiraria a lacuna da fila sem nada no
-            // lugar — ela nunca mais seria analisada e ninguém saberia.
+            // lugar: ela nunca mais seria analisada e ninguém saberia.
             //
             // Os dois estados ficam distintos de propósito: `descartada` diz que
             // a pergunta não era sobre saúde, e `processada` que ela virou (ou
             // entrou em) uma sugestão. Marcar tudo igual perderia a única
-            // medida de quanto do "não encontrou" é lacuna de verdade — que é o
+            // medida de quanto do "não encontrou" é lacuna de verdade, que é o
             // indicador que decide se a base precisa crescer.
             const descartadas = new Set(foraDeEscopo);
             const processadas = lacunas
@@ -322,7 +322,7 @@ export class CuradoriaService {
                 this.jobsService.finalizar(
                     jobId,
                     'cota_esgotada',
-                    'A cota da API do Gemini acabou. As lacunas seguem na fila — rode de novo amanha.',
+                    'A cota da API do Gemini acabou. As lacunas seguem na fila: rode de novo amanha.',
                 );
                 return;
             }
@@ -338,7 +338,7 @@ export class CuradoriaService {
      *
      * Nunca deixa a falha do registro derrubar a rodada: o histórico existe para
      * explicar o que aconteceu, e um histórico que interrompe a operação que ele
-     * deveria descrever é pior que histórico nenhum — mesma regra do
+     * deveria descrever é pior que histórico nenhum: mesma regra do
      * ActivityService.
      */
     private async encerrarRodada(
@@ -365,7 +365,7 @@ export class CuradoriaService {
      * O histórico das análises, com o que entrou em cada uma.
      *
      * LÓGICA DO LUCIANO: a lista vem sem a `respostaBruta` e sem as vizinhas de
-     * cada pergunta — são dezenas de KB por rodada, e a tela mostra dez rodadas.
+     * cada pergunta: são dezenas de KB por rodada, e a tela mostra dez rodadas.
      * Quem quiser o detalhe abre uma.
      */
     async listarRodadas(limite = 20) {
@@ -430,7 +430,7 @@ export class CuradoriaService {
      * aquelas perguntas.
      *
      * LÓGICA DO LUCIANO: no primeiro ensaio contra dados reais o modelo devolveu
-     * `faqRelacionada: "desconhecido"` — a palavra que o prompt usava como
+     * `faqRelacionada: "desconhecido"`: a palavra que o prompt usava como
      * rótulo para as FAQs antigas, que não têm id gravado. Guardado assim,
      * viraria um link para /faqs/desconhecido na tela de aprovação: um 404 que
      * ninguém consegue explicar, aparecendo na tela de quem está decidindo
@@ -461,7 +461,7 @@ export class CuradoriaService {
      * resposta. Isto é orientação de saúde sobre medicamento e atendimento, na
      * voz do Ministério; um modelo preenchendo a lacuna com o que parece certo
      * produziria exatamente o texto que ninguém consegue auditar depois. Quando
-     * as FAQs fornecidas não contêm a informação, a resposta vem vazia — e isso
+     * as FAQs fornecidas não contêm a informação, a resposta vem vazia, e isso
      * é um resultado útil, não uma falha: é a confirmação de que aquilo é
      * conteúdo que falta de verdade, que foi a conclusão do primeiro teste com
      * participantes.
@@ -474,7 +474,7 @@ export class CuradoriaService {
                     // O id só entra quando existe de verdade. Numa versão
                     // anterior aqui se escrevia "id: desconhecido" para os que
                     // não tinham, e o modelo devolveu literalmente
-                    // `faqRelacionada: "desconhecido"` — que viraria um link
+                    // `faqRelacionada: "desconhecido"`, que viraria um link
                     // quebrado na tela de aprovação. Rótulo que não é dado não
                     // deve parecer dado.
                     const identificacao = v.faqId
@@ -505,10 +505,10 @@ export class CuradoriaService {
             '2. Para cada grupo, escreva a pergunta canonica, do jeito que ela entraria na base.',
             '3. Diga se o grupo pede uma FAQ NOVA ou se e COMPLEMENTO de uma FAQ existente.',
             '   Em faqRelacionada, use APENAS um id que aparece na lista abaixo, copiado',
-            '   exatamente. Se a FAQ proxima nao mostrar id, use null — nunca invente nem',
+            '   exatamente. Se a FAQ proxima nao mostrar id, use null; nunca invente nem',
             '   escreva texto nesse campo.',
             '4. Se a entrada NAO for um pedido de informacao de saude ou de servico de saude',
-            '   — assunto de fora, desabafo, teste, texto sem sentido —, use tipo',
+            '   (assunto de fora, desabafo, teste, texto sem sentido), use tipo',
             '   "fora_de_escopo". Nao invente FAQ para ela: o chatbot acertou em nao',
             '   responder. Pode juntar varias assim num grupo so.',
             '',
@@ -574,7 +574,7 @@ export class CuradoriaService {
     /**
      * Aprovar cria a FAQ pelo MESMO caminho do formulário manual.
      *
-     * LÓGICA DO LUCIANO: passa pelo createFaq de sempre — mesma validação, mesmo
+     * LÓGICA DO LUCIANO: passa pelo createFaq de sempre: mesma validação, mesmo
      * embedding, mesmo registro de auditoria, e o ator é quem aprovou, não o
      * modelo. A pergunta e a resposta chegam aqui já revisadas pela tela: o que
      * o modelo escreveu é rascunho, e quem assina o conteúdo é uma pessoa.
@@ -605,7 +605,7 @@ export class CuradoriaService {
             },
             actor,
             // Fecha o rastro do outro lado: a sugestão aponta para a FAQ criada,
-            // e a FAQ aponta de volta para a sugestão que a originou — que por
+            // e a FAQ aponta de volta para a sugestão que a originou, que por
             // sua vez guarda as conversas em que a pergunta apareceu.
             { file_id: 'dashboard_curadoria', file_origin: `Sugestao ${id}` },
         );

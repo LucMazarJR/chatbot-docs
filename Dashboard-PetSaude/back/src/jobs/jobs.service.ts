@@ -12,7 +12,7 @@ export type Job = {
     /** Quantos itens o job tem para processar. */
     total: number;
     processados: number;
-    /** Contadores próprios de cada tipo de job — inseridas, puladas, etc. */
+    /** Contadores próprios de cada tipo de job: inseridas, puladas, etc. */
     contadores: Record<string, number>;
     erros: ErroDeLinha[];
     /** Quantos erros aconteceram além dos que couberam em `erros`. */
@@ -29,8 +29,8 @@ export type Job = {
  *
  * LÓGICA DO LUCIANO: o registro é em memória, e isso é uma escolha, não um
  * atalho. Gravar o andamento no banco daria durabilidade a um estado que não
- * precisa dela: os dois jobs que existem — importar um lote e gerar embeddings
- * faltantes — derivam o que falta do próprio banco a cada execução. Se a API
+ * precisa dela: os dois jobs que existem (importar um lote e gerar embeddings
+ * faltantes) derivam o que falta do próprio banco a cada execução. Se a API
  * reiniciar no meio, o job some, mas as FAQs que já entraram estão lá e rodar
  * de novo retoma de onde parou, porque o alvo é recalculado. O preço é a tela
  * precisar dizer que o trabalho parou, e ela diz.

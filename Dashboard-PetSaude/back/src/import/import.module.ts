@@ -11,7 +11,7 @@ import { ImportService } from './import.service';
     // hash, embedding, insert e log de atividade em um lugar só.
     //
     // CategoriasModule entra porque a prévia compara o assunto de cada linha com
-    // a lista oficial — e é ela que decide a grafia, no lugar do minúsculo à
+    // a lista oficial, e é ela que decide a grafia, no lugar do minúsculo à
     // força que a importação aplicava.
     imports: [FaqsModule, CategoriasModule],
     controllers: [ImportController],

@@ -15,14 +15,14 @@ import { Selo } from "@/components/selo";
  *
  * LÓGICA DO LUCIANO: a única forma de saber por que o chatbot não respondeu
  * alguma coisa era mandar a pergunta pelo chat e esperar. Isso custa minutos,
- * depende do n8n estar de pé, e não mostra os scores — dá para ver que falhou,
+ * depende do n8n estar de pé, e não mostra os scores: dá para ver que falhou,
  * não por quanto.
  *
  * E o "por quanto" é a informação que decide o trabalho. Nas 81 perguntas do
  * primeiro teste com participantes, casos como "Onde fica a UBS?" (0,816) e
  * "Onde consigo um pedido de tomografia?" (0,819) tinham a FAQ certa na base e
  * ficaram milésimos abaixo do corte de 0,82. Sem ver o número, esses casos e os
- * de conteúdo realmente faltando são indistinguíveis — e a correção de cada um é
+ * de conteúdo realmente faltando são indistinguíveis, e a correção de cada um é
  * oposta à do outro.
  *
  * Só aparece quando alguém abre pelo botão da barra de busca: cada teste gasta

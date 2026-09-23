@@ -136,7 +136,7 @@ export class CategoriasService {
         const jaExiste = await this.categoriaModel.findOne({ chave }).lean().exec();
         if (jaExiste) {
             throw new ConflictException(
-                `A categoria "${jaExiste.nome}" já existe — é o mesmo assunto escrito de outro jeito`,
+                `A categoria "${jaExiste.nome}" já existe: é o mesmo assunto escrito de outro jeito`,
             );
         }
 
@@ -175,7 +175,7 @@ export class CategoriasService {
      * Renomear, descrever ou aposentar.
      *
      * LÓGICA DO LUCIANO: renomear CASCATEIA para as FAQs, e não tem como não
-     * cascatear. As FAQs guardam o nome da categoria, não o id — é assim que a
+     * cascatear. As FAQs guardam o nome da categoria, não o id: é assim que a
      * ingestão Python e o nó do n8n leem a coleção. Sem a cascata, renomear
      * "exames" para "Exames" deixaria as 40 FAQs apontando para um nome que já
      * não está na lista, e todas cairiam na tela de revisão de uma vez, para
@@ -184,7 +184,7 @@ export class CategoriasService {
      * O que a cascata NÃO faz é regerar os vetores. O nome da categoria entra no
      * texto embedado ("Assunto: ..."), então as FAQs renomeadas ficam com vetor
      * descrevendo o nome antigo. Regerar aqui significaria uma chamada ao Gemini
-     * por FAQ dentro de uma requisição HTTP — lento, caro e sem como acompanhar.
+     * por FAQ dentro de uma requisição HTTP: lento, caro e sem como acompanhar.
      * Em vez disso a resposta devolve `reindexar`, e quem renomeou decide quando
      * rodar o backfill, que já sabe fazer isso por categoria, com progresso e
      * parada.
@@ -253,7 +253,7 @@ export class CategoriasService {
      * do n8n devolve como trecho, e deixá-lo com o nome velho faria a resposta
      * do chatbot citar um assunto que já não existe.
      *
-     * O content_hash NÃO muda — ele é MD5(pergunta|resposta) e não inclui a
+     * O content_hash NÃO muda: ele é MD5(pergunta|resposta) e não inclui a
      * categoria, de propósito (ver faqs.service.ts).
      */
     private async renomearNasFaqs(chaveAntiga: string, nomeNovo: string): Promise<number> {
@@ -265,7 +265,7 @@ export class CategoriasService {
 
         // Quem já está com a grafia de destino fica de fora: reescrever daria o
         // mesmo documento, mas entraria na conta de `reindexar` e mandaria
-        // regerar vetor de FAQ que não mudou — cota gasta à toa.
+        // regerar vetor de FAQ que não mudou: cota gasta à toa.
         const alvos = docs.filter(
             (d) => chaveDeCategoria(d.category) === chaveAntiga && d.category !== nomeNovo,
         );
@@ -296,12 +296,12 @@ export class CategoriasService {
      *
      * LÓGICA DO LUCIANO: é a ação que resolve a maior parte da bagunça, e é a
      * única da curadoria que não precisa de ninguém decidindo nada. "exames",
-     * "EXAMES" e "Exames" são o mesmo assunto — a chave já diz isso. O que falta
+     * "EXAMES" e "Exames" são o mesmo assunto: a chave já diz isso. O que falta
      * é escrever todos do mesmo jeito, e isso é mecânico.
      *
      * Sai daqui com a mesma pendência do renomear: o nome entra no texto
      * embedado, então as FAQs ajustadas ficam com vetor descrevendo a grafia
-     * antiga. Vale o mesmo caminho — a resposta diz quantas, e o backfill por
+     * antiga. Vale o mesmo caminho: a resposta diz quantas, e o backfill por
      * categoria reindexa quando alguém mandar.
      */
     async normalizarGrafia(
@@ -366,7 +366,7 @@ export class CategoriasService {
      *
      * Agrupado, e não FAQ por FAQ, porque o trabalho é de curadoria: o problema
      * real não são 2491 perguntas erradas, são poucas dezenas de nomes de
-     * assunto a decidir — e resolver um nome resolve todas as perguntas dele de
+     * assunto a decidir, e resolver um nome resolve todas as perguntas dele de
      * uma vez.
      */
     async revisao(): Promise<{

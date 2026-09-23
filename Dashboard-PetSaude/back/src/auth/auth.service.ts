@@ -48,7 +48,7 @@ export class AuthService {
         //
         // A comparação roda MESMO sem usuário, contra um hash descartável. Sem
         // isso, e-mail inexistente respondia na hora e e-mail real levava os
-        // ~100ms do bcrypt — diferença suficiente para descobrir quais e-mails
+        // ~100ms do bcrypt: diferença suficiente para descobrir quais e-mails
         // estão cadastrados sem precisar acertar nenhuma senha. A mensagem
         // igual não adianta se o relógio entrega a resposta.
         const senhaConfere = await bcrypt.compare(
@@ -58,7 +58,7 @@ export class AuthService {
 
         if (!usuario || !senhaConfere) {
             // LÓGICA DO LUCIANO: até aqui, tentativa de acesso recusada não
-            // deixava rastro nenhum — nem no banco, nem no log do processo. A
+            // deixava rastro nenhum, nem no banco, nem no log do processo. A
             // única barreira era o limite de 10 por minuto, e ninguém tinha
             // como descobrir depois que alguém passou a madrugada tentando.
             //
@@ -151,7 +151,7 @@ export class AuthService {
         return { ok: true };
     }
 
-    /** Encerra todas as sessões de um usuário — usado ao desativar ou trocar senha. */
+    /** Encerra todas as sessões de um usuário: usado ao desativar ou trocar senha. */
     async revogarSessoes(userId: string): Promise<void> {
         await this.sessionsRepo.update({ userId, revokedAt: IsNull() }, { revokedAt: new Date() });
     }

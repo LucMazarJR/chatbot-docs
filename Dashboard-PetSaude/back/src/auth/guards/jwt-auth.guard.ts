@@ -52,7 +52,7 @@ export class JwtAuthGuard implements CanActivate {
 
         // A sessão precisa existir e não ter sido revogada. É isto que faz
         // "desativar usuário" ter efeito imediato em vez de esperar o token
-        // expirar — até 8 horas depois.
+        // expirar, até 8 horas depois.
         const sessao = await this.sessionsRepo.findOne({
             // `expiresAt` é redundante com a verificação do JWT, e é de
             // propósito: se um dia o segredo vazar e alguém forjar um token com

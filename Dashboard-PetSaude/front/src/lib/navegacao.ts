@@ -43,7 +43,7 @@ export type Destino = {
  * Todas as telas do dashboard, num lugar só.
  *
  * LÓGICA DO LUCIANO: era uma lista solta dentro do gate.tsx, desenhada numa barra
- * horizontal — oito destinos lado a lado, já no limite da largura, e cada tela
+ * horizontal: oito destinos lado a lado, já no limite da largura, e cada tela
  * nova exigia editar também uma união de strings com as rotas. Agora a barra
  * lateral, a gaveta do celular e o "Ir para…" leem daqui. Tela nova é uma linha.
  *
@@ -131,7 +131,7 @@ export function destinosDe(papel: UserRole | undefined): Destino[] {
   return DESTINOS.filter((destino) => !destino.papeis || destino.papeis.includes(papel));
 }
 
-/** Os grupos com ao menos um destino visível para o papel — grupo vazio não aparece. */
+/** Os grupos com ao menos um destino visível para o papel: grupo vazio não aparece. */
 export function gruposDe(papel: UserRole | undefined) {
   const visiveis = destinosDe(papel);
   return GRUPOS.map((grupo) => ({

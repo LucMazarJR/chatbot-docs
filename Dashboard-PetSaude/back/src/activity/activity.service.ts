@@ -49,7 +49,7 @@ export class ActivityService {
      * Grava um registro de auditoria.
      *
      * LÓGICA DO LUCIANO: nunca lança. Auditoria que derruba a operação auditada
-     * é pior que auditoria nenhuma — uma falha do Mongo ao gravar o log
+     * é pior que auditoria nenhuma: uma falha do Mongo ao gravar o log
      * impediria alguém de criar uma FAQ ou de fazer login. O erro vai para o
      * log do processo e a operação segue.
      *
@@ -82,7 +82,7 @@ export class ActivityService {
      * Atalho antigo, mantido para os pontos que só registram FAQ.
      *
      * Continua existindo para o diff das chamadas ficar pequeno, mas todo lugar
-     * que tem mais contexto deve usar `registrar` — é lá que entram entity_id,
+     * que tem mais contexto deve usar `registrar`: é lá que entram entity_id,
      * antes/depois e o id do lote.
      */
     async logActivity(

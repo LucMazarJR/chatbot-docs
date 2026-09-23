@@ -20,7 +20,7 @@ type Props = {
  *
  * O componente do shadcn renderiza um <a> puro, sem `asChild`. Aqui o clique é
  * interceptado para navegar pelo roteador em vez de recarregar a página, mas o
- * href continua real — assim abrir em nova aba e copiar o link seguem
+ * href continua real, assim abrir em nova aba e copiar o link seguem
  * funcionando.
  */
 export function FaqPagination({ page, totalPages, onPageChange }: Props) {

@@ -11,11 +11,11 @@ import { Faq, FaqDocument } from './schemas/faq.schema';
  *
  * LÓGICA DO LUCIANO: precisa ser o MESMO número do nó "Montar contexto" dos dois
  * fluxos do n8n. Se divergir, esta tela deixa de mostrar o que o chatbot faz e
- * passa a mostrar o que ela própria faria — que é pior do que não ter a tela.
+ * passa a mostrar o que ela própria faria, que é pior do que não ter a tela.
  *
  * O valor foi calibrado com 81 perguntas reais de participantes: as respondidas
  * têm melhor score médio 0,844; as que a base não sabia, 0,815. Baixar para 0,80
- * foi testado e é pior — ganham-se 2 respostas corretas e entram 8 contextos
+ * foi testado e é pior: ganham-se 2 respostas corretas e entram 8 contextos
  * irrelevantes a mais.
  */
 export const LIMIAR_SCORE_PADRAO = 0.82;
@@ -48,7 +48,7 @@ export type ResultadoBusca = {
  *
  * LÓGICA DO LUCIANO: até aqui a única forma de saber por que o chatbot não
  * respondeu alguma coisa era mandar a pergunta pelo chat e esperar. Isso custa
- * minutos, depende do n8n estar de pé e não mostra os scores — dá para ver que
+ * minutos, depende do n8n estar de pé e não mostra os scores: dá para ver que
  * falhou, não por quanto. Quem escreve FAQ precisa do número: a diferença entre
  * "falta essa FAQ" e "a FAQ existe e ficou três milésimos abaixo do corte" muda
  * completamente o que fazer em seguida.
@@ -77,7 +77,7 @@ export class BuscaSemanticaService {
 
         // O vetor da pergunta sai do MESMO service que gera o das FAQs, com o
         // mesmo modelo e o mesmo task_type. É o que mantém os scores daqui
-        // comparáveis aos que a base tem — embedding de modelos diferentes
+        // comparáveis aos que a base tem: embedding de modelos diferentes
         // produz número, não produz sentido.
         const vetor = await this.geminiService.gerarEmbedding(texto);
 

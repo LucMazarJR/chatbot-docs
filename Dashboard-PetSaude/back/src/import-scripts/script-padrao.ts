@@ -2,7 +2,7 @@
  * Script de geração de FAQs embutido no código.
  *
  * LÓGICA DO LUCIANO: é o que roda quando a tabela `import_scripts` está vazia, e
- * o que o botão "restaurar padrão" grava. Reproduz o scripts/enviar_dados.py —
+ * o que o botão "restaurar padrão" grava. Reproduz o scripts/enviar_dados.py,
  * inclusive as decisões dele que surpreendem, como a resposta sair de um único
  * parágrafo e as tags do Word quebrarem também no espaço. Divergir aqui faria o
  * mesmo documento render FAQs diferentes conforme entrasse pelo Drive ou pelo
@@ -16,7 +16,7 @@ export const NOME_SCRIPT_PADRAO = 'Padrao P/R (compativel com enviar_dados.py)';
 
 export const SCRIPT_PADRAO = `
 // ===========================================================================
-// Script de geracao de FAQs — formato P/R
+// Script de geracao de FAQs: formato P/R
 //
 // Dois exports, e o contrato e so isso:
 //
@@ -101,7 +101,7 @@ var RE_R_INICIO   = /^\\b(?:R|RESPOSTA):\\s*/i;
 var RE_P_EM_QUALQUER_LUGAR = /(?:\\d+\\.\\s*)?\\b(?:P|PERGUNTA):\\s*/i;
 
 // A ordem das alternativas importa e e a mesma do Python: 'ref:' casa antes de
-// '(ref:', entao um '(' sobra no fim da resposta. Preservado de proposito — o
+// '(ref:', entao um '(' sobra no fim da resposta. Preservado de proposito: o
 // mesmo documento tem de render o mesmo resultado nos dois caminhos.
 var RE_METADADOS  = /tags:|fonte:|ref:|\\(ref:/i;
 var RE_FONTE      = /(?:FONTE:|Ref:|\\(Ref:)\\s*([^)\\n\\t]+)/i;
@@ -109,9 +109,9 @@ var RE_FONTE      = /(?:FONTE:|Ref:|\\(Ref:)\\s*([^)\\n\\t]+)/i;
 //
 // La o lookahead so para em "P:", "PERGUNTA:" ou no fim da janela. Como a
 // janela junta tres paragrafos numa linha so, escrever o exemplo que a propria
-// documentacao ensina —
+// documentacao ensina,
 //     TAGS: dose, paracetamol. FONTE: Protocolo MS 2024.
-// — faz a captura engolir a fonte inteira, e as tags saem
+// faz a captura engolir a fonte inteira, e as tags saem
 //     ["dose", "paracetamol.", "fonte:", "protocolo", "ms", "2024."]
 // porque logo depois tudo e quebrado tambem no espaco. Replicar isso seria
 // importar lixo de proposito. Aqui a captura para tambem no marcador de fonte.
@@ -251,7 +251,7 @@ function gerarDeParagrafos(paragrafos, nomeArquivo) {
       }
     } else {
       // Nao e marcador. Se tambem nao carrega so metadados, e conteudo que o
-      // formato descarta — tipicamente a continuacao de uma resposta longa.
+      // formato descarta: tipicamente a continuacao de uma resposta longa.
       if (!RE_METADADOS.test(linha)) ignoradas.push(numero);
       continue;
     }

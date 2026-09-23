@@ -13,7 +13,7 @@ export type AuthSession = {
 /**
  * Sessão do dashboard: guarda o JWT num cookie httpOnly.
  *
- * O token nunca chega ao JavaScript do navegador — as chamadas à API saem das
+ * O token nunca chega ao JavaScript do navegador: as chamadas à API saem das
  * server functions, que leem o cookie no servidor. É o que impede que um XSS
  * leve o token embora.
  */

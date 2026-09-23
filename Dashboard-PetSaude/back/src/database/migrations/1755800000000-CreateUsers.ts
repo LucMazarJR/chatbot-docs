@@ -4,7 +4,7 @@ export class CreateUsers1755800000000 implements MigrationInterface {
     name = 'CreateUsers1755800000000';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        // gen_random_uuid() é nativa a partir do Postgres 13 — não precisa da
+        // gen_random_uuid() é nativa a partir do Postgres 13, não precisa da
         // extensão pgcrypto.
         await queryRunner.query(`
             CREATE TABLE "users" (

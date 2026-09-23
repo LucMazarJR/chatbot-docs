@@ -123,7 +123,7 @@ function ResultadoDiagnostico({ dados }: { dados: Diagnostico }) {
  * LÓGICA DO LUCIANO: "modelo não registrado" aparece como número próprio, e não
  * escondido dentro de "divergente", porque as duas coisas são diferentes e a
  * segunda não pode ser deduzida. O campo `embedding_model` só passou a ser
- * escrito recentemente — a maior parte da base não o tem. E a dimensão não
+ * escrito recentemente: a maior parte da base não o tem. E a dimensão não
  * responde: o gemini-embedding-001 também produz 3072 quando pedido. Quem
  * responde de verdade é o diagnóstico por amostragem, que custa ~10 chamadas.
  */
@@ -133,7 +133,7 @@ function ResultadoDiagnostico({ dados }: { dados: Diagnostico }) {
  * LÓGICA DO LUCIANO: está nesta tela, e não só na de categorias, porque o
  * defeito é da mesma natureza dos outros daqui e é igualmente invisível. A
  * categoria entra no texto que vira vetor ("Assunto: ..."), então uma pergunta
- * com o assunto errado é encontrada pelo assunto errado — ela aparece na
+ * com o assunto errado é encontrada pelo assunto errado: ela aparece na
  * listagem, tem vetor, está em dia, e mesmo assim responde a pergunta errada.
  * Nenhuma das seis métricas acima enxerga isso.
  *

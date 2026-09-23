@@ -5,12 +5,12 @@ import { GoogleGenAI } from '@google/genai';
 /**
  * Geração de embeddings para as FAQs criadas pelo dashboard.
  *
- * LÓGICA DO LUCIANO: os três lugares que geram vetores — este service, o
- * scripts/lib/gemini_embendding.py da ingestão e o nó Embeddings do n8n —
+ * LÓGICA DO LUCIANO: os três lugares que geram vetores (este service, o
+ * scripts/lib/gemini_embendding.py da ingestão e o nó Embeddings do n8n)
  * precisam usar o MESMO modelo, a MESMA dimensão e o MESMO task_type.
  *
  * Divergir não gera erro em lugar nenhum: a FAQ entra no banco, o índice
- * aceita o vetor, e simplesmente nunca aparece nas buscas — ou aparece em
+ * aceita o vetor, e simplesmente nunca aparece nas buscas, ou aparece em
  * posições sem sentido. Foi o que aconteceu quando a base migrou para o
  * gemini-embedding-2 e este arquivo continuou no 001.
  */
@@ -42,8 +42,8 @@ export class GeminiService {
             this.configService.get<string>('GEMINI_TASK_TYPE') ?? 'SEMANTIC_SIMILARITY';
 
         // O mesmo modelo de texto que os dois fluxos do n8n usam para responder
-        // ao cidadão. Não precisa ser o mesmo — a curadoria é outra tarefa, e um
-        // modelo maior daria sugestões melhores —, mas começar igual mantém uma
+        // ao cidadão. Não precisa ser o mesmo (a curadoria é outra tarefa, e um
+        // modelo maior daria sugestões melhores), mas começar igual mantém uma
         // variável a menos entre o que se lê aqui e o que o chatbot faz lá.
         this.modeloTexto =
             this.configService.get<string>('GEMINI_TEXT_MODEL') ?? 'gemini-3.1-flash-lite';
@@ -57,7 +57,7 @@ export class GeminiService {
      * Nome do modelo em uso, para ser gravado junto do vetor.
      *
      * LÓGICA DO LUCIANO: sem isto, não há como saber depois qual modelo gerou
-     * cada embedding da base — e a dimensão não responde, porque o
+     * cada embedding da base, e a dimensão não responde, porque o
      * gemini-embedding-001 também produz 3072 quando pedido. É o campo
      * `embedding_model` que o scripts/reindexar_embeddings.py usa para saber o
      * que já está em dia; o dashboard passa a gravar o mesmo.
@@ -76,12 +76,12 @@ export class GeminiService {
      * LÓGICA DO LUCIANO: mesma lista de termos do
      * scripts/lib/gemini_embendding.py. Serve para uma importação em lote parar
      * na primeira recusa por cota em vez de gravar centenas de FAQs com vetor
-     * vazio — que entram no banco e o chatbot nunca encontra.
+     * vazio, que entram no banco e o chatbot nunca encontra.
      */
     static ehErroDeCota(erro: unknown): boolean {
         // Underscore vira espaço antes da comparação. A lista de termos veio do
         // scripts/lib/gemini_embendding.py, que procura por "resource
-        // exhausted" com espaço — mas o que a API devolve é o código
+        // exhausted" com espaço, mas o que a API devolve é o código
         // RESOURCE_EXHAUSTED, com underscore. Sem esta normalização o termo
         // nunca casa, e o único efeito visível é o lote seguir em frente
         // gravando FAQs sem vetor depois de a cota ter acabado.
@@ -99,7 +99,7 @@ export class GeminiService {
      * LÓGICA DO LUCIANO: `responseMimeType: application/json` não é enfeite. Sem
      * ele o modelo devolve o JSON embrulhado numa cerca de markdown (```json),
      * às vezes com uma frase antes, e o `JSON.parse` quebra de forma
-     * intermitente — funciona em nove chamadas e falha na décima, que é o pior
+     * intermitente: funciona em nove chamadas e falha na décima, que é o pior
      * tipo de defeito para diagnosticar. Com o mime type declarado, a API
      * garante a forma.
      *
@@ -126,7 +126,7 @@ export class GeminiService {
             return JSON.parse(texto) as T;
         } catch {
             // O trecho entra na mensagem porque, quando isto acontece, o que
-            // veio no lugar do JSON é a única pista — costuma ser uma recusa do
+            // veio no lugar do JSON é a única pista: costuma ser uma recusa do
             // modelo, e não um erro de formato.
             throw new Error(`O modelo não devolveu JSON válido. Começo da resposta: ${texto.slice(0, 200)}`);
         }
@@ -151,7 +151,7 @@ export class GeminiService {
 
             // Falha alto em vez de gravar um vetor de tamanho errado. O Mongo
             // aceitaria o documento sem reclamar e a FAQ ficaria invisível para
-            // a busca — o tipo de defeito que só aparece semanas depois, quando
+            // a busca: o tipo de defeito que só aparece semanas depois, quando
             // alguém nota que uma pergunta nunca é encontrada.
             if (embedding.length !== GeminiService.DIMENSOES) {
                 throw new Error(

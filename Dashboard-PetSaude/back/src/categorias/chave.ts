@@ -1,5 +1,5 @@
 /**
- * A forma canônica de uma categoria, usada para comparar — nunca para exibir.
+ * A forma canônica de uma categoria, usada para comparar, nunca para exibir.
  *
  * LÓGICA DO LUCIANO: a base tem 236 categorias distintas para 2491 FAQs, e boa
  * parte da diferença não é de assunto, é de digitação. A criação manual gravava
@@ -15,7 +15,7 @@
  * O acento cai só na CHAVE. O nome visível guarda a grafia correta, com acento,
  * porque é ele que vai para a tela e para o texto embedado ("Assunto: ..."). O
  * que se perde aqui é poder de distinguir duas categorias que só diferem por
- * acento — e isso é exatamente o que se quer perder.
+ * acento, e isso é exatamente o que se quer perder.
  */
 export function chaveDeCategoria(nome: string | null | undefined): string {
     return (nome ?? '')

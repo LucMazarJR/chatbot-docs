@@ -48,7 +48,7 @@ const faqInput = z.object({
   answer: z.string().trim().min(5, "A resposta precisa ter ao menos 5 caracteres").max(4000),
   // LÓGICA DO LUCIANO: era um array, e isso era mentira. O formulário deixava
   // acrescentar quantas categorias quisesse, mas o backend só gravava a
-  // primeira (`data.categories[0]`) — as outras eram digitadas, salvas com
+  // primeira (`data.categories[0]`): as outras eram digitadas, salvas com
   // sucesso e descartadas em silêncio. O documento no Mongo tem UM campo
   // `category`, que é o que a ingestão Python e o nó do n8n leem, e é ele que
   // entra no texto embedado como "Assunto: ...".
@@ -99,7 +99,7 @@ function montarQuery(params: Record<string, string | number | undefined>): strin
  *
  * Existe para a tela de conversas: cada resposta do chatbot registra o id das
  * perguntas que a geraram, e quem revisa precisa ir do trecho ruim ao
- * documento. Buscar pelo texto não serve — há 180 FAQs com a pergunta "Como me
+ * documento. Buscar pelo texto não serve: há 180 FAQs com a pergunta "Como me
  * preparar para o Exame?", distinguidas só pelo assunto.
  */
 export const getFaq = createServerFn({ method: "GET" })
@@ -116,7 +116,7 @@ export const listFaqs = createServerFn({ method: "GET" })
 
 /**
  * Contagens por categoria. Substitui o agrupamento que as páginas faziam
- * baixando a coleção inteira — com 2451 FAQs, só para exibir ~18 números.
+ * baixando a coleção inteira, com 2451 FAQs, só para exibir ~18 números.
  */
 export const getFaqCategories = createServerFn({ method: "GET" }).handler(
   async (): Promise<CategoryStats> => {
@@ -148,7 +148,7 @@ export type ResultadoBusca = {
  * Roda a mesma busca do chatbot para uma pergunta digitada.
  *
  * Custa um embedding por chamada, na mesma cota diária que a ingestão e o
- * chatbot dividem — por isso não dispara enquanto se digita.
+ * chatbot dividem, por isso não dispara enquanto se digita.
  */
 export const testarBusca = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>

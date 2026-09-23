@@ -12,11 +12,11 @@ import { Faq } from './schemas/faq.schema';
  * LÓGICA DO LUCIANO: o diagnóstico por amostragem existe porque a pergunta "a
  * base está no gemini-embedding-2 ou ainda no 001?" NÃO pode ser respondida
  * pelos dados. O campo embedding_model só passou a ser escrito recentemente, e
- * a dimensão não distingue os dois modelos — o 001 também produz 3072 quando
+ * a dimensão não distingue os dois modelos: o 001 também produz 3072 quando
  * pedido. Comparar um vetor novo com o guardado é a única resposta honesta, e
  * estes testes travam os limiares dessa resposta.
  */
-describe('EmbeddingsService — diagnostico por amostragem', () => {
+describe('EmbeddingsService: diagnostico por amostragem', () => {
   let service: EmbeddingsService;
   let gerarEmbedding: jest.Mock;
   let amostra: any[];
@@ -130,7 +130,7 @@ describe('EmbeddingsService — diagnostico por amostragem', () => {
   });
 });
 
-describe('EmbeddingsService — backfill', () => {
+describe('EmbeddingsService: backfill', () => {
   let service: EmbeddingsService;
   let jobs: JobsService;
   let gerarEmbedding: jest.Mock;

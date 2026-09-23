@@ -19,7 +19,7 @@ export const USER_ROLES: UserRole[] = ['admin', 'editor', 'leitor'];
  * conteúdo de FAQ.
  *
  * Colunas em snake_case (convenção do SQL) com propriedades em camelCase,
- * mapeadas explicitamente — sem depender de naming strategy externa.
+ * mapeadas explicitamente, sem depender de naming strategy externa.
  */
 @Entity('users')
 export class User {
@@ -36,7 +36,7 @@ export class User {
     email: string;
 
     // `select: false`: o hash não é carregado a menos que alguém peça
-    // explicitamente com addSelect. É a primeira das duas barreiras — a outra
+    // explicitamente com addSelect. É a primeira das duas barreiras: a outra
     // é o mapeamento para PublicUser no service.
     @Column({ name: 'password_hash', type: 'varchar', length: 100, select: false })
     passwordHash: string;

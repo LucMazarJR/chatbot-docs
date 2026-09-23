@@ -26,7 +26,7 @@ export class EmbeddingsController {
         return this.embeddings.saude();
     }
 
-    /** Quantas FAQs um modo alcançaria — a tela avisa antes de gastar cota. */
+    /** Quantas FAQs um modo alcançaria: a tela avisa antes de gastar cota. */
     @Get('alvo')
     async alvo(@Query() query: BackfillDto) {
         return {

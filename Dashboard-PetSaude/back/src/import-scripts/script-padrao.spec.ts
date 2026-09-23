@@ -3,7 +3,7 @@ import { SCRIPT_PADRAO } from './script-padrao';
 /**
  * O script padrão de geração de FAQs.
  *
- * LÓGICA DO LUCIANO: o script é texto guardado numa string — nada no build
+ * LÓGICA DO LUCIANO: o script é texto guardado numa string: nada no build
  * confere se ele ao menos compila. Este teste carrega o texto de verdade e roda
  * as entradas que o scripts/enviar_dados.py trata, uma a uma. Se alguém mexer
  * num marcador e quebrar a extração, quebra aqui; sem isso, quebraria numa
@@ -42,7 +42,7 @@ function carregarScript(): {
 
 const { modelo, gerarFaqs } = carregarScript();
 
-describe('script padrão — o contrato', () => {
+describe('script padrão: o contrato', () => {
   it('exporta modelo e gerarFaqs', () => {
     expect(typeof gerarFaqs).toBe('function');
     expect(modelo).toBeDefined();
@@ -59,7 +59,7 @@ describe('script padrão — o contrato', () => {
   });
 });
 
-describe('script padrão — Word', () => {
+describe('script padrão: Word', () => {
   const doDocx = (paragrafos: string[], nomeArquivo = 'x.docx') =>
     gerarFaqs({ tipo: 'docx', nomeArquivo, paragrafos });
 
@@ -95,7 +95,7 @@ describe('script padrão — Word', () => {
   it('nao deixa a fonte vazar para dentro das tags', () => {
     // Esta e a divergencia deliberada do enviar_dados.py. La o lookahead do
     // TAGS nao para no FONTE:, e o exemplo que a propria documentacao ensina
-    // produz ["dose","paracetamol.","fonte:","protocolo","ms","2024."] —
+    // produz ["dose","paracetamol.","fonte:","protocolo","ms","2024."]:
     // palavras da fonte viram tags, e a busca por tag passa a casar com elas.
     const r = doDocx(['P: Q? R: A. TAGS: dose, paracetamol. FONTE: Protocolo MS 2024.']);
 
@@ -222,7 +222,7 @@ describe('script padrão — Word', () => {
   });
 });
 
-describe('script padrão — planilha', () => {
+describe('script padrão: planilha', () => {
   const doXlsx = (linhas: Record<string, string>[], nomeArquivo = 'x.xlsx') =>
     gerarFaqs({ tipo: 'xlsx', nomeArquivo, linhas });
 
@@ -243,7 +243,7 @@ describe('script padrão — planilha', () => {
     expect(r.faqs).toHaveLength(1);
     expect(r.faqs[0].category).toBe('exames');
     expect(r.faqs[0].tags).toEqual(['jejum', 'sangue', 'coleta']);
-    // Cabecalho na linha 1, entao a primeira FAQ esta na 2 — e e esse numero
+    // Cabecalho na linha 1, entao a primeira FAQ esta na 2, e e esse numero
     // que a previa mostra para a pessoa achar a linha na planilha dela.
     expect(r.faqs[0].linha).toBe(2);
   });

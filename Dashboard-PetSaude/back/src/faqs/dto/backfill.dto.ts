@@ -16,7 +16,7 @@ export class BackfillDto {
     modo: ModoBackfill;
 
     // Teto baixo de propósito. A cota gratuita do Gemini é de 1000 requisições
-    // por dia POR PROJETO — as chaves extras do .env só ajudam se forem de
+    // por dia POR PROJETO: as chaves extras do .env só ajudam se forem de
     // projetos diferentes. Um limite pequeno faz a pessoa ver o resultado antes
     // de gastar a cota do dia inteiro numa tacada.
     @IsOptional()

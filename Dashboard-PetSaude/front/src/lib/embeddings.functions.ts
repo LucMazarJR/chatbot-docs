@@ -40,7 +40,7 @@ export const getSaudeEmbeddings = createServerFn({ method: "GET" }).handler(
   async (): Promise<SaudeEmbeddings> => apiFetch<SaudeEmbeddings>("/faqs/embeddings/health"),
 );
 
-/** Quantas FAQs um modo alcançaria — a tela avisa antes de gastar cota. */
+/** Quantas FAQs um modo alcançaria: a tela avisa antes de gastar cota. */
 export const getAlvoBackfill = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ modo }).parse(data))
   .handler(

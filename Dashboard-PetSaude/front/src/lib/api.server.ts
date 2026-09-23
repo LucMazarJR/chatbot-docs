@@ -9,7 +9,7 @@ import { getAccessToken } from "./auth.server";
  * produção, e mudar a variável no compose não teria efeito nenhum.
  *
  * Como este arquivo é `.server.ts` e roda só no servidor, `process.env` está
- * disponível em tempo de execução — e vem primeiro. O valor do build fica como
+ * disponível em tempo de execução, e vem primeiro. O valor do build fica como
  * reserva, para o `vite dev`, onde `process.env` não é populado pelo `.env` do
  * Vite.
  */
@@ -19,7 +19,7 @@ const API_BASE = (
   "http://127.0.0.1:3333"
 )
   // Remove a barra final. Sem isto, uma variável de ambiente configurada como
-  // "https://api.exemplo.com/" (barra sobrando) produz "...com//auth/login" —
+  // "https://api.exemplo.com/" (barra sobrando) produz "...com//auth/login":
   // o Nest não reconhece a rota e devolve "Cannot POST //auth/login", um erro
   // que não tem nada a ver com o /auth/login em si.
   .replace(/\/+$/, "");
@@ -68,7 +68,7 @@ export async function apiFetch<T>(
       if (Array.isArray(corpo?.message)) mensagem = corpo.message.join(". ");
       else if (typeof corpo?.message === "string") mensagem = corpo.message;
     } catch {
-      // resposta sem corpo JSON — mantém a mensagem padrão
+      // resposta sem corpo JSON: mantém a mensagem padrão
     }
     throw new ApiError(mensagem, resposta.status);
   }

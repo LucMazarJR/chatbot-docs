@@ -43,7 +43,7 @@ export class EmbeddingsService {
     /** Acima disto, os vetores vieram do mesmo modelo. */
     private static readonly LIMIAR_MESMO_MODELO = 0.98;
 
-    /** Abaixo disto, é outro modelo — não é ruído de reprocessamento. */
+    /** Abaixo disto, é outro modelo, não é ruído de reprocessamento. */
     private static readonly LIMIAR_MODELO_DIFERENTE = 0.9;
 
     constructor(
@@ -74,7 +74,7 @@ export class EmbeddingsService {
      * Comparação exata, e não pela chave canônica: quem chega aqui vem logo
      * depois de uma renomeação, e a cascata deixou todas as FAQs com a grafia
      * oficial. As variantes que ainda não foram renomeadas aparecem na tela de
-     * revisão, que é onde elas devem ser resolvidas — e não gastando cota.
+     * revisão, que é onde elas devem ser resolvidas, e não gastando cota.
      */
     private filtroDoModo(modo: ModoBackfill, categoria?: string): Record<string, any> {
         const dim = this.geminiService.dimensoes;
@@ -122,7 +122,7 @@ export class EmbeddingsService {
      * LÓGICA DO LUCIANO: "modelo não registrado" é uma categoria própria, e não
      * está junto de "divergente", porque as duas coisas são diferentes e a
      * segunda não pode ser inferida. O campo `embedding_model` só passou a ser
-     * escrito pelo reindexar_embeddings.py e por este dashboard — a maior parte
+     * escrito pelo reindexar_embeddings.py e por este dashboard: a maior parte
      * da base simplesmente não tem o campo. E a dimensão não responde a
      * pergunta: o gemini-embedding-001 também produz 3072 quando pedido. Quem
      * responde de verdade é o diagnóstico por amostragem, abaixo.
@@ -366,7 +366,7 @@ export class EmbeddingsService {
                 // Reconstrói o texto canônico em vez de reaproveitar o campo
                 // `text` guardado: se o conteúdo foi editado e o `text` ficou
                 // para trás, reaproveitá-lo geraria um vetor novo para o texto
-                // errado — que é exatamente o defeito que este backfill existe
+                // errado, que é exatamente o defeito que este backfill existe
                 // para corrigir.
                 const texto = this.montarTexto(doc.category, doc.question, doc.answer);
 

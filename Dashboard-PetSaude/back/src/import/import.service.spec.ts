@@ -10,11 +10,11 @@ import { ImportService } from './import.service';
  * Classificação das linhas antes de gravar.
  *
  * LÓGICA DO LUCIANO: a prévia existe para a pessoa ver o problema ANTES de a
- * base ser mexida. Se a classificação errar, ela erra em silêncio — a tela
+ * base ser mexida. Se a classificação errar, ela erra em silêncio: a tela
  * mostra tudo verde e o defeito só aparece no chatbot, semanas depois. Por isso
  * cada estado tem teste próprio, incluindo os dois tipos de duplicata.
  */
-describe('ImportService — validacao', () => {
+describe('ImportService: validacao', () => {
   let service: ImportService;
   let hashesNaBase: Set<string>;
   let perguntasNaBase: Set<string>;
@@ -220,7 +220,7 @@ describe('ImportService — validacao', () => {
     });
 
     // LÓGICA DO LUCIANO: o assunto era forçado para minúsculo aqui, e o
-    // formulário manual gravava o que foi digitado — "Exames" da tela e
+    // formulário manual gravava o que foi digitado: "Exames" da tela e
     // "exames" da planilha viravam duas categorias no agrupamento. O minúsculo
     // à força nunca corrigiu nada: só escolhia um dos lados da divergência.
     it('preserva a grafia do assunto quando nao ha lista oficial', async () => {
@@ -281,13 +281,13 @@ describe('ImportService — validacao', () => {
  * A gravação do lote.
  *
  * LÓGICA DO LUCIANO: o comportamento que mais importa aqui não é o caminho
- * feliz — é o que acontece quando a cota da API do Gemini acaba no meio. Sem a
+ * feliz: é o que acontece quando a cota da API do Gemini acaba no meio. Sem a
  * parada, o laço continua e grava centenas de FAQs com vetor vazio: elas entram
  * na base, aparecem na listagem, e o chatbot simplesmente nunca as encontra.
  * Não há erro em lugar nenhum, e ninguém percebe até alguém estranhar que uma
  * pergunta nunca é respondida.
  */
-describe('ImportService — gravacao do lote', () => {
+describe('ImportService: gravacao do lote', () => {
   let service: ImportService;
   let jobs: JobsService;
   let createFaq: jest.Mock;
@@ -311,7 +311,7 @@ describe('ImportService — gravacao do lote', () => {
     scriptVersion: 3,
   });
 
-  /** Espera o job sair de "rodando" — ele roda solto, sem await. */
+  /** Espera o job sair de "rodando": ele roda solto, sem await. */
   async function esperarFim(jobId: string) {
     for (let i = 0; i < 200; i++) {
       const job = jobs.buscar(jobId);
@@ -406,7 +406,7 @@ describe('ImportService — gravacao do lote', () => {
     const { jobId } = service.iniciarImportacao(commit([faqDaLinha(2)]), { name: 'Ana' });
     const job = await esperarFim(jobId);
 
-    // Falha passageira nao para o lote — mas a tela precisa oferecer gerar os
+    // Falha passageira nao para o lote, mas a tela precisa oferecer gerar os
     // vetores que faltaram, senao essas FAQs ficam invisiveis para o chatbot.
     expect(job.estado).toBe('concluido');
     expect(job.contadores.inseridas).toBe(1);

@@ -6,7 +6,7 @@ import { getSession, type SessionStatus } from "./auth.functions";
  * Guardas de rota executadas no `beforeLoad`.
  *
  * LÓGICA DO LUCIANO: antes a checagem vivia num `useEffect` dentro do
- * `GateShell` — ou seja, o servidor renderizava a página inteira, o navegador
+ * `GateShell`, ou seja, o servidor renderizava a página inteira, o navegador
  * baixava tudo, e só então descobria que não havia sessão e redirecionava. O
  * usuário via um piscar de "Carregando…" antes de cair no login.
  *
@@ -15,7 +15,7 @@ import { getSession, type SessionStatus } from "./auth.functions";
  * renderizar nada.
  *
  * Isto continua sendo conveniência de navegação, não segurança. A barreira real
- * é o guard do backend, que rejeita qualquer requisição sem token válido — uma
+ * é o guard do backend, que rejeita qualquer requisição sem token válido: uma
  * proteção só no front seria contornável abrindo o DevTools.
  */
 export async function exigirSessao(): Promise<SessionStatus> {

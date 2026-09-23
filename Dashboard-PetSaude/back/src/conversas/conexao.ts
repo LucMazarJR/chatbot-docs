@@ -7,7 +7,7 @@
  * de validação, descartável. Misturar convidaria a um drop errado.
  *
  * Fica em arquivo próprio, e não no módulo, porque o service precisa dele para
- * o @InjectModel — e o módulo precisa do service. Deixar a constante no módulo
+ * o @InjectModel, e o módulo precisa do service. Deixar a constante no módulo
  * fecharia um ciclo de importação entre os dois.
  */
 export const CONEXAO_PROTOTIPO = 'prototipo';

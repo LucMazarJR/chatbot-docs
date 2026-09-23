@@ -10,7 +10,7 @@ import { lerModeloDoScript, type ModeloDoScript } from "@/lib/sandbox";
  * Baixa os modelos vazios a partir do script ativo.
  *
  * LÓGICA DO LUCIANO: o `modelo` é lido do próprio script, no sandbox, na hora do
- * clique — não fica em cache. Assim, trocar o script muda o arquivo baixado no
+ * clique, não fica em cache. Assim, trocar o script muda o arquivo baixado no
  * mesmo instante. É o ponto de o modelo morar dentro do script: com um .xlsx
  * estático, a primeira mudança de formato deixaria o modelo desatualizado e o
  * erro só apareceria depois de alguém preencher 200 linhas na planilha errada.

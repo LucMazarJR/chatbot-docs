@@ -29,7 +29,7 @@ export type ScriptCompleto = ScriptResumo & { code: string };
  * O script em uso, com o código.
  *
  * Aberto a editor também, e não só a admin: é a tela de importação que precisa
- * do código para rodá-lo no navegador. Não há segredo — é a regra de formato,
+ * do código para rodá-lo no navegador. Não há segredo: é a regra de formato,
  * não credencial.
  */
 export const getScriptAtivo = createServerFn({ method: "GET" }).handler(

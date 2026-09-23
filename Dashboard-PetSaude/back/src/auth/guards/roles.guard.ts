@@ -5,7 +5,7 @@ import type { UserRole } from '../../users/entities/user.entity';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
 /**
- * Autorização por papel. Precisa rodar DEPOIS do JwtAuthGuard — ele lê
+ * Autorização por papel. Precisa rodar DEPOIS do JwtAuthGuard: ele lê
  * `request.user`, que só existe depois da autenticação. A ordem é garantida
  * pela ordem de declaração dos APP_GUARD no módulo.
  */

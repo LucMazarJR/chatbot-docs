@@ -3,7 +3,7 @@ import type { EntradaScript } from "./sandbox";
 /**
  * Transforma o arquivo enviado em algo que o script de geração entenda.
  *
- * LÓGICA DO LUCIANO: aqui só se DECODIFICA — .docx vira lista de parágrafos,
+ * LÓGICA DO LUCIANO: aqui só se DECODIFICA: .docx vira lista de parágrafos,
  * .xlsx vira lista de linhas chaveadas pelo cabeçalho. Nenhuma regra de FAQ
  * mora neste arquivo, de propósito: a regra é o script do administrador, e ela
  * precisa continuar sendo uma coisa só, editável numa tela. Se um marcador
@@ -36,7 +36,7 @@ export function extensaoDe(nome: string): "docx" | "xlsx" | null {
  * Usa `convertToHtml` e não `extractRawText` porque o texto cru perde a
  * distinção entre parágrafo comum e item de lista. É essa distinção que o
  * converter_para_markdown do enviar_dados.py usa para transformar item de
- * lista em "- texto" — e é assim que respostas com vários itens ganham
+ * lista em "- texto", e é assim que respostas com vários itens ganham
  * estrutura. Com texto cru, a lista chegaria ao script como frases soltas.
  *
  * Tabelas ficam de fora: a ingestão Python lê `doc.paragraphs` e não enxerga
@@ -70,7 +70,7 @@ async function lerDocx(arquivo: File): Promise<string[]> {
 /**
  * Planilha → linhas chaveadas pelo cabeçalho.
  *
- * LÓGICA DO LUCIANO: `readXlsxFile` devolve as ABAS, não as linhas —
+ * LÓGICA DO LUCIANO: `readXlsxFile` devolve as ABAS, não as linhas:
  * `[{ sheet, data }]`. Tratar o retorno como matriz de linhas não dá erro de
  * tipo em tempo de execução: `findIndex` sobre um array de objetos simplesmente
  * não acha nada, e a importação terminaria dizendo "o script nao encontrou
@@ -79,7 +79,7 @@ async function lerDocx(arquivo: File): Promise<string[]> {
  *
  * Lê a PRIMEIRA aba. Juntar todas misturaria uma aba de anotações no meio das
  * FAQs; ignorar as demais em silêncio esconderia conteúdo que a pessoa acha que
- * enviou — por isso as outras viram aviso na tela.
+ * enviou, por isso as outras viram aviso na tela.
  *
  * A primeira linha não vazia é o cabeçalho. Coluna sem título vira "coluna N"
  * em vez de ser descartada: o script pode estar contando com a posição, e

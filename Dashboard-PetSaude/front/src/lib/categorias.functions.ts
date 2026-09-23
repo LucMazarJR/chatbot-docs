@@ -35,7 +35,7 @@ export type GrupoRevisao = {
 export type Revisao = {
   resumo: { faqs: number; grupos: number; porMotivo: Record<MotivoRevisao, number> };
   grupos: GrupoRevisao[];
-  /** Com a lista vazia, TODA FAQ cai em "fora_da_lista" — verdade e inútil. */
+  /** Com a lista vazia, TODA FAQ cai em "fora_da_lista": verdade e inútil. */
   listaVazia: boolean;
 };
 

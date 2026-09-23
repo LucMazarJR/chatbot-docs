@@ -29,7 +29,7 @@ export class ImportController {
     /**
      * O job em andamento, se houver.
      *
-     * LÓGICA DO LUCIANO: declarado antes de @Get(':id') de propósito — sem
+     * LÓGICA DO LUCIANO: declarado antes de @Get(':id') de propósito: sem
      * isso o Nest casaria "andamento" como se fosse um id de job. Serve para a
      * tela reaberta (ou aberta noutro aparelho) reencontrar uma importação que
      * continua rodando, em vez de oferecer começar outra e receber um 409.

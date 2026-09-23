@@ -3,7 +3,7 @@ import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 /**
  * Nova versão do script de geração.
  *
- * LÓGICA DO LUCIANO: o backend não interpreta o script — quem executa é o
+ * LÓGICA DO LUCIANO: o backend não interpreta o script: quem executa é o
  * navegador, num iframe isolado. Então não há o que validar aqui além de
  * tamanho e tipo. Validar sintaxe exigiria um parser de JavaScript no servidor,
  * e o único ganho seria adiantar um erro que a tela de teste já mostra antes de

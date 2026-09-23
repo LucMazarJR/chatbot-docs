@@ -8,12 +8,12 @@ import type { ModeloDoScript } from "./sandbox";
  * Gera os arquivos de modelo vazios a partir do export `modelo` do script ativo.
  *
  * LÓGICA DO LUCIANO: o modelo sai do MESMO script que lê os arquivos. É o ponto
- * inteiro de o `modelo` morar dentro dele — trocar o script troca o parser e o
+ * inteiro de o `modelo` morar dentro dele: trocar o script troca o parser e o
  * arquivo que a pessoa baixa na mesma hora. Com um .xlsx estático no `public/`,
  * a primeira mudança de formato deixaria o modelo desatualizado e o erro só
  * apareceria depois de alguém preencher 200 linhas na planilha errada.
  *
- * O que DEFINE o formato — as células da planilha e os parágrafos do Word —
+ * O que DEFINE o formato (as células da planilha e os parágrafos do Word)
  * está em funções puras, separadas do download. Não é gosto por camadas: é o
  * que permite gerar o arquivo fora do navegador e ler de volta com o mesmo
  * parser, fechando o laço modelo → arquivo → FAQs num teste. Sem isso, a única

@@ -5,7 +5,7 @@ import type { Job } from "./import.functions";
 
 export type FilaCuradoria = {
   pendentes: number;
-  /** Chegou ao tamanho da rodada — vale a pena gastar a chamada. */
+  /** Chegou ao tamanho da rodada: vale a pena gastar a chamada. */
   prontoParaRodar: boolean;
   tamanhoDaRodada: number;
 };

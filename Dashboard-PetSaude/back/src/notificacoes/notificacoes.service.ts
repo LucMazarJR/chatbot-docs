@@ -74,7 +74,7 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
  * LÓGICA DO LUCIANO: o painel não envia nada. Ele escreve um documento pendente
  * por pessoa na fila que o PWA já tem, e o despachante de lá é o único que fala
  * com os serviços de push. Assim existe um só lugar com as chaves VAPID, as
- * retentativas e a regra de não mandar aviso vencido — e o painel pode cair sem
+ * retentativas e a regra de não mandar aviso vencido, e o painel pode cair sem
  * que nada do que já foi agendado deixe de sair.
  */
 @Injectable()
@@ -137,7 +137,7 @@ export class NotificacoesService {
     /**
      * Agenda um aviso para uma lista de pessoas, ou para todas com avisos ativados.
      *
-     * A auditoria guarda o tipo, quantas pessoas e a janela — nunca o texto nem
+     * A auditoria guarda o tipo, quantas pessoas e a janela, nunca o texto nem
      * quem recebeu. "Lembrete de exame" para uma pessoa só, com o texto ao lado,
      * diria no histórico qual exame ela vai fazer.
      */
@@ -332,7 +332,7 @@ export class NotificacoesService {
      *
      * Só `pendente`: o que está `enviando` já foi reivindicado pelo despachante e
      * pode estar a caminho do aparelho. O filtro no `updateMany` é atômico por
-     * documento, então não há corrida — ou o cancelamento chega antes da
+     * documento, então não há corrida: ou o cancelamento chega antes da
      * reivindicação, ou a reivindicação chega antes e o aviso não é tocado.
      */
     async cancelar(loteId: string, ator: Ator): Promise<{ canceladas: number }> {

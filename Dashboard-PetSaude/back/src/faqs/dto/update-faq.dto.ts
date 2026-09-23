@@ -1,7 +1,7 @@
 import { IsArray, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 // LÓGICA DO LUCIANO: o `id` PRECISA estar declarado aqui. Com whitelist ligado,
-// o ValidationPipe remove toda propriedade que não pertença ao DTO — sem esta
+// o ValidationPipe remove toda propriedade que não pertença ao DTO: sem esta
 // classe, `body.id` chegaria undefined no controller, o findById(undefined)
 // estouraria um CastError do Mongoose e toda edição viraria erro 500.
 export class UpdateFaqDto {
