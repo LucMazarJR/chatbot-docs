@@ -13,24 +13,53 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ehVersaoAntiga, recarregarParaVersaoNova } from "../lib/versao-nova";
 import { SCRIPT_DO_TEMA } from "../lib/tema";
+import { Button, buttonVariants } from "../components/ui/button";
+
+/**
+ * Moldura das telas de fora do painel (404 e erro): logo, título, frase e ações.
+ * Fica fora do menu lateral porque a tela de erro pode aparecer antes de a
+ * sessão carregar, e o menu depende dela.
+ */
+function TelaAvulsa({
+  titulo,
+  children,
+  acoes,
+}: {
+  titulo: string;
+  children: ReactNode;
+  acoes: ReactNode;
+}) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+      <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm sm:p-8">
+        <img
+          src="/logo-pet-saude.png"
+          alt=""
+          width={48}
+          height={48}
+          className="mx-auto size-12 rounded-full bg-white ring-1 ring-border"
+        />
+        <h1 className="mt-4 text-xl font-semibold tracking-tight text-foreground">{titulo}</h1>
+        <p className="mt-2 text-[15px] text-muted-foreground">{children}</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">{acoes}</div>
+      </div>
+    </main>
+  );
+}
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Pagina nao encontrada</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Esta pagina nao existe ou foi movida.</p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Ir para o inicio
-          </Link>
-        </div>
-      </div>
-    </div>
+    <TelaAvulsa
+      titulo="Página não encontrada"
+      acoes={
+        <Link to="/" className={buttonVariants()}>
+          Ir para as FAQs
+        </Link>
+      }
+    >
+      O endereço pode ter sido digitado errado, ou a página mudou de lugar. Volte para as
+      FAQs e siga pelo menu.
+    </TelaAvulsa>
   );
 }
 
@@ -44,16 +73,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error, versaoAntiga]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Nao foi possivel carregar a pagina
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Algo deu errado do nosso lado. Tente recarregar ou volte para o inicio.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
+    <TelaAvulsa
+      titulo="Não foi possível carregar a página"
+      acoes={
+        <>
+          <Button
             onClick={() => {
               // Arquivo de tela que sumiu só volta com a página inteira.
               if (versaoAntiga) {
@@ -63,19 +87,18 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Tentar de novo
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Ir para o inicio
+          </Button>
+          <a href="/" className={buttonVariants({ variant: "outline" })}>
+            Ir para as FAQs
           </a>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      Pode ser a internet ou uma falha no servidor. Toque em Tentar de novo. Se continuar,
+      espere alguns minutos e avise um administrador do painel.
+    </TelaAvulsa>
   );
 }
 
