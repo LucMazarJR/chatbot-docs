@@ -153,6 +153,8 @@ async function criarIndices(db: Db) {
     // preenchido na saída, então nada pendente é apagado por engano.
     db.collection('notificacoes').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
     db.collection('inscricoes_push').createIndex({ usuarioId: 1 }),
+    // A exclusão da conta apaga também a marca de aviso já disparado por gatilho.
+    db.collection('gatilhos_disparos').createIndex({ usuarioId: 1 }),
     // O histórico de uma conta, e a exclusão em cascata. Parcial porque a
     // imensa maioria das sessões é anônima e não precisa ocupar o índice.
     db

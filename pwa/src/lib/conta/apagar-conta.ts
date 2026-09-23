@@ -26,6 +26,8 @@ export async function apagarConta(usuarioId: string): Promise<{ conversas: numbe
   const db = await banco();
   await db.collection('notificacoes').deleteMany({ usuarioId });
   await db.collection('inscricoes_push').deleteMany({ usuarioId });
+  // O registro dos gatilhos guarda de quem era cada aviso, para não repetir.
+  await db.collection('gatilhos_disparos').deleteMany({ usuarioId });
   await (await contasSessoes()).deleteMany({ usuarioId });
   await (await usuarios()).deleteOne({ _id: usuarioId });
 
