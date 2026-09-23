@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
  *
  * A busca das FAQs entra na chave do react-query e vira uma chamada ao
  * servidor. Sem o atraso, digitar "farmácia" dispara oito requisições e oito
- * varreduras no Mongo — sete delas descartadas antes de chegar na tela.
+ * varreduras no Mongo: sete delas descartadas antes de chegar na tela.
  */
 export function useDebouncedValue<T>(valor: T, atrasoMs = 300): T {
   const [atrasado, setAtrasado] = useState(valor);

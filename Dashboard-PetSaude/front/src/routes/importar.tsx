@@ -229,7 +229,7 @@ function PainelImportacao() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [assuntoLote, setAssuntoLote] = useState("");
 
-  // Uma importação que já estava rodando quando a tela abriu — inclusive
+  // Uma importação que já estava rodando quando a tela abriu, inclusive
   // iniciada em outro aparelho. Sem isto, a pessoa tentaria começar outra e
   // levaria um 409 sem entender por quê.
   const emAndamento = useQuery({

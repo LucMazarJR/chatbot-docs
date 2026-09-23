@@ -7,7 +7,7 @@ import { apiFetch } from "./api.server";
  * Conversas do protótipo PWA.
  *
  * Só leitura: quem escreve é o chatbot. Todas as rotas exigem papel admin no
- * backend — o conteúdo é relato de sintoma e pedido de atendimento escrito por
+ * backend: o conteúdo é relato de sintoma e pedido de atendimento escrito por
  * cidadãos identificáveis pelo que contam.
  */
 
@@ -136,7 +136,7 @@ export const detalharConversa = createServerFn({ method: "GET" })
 
 /**
  * Exclusão a pedido da pessoa. Apaga a conversa e troca as cópias das perguntas
- * guardadas pela curadoria por uma marca — ver ConversasService.apagar.
+ * guardadas pela curadoria por uma marca: ver ConversasService.apagar.
  */
 export const apagarConversa = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))

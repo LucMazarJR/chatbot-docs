@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 /**
  * Troca obrigatória de senha.
  *
- * Aparece no lugar do conteúdo quando a conta está com senha provisória —
+ * Aparece no lugar do conteúdo quando a conta está com senha provisória,
  * aquela que um administrador digitou por você. Sem esta tela, a marcação
  * `must_change_password` seria só um campo bonito no banco: a senha que outra
  * pessoa escolheu continuaria valendo indefinidamente.

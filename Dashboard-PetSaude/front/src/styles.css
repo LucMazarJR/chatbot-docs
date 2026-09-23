@@ -295,7 +295,7 @@
   /*
    * Foco visível em tudo que recebe teclado. O padrão do navegador some quando
    * o componente redefine `outline`, e boa parte dos primitivos do shadcn
-   * redefine — o resultado é uma tela que não dá para navegar com Tab.
+   * redefine: o resultado é uma tela que não dá para navegar com Tab.
    */
   :focus-visible {
     outline: 2px solid var(--color-ring);
@@ -303,7 +303,7 @@
   }
 
   /*
-   * Palavra longa sem espaço — URL, nome de medicamento, código de exame —
+   * Palavra longa sem espaço (URL, nome de medicamento, código de exame)
    * estourava a caixa e criava rolagem horizontal na página inteira no celular.
    */
   p,

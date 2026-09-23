@@ -150,16 +150,16 @@ function ChipListField({
  * LÓGICA DO LUCIANO: aqui era campo de texto livre, e é daí que vêm as 236
  * categorias distintas para 2491 FAQs. Cada pessoa digitava o assunto de novo, e
  * "Exames", "exames" e "Exames de sangue" viraram três temas diferentes para o
- * chatbot — que lê a categoria dentro do texto embedado.
+ * chatbot, que lê a categoria dentro do texto embedado.
  *
  * Dois casos que a lista não cobre, e que precisam continuar funcionando:
  *
- * 1. A lista começa VAZIA — quem a define é o pessoal da saúde. Enquanto não
+ * 1. A lista começa VAZIA: quem a define é o pessoal da saúde. Enquanto não
  *    houver nenhuma categoria, o campo volta a ser texto livre, senão ninguém
  *    consegue cadastrar FAQ até a taxonomia existir.
  * 2. A FAQ sendo editada pode ter uma categoria que não está na lista (é o caso
  *    da maior parte da base hoje). O valor atual entra como opção, marcado, em
- *    vez de sumir — senão corrigir uma vírgula na resposta trocaria o assunto da
+ *    vez de sumir, senão corrigir uma vírgula na resposta trocaria o assunto da
  *    pergunta sem ninguém pedir.
  */
 function CampoCategoria({
@@ -211,7 +211,7 @@ function CampoCategoria({
         </SelectTrigger>
         <SelectContent>
           {foraDaLista && (
-            <SelectItem value={valor}>{valor} — fora da lista</SelectItem>
+            <SelectItem value={valor}>{valor} (fora da lista)</SelectItem>
           )}
           {oficiais.map((categoria) => (
             <SelectItem key={categoria.id} value={categoria.nome}>
@@ -292,7 +292,7 @@ export function FaqFormDialog({
       await queryClient.invalidateQueries({ queryKey: ["faqs"] });
       await queryClient.invalidateQueries({ queryKey: ["activity"] });
       // As duas telas de categoria contam FAQs, e a de revisão classifica por
-      // assunto — criar ou recategorizar uma pergunta muda as duas.
+      // assunto: criar ou recategorizar uma pergunta muda as duas.
       await queryClient.invalidateQueries({ queryKey: ["faq-categories"] });
       await queryClient.invalidateQueries({ queryKey: ["categorias-revisao"] });
       toast.success(mode === "edit" ? "Pergunta atualizada" : "Pergunta criada");

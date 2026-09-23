@@ -6,7 +6,7 @@
  * importando.
  *
  * Por que Worker e não `<iframe sandbox>`: o iframe daria origem nula, que é uma
- * fronteira mais forte no papel — mas um iframe de srcdoc divide a thread com a
+ * fronteira mais forte no papel, mas um iframe de srcdoc divide a thread com a
  * página, e um `while (true)` no script congela a aba inteira, sem que dê para
  * fazer nada a respeito. O Worker tem thread própria e `terminate()` de verdade.
  * Como a falha realista aqui é um script COM DEFEITO, e não um administrador
@@ -85,7 +85,7 @@ const GLOBAIS_BLOQUEADAS = [
  * Tira os `export` para as declarações caírem no escopo do worker.
  *
  * O script é escrito como módulo ES porque é assim que se lê e se edita. O
- * worker aqui é clássico, então `export` seria erro de sintaxe — e um worker
+ * worker aqui é clássico, então `export` seria erro de sintaxe, e um worker
  * de módulo não ajudaria, porque não há de onde importar.
  */
 function prepararCodigo(codigo: string): string {
@@ -171,7 +171,7 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
     };
 
     // O relógio começa ANTES de o worker existir. Além de ficar `const`, isso
-    // cobre o caso de a própria criação do worker demorar — e deixa `encerrar`
+    // cobre o caso de a própria criação do worker demorar, e deixa `encerrar`
     // seguro para ser chamado no catch logo abaixo.
     const relogio = setTimeout(() => {
       encerrar();

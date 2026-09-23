@@ -16,7 +16,7 @@ import { Carregando } from "@/components/carregando";
  * Estado da sessão para os componentes.
  *
  * Uma única query compartilhada (`["session"]`) em vez de cada tela consultar
- * por conta própria — o react-query dedupe, então a checagem custa uma
+ * por conta própria: o react-query dedupe, então a checagem custa uma
  * requisição por sessão, não uma por componente.
  */
 export function useSession() {
@@ -39,7 +39,7 @@ export function usePodeEscrever() {
  * Moldura de toda página autenticada: barra lateral, barra do topo e conteúdo.
  *
  * LÓGICA DO LUCIANO: a navegação está aqui, e não num route layout, porque não
- * existe um — cada página importa o GateShell e se envolve nele (ver
+ * existe um: cada página importa o GateShell e se envolve nele (ver
  * routes/README.md). Por isso trocar a moldura troca a navegação de todas as
  * telas de uma vez, sem editar nenhuma rota.
  *

@@ -52,7 +52,7 @@ export type Job = {
  *
  * `unknown` de propósito nos campos: o script é código do usuário e pode
  * devolver qualquer coisa. Apertar o tipo aqui faria o zod recusar o lote
- * inteiro por causa de uma linha torta — justamente a linha que a prévia
+ * inteiro por causa de uma linha torta, justamente a linha que a prévia
  * existe para mostrar.
  */
 const faqBruta = z.object({

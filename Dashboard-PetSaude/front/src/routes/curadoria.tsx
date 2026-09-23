@@ -78,7 +78,7 @@ function CuradoriaPage() {
 
   const rodando = job.data?.estado === "rodando";
 
-  // Quando o job termina, o que mudou está na fila e nas sugestões — nenhuma
+  // Quando o job termina, o que mudou está na fila e nas sugestões: nenhuma
   // das duas sabe disso sozinha.
   useEffect(() => {
     if (job.data && job.data.estado !== "rodando") {
@@ -193,7 +193,7 @@ function CuradoriaPage() {
  * Toda vez que a análise foi disparada, e com que conteúdo.
  *
  * LÓGICA DO LUCIANO: sem isto, a única marca de que o modelo agiu seria a
- * sugestão que sobreviveu — e sugestão descartada some sem deixar rastro. Quem
+ * sugestão que sobreviveu, e sugestão descartada some sem deixar rastro. Quem
  * olhasse depois veria FAQs criadas "pela curadoria" sem conseguir responder a
  * pergunta óbvia: com base em quê?
  *

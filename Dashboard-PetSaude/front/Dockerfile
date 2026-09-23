@@ -4,7 +4,7 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 # O lockfile do projeto é o do bun, mas a imagem oficial do Node não tem bun.
-# O package-lock.json também está versionado, então o build usa npm — o
+# O package-lock.json também está versionado, então o build usa npm: o
 # resultado é o mesmo bundle.
 COPY package*.json ./
 RUN npm ci --no-audit --no-fund

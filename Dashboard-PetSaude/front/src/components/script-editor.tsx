@@ -47,7 +47,7 @@ const EXEMPLO_PLANILHA = [
 /**
  * Converte o texto colado no painel de teste na entrada que o script espera.
  *
- * Colar direto do Excel produz colunas separadas por TAB — é por isso que a
+ * Colar direto do Excel produz colunas separadas por TAB: é por isso que a
  * planilha é lida assim, e não por vírgula: quem está testando cola a seleção
  * da planilha real, não digita CSV à mão.
  */
@@ -101,7 +101,7 @@ function PainelTeste({ codigo }: { codigo: string }) {
     try {
       setSaida(await rodarScript(codigo, montarEntrada(tipo, amostra)));
     } catch (e) {
-      // ErroDeScript carrega `detalhe` com a pilha de dentro do worker — e o
+      // ErroDeScript carrega `detalhe` com a pilha de dentro do worker, e o
       // que aponta a linha do script que quebrou.
       const erroDoScript = e instanceof ErroDeScript ? e : null;
       setErro({
@@ -277,7 +277,7 @@ export function ScriptEditor() {
   const carregarDeArquivo = async (arquivo: File | undefined) => {
     if (!arquivo) return;
     // O arquivo só preenche o campo. Nada sobe para o servidor até alguém
-    // clicar em salvar — e é isso que dá espaço para testar antes.
+    // clicar em salvar, e é isso que dá espaço para testar antes.
     setCodigo(await arquivo.text());
     setNome((atual) => atual || arquivo.name.replace(/\.js$/i, ""));
     toast.success("Arquivo carregado. Teste antes de salvar.");
