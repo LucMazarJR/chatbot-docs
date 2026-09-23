@@ -82,14 +82,14 @@ export class Mensagem {
     @Prop({ type: String, default: null })
     modelo: string | null;
 
-    /** O agente respondeu o texto de "não encontrei" — lacuna de conteúdo. */
+    /** O agente respondeu o texto de "não encontrei": lacuna de conteúdo. */
     @Prop({ default: false })
     semResposta: boolean;
 
     /**
      * Onde esta lacuna está na fila de curadoria.
      *
-     * LÓGICA DO LUCIANO: é o ÚNICO campo desta coleção que não vem do PWA — quem
+     * LÓGICA DO LUCIANO: é o ÚNICO campo desta coleção que não vem do PWA: quem
      * escreve é o job de curadoria daqui. Está gravado junto da mensagem, e não
      * numa coleção à parte, porque a pergunta é "esta lacuna já foi tratada?", e
      * a resposta pertence à lacuna. Uma tabela de controle separada precisaria
@@ -129,5 +129,5 @@ MensagemSchema.index({ semResposta: 1 });
 MensagemSchema.index({ semResposta: 1, curadoria: 1, em: 1 });
 
 // O job precisa achar a pergunta do cidadão a partir da resposta do bot, e o
-// par é o correlationId — um por troca.
+// par é o correlationId: um por troca.
 MensagemSchema.index({ correlationId: 1 });

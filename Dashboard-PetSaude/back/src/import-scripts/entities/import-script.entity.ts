@@ -1,17 +1,17 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
- * Script de geração de FAQs — o que transforma um documento em pares P/R.
+ * Script de geração de FAQs: o que transforma um documento em pares P/R.
  *
  * LÓGICA DO LUCIANO: mora no Postgres, não no Mongo, pela mesma razão dos
- * usuários — a coleção faq_medicamentos é contrato compartilhado com a ingestão
+ * usuários: a coleção faq_medicamentos é contrato compartilhado com a ingestão
  * Python e com o fluxo do n8n, e código de tela não entra lá.
  *
  * Cada gravação cria uma LINHA NOVA, com version + 1, e desativa a anterior.
  * Sobrescrever seria mais simples e estaria errado: cada FAQ importada guarda o
  * id e a versão do script que a gerou, e sem o histórico esse par apontaria
  * para um código que não existe mais. É também o que permite voltar atrás
- * quando um script novo sai pior que o antigo — descobrir isso costuma levar
+ * quando um script novo sai pior que o antigo: descobrir isso costuma levar
  * dias, tempo suficiente para ninguém lembrar o que foi mudado.
  *
  * O servidor guarda e devolve o código. Nunca o executa: quem executa é o

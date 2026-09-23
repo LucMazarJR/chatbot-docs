@@ -22,7 +22,7 @@ export class FaqsController {
      * Roda a busca do chatbot para uma pergunta digitada, e devolve os scores.
      *
      * POST porque gasta: é um embedding por teste, na mesma cota diária que a
-     * ingestão e o chatbot dividem. De editor para cima — é quem escreve FAQ que
+     * ingestão e o chatbot dividem. De editor para cima: é quem escreve FAQ que
      * precisa saber se a que escreveu vai ser encontrada.
      */
     @Post('testar-busca')
@@ -57,7 +57,7 @@ export class FaqsController {
     }
 
     // LÓGICA DO LUCIANO: o ator saía do header x-actor-name, que era só o nome
-    // digitado na tela do cadeado — qualquer pessoa podia escrever qualquer
+    // digitado na tela do cadeado: qualquer pessoa podia escrever qualquer
     // nome. Agora vem do JWT, verificado pelo guard.
     @Post()
     @Roles('admin', 'editor')

@@ -10,7 +10,7 @@ import { CriarCategoriaDto } from './dto/criar-categoria.dto';
 /**
  * A lista oficial de assuntos.
  *
- * LER é para quem escreve FAQ — o formulário precisa das opções, e editor
+ * LER é para quem escreve FAQ: o formulário precisa das opções, e editor
  * cadastra FAQ. DEFINIR a taxonomia é de admin: mudar um nome aqui reescreve o
  * campo `category` de todas as perguntas daquele assunto e muda o que o chatbot
  * enxerga como tema.
@@ -31,7 +31,7 @@ export class CategoriasController {
     @Roles('admin', 'editor')
     listar(@Query('incluirInativas') incluirInativas?: string) {
         // Comparação com a string porque o ValidationPipe roda com
-        // enableImplicitConversion: false — query param chega sempre como texto.
+        // enableImplicitConversion: false, então query param chega sempre como texto.
         return this.categorias.listar(incluirInativas === 'true');
     }
 

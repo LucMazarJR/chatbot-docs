@@ -13,7 +13,7 @@ async function bootstrap() {
   // LÓGICA DO LUCIANO: sem isto, `req.ip` é o IP do proxy do Render, não o de
   // quem chamou. Duas consequências, as duas invisíveis:
   //
-  // 1. `user_sessions.ip` grava o endereço do proxy em toda sessão — a coluna
+  // 1. `user_sessions.ip` grava o endereço do proxy em toda sessão: a coluna
   //    de auditoria existe e está registrando o valor errado desde sempre.
   // 2. O ThrottlerGuard chaveia pelo mesmo IP, então as 10 tentativas de login
   //    por minuto viram UM balde compartilhado pelo mundo inteiro: dez erros de
@@ -26,7 +26,7 @@ async function bootstrap() {
 
   // Cabeçalhos de segurança padrão (X-Content-Type-Options, X-Frame-Options,
   // etc). contentSecurityPolicy desligado: esta API não serve HTML, e a CSP
-  // do helmet é pensada para páginas, não para um backend puramente JSON —
+  // do helmet é pensada para páginas, não para um backend puramente JSON:
   // ligada, ela não protege nada aqui e só atrapalha o Swagger em /api/docs.
   app.use(helmet({ contentSecurityPolicy: false }));
 
@@ -64,7 +64,7 @@ async function bootstrap() {
 
   // Fecha as conexões do Mongo e do Postgres de forma limpa ao receber
   // SIGTERM. O Render manda SIGTERM a cada deploy e a cada vez que o serviço
-  // hiberna — sem isto, o processo é morto com conexões abertas, que só se
+  // hiberna. Sem isto, o processo é morto com conexões abertas, que só se
   // resolvem sozinhas quando o banco expira o timeout por inatividade.
   app.enableShutdownHooks();
 

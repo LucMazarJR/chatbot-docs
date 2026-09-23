@@ -13,8 +13,8 @@ import { Categoria } from './schemas/categoria.schema';
  *
  * LÓGICA DO LUCIANO: o que estes testes travam é a diferença entre "esta FAQ
  * está com o assunto errado" e "esta FAQ está com o assunto certo escrito de
- * outro jeito". As duas apareciam misturadas na base — 236 categorias para 2491
- * FAQs — e são trabalhos completamente diferentes: a primeira precisa de alguém
+ * outro jeito". As duas apareciam misturadas na base (236 categorias para 2491
+ * FAQs), e são trabalhos completamente diferentes: a primeira precisa de alguém
  * da saúde decidindo, a segunda se resolve sozinha. Se a classificação escorrega
  * de um lado para o outro, a fila de curadoria deixa de ser útil.
  */

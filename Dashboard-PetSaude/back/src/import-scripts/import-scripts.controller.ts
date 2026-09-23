@@ -16,7 +16,7 @@ export class ImportScriptsController {
      * LÓGICA DO LUCIANO: sem @Roles, ao contrário do resto deste controller. A
      * tela de importação precisa do código para rodá-lo no navegador, e ela é
      * aberta a editor também. Não há segredo aqui: é a regra de formato, não
-     * credencial — e quem pode importar já pode ver o resultado dela.
+     * credencial, e quem pode importar já pode ver o resultado dela.
      *
      * Declarado antes de qualquer rota com parâmetro: com um @Get(':id') acima,
      * o Nest casaria "ativo" como se fosse um id.

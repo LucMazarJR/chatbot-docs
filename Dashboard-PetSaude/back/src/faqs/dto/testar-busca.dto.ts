@@ -8,7 +8,7 @@ export class TestarBuscaDto {
     pergunta: string;
 
     /**
-     * Quantos trechos devolver. O padrão é o `topK` do nó do n8n — mudar faz a
+     * Quantos trechos devolver. O padrão é o `topK` do nó do n8n: mudar faz a
      * tela deixar de reproduzir o chatbot, então o teto é baixo de propósito.
      */
     @IsOptional()

@@ -5,15 +5,15 @@ import { exigirSegredoJwt } from './auth.module';
 /**
  * O segredo de assinatura dos tokens.
  *
- * LÓGICA DO LUCIANO: aqui havia um fallback constante — `?? 'troque-este-
- * segredo-no-env'` — e o `.env.example` distribui `JWT_SECRET=` vazio. Bastava
+ * LÓGICA DO LUCIANO: aqui havia um fallback constante (`?? 'troque-este-
+ * segredo-no-env'`), e o `.env.example` distribui `JWT_SECRET=` vazio. Bastava
  * a variável não chegar ao ambiente para a API subir NORMALMENTE assinando
  * tokens com uma string publicada no GitHub, e qualquer pessoa forjar um token
  * de admin. Não havia erro, log nem sintoma: do ponto de vista do processo,
  * estava tudo funcionando.
  *
  * Este teste existe para que ninguém reintroduza o fallback "só para destravar
- * o ambiente local" — que é exatamente como ele apareceu da primeira vez.
+ * o ambiente local", que é exatamente como ele apareceu da primeira vez.
  */
 describe('exigirSegredoJwt', () => {
     const config = (valor?: string) =>

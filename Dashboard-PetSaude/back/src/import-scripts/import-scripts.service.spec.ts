@@ -10,7 +10,7 @@ import { SCRIPT_PADRAO } from './script-padrao';
  * Versionamento dos scripts de geração.
  *
  * LÓGICA DO LUCIANO: os testes cobrem as duas coisas que, se quebrarem, não dão
- * erro nenhum — salvar sobrescrevendo a versão anterior (as FAQs já importadas
+ * erro nenhum: salvar sobrescrevendo a versão anterior (as FAQs já importadas
  * passariam a apontar para um código que não existe mais) e o sistema ficar sem
  * nenhum script ativo depois de uma gravação (a importação para de funcionar
  * exatamente depois de a pessoa ter ido configurá-la).

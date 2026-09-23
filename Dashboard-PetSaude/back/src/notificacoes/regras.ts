@@ -28,7 +28,7 @@ export const ANTECEDENCIA_MAXIMA_MS = 90 * DIA;
  *
  * LÓGICA DO LUCIANO: a validade é o que impede um lembrete de chegar depois do
  * compromisso. Se o PC que roda o despachante ficar desligado, o aviso vencido
- * é descartado em vez de sair atrasado — então quem agenda precisa dizer até
+ * é descartado em vez de sair atrasado, então quem agenda precisa dizer até
  * quando ele ainda faz sentido, e essa janela tem que ser possível de cumprir.
  */
 export function problemaNaJanela(enviarEm: Date, validaAte: Date, agora: Date): string | null {

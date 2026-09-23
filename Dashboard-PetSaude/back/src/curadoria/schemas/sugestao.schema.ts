@@ -9,7 +9,7 @@ export type TipoSugestao = 'nova' | 'complemento';
 /**
  * De qual conversa saiu a pergunta que originou a sugestão.
  *
- * LÓGICA DO LUCIANO: é o pedido que motivou a fase inteira — "boa rastreabilidade
+ * LÓGICA DO LUCIANO: é o pedido que motivou a fase inteira: "boa rastreabilidade
  * pra qual chat deu problema". Sem isto, a sugestão chega à tela de aprovação
  * como uma frase sem contexto, e quem revisa não tem como saber se a pessoa
  * perguntava sobre agendamento ou sobre o resultado de um exame. O texto da
@@ -61,7 +61,7 @@ export class Sugestao {
      * informação, e o prompt exige isso explicitamente. A diferença é séria: se
      * o modelo pudesse inventar orientação de saúde, a tela de aprovação viraria
      * um botão para publicar texto inventado sobre medicamento na voz do
-     * Ministério. Vazio aqui significa "isto é conteúdo que falta de verdade" —
+     * Ministério. Vazio aqui significa "isto é conteúdo que falta de verdade",
      * que é exatamente a conclusão a que os dados do primeiro teste chegaram.
      */
     @Prop({ default: '' })

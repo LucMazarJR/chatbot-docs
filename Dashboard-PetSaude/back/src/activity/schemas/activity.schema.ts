@@ -38,7 +38,7 @@ export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
     // do sistema, e o registro dela tem que durar o mesmo que o das FAQs.
     categoria: 730,
     // Exclusão de conversa a pedido do titular. O registro NÃO guarda conteúdo
-    // nenhum, só o id e as contagens — é a prova de que o pedido foi atendido, e
+    // nenhum, só o id e as contagens: é a prova de que o pedido foi atendido, e
     // essa prova precisa durar o mesmo que o histórico de conteúdo.
     conversa: 730,
     // Aviso agendado ou cancelado pela equipe. O registro guarda o tipo e
@@ -83,7 +83,7 @@ export class Activity {
      * Id do que foi mexido.
      *
      * LÓGICA DO LUCIANO: sem isto o histórico era inútil para investigar. O
-     * único ponteiro era `target`, o texto da pergunta — que muda justamente
+     * único ponteiro era `target`, o texto da pergunta, que muda justamente
      * quando alguém edita a pergunta, então duas linhas do histórico da MESMA
      * FAQ apareciam como coisas diferentes, e não havia como abrir a FAQ a
      * partir do registro.
@@ -146,13 +146,13 @@ ActivitySchema.index({ created_at: -1 });
 
 // LÓGICA DO LUCIANO: sem estes, qualquer filtro do painel varre a coleção
 // inteira. Ela cresce a cada edição de FAQ e a cada login, então a varredura
-// piora com o tempo — exatamente quando o histórico começa a ficar útil.
+// piora com o tempo: exatamente quando o histórico começa a ficar útil.
 ActivitySchema.index({ actor_id: 1, created_at: -1 });
 ActivitySchema.index({ entity_type: 1, created_at: -1 });
 ActivitySchema.index({ entity_id: 1, created_at: -1 });
 ActivitySchema.index({ batch_id: 1 });
 
 // Expurgo automático. `expireAfterSeconds: 0` significa "apague quando a data
-// em expires_at chegar" — o prazo é decidido por registro, na gravação, e não
+// em expires_at chegar": o prazo é decidido por registro, na gravação, e não
 // aqui, porque acesso e conteúdo têm prazos diferentes.
 ActivitySchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });

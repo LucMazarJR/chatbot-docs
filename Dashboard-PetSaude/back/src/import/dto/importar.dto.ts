@@ -16,7 +16,7 @@ import {
 /**
  * Uma FAQ como o script de geração a devolveu.
  *
- * LÓGICA DO LUCIANO: os campos usam @Allow, não @IsString. Não é desleixo — o
+ * LÓGICA DO LUCIANO: os campos usam @Allow, não @IsString. Não é desleixo: o
  * ValidationPipe roda com `whitelist: true`, então sem decorador nenhum o campo
  * seria descartado em silêncio; e com @IsString, uma única linha em que o
  * script devolveu um número onde devia vir texto derrubaria a requisição
@@ -50,7 +50,7 @@ export class FaqImportadaDto {
 export class ValidarImportacaoDto {
     @IsArray()
     // Teto para o corpo da requisição não virar um jeito barato de ocupar a
-    // API. Documento maior que isso deve ser dividido — e quem tem 2000 FAQs
+    // API. Documento maior que isso deve ser dividido, e quem tem 2000 FAQs
     // num arquivo só provavelmente juntou coisas que não deviam estar juntas.
     @ArrayMaxSize(2000)
     @ValidateNested({ each: true })

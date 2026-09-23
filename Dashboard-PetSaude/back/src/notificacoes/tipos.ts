@@ -3,7 +3,7 @@
  *
  * O dono do formato é o PWA (pwa/src/lib/notificacoes/tipos.ts): este painel só
  * ESCREVE avisos pendentes na coleção `notificacoes` e lê o que o despachante de
- * lá gravou depois. Mudar um campo lá exige mudar aqui na mesma alteração — o
+ * lá gravou depois. Mudar um campo lá exige mudar aqui na mesma alteração: o
  * contrato está descrito em docs/notificacoes-push.md.
  */
 

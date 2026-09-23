@@ -7,7 +7,7 @@ import { FaqsService } from '../faqs/faqs.service';
 import { JobsService } from '../jobs/jobs.service';
 import { CommitImportacaoDto, FaqImportadaDto } from './dto/importar.dto';
 
-/** Limites de conteúdo — os mesmos do formulário manual, sem exceção. */
+/** Limites de conteúdo: os mesmos do formulário manual, sem exceção. */
 export const LIMITES = {
     perguntaMin: 5,
     perguntaMax: 300,
@@ -87,7 +87,7 @@ export class ImportService {
      * Normaliza o que o script devolveu para a forma que o banco espera.
      *
      * O script é código do usuário: ele pode devolver tags como string única,
-     * categoria como número, campo faltando. Nada disso deve virar exceção —
+     * categoria como número, campo faltando. Nada disso deve virar exceção:
      * vira uma linha marcada na prévia.
      *
      * @param categoria O assunto já resolvido contra a lista oficial.
@@ -95,12 +95,12 @@ export class ImportService {
      * LÓGICA DO LUCIANO: a categoria era forçada para minúsculo aqui, enquanto
      * o formulário manual gravava exatamente o que foi digitado. "Exames"
      * cadastrado na tela e "exames" vindo da planilha viravam duas categorias
-     * distintas no agrupamento — é parte da explicação para as 236 categorias
+     * distintas no agrupamento: é parte da explicação para as 236 categorias
      * que a base tem para 2491 FAQs.
      *
      * Agora quem decide a grafia é a lista oficial: se a chave da linha bate com
      * uma categoria cadastrada, a linha passa a usar a grafia DELA. O minúsculo
-     * à força sai junto — ele nunca corrigiu nada, só escolheu um dos lados da
+     * à força sai junto: ele nunca corrigiu nada, só escolheu um dos lados da
      * divergência e escondeu o problema das telas que mostram a categoria.
      */
     private normalizar(bruta: FaqImportadaDto, categoria: string): FaqNormalizada {
@@ -195,7 +195,7 @@ export class ImportService {
      * Classifica cada linha antes de gravar qualquer coisa.
      *
      * Duplicadas são detectadas pelo content_hash, o mesmo MD5 que a ingestão
-     * Python usa — reimportar o mesmo arquivo depois de uma interrupção não
+     * Python usa: reimportar o mesmo arquivo depois de uma interrupção não
      * duplica nada, e é isso que torna a importação retomável.
      */
     async validar(faqs: FaqImportadaDto[]): Promise<ResultadoValidacao> {
@@ -206,7 +206,7 @@ export class ImportService {
             const faq = this.normalizar(bruta, categoria.nome);
             const linhaBruta = Number(bruta.linha);
             return {
-                // Sem `linha` vinda do script, cai para a posição no array — a
+                // Sem `linha` vinda do script, cai para a posição no array: a
                 // prévia precisa de algum ponteiro para a pessoa achar o erro.
                 linha: Number.isFinite(linhaBruta) && linhaBruta > 0 ? linhaBruta : i + 1,
                 faq,
@@ -228,12 +228,12 @@ export class ImportService {
         ]);
 
         // Duplicata dentro do PRÓPRIO arquivo. Sem isto, a mesma pergunta
-        // repetida duas vezes na planilha entraria duas vezes — o banco não
+        // repetida duas vezes na planilha entraria duas vezes: o banco não
         // tem restrição de unicidade em content_hash, e a segunda cópia só
         // apareceria quando alguém estranhasse a contagem.
         const vistosNoArquivo = new Set<string>();
 
-        // Com a lista vazia, TODA linha estaria fora dela — verdade e inútil.
+        // Com a lista vazia, TODA linha estaria fora dela: verdade e inútil.
         // Enquanto a equipe de saúde não definir a taxonomia, a importação não
         // tem contra o que comparar, e avisar isso em cada linha só treinaria
         // as pessoas a ignorar o aviso.
@@ -341,7 +341,7 @@ export class ImportService {
 
         try {
             // Revalida no servidor. A prévia rodou no navegador e o cliente
-            // poderia mandar qualquer coisa no commit — inclusive linhas que a
+            // poderia mandar qualquer coisa no commit, inclusive linhas que a
             // própria prévia tinha marcado como inválidas.
             const { itens } = await this.validar(dados.faqs);
 
@@ -393,7 +393,7 @@ export class ImportService {
                         this.jobsService.avancar(jobId);
 
                         // Cota estourada: parar aqui é a decisão importante.
-                        // Continuar gravaria centenas de FAQs com vetor vazio —
+                        // Continuar gravaria centenas de FAQs com vetor vazio:
                         // elas entram na base, aparecem na listagem, e o chatbot
                         // simplesmente nunca as encontra. Ninguém percebe até
                         // alguém estranhar que uma pergunta nunca é respondida.

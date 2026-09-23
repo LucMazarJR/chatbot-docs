@@ -51,7 +51,7 @@ export class Faq {
 
     // LÓGICA DO LUCIANO: o NOME continua gravado ao lado do id de propósito.
     // Esta coleção é lida pelo n8n e pela ingestão Python, e nenhum dos dois
-    // alcança o Postgres — um uuid solto ali não diria nada a ninguém.
+    // alcança o Postgres: um uuid solto ali não diria nada a ninguém.
     @Prop()
     created_by_id?: string;
 
@@ -63,14 +63,14 @@ export class Faq {
 
     // LÓGICA DO LUCIANO: campo lido pelo nó Vector Store do n8n para montar o
     // `pageContent` do trecho. Sem ele o nó encontra o documento e devolve texto
-    // vazio — a busca "funciona", o agente recebe nada e responde "não
+    // vazio: a busca "funciona", o agente recebe nada e responde "não
     // encontrei", sem erro em lugar nenhum. Mesmo formato do enviar_dados.py.
     @Prop()
     text?: string;
 
     // LÓGICA DO LUCIANO: procedência do vetor. O `embedding_model` é o mesmo
     // campo que o scripts/reindexar_embeddings.py grava e consulta para saber o
-    // que já está no modelo atual — sem ele, a única forma de descobrir em que
+    // que já está no modelo atual: sem ele, a única forma de descobrir em que
     // modelo a base está é re-embedar uma amostra e comparar por cosseno, porque
     // a dimensão não distingue (o gemini-embedding-001 também produz 3072).
     @Prop()
@@ -84,7 +84,7 @@ export class Faq {
 
     // LÓGICA DO LUCIANO: o content_hash que o vetor representa. Quando a edição
     // muda o texto mas a chamada ao Gemini falha, o documento fica com conteúdo
-    // novo e vetor velho — o chatbot encontra a FAQ pelo texto antigo e mostra o
+    // novo e vetor velho: o chatbot encontra a FAQ pelo texto antigo e mostra o
     // novo, sem erro em lugar nenhum. Com este campo isso vira uma consulta:
     // embedding_content_hash != content_hash significa vetor desatualizado.
     @Prop()
@@ -110,7 +110,7 @@ export const FaqSchema = SchemaFactory.createForClass(Faq);
 //
 // A busca por texto continua varrendo: um $regex não ancorado não usa índice.
 // Com ~2500 documentos isso são milissegundos, e um índice $text não
-// resolveria — ele faz prefixo e radical, não trecho, e viraria uma segunda
+// resolveria: ele faz prefixo e radical, não trecho, e viraria uma segunda
 // semântica de busca para manter em sincronia com o enviar_dados.py.
 //
 // NÃO confundir com o vector_index_3072: aquele é um Atlas Search index,

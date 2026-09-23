@@ -37,12 +37,12 @@ export class ImportScriptsService implements OnModuleInit {
      * LÓGICA DO LUCIANO: o padrão poderia ser devolvido de memória quando não há
      * nenhuma linha, e era o desenho mais simples. Mas cada FAQ importada grava
      * o id e a versão do script que a gerou, e um id inventado ("padrao")
-     * apontaria para lugar nenhum — justamente nas primeiras importações, que
+     * apontaria para lugar nenhum, justamente nas primeiras importações, que
      * são as mais prováveis de dar errado e precisar ser rastreadas depois.
      *
      * Semeia no boot, e não numa leitura: um GET que escreve surpreende, e duas
      * requisições simultâneas o fariam duas vezes. Duas instâncias subindo
-     * juntas ainda podem tentar ao mesmo tempo — quem perde leva o erro do
+     * juntas ainda podem tentar ao mesmo tempo: quem perde leva o erro do
      * índice único de version, que é engolido de propósito.
      */
     async onModuleInit(): Promise<void> {
@@ -102,7 +102,7 @@ export class ImportScriptsService implements OnModuleInit {
     /**
      * Verdadeiro quando o erro é a tabela não existir.
      *
-     * LÓGICA DO LUCIANO: `DB_RUN_MIGRATIONS` é `false` por padrão — as
+     * LÓGICA DO LUCIANO: `DB_RUN_MIGRATIONS` é `false` por padrão: as
      * migrations são rodadas à mão, de propósito. Então o primeiro deploy que
      * levar este módulo sobe com a tabela ainda inexistente, e o erro cru do
      * Postgres que chega na tela é `relation "import_scripts" does not exist`.
@@ -176,7 +176,7 @@ export class ImportScriptsService implements OnModuleInit {
         };
     }
 
-    /** Uma versão específica, com o código — para ver e comparar antes de reativar. */
+    /** Uma versão específica, com o código, para ver e comparar antes de reativar. */
     async buscarPorId(id: string): Promise<ImportScript> {
         const script = await this.repo.findOne({ where: { id } });
         if (!script) throw new NotFoundException('Regra de leitura não encontrada. Atualize a página de Configurações.');
@@ -188,7 +188,7 @@ export class ImportScriptsService implements OnModuleInit {
      *
      * Tudo numa transação porque são dois passos que não podem ficar pela
      * metade: desativar o atual e inserir o novo. Sem ela, uma falha no meio
-     * deixaria o sistema sem nenhum script ativo — e a importação, que é
+     * deixaria o sistema sem nenhum script ativo, e a importação, que é
      * exatamente o que a pessoa acabou de ir configurar, pararia de funcionar.
      */
     async criar(

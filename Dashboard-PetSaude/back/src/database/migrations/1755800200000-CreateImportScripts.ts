@@ -22,7 +22,7 @@ export class CreateImportScripts1755800200000 implements MigrationInterface {
         // Índice parcial: o banco garante que existe no máximo UM script ativo.
         // Sem isto, uma corrida entre dois administradores salvando ao mesmo
         // tempo deixaria dois ativos, e a importação escolheria um deles ao
-        // acaso — cada pessoa veria um parser diferente sem nada indicar isso.
+        // acaso: cada pessoa veria um parser diferente sem nada indicar isso.
         await queryRunner.query(`
             CREATE UNIQUE INDEX "UQ_import_scripts_ativo"
             ON "import_scripts" ("is_active") WHERE "is_active" = true

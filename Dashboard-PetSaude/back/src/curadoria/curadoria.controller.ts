@@ -11,7 +11,7 @@ import { AprovarSugestaoDto, ListarSugestoesQueryDto } from './dto/aprovar-suges
  * As perguntas que o chatbot não soube responder, a caminho de virar FAQ.
  *
  * `@Roles('admin')` na classe: a fila expõe o que cidadãos escreveram no chat,
- * com o id da conversa de origem — é o mesmo material de ConversasController, e
+ * com o id da conversa de origem: é o mesmo material de ConversasController, e
  * vale a mesma regra. Rodar a análise também gasta cota da API.
  */
 @Controller('curadoria')
@@ -22,7 +22,7 @@ export class CuradoriaController {
         private readonly jobs: JobsService,
     ) { }
 
-    /** Quantas lacunas esperam análise — é o contador da tela de conversas. */
+    /** Quantas lacunas esperam análise: é o contador da tela de conversas. */
     @Get('fila')
     fila() {
         return this.curadoria.contarPendentes();

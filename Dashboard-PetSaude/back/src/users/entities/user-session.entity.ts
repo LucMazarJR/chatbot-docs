@@ -4,7 +4,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 
  * Sessão emitida no login, identificada pelo `jti` do JWT.
  *
  * Por que existe: JWT é sem estado, então "desativar usuário" só teria efeito
- * quando o token expirasse — até 8 horas de escrita liberada para alguém que o
+ * quando o token expirasse, até 8 horas de escrita liberada para alguém que o
  * admin acabou de revogar. Como o ponto de desativar é ser imediato, cada
  * requisição confere se a sessão continua válida.
  *

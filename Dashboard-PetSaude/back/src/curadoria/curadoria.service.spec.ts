@@ -18,7 +18,7 @@ import { Sugestao } from './schemas/sugestao.schema';
  * LÓGICA DO LUCIANO: o que estes testes protegem é a rastreabilidade e a ordem
  * das escritas. Uma sugestão sem origem é uma frase solta que ninguém consegue
  * conferir; e marcar a lacuna como tratada antes de a sugestão existir apagaria
- * a pergunta da fila sem deixar nada no lugar — ela nunca mais seria analisada,
+ * a pergunta da fila sem deixar nada no lugar: ela nunca mais seria analisada,
  * e nada indicaria isso.
  */
 describe('CuradoriaService', () => {
@@ -228,7 +228,7 @@ describe('CuradoriaService', () => {
     // muita coisa". Sem esta saida, a tela de aprovacao encheria de lixo na
     // primeira vez que alguem a abrisse.
     // No primeiro ensaio contra dados reais o modelo devolveu
-    // `faqRelacionada: "desconhecido"` — a palavra que o prompt usava como
+    // `faqRelacionada: "desconhecido"`: a palavra que o prompt usava como
     // rotulo para FAQ sem id. Guardado assim, viraria um /faqs/desconhecido na
     // tela de quem decide conteudo de saude.
     it('recusa FAQ relacionada que nao veio da busca daquelas perguntas', async () => {
@@ -369,7 +369,7 @@ describe('CuradoriaService', () => {
 
   /**
    * LÓGICA DO LUCIANO: sem o registro, a única marca de que o modelo agiu seria
-   * a sugestão que sobreviveu — e sugestão descartada some sem deixar rastro.
+   * a sugestão que sobreviveu, e sugestão descartada some sem deixar rastro.
    * O que precisa ficar é a ENTRADA: quais perguntas foram enviadas e com que
    * FAQs ao lado. A base muda e as conversas do protótipo são descartáveis;
    * sem a cópia, a decisão vira inauditável em poucas semanas.

@@ -17,7 +17,7 @@ import { ActivityService } from '../activity/activity.service';
  * entrega ao atacante quais e-mails estão cadastrados; e avisar que a conta
  * está desativada antes de conferir a senha entrega o mesmo, por outro caminho.
  */
-describe('AuthService — login', () => {
+describe('AuthService: login', () => {
   let service: AuthService;
   let usersRepo: { createQueryBuilder: jest.Mock; save: jest.Mock; findOne: jest.Mock };
   let sessionsRepo: { save: jest.Mock; create: jest.Mock; update: jest.Mock; findOne: jest.Mock };

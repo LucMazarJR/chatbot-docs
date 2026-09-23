@@ -43,18 +43,18 @@ export const LacunaRegistradaSchema = SchemaFactory.createForClass(LacunaRegistr
  * O registro de uma execução da curadoria.
  *
  * LÓGICA DO LUCIANO: sem isto, a única marca de que o modelo agiu seria a
- * sugestão que sobreviveu — e sugestão descartada some sem deixar rastro. Quem
+ * sugestão que sobreviveu, e sugestão descartada some sem deixar rastro. Quem
  * olhasse depois veria FAQs criadas "pela curadoria" sem conseguir responder a
  * pergunta óbvia: com base em quê?
  *
  * Por isso a rodada guarda a ENTRADA, e não só o resultado. As perguntas ficam
  * copiadas aqui, com as FAQs que a busca tinha devolvido e os scores daquele
- * momento — a base muda, as conversas do protótipo são descartáveis, e sem a
+ * momento: a base muda, as conversas do protótipo são descartáveis, e sem a
  * cópia a decisão viraria inauditável em poucas semanas. É o mesmo princípio do
  * histórico de edição de FAQ: guardar o "antes", não só o "depois".
  *
  * A resposta crua do modelo fica junto porque é a única forma de distinguir
- * "o modelo errou" de "o código leu errado o que ele devolveu" — foi
+ * "o modelo errou" de "o código leu errado o que ele devolveu": foi
  * exatamente essa distinção que revelou o `faqRelacionada: "desconhecido"` no
  * primeiro ensaio com dados reais.
  */
@@ -90,7 +90,7 @@ export class Rodada {
      * O JSON que o modelo devolveu, como texto.
      *
      * Guardado como string, e não como objeto: se o modelo devolver uma forma
-     * inesperada, um campo tipado a descartaria em silêncio — e é justamente a
+     * inesperada, um campo tipado a descartaria em silêncio, e é justamente a
      * forma inesperada que se precisa poder ler depois.
      */
     @Prop({ default: '' })
