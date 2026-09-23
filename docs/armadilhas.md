@@ -69,6 +69,10 @@ Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só
 
 **`$ne: null` numa expressão de agregação conta campo ausente como preenchido.** Em `$cond`, campo que não existe não é igual a `null`, e a contagem de "exibidas" contaria todo aviso antigo. Use `$gt: [campo, null]`.
 
+**Limpar a sessão em qualquer erro tira da conta quem está trabalhando.** O `getSession` do front só pode apagar o cookie quando a API responde 401 ou 403. Tratando rede fora, 5xx ou API acordando como "sessão inválida", cada deploy do back e cada soneca do plano grátis mandava a equipe para o login, e o login batia na mesma API parada.
+
+**Aba aberta antes de um deploy pede arquivos que não existem mais.** Os arquivos de cada tela mudam de nome a cada build. O [versao-nova.ts](../Dashboard-PetSaude/front/src/lib/versao-nova.ts) recarrega a página quando isso acontece. Para testar localmente, reconstruir só o front (`docker compose up -d --build --no-deps dashboard-front`), em navegador sem cache: sem `--no-deps` a API reinicia junto, e com cache o arquivo antigo vem dele e a falha não aparece.
+
 ---
 
 ## Protótipo PWA
