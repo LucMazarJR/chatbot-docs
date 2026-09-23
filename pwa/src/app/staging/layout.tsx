@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 
 import { RegistrarSWStaging } from '@/components/avisos/RegistrarSWStaging';
+import { ContaNaFaixa } from '@/components/conta/ContaNaFaixa';
+import { contaAtual } from '@/lib/conta/servidor';
 
 import './staging.css';
 
@@ -24,11 +26,18 @@ export const metadata: Metadata = {
   manifest: '/staging/manifest.webmanifest',
 };
 
-export default function LayoutStaging({ children }: { children: React.ReactNode }) {
+export default async function LayoutStaging({ children }: { children: React.ReactNode }) {
+  // A faixa é o único lugar presente em toda tela daqui, inclusive no chat, que
+  // ocupa a altura inteira. Por isso a saída mora nela.
+  const conta = await contaAtual();
+
   return (
     <div className="st">
       <RegistrarSWStaging />
-      <p className="st-faixa">Ambiente de testes — contas e avisos em validação</p>
+      <div className="st-faixa">
+        <span className="st-faixa-texto">Ambiente de testes: contas e avisos em validação</span>
+        {conta && <ContaNaFaixa email={conta.email} />}
+      </div>
       <div className="st-conteudo">{children}</div>
     </div>
   );

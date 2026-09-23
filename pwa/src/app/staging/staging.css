@@ -27,17 +27,68 @@
   font-weight: 600;
 }
 
-/* Amarelo de aviso de sistema: diz, sem assustar, que isto não é o app final. */
+/* Amarelo de aviso de sistema: diz, sem assustar, que isto não é o app final.
+   Leva também quem está logado e a saída, porque é a única barra que aparece em
+   toda tela do staging, inclusive no chat, que ocupa a altura inteira. */
 .st-faixa {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
   margin: 0;
-  padding: 6px 12px;
-  padding-top: calc(6px + env(safe-area-inset-top));
+  padding: 0 12px;
+  padding-top: env(safe-area-inset-top);
   background: var(--aviso);
   color: var(--aviso-texto);
   font-size: 0.85em;
   font-weight: 600;
-  text-align: center;
+}
+
+.st-faixa-texto {
+  padding: 7px 0;
+  line-height: 1.3;
+}
+
+.st-faixa-conta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.st-faixa-email {
+  overflow: hidden;
+  max-width: 12rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Alvo de toque inteiro, sem engordar a faixa: o botão ocupa a altura dela e
+   avança sobre o respiro lateral. */
+.st-faixa-conta button {
+  min-height: 40px;
+  padding: 0 10px;
+  margin-right: -6px;
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.st-faixa-conta button:disabled {
+  opacity: 0.6;
+}
+
+/* Tela estreita: entre saber de quem é a sessão e conseguir sair dela, sair
+   importa mais. */
+@media (max-width: 420px) {
+  .st-faixa-email {
+    display: none;
+  }
 }
 
 .st-conteudo {
