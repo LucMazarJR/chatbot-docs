@@ -50,13 +50,8 @@ export function ApagarConversa({ id }: { id: string }) {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-destructive hover:text-destructive"
-        onClick={() => setAberto(true)}
-      >
-        <Trash2 className="size-4" /> Apagar a pedido da pessoa
+      <Button variant="perigo" onClick={() => setAberto(true)}>
+        <Trash2 /> Apagar a pedido da pessoa
       </Button>
 
       <AlertDialog open={aberto} onOpenChange={setAberto}>

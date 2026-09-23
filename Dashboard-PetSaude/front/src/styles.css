@@ -95,6 +95,13 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-contador: var(--sidebar-contador);
   --color-sidebar-contador-foreground: var(--sidebar-contador-foreground);
+  --color-chat-topo: var(--chat-topo);
+  --color-chat-topo-texto: var(--chat-topo-texto);
+  --color-chat-fundo: var(--chat-fundo);
+  --color-chat-saida: var(--chat-saida);
+  --color-chat-entrada: var(--chat-entrada);
+  --color-chat-texto: var(--chat-texto);
+  --color-chat-fraco: var(--chat-fraco);
 }
 
 :root {
@@ -170,6 +177,17 @@
   --sidebar-contador-foreground: #2a1e05;
 
   --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* As cores do chat que o cidadão usa (pwa/src/app/globals.css). A conversa
+     aberta no painel é desenhada com elas para a equipe ver exatamente o que a
+     pessoa viu, e não uma versão reinterpretada. */
+  --chat-topo: #008069;
+  --chat-topo-texto: #ffffff;
+  --chat-fundo: #efeae2;
+  --chat-saida: #d9fdd3;
+  --chat-entrada: #ffffff;
+  --chat-texto: #111b21;
+  --chat-fraco: #667781;
 }
 
 @theme inline {
@@ -244,6 +262,14 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #2c2e5a;
   --sidebar-ring: #a5a8f0;
+
+  --chat-topo: #202c33;
+  --chat-topo-texto: #e9edef;
+  --chat-fundo: #0b141a;
+  --chat-saida: #005c4b;
+  --chat-entrada: #202c33;
+  --chat-texto: #e9edef;
+  --chat-fraco: #8696a0;
 
   color-scheme: dark;
 }
