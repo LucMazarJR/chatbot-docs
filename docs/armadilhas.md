@@ -97,6 +97,8 @@ ENOENT: no such file or directory, open '.next/next-server.js.nft.json'
 
 **Trocar as chaves VAPID desliga todos os aparelhos.** Apagar o documento `vapid` de `pwa_prototipo.configuracoes`, derrubar o banco do protótipo ou preencher `VAPID_*` com outro par faz os serviços de push responderem 401/403, e o despachante apaga as inscrições uma a uma, sem alarme nenhum. Cada pessoa precisa ativar os avisos de novo.
 
+**`navigator.serviceWorker.ready` pode devolver o service worker errado.** O do chat `/` tem escopo no site inteiro, e o `ready` devolve o que controla a página *naquele momento*. Numa página do staging aberta antes de o service worker dela assumir, ele devolve o do `/`, e a inscrição de push vai para lá. O Google aceita todo envio (201), o celular recebe, e como o service worker do `/` não tem código de aviso, o Chrome mostra no lugar dele o genérico "Este site foi atualizado em segundo plano". Inscrever sempre no registro que o próprio `register('/staging/sw.js')` devolve. Pelo mesmo motivo, `getRegistration('/staging/')` cai no do `/` quando o do staging não existe: conferir o `scope` antes de confiar.
+
 **No iPhone, push só existe no app da Tela de Início.** Numa aba do Safari o navegador nem oferece a permissão, e parece que o botão não faz nada. A tela de avisos detecta e explica, mas quem testa sem ler a frase conclui que "não funciona no iPhone".
 
 **Na Vercel, os avisos ficam "Na fila" para sempre** se o container do Docker não estiver no ar: o relógio que envia só roda lá. Não há erro — o aviso só não sai, e vence.

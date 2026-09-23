@@ -183,6 +183,9 @@ O user agent separa **"iOS · app na tela de início"** de "iOS · Safari", que 
 | Sintoma | Onde olhar |
 |---|---|
 | O diagnóstico em `/staging/avisos` aponta algo | A frase da tela já diz o que fazer |
+| Aparece "Este site foi atualizado em segundo plano" no lugar do aviso | A inscrição está no service worker do `/`, que não tem código de aviso. Abrir `/staging/avisos` no aparelho corrige sozinho. Ver [armadilhas.md](armadilhas.md#contas-e-avisos-push) |
+| O teste diz que o aviso chegou, mas o celular não mostrou | Notificações do Chrome, ou deste site, bloqueadas nas configurações do Android. "Testar só a tela deste aparelho" confirma |
+| O teste diz que o aparelho não confirmou | O aviso não chegou ao Chrome: economia de bateria ou Chrome restrito em segundo plano |
 | O teste não chega, e o envio mostra "nenhum aparelho com avisos ativados" | A inscrição foi removida — a pessoa precisa ativar de novo |
 | Fica "Na fila" para sempre | O relógio não está rodando: o PWA está na Vercel sem relógio externo, ou `PWA_DESPACHANTE=desligado`. Veja o log do container |
 | "Aceita" mas não "Exibida" | O serviço entregou e o aparelho não mostrou, ou mostrou sem conseguir mandar o recibo (sem rede na hora). Economia de bateria é o suspeito habitual |
