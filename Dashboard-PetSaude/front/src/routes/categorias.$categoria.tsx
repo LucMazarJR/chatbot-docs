@@ -9,6 +9,7 @@ import { FaqPagination } from "@/components/faq-pagination";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { FaqCard, InsertFaqButton, SearchField } from "@/components/faq-shared";
 import { exigirSessao } from "@/lib/guardas";
+import { Carregando } from "@/components/carregando";
 
 const POR_PAGINA = 20;
 
@@ -115,7 +116,7 @@ function CategoryPage() {
             Não foi possível carregar as perguntas. Verifique a conexão e tente recarregar.
           </p>
         ) : faqsQuery.isLoading && !faqsQuery.data ? (
-          <p className="text-sm text-muted-foreground">Carregando perguntas…</p>
+          <Carregando texto="Carregando as perguntas deste assunto…" />
         ) : faqs.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
             Nenhuma pergunta nesta categoria.

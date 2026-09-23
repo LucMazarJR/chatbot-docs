@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { exigirAdmin } from "@/lib/guardas";
+import { Carregando } from "@/components/carregando";
 
 export const Route = createFileRoute("/curadoria")({
   beforeLoad: () => exigirAdmin(),
@@ -139,7 +140,7 @@ function CuradoriaPage() {
           </h3>
 
           {sugestoes.isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando…</p>
+            <Carregando texto="Carregando as sugestões…" />
           ) : lista.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground sm:p-8">
               Nenhuma sugestão pendente. Quando houver perguntas na fila, rode a análise.
@@ -208,7 +209,7 @@ function HistoricoDeRodadas() {
       {aberto && (
         <div className="border-t border-border p-4">
           {rodadas.isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando…</p>
+            <Carregando compacto texto="Carregando o histórico das análises…" />
           ) : lista.length === 0 ? (
             <p className="text-sm text-muted-foreground">A análise ainda não foi disparada.</p>
           ) : (
@@ -259,7 +260,8 @@ function DetalheDaRodada({ id }: { id: string }) {
     queryFn: () => detalharRodada({ data: { id } }),
   });
 
-  if (rodada.isLoading) return <p className="mt-3 text-xs text-muted-foreground">Carregando…</p>;
+  if (rodada.isLoading)
+    return <Carregando compacto className="mt-3" texto="Carregando a rodada…" />;
   if (!rodada.data) return null;
 
   return (
@@ -281,8 +283,7 @@ function DetalheDaRodada({ id }: { id: string }) {
               <ul className="mt-0.5 space-y-0.5">
                 {lacuna.vizinhas.map((v, i) => (
                   <li key={i} className="text-xs text-muted-foreground">
-                    <span className="tabular-nums">{v.score.toFixed(3)}</span> ·{" "}
-                    {v.question ?? "—"}
+                    <span className="tabular-nums">{v.score.toFixed(3)}</span> · {v.question ?? "—"}
                   </li>
                 ))}
               </ul>
@@ -472,9 +473,9 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
         <p className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span>
-            A resposta veio vazia porque a base não tinha a informação — o modelo só resume o que
-            já existe, nunca inventa orientação de saúde. Este texto precisa ser escrito por
-            alguém da equipe.
+            A resposta veio vazia porque a base não tinha a informação — o modelo só resume o que já
+            existe, nunca inventa orientação de saúde. Este texto precisa ser escrito por alguém da
+            equipe.
           </span>
         </p>
       )}
@@ -602,7 +603,7 @@ function FilaBruta() {
       {aberta && (
         <div className="border-t border-border p-4">
           {lacunas.isLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando…</p>
+            <Carregando compacto texto="Carregando as perguntas sem resposta…" />
           ) : (lacunas.data ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">A fila está vazia.</p>
           ) : (

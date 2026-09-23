@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Carregando } from "@/components/carregando";
 
 const EXEMPLO_WORD = [
   "[ASSUNTO: Exames]",
@@ -275,7 +276,7 @@ export function ScriptEditor() {
   };
 
   if (ativo.isLoading) {
-    return <p className="text-sm text-muted-foreground">Carregando…</p>;
+    return <Carregando texto="Carregando a regra de leitura…" />;
   }
 
   const alterado = ativo.data ? codigo !== ativo.data.code || nome !== ativo.data.name : true;

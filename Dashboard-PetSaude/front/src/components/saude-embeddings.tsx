@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Carregando } from "@/components/carregando";
 
 const MODOS: { valor: ModoBackfill; rotulo: string; descricao: string }[] = [
   {
@@ -245,7 +246,7 @@ export function SaudeEmbeddings() {
       </div>
 
       {saude.isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando…</p>
+        <Carregando texto="Conferindo a base de vetores…" />
       ) : !dados ? (
         <p className="text-sm text-destructive">Não foi possível ler o estado da base.</p>
       ) : (

@@ -26,6 +26,7 @@ import {
   type ValoresFiltro,
 } from "@/components/filtros-faq";
 import { exigirSessao } from "@/lib/guardas";
+import { Carregando } from "@/components/carregando";
 
 const POR_PAGINA = 20;
 
@@ -244,10 +245,14 @@ function BrowsePanel() {
         categorias={categorias}
       />
 
-      <p className="text-sm text-muted-foreground">
-        {totalFiltrado} {totalFiltrado === 1 ? "resultado" : "resultados"}
-        {totalPaginas > 1 ? ` · página ${page} de ${totalPaginas}` : ""}
-      </p>
+      {/* Só com a resposta na mão: antes dela, "0 resultados" dizia que a
+          base estava vazia, ao lado do próprio "Carregando". */}
+      {faqsQuery.data && (
+        <p className="text-sm text-muted-foreground">
+          {totalFiltrado} {totalFiltrado === 1 ? "resultado" : "resultados"}
+          {totalPaginas > 1 ? ` · página ${page} de ${totalPaginas}` : ""}
+        </p>
+      )}
 
       {faqsQuery.isError ? (
         // Antes, um erro de rede caía no ramo de lista vazia e a tela dizia
@@ -276,7 +281,7 @@ function BrowsePanel() {
           </Button>
         </div>
       ) : faqsQuery.isLoading && !faqsQuery.data ? (
-        <p className="text-sm text-muted-foreground">Carregando perguntas…</p>
+        <Carregando texto="Carregando as perguntas…" />
       ) : faqs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-6 text-center sm:p-8">
           <p className="text-sm text-muted-foreground">

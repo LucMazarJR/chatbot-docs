@@ -14,6 +14,7 @@ import {
   type Periodo,
   type Situacao,
 } from "@/lib/conversas.functions";
+import { Carregando } from "@/components/carregando";
 
 type Busca = { periodo?: Periodo; versao?: FiltroVersao; situacao?: Situacao };
 
@@ -23,7 +24,9 @@ export const Route = createFileRoute("/conversas/")({
   // em toda visita.
   validateSearch: (search: Record<string, unknown>): Busca => ({
     ...(search.periodo && search.periodo !== "tudo" ? { periodo: search.periodo as Periodo } : {}),
-    ...(search.versao && search.versao !== "todas" ? { versao: search.versao as FiltroVersao } : {}),
+    ...(search.versao && search.versao !== "todas"
+      ? { versao: search.versao as FiltroVersao }
+      : {}),
     ...(search.situacao && search.situacao !== "validas"
       ? { situacao: search.situacao as Situacao }
       : {}),
@@ -134,14 +137,19 @@ function ConversasPage() {
 
         <AvisoDaFila />
 
-        {estatisticas.data && <Numeros dados={estatisticas.data} />}
+        {/* Os números surgiam do nada e empurravam a lista para baixo. */}
+        {estatisticas.data ? (
+          <Numeros dados={estatisticas.data} />
+        ) : estatisticas.isLoading ? (
+          <Carregando compacto texto="Calculando os números…" />
+        ) : null}
 
         {conversas.isError ? (
           <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-center text-sm text-destructive sm:p-8">
             Não foi possível carregar as conversas. Verifique a conexão e tente recarregar.
           </p>
         ) : conversas.isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando…</p>
+          <Carregando texto="Carregando as conversas…" />
         ) : lista.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
             Nenhuma conversa com esses filtros.
@@ -354,9 +362,7 @@ function Numeros({ dados }: { dados: EstatisticasConversas }) {
         ["NPS", dados.npsScore != null ? String(dados.npsScore) : "—"],
         [
           "Não encontrou",
-          dados.percentualSemResposta != null
-            ? `${dados.percentualSemResposta.toFixed(0)}%`
-            : "—",
+          dados.percentualSemResposta != null ? `${dados.percentualSemResposta.toFixed(0)}%` : "—",
           (dados.percentualSemResposta ?? 0) >= 30,
         ],
       ],

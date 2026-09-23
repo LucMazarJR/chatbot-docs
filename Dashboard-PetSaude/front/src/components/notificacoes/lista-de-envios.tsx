@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Carregando } from "@/components/carregando";
 
 const ROTULO_ESTADO: Record<EstadoAviso, string> = {
   pendente: "Na fila",
@@ -95,7 +96,7 @@ export function ListaDeEnvios() {
       </h2>
 
       {envios.isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando os envios…</p>
+        <Carregando texto="Carregando os envios…" />
       ) : lista.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
           Nenhum aviso enviado pelo painel ainda.
@@ -236,7 +237,7 @@ function DetalheDoEnvio({ loteId, atualizando }: { loteId: string; atualizando: 
   });
 
   if (detalhe.isLoading) {
-    return <p className="mt-3 text-sm text-muted-foreground">Carregando…</p>;
+    return <Carregando compacto className="mt-3" texto="Carregando o detalhe do envio…" />;
   }
   if (!detalhe.data) {
     return <p className="mt-3 text-sm text-destructive">Não foi possível carregar os detalhes.</p>;

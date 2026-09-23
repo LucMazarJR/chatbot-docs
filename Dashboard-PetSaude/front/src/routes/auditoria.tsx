@@ -24,6 +24,7 @@ import {
 } from "@/lib/auditoria.functions";
 import { fimDoDia, inicioDoDia } from "@/components/filtros-faq";
 import { exigirAdmin } from "@/lib/guardas";
+import { Carregando } from "@/components/carregando";
 
 const POR_PAGINA = 25;
 const TODOS = "__todos__";
@@ -384,7 +385,7 @@ function PainelAuditoria() {
           Não foi possível carregar o histórico. Tente recarregar a página.
         </p>
       ) : historico.isLoading && !historico.data ? (
-        <p className="text-sm text-muted-foreground">Carregando o histórico…</p>
+        <Carregando texto="Carregando o histórico…" />
       ) : itens.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground sm:p-8">
           {ativos > 0 ? "Nenhum registro com estes filtros." : "Nada registrado ainda."}

@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Carregando } from "@/components/carregando";
 
 const HORA = 60 * 60 * 1000;
 
@@ -257,7 +258,7 @@ export function FormularioAviso() {
             <legend className="text-sm font-medium">Quem recebe</legend>
 
             {destinatarios.isLoading ? (
-              <p className="text-sm text-muted-foreground">Carregando as contas…</p>
+              <Carregando compacto texto="Carregando quem pode receber…" />
             ) : contas.length === 0 ? (
               <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
                 Ninguém ativou os avisos ainda. A pessoa precisa entrar no chat em{" "}

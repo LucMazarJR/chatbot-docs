@@ -41,6 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { exigirSessao } from "@/lib/guardas";
+import { Carregando } from "@/components/carregando";
 
 export const Route = createFileRoute("/categorias/")({
   beforeLoad: () => exigirSessao(),
@@ -49,8 +50,7 @@ export const Route = createFileRoute("/categorias/")({
       { title: "Categorias de FAQs | Central de FAQs" },
       {
         name: "description",
-        content:
-          "Defina a lista oficial de assuntos e veja quais perguntas estão fora dela.",
+        content: "Defina a lista oficial de assuntos e veja quais perguntas estão fora dela.",
       },
       { property: "og:title", content: "Categorias de FAQs" },
       {
@@ -74,10 +74,7 @@ export const Route = createFileRoute("/categorias/")({
  * assunto de verdade. Misturar os dois numa lista só de "problemas" é o que
  * fazia a curadoria parecer impossível: 236 itens sem fila nem prioridade.
  */
-const MOTIVOS: Record<
-  MotivoRevisao,
-  { rotulo: string; explicacao: string; tom: string }
-> = {
+const MOTIVOS: Record<MotivoRevisao, { rotulo: string; explicacao: string; tom: string }> = {
   variante: {
     rotulo: "Grafia diferente",
     explicacao: "É um assunto da lista, escrito de outro jeito. Padronizar resolve o grupo todo.",
@@ -90,7 +87,8 @@ const MOTIVOS: Record<
   },
   inativa: {
     rotulo: "Assunto aposentado",
-    explicacao: "A categoria existe, mas foi desativada. As perguntas continuam apontando para ela.",
+    explicacao:
+      "A categoria existe, mas foi desativada. As perguntas continuam apontando para ela.",
     tom: "border-muted-foreground/30 bg-muted text-muted-foreground",
   },
   sem_categoria: {
@@ -157,18 +155,10 @@ function CategoriasPage() {
           }}
         />
 
-        <Revisao
-          revisao={revisao}
-          carregando={revisaoQuery.isLoading}
-          podeDefinir={podeDefinir}
-        />
+        <Revisao revisao={revisao} carregando={revisaoQuery.isLoading} podeDefinir={podeDefinir} />
       </div>
 
-      <DialogoCategoria
-        aberto={formAberto}
-        onOpenChange={setFormAberto}
-        categoria={emEdicao}
-      />
+      <DialogoCategoria aberto={formAberto} onOpenChange={setFormAberto} categoria={emEdicao} />
     </GateShell>
   );
 }
@@ -194,16 +184,16 @@ function ListaOficial({
     );
   }
 
-  if (carregando) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (carregando) return <Carregando texto="Carregando os assuntos…" />;
 
   if (categorias.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-6 text-center sm:p-8">
         <p className="text-sm font-medium">A lista de assuntos começa vazia, de propósito</p>
         <p className="mx-auto mt-2 max-w-prose text-sm text-muted-foreground">
-          Quem define quais assuntos existem é a equipe de saúde. Enquanto a lista estiver
-          vazia, o formulário de FAQ continua aceitando texto livre — e todas as perguntas da
-          base aparecem abaixo como fora da lista, que é verdade, mas não ajuda ninguém.
+          Quem define quais assuntos existem é a equipe de saúde. Enquanto a lista estiver vazia, o
+          formulário de FAQ continua aceitando texto livre — e todas as perguntas da base aparecem
+          abaixo como fora da lista, que é verdade, mas não ajuda ninguém.
         </p>
       </div>
     );
@@ -259,7 +249,11 @@ function Revisao({
   carregando,
   podeDefinir,
 }: {
-  revisao?: { resumo: { faqs: number; grupos: number }; grupos: GrupoRevisao[]; listaVazia: boolean };
+  revisao?: {
+    resumo: { faqs: number; grupos: number };
+    grupos: GrupoRevisao[];
+    listaVazia: boolean;
+  };
   carregando: boolean;
   podeDefinir: boolean;
 }) {
@@ -300,7 +294,11 @@ function Revisao({
 
       <ul className="space-y-3">
         {revisao.grupos.map((grupo) => (
-          <CartaoRevisao key={`${grupo.motivo}:${grupo.categoria}`} grupo={grupo} podeDefinir={podeDefinir} />
+          <CartaoRevisao
+            key={`${grupo.motivo}:${grupo.categoria}`}
+            grupo={grupo}
+            podeDefinir={podeDefinir}
+          />
         ))}
       </ul>
     </section>
@@ -328,9 +326,7 @@ function CartaoRevisao({ grupo, podeDefinir }: { grupo: GrupoRevisao; podeDefini
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-base font-semibold">
-              {grupo.categoria || "(campo vazio)"}
-            </span>
+            <span className="text-base font-semibold">{grupo.categoria || "(campo vazio)"}</span>
             <span className={`rounded-full border px-2 py-0.5 text-xs ${motivo.tom}`}>
               {motivo.rotulo}
             </span>
@@ -570,8 +566,8 @@ function BotaoExcluir({ categoria }: { categoria: Categoria }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir "{categoria.nome}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Só é possível excluir assunto que nenhuma pergunta usa. Para aposentar um assunto
-              em uso, edite-o e marque "aposentar".
+              Só é possível excluir assunto que nenhuma pergunta usa. Para aposentar um assunto em
+              uso, edite-o e marque "aposentar".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

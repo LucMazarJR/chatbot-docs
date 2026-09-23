@@ -6,6 +6,7 @@ import { GateShell } from "@/components/gate";
 import { FaqCard } from "@/components/faq-shared";
 import { exigirSessao } from "@/lib/guardas";
 import { getFaq } from "@/lib/faq.functions";
+import { Carregando } from "@/components/carregando";
 
 /**
  * Uma pergunta isolada, com o mesmo cartão da listagem — e portanto os mesmos
@@ -45,7 +46,7 @@ function FaqPage() {
             Pergunta não encontrada. Ela pode ter sido excluída depois da conversa.
           </p>
         ) : faq.isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando…</p>
+          <Carregando texto="Carregando a pergunta…" />
         ) : faq.data ? (
           <FaqCard faq={faq.data} />
         ) : null}

@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TrocarSenhaObrigatoria } from "@/components/trocar-senha";
 import { BarraLateral, IrPara } from "@/components/barra-lateral";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Carregando } from "@/components/carregando";
 
 /**
  * Estado da sessão para os componentes.
@@ -109,7 +110,7 @@ export function GateShell({ children }: { children: React.ReactNode }) {
         {/* `div`, e não `main`: o SidebarInset já é o <main> da página. */}
         <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
           {carregando ? (
-            <p className="text-sm text-muted-foreground">Carregando…</p>
+            <Carregando texto="Conferindo o seu acesso…" />
           ) : precisaTrocarSenha ? (
             // Bloqueia o conteudo inteiro: sem isto, a marcacao no banco seria
             // decorativa e a senha escolhida por outra pessoa valeria para sempre.

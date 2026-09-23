@@ -43,6 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Carregando } from "@/components/carregando";
 
 const PAPEIS: { valor: UserRole; rotulo: string; descricao: string }[] = [
   { valor: "admin", rotulo: "Administrador", descricao: "Gerencia usuários e FAQs" },
@@ -154,7 +155,7 @@ function PainelUsuarios() {
       <FormularioNovoUsuario aoCriar={(dados) => mutCriar.mutateAsync(dados)} />
 
       {usuariosQuery.isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando usuários…</p>
+        <Carregando texto="Carregando as contas…" />
       ) : (
         <ul className="space-y-3">
           {usuarios.map((u) => (

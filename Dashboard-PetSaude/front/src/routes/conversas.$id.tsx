@@ -8,6 +8,7 @@ import { ApagarConversa } from "@/components/apagar-conversa";
 import { exigirAdmin } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
 import { SeloConta, SeloVersao, formatarData } from "./conversas.index";
+import { Carregando } from "@/components/carregando";
 
 export const Route = createFileRoute("/conversas/$id")({
   beforeLoad: () => exigirAdmin(),
@@ -42,7 +43,7 @@ function ConversaPage() {
             Não foi possível carregar esta conversa.
           </p>
         ) : conversa.isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando…</p>
+          <Carregando texto="Carregando a conversa…" />
         ) : !sessao ? (
           <p className="rounded-lg border border-dashed border-border p-6 sm:p-8 text-center text-sm text-muted-foreground">
             Conversa não encontrada.
@@ -101,7 +102,8 @@ function Balao({ mensagem }: { mensagem: MensagemConversa }) {
           className={
             "max-w-2xl rounded-lg border p-3 text-sm " +
             (doBot
-              ? "border-border panel-surface " + (trechos.length ? "cursor-pointer hover:border-primary/50" : "")
+              ? "border-border panel-surface " +
+                (trechos.length ? "cursor-pointer hover:border-primary/50" : "")
               : "border-transparent bg-primary/10")
           }
           onClick={() => trechos.length && setAberto((a) => !a)}
@@ -124,7 +126,9 @@ function Balao({ mensagem }: { mensagem: MensagemConversa }) {
                     falhou: {mensagem.motivoErro ?? "motivo não registrado"}
                   </span>
                 )}
-                {mensagem.feedback === "up" && <span className="text-success">avaliada como boa</span>}
+                {mensagem.feedback === "up" && (
+                  <span className="text-success">avaliada como boa</span>
+                )}
                 {mensagem.feedback === "down" && (
                   <span className="text-destructive">avaliada como ruim</span>
                 )}
@@ -169,9 +173,7 @@ function Trechos({ mensagem }: { mensagem: MensagemConversa }) {
         {trechos.map((trecho, indice) => (
           <li
             key={indice}
-            className={
-              "flex items-center gap-2 text-xs " + (trecho.usado ? "" : "opacity-60")
-            }
+            className={"flex items-center gap-2 text-xs " + (trecho.usado ? "" : "opacity-60")}
           >
             <span
               className={
