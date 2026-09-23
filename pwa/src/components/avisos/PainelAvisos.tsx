@@ -120,25 +120,37 @@ async function corrigirInscricaoForaDoLugar(): Promise<boolean> {
   const antiga = await doChat.pushManager.getSubscription();
   if (!antiga) return false;
 
+  // Cada etapa com nome: se falhar, a tela diz onde, e não engole o erro.
+  const etapa = async <T,>(nome: string, fazer: () => Promise<T>): Promise<T> => {
+    try {
+      return await fazer();
+    } catch (erro) {
+      throw new Error(`${nome}: ${(erro as Error).message || 'falhou'}`);
+    }
+  };
+
   if (Notification.permission === 'granted') {
-    const registro = await comPrazo(registroDoStaging(), 15_000);
-    const { chavePublica } = (await (await fetch('/api/push/chave-publica')).json()) as {
-      chavePublica: string;
-    };
-    const nova = await comPrazo(
-      registro.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: base64UrlParaBytes(chavePublica),
-      }),
-      20_000,
+    const registro = await etapa('preparar o aparelho', () => comPrazo(registroDoStaging(), 15_000));
+    const { chavePublica } = await etapa('buscar a chave', async () =>
+      (await (await fetch('/api/push/chave-publica')).json()) as { chavePublica: string },
     );
-    const gravou = await fetch('/api/push/inscricoes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nova.toJSON()),
+    const nova = await etapa('inscrever', () =>
+      comPrazo(
+        registro.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64UrlParaBytes(chavePublica),
+        }),
+        20_000,
+      ),
+    );
+    await etapa('gravar no servidor', async () => {
+      const gravou = await fetch('/api/push/inscricoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nova.toJSON()),
+      });
+      if (!gravou.ok) throw new Error(`HTTP ${gravou.status}`);
     });
-    // Sem a nova gravada, a antiga fica: um aviso genérico ainda é melhor que nenhum.
-    if (!gravou.ok) return false;
   }
 
   await fetch('/api/push/inscricoes', {
@@ -250,8 +262,14 @@ export function PainelAvisos() {
           });
           setDiagnostico(await diagnosticar());
         }
-      } catch {
-        // Sem conseguir corrigir agora, a tela segue igual; tenta de novo na próxima abertura.
+      } catch (erro) {
+        // A inscrição antiga continua valendo (o service worker do `/` também
+        // mostra o aviso), então isto não impede de receber. Mas dizer onde
+        // parou é o que permite achar o motivo no aparelho de quem testa.
+        setMensagem({
+          texto: `Não consegui ajustar os avisos deste aparelho (${(erro as Error).message}). Os avisos continuam chegando; se quiser tentar de novo, toque em Desativar e depois em Ativar.`,
+          erro: true,
+        });
       }
     })();
   }, []);
