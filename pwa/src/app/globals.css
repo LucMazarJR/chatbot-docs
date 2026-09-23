@@ -37,6 +37,8 @@
   --painel: #ffffff;
   --borda: rgba(17, 27, 33, 0.1);
   --acento: #008069;
+  /* Só na opção sem volta. 6.5:1 sobre o painel claro. */
+  --perigo: #b3261e;
   /* Amarelo do aviso de sistema do WhatsApp. */
   --aviso: #fff3c4;
   --aviso-texto: #5b4a1f;
@@ -70,6 +72,8 @@
   --painel: #111b21;
   --borda: rgba(233, 237, 239, 0.12);
   --acento: #00a884;
+  /* No escuro o vermelho some; o rosado dá 9:1. */
+  --perigo: #ffb4ab;
   --aviso: #1e2a30;
   --aviso-texto: #ffd279;
 }
@@ -360,7 +364,7 @@ button {
   /* Padrão abstrato próprio, em SVG embutido — nenhum arquivo da Meta.
      A cor do traço fica FIXA dentro do SVG: um `data:` URI é renderizado em
      contexto isolado e não enxerga as variáveis CSS desta página, então
-     `var(--x)` aqui dentro sairia inválido e o padrão simplesmente não
+     `var(--x)` aqui dentro sairia inválido e o padrão não
      apareceria. Por isso o tema escuro troca a imagem inteira, mais abaixo. */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23111b21' stroke-width='1.6' stroke-linecap='round' opacity='0.06'%3E%3Ccircle cx='34' cy='30' r='9'/%3E%3Cpath d='M92 22h26v18h-9l-5 7-4-7h-8z'/%3E%3Cpath d='M168 18l7 13 14 2-10 10 2 14-13-7-13 7 2-14-10-10 14-2z'/%3E%3Cpath d='M226 34c0-6 9-8 11-2 2-6 11-4 11 2 0 7-11 14-11 14s-11-7-11-14z'/%3E%3Cpath d='M20 96h22M20 104h14'/%3E%3Ccircle cx='104' cy='100' r='11'/%3E%3Cpath d='M104 93v14M97 100h14'/%3E%3Cpath d='M164 92l10 10-10 10-10-10z'/%3E%3Cpath d='M214 90h24v20h-24z'/%3E%3Cpath d='M214 98h24'/%3E%3Cpath d='M26 168c8-10 20-10 28 0'/%3E%3Ccircle cx='40' cy='178' r='3'/%3E%3Cpath d='M88 162h28l-6 22H94z'/%3E%3Cpath d='M160 160v24M152 172h16'/%3E%3Ccircle cx='226' cy='172' r='10'/%3E%3Cpath d='M222 172l3 4 6-7'/%3E%3Cpath d='M24 226h20l-4 14H28z'/%3E%3Cpath d='M96 232c0-5 7-7 9-2 2-5 9-3 9 2 0 6-9 12-9 12s-9-6-9-12z'/%3E%3Cpath d='M158 224h24v16h-24z'/%3E%3Cpath d='M164 224v-6h12v6'/%3E%3Ccircle cx='228' cy='232' r='9'/%3E%3C/g%3E%3C/svg%3E");
   background-attachment: local;
@@ -694,7 +698,7 @@ button {
 }
 
 :root[data-tema='escuro'] .enviar {
-  background: #00a884;
+  background: var(--acento);
   color: #111b21;
 }
 
@@ -947,7 +951,8 @@ button {
   font-weight: 600;
 }
 
-.folha .acoes .enviar-avaliacao {
+.folha .acoes .enviar-avaliacao,
+.folha .acoes .botao-folha {
   background: var(--acento);
   color: #fff;
 }
@@ -1200,15 +1205,12 @@ button {
    no escuro o mesmo tom some, e o rosado dá 9:1. */
 .menu .menu-perigo,
 .aviso-erro {
-  color: #b3261e;
+  color: var(--perigo);
 }
 
-:root[data-tema='escuro'] .menu .menu-perigo,
-:root[data-tema='escuro'] .aviso-erro {
-  color: #ffb4ab;
-}
-
-.folha .enviar-avaliacao.perigo {
+.folha .enviar-avaliacao.perigo,
+.folha .botao-folha.perigo {
+  /* Fixo nos dois temas: o rosado do escuro não segura texto branco. */
   background: #b3261e;
   color: #fff;
 }

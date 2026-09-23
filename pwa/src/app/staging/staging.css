@@ -269,24 +269,19 @@
 }
 
 .st-perigo {
-  background: #b3261e;
+  background: var(--perigo);
   color: #fff;
 }
 
 :root[data-tema='escuro'] .st-perigo {
-  background: #ffb4ab;
   color: #3a0906;
 }
 
 .st-erro {
   margin: 0 0 14px;
-  color: #b3261e;
+  color: var(--perigo);
   font-weight: 600;
   line-height: 1.45;
-}
-
-:root[data-tema='escuro'] .st-erro {
-  color: #ffb4ab;
 }
 
 .st-aviso-ok {
@@ -485,11 +480,7 @@
 }
 
 .st-zona-perigo h2 {
-  color: #b3261e;
-}
-
-:root[data-tema='escuro'] .st-zona-perigo h2 {
-  color: #ffb4ab;
+  color: var(--perigo);
 }
 
 /* Ação secundária com cara de link: o teste local é para quando o principal

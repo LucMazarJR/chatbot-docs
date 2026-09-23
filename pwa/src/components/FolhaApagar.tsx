@@ -82,7 +82,7 @@ export function FolhaApagar({
             <div className="acoes">
               <button
                 ref={recomecarRef}
-                className="enviar-avaliacao"
+                className="botao-folha"
                 type="button"
                 onClick={() => window.location.reload()}
               >
@@ -114,7 +114,7 @@ export function FolhaApagar({
                 Voltar
               </button>
               <button
-                className="enviar-avaliacao perigo"
+                className="botao-folha perigo"
                 type="button"
                 onClick={apagar}
                 disabled={estado === 'apagando'}
