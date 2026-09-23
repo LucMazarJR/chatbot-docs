@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EstadoVazio } from "@/components/estado";
+import { Segmentos } from "@/components/segmentos";
+import { Selo } from "@/components/selo";
 import {
   Dialog,
   DialogContent,
@@ -38,53 +41,44 @@ const ROTULO: Record<LinhaValidada["estado"], string> = {
  *
  * Anda junto do selo de estado, e não no lugar dele: a linha continua sendo
  * nova, duplicada ou inválida por conta própria, e o assunto é uma segunda
- * informação. Não bloqueia a importação — recusar o lote por causa da taxonomia
- * travaria a entrada de conteúdo até a equipe de saúde terminar a lista.
+ * informação. Não bloqueia a importação, porque recusar o lote por causa da
+ * taxonomia travaria a entrada de conteúdo até a equipe de saúde terminar a lista.
  */
 function SeloAssunto() {
   return (
-    <span className="inline-flex shrink-0 items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
-      <AlertCircle className="mr-1 size-3" />
+    <Selo tom="atencao" icone={<AlertCircle />}>
       Assunto fora da lista
-    </span>
+    </Selo>
   );
 }
 
-function Selo({ item }: { item: LinhaValidada }) {
-  // "Parecida" e um estado `ok` com aviso: e importavel, mas nao deveria passar
-  // despercebida. Sem selo proprio, ela se confundiria com uma pergunta nova.
+function SelosDaLinha({ item }: { item: LinhaValidada }) {
+  // "Parecida" é um estado `ok` com aviso: é importável, mas não deveria passar
+  // despercebida. Sem selo próprio, ela se confundiria com uma pergunta nova.
   if (item.parecida) {
     return (
       <>
-        <span className="inline-flex shrink-0 items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
-          <AlertCircle className="mr-1 size-3" />
+        <Selo tom="atencao" icone={<AlertCircle />}>
           Já existe parecida
-        </span>
+        </Selo>
         {item.foraDaLista && <SeloAssunto />}
       </>
     );
   }
 
+  // Os três estados precisam se distinguir de relance: é por eles que a pessoa
+  // decide o que entra. Cada um tem tom e ícone próprios, para não depender só
+  // da cor.
   const estado = item.estado;
-  // Os tres estados precisam se distinguir de relance: e por eles que a pessoa
-  // decide o que entra. O "ja existe" era bg-muted sem borda sobre um cartao
-  // branco, ou seja, um retangulo invisivel -- dos tres, so dois apareciam.
-  const classe =
-    estado === "ok"
-      ? "border border-success/30 bg-success/10 text-success"
-      : estado === "duplicada"
-        ? "border border-border bg-muted text-muted-foreground"
-        : "border border-destructive/30 bg-destructive/10 text-destructive";
-
   return (
     <>
-      <span
-        className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${classe}`}
-      >
-        {estado === "duplicada" && <CopyCheck className="mr-1 size-3" />}
-        {estado === "invalida" && <AlertCircle className="mr-1 size-3" />}
-        {ROTULO[estado]}
-      </span>
+      {estado === "ok" && <Selo tom="sucesso">{ROTULO.ok}</Selo>}
+      {estado === "duplicada" && <Selo icone={<CopyCheck />}>{ROTULO.duplicada}</Selo>}
+      {estado === "invalida" && (
+        <Selo tom="erro" icone={<AlertCircle />}>
+          {ROTULO.invalida}
+        </Selo>
+      )}
       {item.foraDaLista && <SeloAssunto />}
     </>
   );
@@ -203,7 +197,7 @@ function DialogoEdicao({
  *
  * LÓGICA DO LUCIANO: duplicadas e inválidas vêm DESMARCADAS e não podem ser
  * marcadas. Deixar marcar uma duplicada seria oferecer um jeito fácil de criar
- * duas linhas com o mesmo content_hash — o banco não tem restrição de
+ * duas linhas com o mesmo content_hash: o banco não tem restrição de
  * unicidade nesse campo, e a cópia só apareceria quando alguém estranhasse a
  * contagem. Para reimportar algo que já existe, o caminho é editar a linha até
  * ela ser outra pergunta, e a edição está aqui do lado.
@@ -252,30 +246,29 @@ export function PreviaImportacao({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {(
-          [
-            ["todas", `Todas (${itens.length})`],
-            ["novas", `Novas (${contagem.ok})`],
-            ["problemas", `Com problema (${contagem.duplicadas + contagem.invalidas})`],
-          ] as [Filtro, string][]
-        ).map(([valor, rotulo]) => (
-          <Button
-            key={valor}
-            type="button"
-            size="sm"
-            variant={filtro === valor ? "default" : "outline"}
-            onClick={() => setFiltro(valor)}
-          >
-            {rotulo}
-          </Button>
-        ))}
-      </div>
+      <Segmentos
+        rotulo="Mostrar"
+        opcoes={[
+          { valor: "todas", rotulo: `Todas (${itens.length})` },
+          { valor: "novas", rotulo: `Novas (${contagem.ok})` },
+          {
+            valor: "problemas",
+            rotulo: `Com problema (${contagem.duplicadas + contagem.invalidas})`,
+          },
+        ]}
+        valor={filtro}
+        aoMudar={setFiltro}
+      />
 
       {visiveis.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          Nenhuma linha neste filtro.
-        </p>
+        <EstadoVazio
+          titulo="Nenhuma linha neste filtro"
+          acao={
+            <Button type="button" variant="outline" onClick={() => setFiltro("todas")}>
+              Ver todas as linhas
+            </Button>
+          }
+        />
       ) : (
         <ul className="space-y-2">
           {visiveis.map((item) => {
@@ -283,7 +276,7 @@ export function PreviaImportacao({
             return (
               <li
                 key={item.linha}
-                className="flex items-start gap-3 rounded-lg border border-border panel-surface p-3 sm:p-4"
+                className="flex items-start gap-3 rounded-xl border bg-card p-3 sm:p-4"
               >
                 <Checkbox
                   className="mt-1 shrink-0"
@@ -296,7 +289,7 @@ export function PreviaImportacao({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-muted-foreground">linha {item.linha}</span>
-                    <Selo item={item} />
+                    <SelosDaLinha item={item} />
                     {item.faq.category && (
                       <span className="truncate text-xs text-muted-foreground">
                         {item.faq.category}
