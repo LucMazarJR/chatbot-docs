@@ -169,7 +169,7 @@ describe('script padrão — Word', () => {
     expect(r.faqs).toHaveLength(1);
     expect(r.faqs[0].answer).toBe('Siga as orientacoes:');
     expect(r.avisos).toHaveLength(1);
-    expect(r.avisos[0].mensagem).toContain('2 paragrafo(s)');
+    expect(r.avisos[0].mensagem).toContain('2 parágrafo(s)');
   });
 
   it('tira os colchetes que a pessoa usa para delimitar o campo', () => {

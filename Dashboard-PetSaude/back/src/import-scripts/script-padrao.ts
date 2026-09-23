@@ -45,47 +45,47 @@ export const modelo = {
     exemplos: [
       [
         'Preciso de jejum para o exame de sangue?',
-        'Sim. O jejum recomendado e de 8 horas. Agua pode.',
+        'Sim. O jejum recomendado é de 8 horas. Água pode.',
         'exames',
         'jejum, sangue, coleta',
-        'Cartilha do Ministerio da Saude, 2024',
+        'Cartilha do Ministério da Saúde, 2024',
       ],
       [
         'Como devo guardar a insulina?',
-        'Mantenha sob refrigeracao, entre 2 C e 8 C. Nao congele.',
+        'Mantenha sob refrigeração, entre 2 °C e 8 °C. Não congele.',
         'medicamentos',
         'insulina, armazenamento, geladeira',
         'Manual de Diabetes',
       ],
     ],
     ajuda: [
-      'Uma FAQ por linha. Nao apague nem renomeie a linha de cabecalho.',
-      'Tags separadas por virgula. Sao necessarias pelo menos 3.',
+      'Uma FAQ por linha. Não apague nem renomeie a linha de cabeçalho.',
+      'Tags separadas por vírgula. São necessárias pelo menos 3.',
       'Assunto vazio faz a FAQ herdar o nome do arquivo como assunto.',
-      'Fonte e opcional.',
+      'Fonte é opcional.',
     ],
   },
 
   word: {
     instrucoes: [
-      'Escreva uma pergunta por paragrafo, comecando com P:',
-      'A resposta vem no paragrafo seguinte, comecando com R:',
-      'ATENCAO: a resposta e lida de UM paragrafo so. Paragrafos soltos abaixo',
-      'do R: sao ignorados — se a resposta tem varios itens, escreva todos na',
-      'mesma linha, separados por ponto e virgula.',
-      'TAGS: e FONTE: podem ficar na mesma linha da resposta ou no paragrafo',
-      'logo abaixo. Sao necessarias pelo menos 3 tags.',
+      'Escreva uma pergunta por parágrafo, começando com P:',
+      'A resposta vem no parágrafo seguinte, começando com R:',
+      'ATENÇÃO: a resposta é lida de UM parágrafo só. Parágrafos soltos abaixo',
+      'do R: são ignorados. Se a resposta tem vários itens, escreva todos na',
+      'mesma linha, separados por ponto e vírgula.',
+      'TAGS: e FONTE: podem ficar na mesma linha da resposta ou no parágrafo',
+      'logo abaixo. São necessárias pelo menos 3 tags.',
       'Para trocar o assunto no meio do documento, escreva [ASSUNTO: nome].',
       'Sem nenhum [ASSUNTO:], o assunto vira o nome do arquivo.',
     ],
     exemplo: [
       '[ASSUNTO: Exames]',
       'P: Preciso de jejum para o exame de sangue?',
-      'R: Sim. O jejum recomendado e de 8 horas. Agua pode.',
-      'TAGS: jejum, sangue, coleta. FONTE: Cartilha do Ministerio da Saude, 2024.',
+      'R: Sim. O jejum recomendado é de 8 horas. Água pode.',
+      'TAGS: jejum, sangue, coleta. FONTE: Cartilha do Ministério da Saúde, 2024.',
       '',
       'P: Como devo guardar a insulina?',
-      'R: Mantenha sob refrigeracao, entre 2 C e 8 C. Nao congele.',
+      'R: Mantenha sob refrigeração, entre 2 °C e 8 °C. Não congele.',
       'TAGS: insulina, armazenamento, geladeira. FONTE: Manual de Diabetes.',
     ],
   },
@@ -245,7 +245,7 @@ function gerarDeParagrafos(paragrafos, nomeArquivo) {
       } else {
         avisos.push({
           linha: numero,
-          mensagem: 'Resposta (R:) sem nenhuma pergunta (P:) antes dela — ignorada.',
+          mensagem: 'Resposta (R:) sem nenhuma pergunta (P:) antes dela. Foi ignorada: escreva a pergunta com P: no parágrafo de cima.',
         });
         continue;
       }
@@ -272,7 +272,7 @@ function gerarDeParagrafos(paragrafos, nomeArquivo) {
   if (perguntaPendente) {
     avisos.push({
       linha: linhaDaPergunta,
-      mensagem: 'Pergunta sem resposta (R:) depois dela — ignorada.',
+      mensagem: 'Pergunta sem resposta (R:) depois dela. Foi ignorada: escreva a resposta com R: no parágrafo seguinte.',
     });
   }
 
@@ -285,10 +285,10 @@ function gerarDeParagrafos(paragrafos, nomeArquivo) {
       linha: ignoradas[0],
       mensagem:
         ignoradas.length +
-        ' paragrafo(s) fora do formato nao entraram (linhas ' +
+        ' parágrafo(s) fora do formato não entraram (linhas ' +
         amostra +
         (ignoradas.length > 8 ? ' e outros' : '') +
-        '). A resposta e lida de um paragrafo so, o que comeca com R:.',
+        '). A resposta é lida de um parágrafo só, o que começa com R:.',
     });
   }
 
@@ -334,7 +334,7 @@ function gerarDeLinhas(linhas, nomeArquivo) {
     if (!pergunta || !resposta) {
       avisos.push({
         linha: numero,
-        mensagem: 'Linha com ' + (pergunta ? 'resposta' : 'pergunta') + ' em branco — ignorada.',
+        mensagem: 'Linha com ' + (pergunta ? 'resposta' : 'pergunta') + ' em branco. Foi ignorada: preencha a célula e envie de novo.',
       });
       continue;
     }
