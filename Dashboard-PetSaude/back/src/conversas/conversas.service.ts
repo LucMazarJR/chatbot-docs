@@ -6,6 +6,7 @@ import { Sessao, SessaoDocument } from './schemas/sessao.schema';
 import { Mensagem, MensagemDocument } from './schemas/mensagem.schema';
 import { CONEXAO_PROTOTIPO } from './conexao';
 import { ActivityService } from '../activity/activity.service';
+import { inicioDoDia } from '../comum/fuso';
 import { Rodada, RodadaDocument } from '../curadoria/schemas/rodada.schema';
 import { Sugestao, SugestaoDocument } from '../curadoria/schemas/sugestao.schema';
 
@@ -51,11 +52,8 @@ export class ConversasService {
     private desde(periodo: Periodo): Date | null {
         const agora = new Date();
 
-        if (periodo === 'hoje') {
-            const inicio = new Date(agora);
-            inicio.setHours(0, 0, 0, 0);
-            return inicio;
-        }
+        // No fuso da equipe: o servidor roda em UTC (ver comum/fuso.ts).
+        if (periodo === 'hoje') return inicioDoDia(agora);
         if (periodo === '7d') return new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
         if (periodo === '30d') return new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
         return null;
