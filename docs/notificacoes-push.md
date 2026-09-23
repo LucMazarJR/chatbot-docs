@@ -88,6 +88,10 @@ O tipo existe em três lugares, e os três precisam mudar juntos:
 
 ---
 
+Para avisos que se criam sozinhos a partir de uma regra (lembrete de consulta, confirmação de que os avisos funcionam), existe o caminho dos gatilhos: [gatilhos-de-avisos.md](gatilhos-de-avisos.md).
+
+---
+
 ## O despachante
 
 [pwa/src/lib/notificacoes/despachante.ts](../pwa/src/lib/notificacoes/despachante.ts), função `despachar()`. Cada rodada pega até 100 avisos vencidos, do mais antigo para o mais novo.

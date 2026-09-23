@@ -113,7 +113,9 @@ ENOENT: no such file or directory, open '.next/next-server.js.nft.json'
 
 **Na Vercel, os avisos ficam "Na fila" para sempre** se o container do Docker não estiver no ar: o relógio que envia só roda lá. Não há erro — o aviso só não sai, e vence.
 
-**Documento de aviso com um campo de nome errado fica parado na fila.** Quem grava na fila por fora do dashboard precisa do formato exato de [notificacoes-push.md](notificacoes-push.md#a-fila); o despachante não reclama de documento que não reconhece, só não o encontra.
+**Documento de aviso com um campo de nome errado fica parado na fila.** Quem grava na fila por fora do dashboard precisa do formato exato de [notificacoes-push.md](notificacoes-push.md#a-fila); o despachante não reclama de documento que não reconhece, só não o encontra. Para aviso automático, use um gatilho ([gatilhos-de-avisos.md](gatilhos-de-avisos.md)), que monta o documento pelo mesmo código.
+
+**Gatilho ligado pela primeira vez olha para trás.** Na primeira rodada não há `ultimaExecucao`, e um gatilho que não limita o período manda aviso sobre tudo que já aconteceu. Ligue sempre com `GATILHOS_ENSAIO=1` antes e confira o número em `gatilhos_execucoes`.
 
 **O endereço de volta do Google não pode vir de `PWA_PUBLIC_URL`.** No Docker ela é `http://pwa:8080`, que só o n8n alcança. O login usa os cabeçalhos `x-forwarded-*`; se um proxy novo não os repassar, o Google responde `redirect_uri_mismatch` com um endereço interno.
 
