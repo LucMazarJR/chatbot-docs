@@ -54,3 +54,15 @@ export function dataPorExtenso(valor: Date | string | number): string {
     year: "numeric",
   });
 }
+
+/** qua., 16/09, 21:32 */
+export function diaDaSemanaEHora(valor: Date | string | number): string {
+  return paraData(valor).toLocaleString("pt-BR", {
+    timeZone: FUSO,
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
