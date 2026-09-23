@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Eye, EyeOff, Stethoscope } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 import { login } from "@/lib/auth.functions";
@@ -37,7 +37,7 @@ function LoginPage() {
     try {
       await entrar({ data: { email, password: senha } });
       // A sessão mudou: o cache guardado é de outra pessoa. clear() descarta
-      // sem refazer — as queries da próxima tela buscam sozinhas ao montar.
+      // sem refazer, e as queries da próxima tela buscam sozinhas ao montar.
       queryClient.clear();
       toast.success("Bem-vindo!");
       navigate({ to: "/" });
@@ -49,16 +49,22 @@ function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
       <Toaster position="top-center" />
-      <div className="w-full max-w-sm space-y-6 rounded-lg border border-border panel-surface p-8">
+      <div className="w-full max-w-sm space-y-6 rounded-xl border bg-card p-6 shadow-sm sm:p-8">
         <div className="flex flex-col items-center gap-3 text-center">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-primary/12 text-primary">
-            <Stethoscope className="size-6" />
-          </span>
+          <img
+            src="/logo-pet-saude.png"
+            alt=""
+            width={56}
+            height={56}
+            className="size-14 rounded-full bg-white ring-1 ring-border"
+          />
           <div>
-            <h1 className="text-lg font-semibold">Central de FAQs</h1>
-            <p className="text-sm text-muted-foreground">Entre com sua conta para continuar</p>
+            <h1 className="text-xl font-semibold tracking-tight">Central de FAQs</h1>
+            <p className="text-[15px] text-muted-foreground">
+              PET-Saúde. Entre com a sua conta da equipe.
+            </p>
           </div>
         </div>
 
@@ -83,8 +89,7 @@ function LoginPage() {
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
-                className="h-8 px-2"
+                className="-mr-2 px-3"
                 onClick={() => setRevelar((v) => !v)}
                 aria-pressed={revelar}
                 aria-controls="senha"
@@ -116,10 +121,10 @@ function LoginPage() {
           de propósito: esta página é pública, e listar quem tem acesso total
           seria entregar os alvos.
         */}
-        <div className="space-y-2 text-center text-xs text-muted-foreground">
+        <div className="space-y-2 text-center text-sm text-muted-foreground">
           <button
             type="button"
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="min-h-11 rounded-md px-2 font-semibold text-primary underline-offset-4 hover:underline"
             aria-expanded={esqueceu}
             aria-controls="ajuda-senha"
             onClick={() => setEsqueceu((v) => !v)}
@@ -127,7 +132,7 @@ function LoginPage() {
             Esqueci minha senha
           </button>
           {esqueceu && (
-            <p id="ajuda-senha" className="rounded-md bg-muted/60 p-3 text-left text-foreground">
+            <p id="ajuda-senha" className="rounded-lg bg-muted p-3 text-left text-foreground">
               Peça a um administrador do painel para redefinir sua senha. Ele cria uma senha
               provisória, e no primeiro acesso você escolhe a sua. Quando o navegador perguntar,
               deixe ele salvar a senha nova.
