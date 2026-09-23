@@ -122,21 +122,6 @@ export const getFaqCategories = createServerFn({ method: "GET" }).handler(
   },
 );
 
-export const listActivity = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) =>
-    z
-      .object({
-        page: z.number().int().min(1).default(1),
-        limit: z.number().int().min(1).max(100).default(15),
-      })
-      .parse(data ?? {}),
-  )
-  .handler(
-    async ({ data }: { data: { page: number; limit: number } }): Promise<Paginated<Activity>> => {
-      return apiFetch<Paginated<Activity>>(`/activity?${montarQuery(data)}`);
-    },
-  );
-
 export type TrechoEncontrado = {
   id: string;
   question: string;

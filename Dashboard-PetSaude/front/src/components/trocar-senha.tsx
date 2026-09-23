@@ -64,16 +64,16 @@ export function TrocarSenhaObrigatoria({ email }: { email: string }) {
       toast.success("Senha alterada. Entre novamente com a nova senha.");
       navigate({ to: "/login" });
     } catch (erro) {
-      toast.error(erro instanceof Error ? erro.message : "Não foi possível alterar a senha");
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível alterar a senha. Confira a internet e tente de novo.");
     } finally {
       setSalvando(false);
     }
   };
 
   return (
-    <div className="mx-auto max-w-md space-y-6 rounded-lg border border-border panel-surface p-8">
+    <div className="mx-auto max-w-md space-y-6 rounded-xl border bg-card p-6 shadow-sm sm:p-8">
       <div className="flex flex-col items-center gap-3 text-center">
-        <span className="flex size-12 items-center justify-center rounded-xl bg-primary/12 text-primary">
+        <span className="flex size-12 items-center justify-center rounded-xl bg-primary-soft text-primary-soft-foreground">
           <KeyRound className="size-6" />
         </span>
         <div>

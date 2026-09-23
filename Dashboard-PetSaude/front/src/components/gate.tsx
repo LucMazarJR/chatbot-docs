@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { getSession, logout } from "@/lib/auth.functions";
 import { barraAbertaGuardada } from "@/lib/preferencia-barra";
-import { listActivity } from "@/lib/faq.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { TrocarSenhaObrigatoria } from "@/components/trocar-senha";
 import { BarraLateral, BotaoTema, Caminho, IrPara } from "@/components/barra-lateral";
@@ -123,38 +122,5 @@ export function GateShell({ children }: { children: React.ReactNode }) {
         </div>
       </SidebarInset>
     </SidebarProvider>
-  );
-}
-
-export function ActivityFeed() {
-  const activity = useQuery({
-    queryKey: ["activity", { limit: 15 }],
-    queryFn: () => listActivity({ data: { page: 1, limit: 15 } }),
-  });
-  const items = activity.data?.items ?? [];
-  if (items.length === 0) return null;
-
-  return (
-    <section className="rounded-lg border border-border panel-surface p-4 sm:p-6">
-      <h2 className="text-base font-semibold">Histórico de alterações</h2>
-      <ul className="mt-4 space-y-3">
-        {items.map((item) => (
-          <li key={item.id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
-            <strong className="text-foreground">{item.actor_name}</strong>
-            <span className="text-muted-foreground">
-              {item.action === "inserir"
-                ? "inseriu"
-                : item.action === "editar"
-                  ? "editou"
-                  : "excluiu"}
-            </span>
-            <span className="min-w-0 truncate text-foreground/80">“{item.question}”</span>
-            <span className="ml-auto text-xs text-muted-foreground">
-              {new Date(item.created_at).toLocaleString("pt-BR")}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

@@ -195,14 +195,6 @@
 }
 
 /*
- * A superfície de bloco. O nome ficou de uma versão anterior; os lugares que
- * usam a classe não precisam mudar quando a definição muda.
- */
-@utility panel-surface {
-  background-color: var(--color-card);
-}
-
-/*
  * Tema escuro. Ligado pelo botão da barra do topo, ou pelo sistema quando a
  * pessoa nunca escolheu (ver lib/tema.ts). A classe fica no <html>.
  */
