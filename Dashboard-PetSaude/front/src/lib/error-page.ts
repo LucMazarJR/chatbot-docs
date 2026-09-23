@@ -1,3 +1,5 @@
+import { SCRIPT_DO_TEMA } from "./tema";
+
 /**
  * Página devolvida quando o próprio servidor do painel falha ao montar a tela.
  *
@@ -14,9 +16,8 @@ export function renderErrorPage(): string {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       :root { --fundo: #f3f3f8; --cartao: #ffffff; --texto: #1c1d33; --suave: #575a76; --borda: #dcddea; --acao: #4b4fa8; --acao-texto: #ffffff; color-scheme: light; }
-      @media (prefers-color-scheme: dark) {
-        :root { --fundo: #15162a; --cartao: #1e2038; --texto: #e8e8f4; --suave: #a3a5c2; --borda: #30334f; --acao: #a5a8f0; --acao-texto: #191a40; color-scheme: dark; }
-      }
+      /* Escuro só para quem escolheu no painel, como no resto dele (lib/tema.ts). */
+      :root.dark { --fundo: #15162a; --cartao: #1e2038; --texto: #e8e8f4; --suave: #a3a5c2; --borda: #30334f; --acao: #a5a8f0; --acao-texto: #191a40; color-scheme: dark; }
       body { font: 15px/1.5 "IBM Plex Sans", system-ui, -apple-system, sans-serif; background: var(--fundo); color: var(--texto); display: grid; place-items: center; min-height: 100vh; margin: 0; padding: 1rem; box-sizing: border-box; }
       .card { max-width: 28rem; width: 100%; box-sizing: border-box; text-align: center; padding: 2rem 1.5rem; background: var(--cartao); border: 1px solid var(--borda); border-radius: 0.75rem; }
       h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
@@ -27,6 +28,7 @@ export function renderErrorPage(): string {
       .primary { background: var(--acao); color: var(--acao-texto); }
       .secondary { background: transparent; color: var(--texto); border-color: var(--borda); }
     </style>
+    <script>${SCRIPT_DO_TEMA}</script>
   </head>
   <body>
     <main class="card">

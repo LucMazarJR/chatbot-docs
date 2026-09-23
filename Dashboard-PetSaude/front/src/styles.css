@@ -195,8 +195,8 @@
 }
 
 /*
- * Tema escuro. Ligado pelo botão da barra do topo, ou pelo sistema quando a
- * pessoa nunca escolheu (ver lib/tema.ts). A classe fica no <html>.
+ * Tema escuro. Só vale para quem escolheu no botão da barra do topo; sem
+ * escolha, o painel é claro (ver lib/tema.ts). A classe fica no <html>.
  */
 .dark {
   --background: #15162a;
