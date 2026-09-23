@@ -191,6 +191,9 @@ services:
       # "desligado" para o relógio interno que envia os avisos a cada 30 s — só
       # se outro relógio passar a chamar /api/notificacoes/despachar.
       PWA_DESPACHANTE: ${PWA_DESPACHANTE:-}
+      # Gatilhos de avisos (pwa/src/gatilhos). Vazio desliga todos.
+      GATILHOS_ATIVOS: ${GATILHOS_ATIVOS:-}
+      GATILHOS_ENSAIO: ${GATILHOS_ENSAIO:-}
       # Vazias, o PWA gera o par de chaves na primeira vez e o guarda no banco,
       # e todo ambiente que usa o mesmo banco envia com as mesmas chaves. Ver
       # docs/notificacoes-push.md antes de preencher.

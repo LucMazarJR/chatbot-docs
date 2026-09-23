@@ -2,6 +2,9 @@ import { despachar } from './despachante';
 
 const INTERVALO_MS = 30_000;
 
+/** Cada gatilho tem o próprio intervalo; o relógio só confere quem está na hora. */
+const INTERVALO_GATILHOS_MS = 60_000;
+
 let iniciado = false;
 
 /**
@@ -37,4 +40,19 @@ export function iniciarRelogio(): void {
   // A primeira rodada espera o servidor terminar de subir e o banco conectar.
   setTimeout(rodada, 10_000).unref();
   setInterval(rodada, INTERVALO_MS).unref();
+
+  // Os gatilhos só olham o relógio se algum estiver ligado: com a variável
+  // vazia, nada do código deles nem chega a ser carregado.
+  if (process.env.GATILHOS_ATIVOS?.trim()) {
+    const gatilhos = async () => {
+      try {
+        const { rodarGatilhos } = await import('@/gatilhos/executor');
+        await rodarGatilhos();
+      } catch (erro) {
+        console.error(`[gatilhos] rodada falhou: ${(erro as Error).message}`);
+      }
+    };
+    setTimeout(gatilhos, 20_000).unref();
+    setInterval(gatilhos, INTERVALO_GATILHOS_MS).unref();
+  }
 }
