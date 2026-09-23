@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { FlaskConical, FolderOpen } from "lucide-react";
+import { FlaskConical, FolderOpen, UserRound } from "lucide-react";
 
 import {
   getFaqCategories,
@@ -43,6 +43,8 @@ type Busca = {
   category?: string;
   tag?: string;
   autor?: string;
+  /** "Minhas perguntas": só as que a conta logada criou ou alterou. */
+  minhas?: "sim";
   origem?: Origem;
   situacao?: Situacao;
   de?: string;
@@ -83,6 +85,7 @@ export const Route = createFileRoute("/")({
       ...(texto(search.category) ? { category: texto(search.category) } : {}),
       ...(texto(search.tag) ? { tag: texto(search.tag) } : {}),
       ...(texto(search.autor) ? { autor: texto(search.autor) } : {}),
+      ...(search.minhas === "sim" ? { minhas: "sim" as const } : {}),
       ...(origem ? { origem } : {}),
       ...(situacao ? { situacao } : {}),
       ...(texto(search.de) ? { de: texto(search.de) } : {}),
@@ -149,6 +152,7 @@ function BrowsePanel() {
           ...(valores.category ? { category: valores.category } : {}),
           ...(valores.tag ? { tag: valores.tag } : {}),
           ...(valores.autor ? { autor: valores.autor } : {}),
+          ...(busca.minhas ? { minhas: "sim" as const } : {}),
           ...(valores.origem ? { origem: valores.origem } : {}),
           ...(valores.situacao ? { situacao: valores.situacao } : {}),
           // O navegador monta as pontas do dia no fuso de quem esta filtrando:
@@ -171,7 +175,8 @@ function BrowsePanel() {
   const totalFiltrado = faqsQuery.data?.total ?? 0;
   const totalPaginas = faqsQuery.data?.totalPages ?? 1;
   const categorias = categoriasQuery.data?.categories ?? [];
-  const temFiltro = contarFiltrosAtivos(valores) > 0 || Boolean(termo);
+  const soMinhas = busca.minhas === "sim";
+  const temFiltro = contarFiltrosAtivos(valores) > 0 || Boolean(termo) || soMinhas;
 
   /**
    * LÓGICA DO LUCIANO: `replace: true` na busca. Sem ele, cada tecla digitada
@@ -255,6 +260,26 @@ function BrowsePanel() {
           categorias={categorias}
         />
         <div className="flex flex-wrap gap-2.5">
+          {/* Atalho pedido pela equipe: achar as próprias perguntas sem digitar
+              o nome. O back usa o nome da sessão e casa com ele inteiro. */}
+          <Button
+            type="button"
+            variant={soMinhas ? "secondary" : "outline"}
+            aria-pressed={soMinhas}
+            onClick={() =>
+              navigate({
+                search: (atual) => ({
+                  ...atual,
+                  minhas: soMinhas ? undefined : "sim",
+                  page: undefined,
+                }),
+                replace: true,
+              })
+            }
+            className={soMinhas ? "border border-primary" : undefined}
+          >
+            <UserRound /> Minhas perguntas
+          </Button>
           <BotaoFiltros
             aberto={filtrosAbertos}
             aoAlternar={() => setFiltrosAbertos((v) => !v)}
@@ -303,22 +328,35 @@ function BrowsePanel() {
       ) : faqsQuery.isLoading && !faqsQuery.data ? (
         <Carregando texto="Carregando as perguntas…" />
       ) : faqs.length === 0 ? (
-        <EstadoVazio
-          titulo={temFiltro ? "Nenhuma pergunta com esta busca" : "Nenhuma pergunta cadastrada"}
-          acao={
-            temFiltro ? (
+        soMinhas && contarFiltrosAtivos(valores) === 0 && !termo ? (
+          <EstadoVazio
+            titulo="Você ainda não cadastrou nem alterou nenhuma pergunta"
+            acao={
               <Button type="button" variant="outline" onClick={limparTudo}>
-                Limpar a busca e os filtros
+                Ver todas as perguntas
               </Button>
-            ) : (
-              <InsertFaqButton label="Cadastrar a primeira" />
-            )
-          }
-        >
-          {temFiltro
-            ? "Tente outra palavra, ou tire um filtro."
-            : "As perguntas cadastradas aqui passam a ser usadas pelo chatbot."}
-        </EstadoVazio>
+            }
+          >
+            As perguntas que você criar ou editar aparecem aqui.
+          </EstadoVazio>
+        ) : (
+          <EstadoVazio
+            titulo={temFiltro ? "Nenhuma pergunta com esta busca" : "Nenhuma pergunta cadastrada"}
+            acao={
+              temFiltro ? (
+                <Button type="button" variant="outline" onClick={limparTudo}>
+                  Limpar a busca e os filtros
+                </Button>
+              ) : (
+                <InsertFaqButton label="Cadastrar a primeira" />
+              )
+            }
+          >
+            {temFiltro
+              ? "Tente outra palavra, ou tire um filtro."
+              : "As perguntas cadastradas aqui passam a ser usadas pelo chatbot."}
+          </EstadoVazio>
+        )
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div

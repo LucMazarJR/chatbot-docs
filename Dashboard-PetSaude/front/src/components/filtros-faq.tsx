@@ -1,4 +1,5 @@
-import { Filter, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Filter, Search, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -170,33 +171,63 @@ export function PainelFiltros({
 }) {
   const ativos = contarOutrosFiltros(valores);
 
+  /*
+   * LÓGICA DO LUCIANO: tag e nome eram aplicados a cada tecla. Cada letra
+   * mudava a URL e disparava uma busca nova na base inteira, e digitar um nome
+   * travava a tela. Agora o texto fica num rascunho e só busca no Enter ou no
+   * botão. Os seletores e as datas continuam valendo na hora: não há digitação.
+   */
+  const [tag, setTag] = useState(valores.tag);
+  const [autor, setAutor] = useState(valores.autor);
+  // Limpar os filtros ou voltar pelo navegador muda a URL: o rascunho acompanha.
+  useEffect(() => setTag(valores.tag), [valores.tag]);
+  useEffect(() => setAutor(valores.autor), [valores.autor]);
+  const pendente = tag.trim() !== valores.tag.trim() || autor.trim() !== valores.autor.trim();
+
   return (
     <section
       id="painel-filtros"
       aria-label="Mais filtros"
       className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
-      <div className="space-y-1.5">
-        <Label htmlFor="filtro-tag">Tag</Label>
-        <Input
-          id="filtro-tag"
-          value={valores.tag}
-          autoComplete="off"
-          placeholder="Ex.: jejum"
-          onChange={(e) => aoMudar({ tag: e.target.value })}
-        />
-      </div>
+      <form
+        className="grid gap-3 sm:col-span-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end lg:col-span-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          aoMudar({ tag: tag.trim(), autor: autor.trim() });
+        }}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="filtro-tag">Tag</Label>
+          <Input
+            id="filtro-tag"
+            value={tag}
+            autoComplete="off"
+            placeholder="Ex.: jejum"
+            onChange={(e) => setTag(e.target.value)}
+          />
+        </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="filtro-autor">Quem cadastrou ou alterou</Label>
-        <Input
-          id="filtro-autor"
-          value={valores.autor}
-          autoComplete="off"
-          placeholder="Nome da pessoa"
-          onChange={(e) => aoMudar({ autor: e.target.value })}
-        />
-      </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="filtro-autor">Quem cadastrou ou alterou</Label>
+          <Input
+            id="filtro-autor"
+            value={autor}
+            autoComplete="off"
+            placeholder="Nome da pessoa"
+            onChange={(e) => setAutor(e.target.value)}
+          />
+        </div>
+
+        <Button type="submit" variant={pendente ? "default" : "outline"}>
+          <Search /> Buscar
+        </Button>
+        {pendente && (
+          <p className="text-sm text-muted-foreground sm:col-span-3" role="status">
+            Toque em Buscar, ou aperte Enter, para aplicar a tag e o nome.
+          </p>
+        )}
+      </form>
 
       <div className="space-y-1.5">
         <Label htmlFor="filtro-origem">De onde veio</Label>
@@ -265,7 +296,9 @@ export function PainelFiltros({
             <X /> Limpar {ativos === 1 ? "o filtro" : `os ${ativos} filtros`}
           </Button>
         ) : (
-          <p className="pb-3 text-sm text-muted-foreground">Nenhum filtro ligado além do assunto.</p>
+          <p className="pb-3 text-sm text-muted-foreground">
+            Nenhum filtro ligado além do assunto.
+          </p>
         )}
       </div>
     </section>

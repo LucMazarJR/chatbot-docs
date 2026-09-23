@@ -73,6 +73,8 @@ const listFaqsQuery = z.object({
   tag: z.string().trim().max(60).optional(),
   /** Casa com quem criou ou com quem alterou por último. */
   autor: z.string().trim().max(120).optional(),
+  /** Só as que a conta logada criou ou alterou. O nome vem da sessão, no back. */
+  minhas: z.literal("sim").optional(),
   origem: z.enum(ORIGENS).optional(),
   situacao: z.enum(SITUACOES).optional(),
   de: z.string().trim().optional(),
