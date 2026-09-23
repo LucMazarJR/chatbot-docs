@@ -191,6 +191,32 @@ describe('FaqsService — listagem paginada', () => {
     expect(ultimaConsulta.updatedAt.$lte.toISOString()).toBe(ate);
   });
 
+  it('minhas casa com o nome inteiro, e nao com pedaco dele', async () => {
+    // "Ana" com casamento parcial traria as perguntas da "Mariana".
+    await service.listFaqs({ minhasDe: 'Ana' });
+
+    const [porQuemAlterou, porQuemCriou] = ultimaConsulta.$and[0].$or;
+    expect(porQuemAlterou.updated_by.test('Ana')).toBe(true);
+    expect(porQuemAlterou.updated_by.test('ana')).toBe(true);
+    expect(porQuemAlterou.updated_by.test('Mariana')).toBe(false);
+    expect(porQuemCriou.created_by.test('Ana Paula')).toBe(false);
+  });
+
+  it('minhas junto com autor e busca: nenhum sobrescreve o outro', async () => {
+    await service.listFaqs({ minhasDe: 'Ana', autor: 'Bia', search: 'jejum' });
+
+    expect(ultimaConsulta.$and).toHaveLength(3);
+    expect(ultimaConsulta.$or).toBeUndefined();
+  });
+
+  it('nome com caractere de regex nao quebra nem vira curinga', async () => {
+    await service.listFaqs({ minhasDe: 'Ana (UBS)' });
+
+    const [porQuemAlterou] = ultimaConsulta.$and[0].$or;
+    expect(porQuemAlterou.updated_by.test('Ana (UBS)')).toBe(true);
+    expect(porQuemAlterou.updated_by.test('Ana UBS')).toBe(false);
+  });
+
   it('ignora autor que so tem espaco', async () => {
     // `f.autor` com um espaco e verdadeiro, e new RegExp('') casa com tudo: o
     // filtro parecia aplicado e nao filtrava nada.

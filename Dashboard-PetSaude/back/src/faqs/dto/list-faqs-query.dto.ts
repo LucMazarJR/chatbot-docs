@@ -48,6 +48,11 @@ export class ListFaqsQueryDto {
     @MaxLength(120)
     autor?: string;
 
+    /** `sim`: so as perguntas que a propria pessoa logada criou ou alterou. */
+    @IsOptional()
+    @IsIn(['sim'])
+    minhas?: 'sim';
+
     @IsOptional()
     @IsIn(['manual', 'importada', 'drive'])
     origem?: 'manual' | 'importada' | 'drive';

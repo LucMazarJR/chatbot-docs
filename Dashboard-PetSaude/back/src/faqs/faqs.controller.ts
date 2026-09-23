@@ -39,8 +39,12 @@ export class FaqsController {
     }
 
     @Get()
-    listFaqs(@Query() query: ListFaqsQueryDto) {
-        return this.faqsService.listFaqs(query);
+    listFaqs(@Query() query: ListFaqsQueryDto, @CurrentUser() user: AuthenticatedUser) {
+        const { minhas, ...filtro } = query;
+        return this.faqsService.listFaqs({
+            ...filtro,
+            ...(minhas === 'sim' ? { minhasDe: user.name } : {}),
+        });
     }
 
     // Declarada por ultimo entre os GET: qualquer rota fixa nova precisa vir
