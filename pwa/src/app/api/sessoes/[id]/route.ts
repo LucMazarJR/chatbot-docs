@@ -36,7 +36,7 @@ export async function DELETE(requisicao: Request, { params }: Contexto) {
   } catch (erro) {
     // Sem detalhe para a tela: o motivo serve à equipe. A conversa continua
     // inteira — as cópias saem primeiro — então tentar de novo é seguro.
-    console.error(`[exclusão] falhou para a sessão ${id}:`, erro);
+    console.error(`[exclusão] falhou para a sessão ${id}: ${(erro as Error).message}`);
     return Response.json({ erro: 'não foi possível apagar agora' }, { status: 503 });
   }
 }

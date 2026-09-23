@@ -39,7 +39,7 @@ export async function DELETE(requisicao: Request) {
   } catch (erro) {
     // A conta sai por último: se chegou aqui, ela ainda existe e a pessoa
     // continua logada para tentar de novo.
-    console.error(`[conta] exclusão falhou para ${usuario._id}:`, erro);
+    console.error(`[conta] exclusão falhou para ${usuario._id}: ${(erro as Error).message}`);
     return Response.json({ erro: 'Não foi possível apagar agora. Tente de novo.' }, { status: 503 });
   }
 }
