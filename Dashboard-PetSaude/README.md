@@ -11,7 +11,7 @@ Depois foi necessário transformar esse layout em um software Full-Stack. Para i
 A aplicação está totalmente separada e hospedada na nuvem nos seguintes serviços:
 
 * **Front-end (Painel de Acesso):** Hospedado na Vercel.
-  * Acesso: https://dashboard-pet-saude.vercel.app/
+  * Acesso: https://dashboard-pet-saude-seven.vercel.app/
 * **Back-end (API / Banco de Dados):** Hospedado no Render.
 
 ## Stack de Tecnologia
