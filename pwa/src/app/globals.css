@@ -1297,3 +1297,61 @@ button {
   padding-top: 20px;
   text-align: center;
 }
+
+/* --- Carregando ---------------------------------------------------------- */
+
+/* O sinal de que algo está chegando (componente Carregando). Existe para a tela
+   nunca mostrar "nenhum" ou ficar em branco enquanto a resposta ainda vem. */
+.carregando {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--texto-fraco);
+  line-height: 1.4;
+}
+
+.carregando-bloco {
+  justify-content: center;
+  padding: 20px 12px;
+}
+
+.carregando-linha {
+  padding: 6px 0;
+}
+
+/* No fundo desenhado do chat, texto solto some: vai numa pílula, como o
+   divisor de data. */
+.carregando-balao {
+  width: fit-content;
+  margin: 8px auto;
+  padding: 8px 14px;
+  border-radius: 7.5px;
+  background: var(--divisor);
+  box-shadow: var(--sombra);
+  font-size: 0.9em;
+}
+
+.carregando-giro {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--acento);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: carregando-giro 0.8s linear infinite;
+}
+
+@keyframes carregando-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mais devagar, e não parado: um círculo parado não diz que algo está
+   acontecendo. */
+@media (prefers-reduced-motion: reduce) {
+  .carregando-giro {
+    animation-duration: 2.4s;
+  }
+}
