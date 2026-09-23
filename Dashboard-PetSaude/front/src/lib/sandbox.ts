@@ -104,7 +104,7 @@ function fonteDoWorker(codigo: string): string {
       Object.defineProperty(self, bloquear[i], {
         value: undefined, writable: false, configurable: false,
       });
-    } catch (e) { /* já bloqueada ou não configurável — segue */ }
+    } catch (e) { /* já bloqueada ou não configurável: segue */ }
   }
 })();
 
@@ -126,14 +126,14 @@ self.onmessage = function (evento) {
   try {
     if (pedido.acao === "modelo") {
       if (typeof modelo === "undefined") {
-        throw new Error("A regra de leitura nao descreve o formato dos modelos.");
+        throw new Error("A regra de leitura não descreve o formato dos modelos. Peça a quem mantém a regra para acrescentar o modelo.");
       }
       self.postMessage({ tipo: "resultado", dados: modelo });
       return;
     }
 
     if (typeof gerarFaqs !== "function") {
-      throw new Error("A regra de leitura esta incompleta.");
+      throw new Error("A regra de leitura está incompleta: falta a função gerarFaqs. Peça a quem mantém a regra para conferir.");
     }
 
     var saida = gerarFaqs(pedido.entrada) || {};
@@ -191,7 +191,7 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
       encerrar();
       reject(
         new ErroDeScript(
-          "Nao foi possivel preparar a leitura do arquivo.",
+          "Não foi possível preparar a leitura do arquivo. Recarregue a página e tente de novo.",
           erro instanceof Error ? erro.message : String(erro),
         ),
       );
@@ -202,7 +202,7 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
       const dados = evento.data ?? {};
       encerrar();
       if (dados.tipo === "resultado") resolve(dados.dados as T);
-      else reject(new ErroDeScript(dados.mensagem ?? "Falha ao ler o arquivo.", dados.detalhe));
+      else reject(new ErroDeScript(dados.mensagem ?? "Não foi possível ler o arquivo. Confira o formato e tente de novo.", dados.detalhe));
     };
 
     // Erro de sintaxe no script chega por aqui, antes de qualquer mensagem: o
@@ -212,7 +212,7 @@ function executar<T>(codigo: string, pedido: Pedido, timeoutMs: number): Promise
       encerrar();
       reject(
         new ErroDeScript(
-          evento.message || "A regra de leitura tem um erro que impede a execucao.",
+          evento.message || "A regra de leitura tem um erro que impede a execução. Corrija a regra em Configurações e tente de novo.",
           evento.lineno ? `Linha ${evento.lineno} da regra.` : undefined,
         ),
       );

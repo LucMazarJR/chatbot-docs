@@ -101,7 +101,7 @@ async function lerXlsx(
 
   if (abas.length > 1) {
     avisos.push(
-      `A planilha tem ${abas.length} abas e so a primeira ("${abas[0].sheet}") foi lida. ` +
+      `A planilha tem ${abas.length} abas e só a primeira ("${abas[0].sheet}") foi lida. ` +
         `Ignoradas: ${abas
           .slice(1)
           .map((a) => a.sheet)
@@ -147,17 +147,17 @@ export async function decodificarArquivo(arquivo: File): Promise<ResultadoDecodi
   const tipo = extensaoDe(arquivo.name);
   if (!tipo) {
     throw new ErroDeArquivo(
-      "Formato nao reconhecido. Envie um arquivo .docx (Word) ou .xlsx (Excel).",
+      "Formato não reconhecido. Envie um arquivo .docx (Word) ou .xlsx (Excel).",
     );
   }
 
   if (arquivo.size === 0) {
-    throw new ErroDeArquivo("O arquivo esta vazio.");
+    throw new ErroDeArquivo("O arquivo está vazio. Abra-o no Word ou no Excel, confira se as perguntas estão lá e envie de novo.");
   }
 
   if (arquivo.size > TAMANHO_MAXIMO) {
     throw new ErroDeArquivo(
-      `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB e o limite e 10 MB. ` +
+      `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1)} MB, e o limite é 10 MB. ` +
         "Divida em arquivos menores.",
     );
   }
@@ -177,9 +177,9 @@ export async function decodificarArquivo(arquivo: File): Promise<ResultadoDecodi
     // erro cru das bibliotecas ("Can't find end of central directory") não
     // ajudaria ninguém a entender o que fazer.
     throw new ErroDeArquivo(
-      "Nao foi possivel ler o arquivo. Confira se ele e mesmo um " +
+      "Não foi possível ler o arquivo. Confira se ele é mesmo um " +
         (tipo === "docx" ? ".docx (Word 2007 ou mais novo)" : ".xlsx (Excel 2007 ou mais novo)") +
-        " e se nao esta protegido por senha.",
+        " e se não está protegido por senha. No Word ou no Excel, use Salvar como e escolha esse formato.",
     );
   }
 }
