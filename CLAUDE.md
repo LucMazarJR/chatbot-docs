@@ -2,6 +2,10 @@
 
 Regras de trabalho, não de arquitetura. A arquitetura está em [docs/](docs/), começando por [docs/arquitetura.md](docs/arquitetura.md), e o que quebra em silêncio está em [docs/armadilhas.md](docs/armadilhas.md).
 
+## Idioma
+
+Tudo em português do Brasil: as respostas ao usuário durante o trabalho, os resumos, as mensagens de commit, os comentários, a documentação e o texto de tela.
+
 ## Commits pequenos, na main
 
 Commitar por partes ao longo do trabalho, e não um commit gigante no fim. Cada commit precisa compilar e passar nos testes sozinho. Sem criar branch.
