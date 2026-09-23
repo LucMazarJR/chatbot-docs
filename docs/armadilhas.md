@@ -91,6 +91,10 @@ ENOENT: no such file or directory, open '.next/next-server.js.nft.json'
 
 **Instalar como aplicativo exige HTTPS.** Por IP da rede local o chat funciona, mas o navegador recusa registrar o service worker e o "Adicionar à tela de início" não aparece. Não é defeito do protótipo.
 
+**Service worker que espera a rede sem prazo trava justamente quem já usou o site.** Com rede pendurada (sinal fraco, Wi-Fi com portal, função da Vercel acordando), a navegação fica em branco até o navegador desistir, com uma cópia boa da página parada no cache. Para quem nunca abriu, não há service worker e o erro aparece rápido, então o problema parece ser "só no meu celular". O [sw.js](../pwa/public/sw.js) dá 4 segundos à rede e depois abre a cópia. Mexer nele pede o roteiro que coloca a rede em quatro estados (normal, pendurada, fora do ar, com 500).
+
+**O service worker do `/` enxerga o `/staging` inteiro.** Enquanto o do staging não foi registrado, é o do `/` que atende as páginas de lá, com conta e histórico. Por isso ele não guarda nada do `/staging`, e o nome do cache muda (`prototipo-pwa-v2`, e assim por diante) sempre que for preciso apagar o que uma versão anterior guardou.
+
 ---
 
 ## Contas e avisos push
