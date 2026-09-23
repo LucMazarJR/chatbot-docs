@@ -114,7 +114,7 @@ export function GateShell({ children }: { children: React.ReactNode }) {
           ) : precisaTrocarSenha ? (
             // Bloqueia o conteudo inteiro: sem isto, a marcacao no banco seria
             // decorativa e a senha escolhida por outra pessoa valeria para sempre.
-            <TrocarSenhaObrigatoria />
+            <TrocarSenhaObrigatoria email={usuario?.email ?? ""} />
           ) : (
             children
           )}

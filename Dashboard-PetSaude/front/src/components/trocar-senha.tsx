@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
  * Trocar a senha revoga todas as sessões no backend, inclusive esta, então o
  * caminho natural depois de salvar é voltar ao login.
  */
-export function TrocarSenhaObrigatoria() {
+export function TrocarSenhaObrigatoria({ email }: { email: string }) {
   const trocar = useServerFn(changePassword);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -31,21 +31,29 @@ export function TrocarSenhaObrigatoria() {
   const [confirmacao, setConfirmacao] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [revelar, setRevelar] = useState(false);
+  const [falta, setFalta] = useState<string | null>(null);
 
   const curta = senhaNova.length > 0 && senhaNova.length < 8;
   // O backend recusa senha igual à atual; avisar aqui evita a ida e volta.
   const igualAAtual = senhaNova.length > 0 && senhaNova === senhaAtual;
 
   const naoConfere = confirmacao.length > 0 && senhaNova !== confirmacao;
-  const podeEnviar =
-    senhaAtual.length > 0 &&
-    senhaNova.length >= 8 &&
-    senhaNova === confirmacao &&
-    !igualAAtual &&
-    !salvando;
+
+  /** O que ainda impede salvar, na ordem dos campos, ou null. */
+  const oQueFalta = (): string | null => {
+    if (!senhaAtual) return "Digite a senha provisória que você recebeu.";
+    if (senhaNova.length < 8) return "A nova senha precisa ter ao menos 8 caracteres.";
+    if (igualAAtual) return "A nova senha precisa ser diferente da provisória.";
+    if (senhaNova !== confirmacao) return "Repita a nova senha igual no último campo.";
+    return null;
+  };
 
   const enviar = async (evento: React.FormEvent) => {
     evento.preventDefault();
+    // O botão não fica travado: travado, ele não dizia o que faltava.
+    const motivo = oQueFalta();
+    setFalta(motivo);
+    if (motivo) return;
     setSalvando(true);
     try {
       await trocar({ data: { currentPassword: senhaAtual, newPassword: senhaNova } });
@@ -77,7 +85,33 @@ export function TrocarSenhaObrigatoria() {
         </div>
       </div>
 
-      <form className="space-y-4" onSubmit={enviar}>
+      {/* noValidate: a validação do navegador aparecia antes da nossa frase, em
+          balões que somem sozinhos. */}
+      <form className="space-y-4" onSubmit={enviar} noValidate>
+        {/*
+          LÓGICA DO LUCIANO: este campo é o que faz o navegador guardar a senha
+          nova na conta certa. Sem ele, o gerenciador de senhas não sabe de quem
+          é a senha que está sendo trocada: continuava com a provisória salva do
+          primeiro acesso e a preenchia sozinho no dia seguinte, quando ela já
+          não valia. A pessoa achava que tinha esquecido a senha e pedia outra
+          provisória, e o ciclo recomeçava.
+
+          Visível, e não oculto, porque diz também para a pessoa de qual conta
+          ela está definindo a senha.
+        */}
+        <div className="space-y-2">
+          <Label htmlFor="conta-email">Conta</Label>
+          <Input
+            id="conta-email"
+            name="email"
+            type="email"
+            autoComplete="username"
+            value={email}
+            readOnly
+            className="bg-muted/40"
+          />
+        </div>
+
         {/*
           LÓGICA DO LUCIANO: o olho de revelar existe porque esta é a primeira
           tela de todo usuário novo, e ele precisa digitar às cegas uma senha
@@ -157,9 +191,20 @@ export function TrocarSenhaObrigatoria() {
           {naoConfere && <p className="text-xs text-destructive">As senhas não conferem.</p>}
         </div>
 
-        <Button type="submit" className="w-full" disabled={!podeEnviar}>
+        {falta && (
+          <p role="alert" className="text-sm text-destructive">
+            {falta}
+          </p>
+        )}
+
+        <Button type="submit" className="w-full" disabled={salvando}>
           {salvando ? "Salvando…" : "Salvar e entrar novamente"}
         </Button>
+
+        <p className="text-xs text-muted-foreground">
+          Se o navegador perguntar, deixe ele salvar a senha nova: é o que evita precisar pedir
+          outra provisória.
+        </p>
       </form>
     </div>
   );
