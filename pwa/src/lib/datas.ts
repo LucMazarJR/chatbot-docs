@@ -34,6 +34,24 @@ export function dataEHora(valor: Date | string): string {
   return `${diaEMes(valor)} às ${hora(valor)}`;
 }
 
+/** O dia no calendário de Brasília, para comparar datas sem o horário. */
+function diaDoCalendario(valor: Date): string {
+  return valor.toLocaleDateString('sv-SE', { timeZone: FUSO });
+}
+
+/**
+ * "Hoje", "Ontem" ou "16 de setembro", como o divisor de data do WhatsApp.
+ *
+ * Existe porque o divisor dizia sempre "Hoje", inclusive numa conversa
+ * retomada de outro dia: a frase apontava para um dia que não era o dela.
+ */
+export function rotuloDoDia(valor: Date | string, agora: Date = new Date()): string {
+  const dia = diaDoCalendario(paraData(valor));
+  if (dia === diaDoCalendario(agora)) return 'Hoje';
+  if (dia === diaDoCalendario(new Date(agora.getTime() - 24 * 60 * 60 * 1000))) return 'Ontem';
+  return paraData(valor).toLocaleDateString('pt-BR', { timeZone: FUSO, day: 'numeric', month: 'long' });
+}
+
 /** terça-feira, 16 de setembro de 2026 */
 export function dataPorExtenso(valor: Date | string): string {
   return paraData(valor).toLocaleDateString('pt-BR', {

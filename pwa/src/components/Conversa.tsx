@@ -26,7 +26,7 @@ import {
 import { formatarDuracao, useGravador } from '@/lib/usar-gravador';
 import type { Papel, TipoAnexo } from '@/lib/tipos';
 import { Carregando } from '@/components/Carregando';
-import { hora } from '@/lib/datas';
+import { hora, rotuloDoDia } from '@/lib/datas';
 
 const INATIVIDADE_MS = 2 * 60 * 1000;
 const MINIMO_PERGUNTAS_PARA_AVALIAR = 3;
@@ -158,6 +158,8 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   const comConta = modo === 'conta';
   const [sessaoId, setSessaoId] = useState<string | null>(null);
   const [falhaAoAbrir, setFalhaAoAbrir] = useState(false);
+  // Quando a conversa começou, para o divisor dizer o dia certo numa conversa retomada.
+  const [iniciadaEm, setIniciadaEm] = useState<Date | null>(null);
   const [itens, setItens] = useState<Item[]>([]);
   const [digitando, setDigitando] = useState(false);
   const [avaliando, setAvaliando] = useState(false);
@@ -302,6 +304,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
       perguntasRef.current = dados.mensagens.filter((m) => m.papel === 'user').length;
 
       const inicio = new Date(dados.iniciadaEm);
+      setIniciadaEm(inicio);
       setItens([
         // O aceite é local e nunca foi para o banco, então é remontado aqui —
         // com a hora em que a conversa começou, não a do refresh. Quem já
@@ -733,7 +736,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
             relia trechos antigos a cada renderização. */}
         <main className="mensagens" ref={listaRef} role="log" aria-label="Conversa">
           <div className="divisor">
-            <span>Hoje</span>
+            <span>{rotuloDoDia(iniciadaEm ?? new Date())}</span>
           </div>
 
           {/* No lugar da antiga tela de entrada: o consentimento aparece dentro
