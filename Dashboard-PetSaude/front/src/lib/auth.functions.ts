@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { apiFetch } from "./api.server";
+import { ApiError, apiFetch } from "./api.server";
 import { authSession } from "./auth.server";
 
 export type UserRole = "admin" | "editor" | "leitor";
@@ -103,11 +103,21 @@ export const getSession = createServerFn({ method: "POST" }).handler(
         },
         mustChangePassword: usuario.mustChangePassword,
       };
-    } catch {
+    } catch (erro) {
       // Token expirado ou sessão revogada: limpa o cookie para a UI voltar ao
       // login em vez de ficar tentando e tomando 401 em cada ação.
-      await session.clear();
-      return { authenticated: false, user: null, mustChangePassword: false };
+      if (erro instanceof ApiError && (erro.status === 401 || erro.status === 403)) {
+        await session.clear();
+        return { authenticated: false, user: null, mustChangePassword: false };
+      }
+      // Qualquer outra falha é do servidor, não da sessão: a API acordando no
+      // plano grátis, um deploy no meio, a rede. Limpar o cookie aqui tirava
+      // da conta quem estava trabalhando, sem aviso, e o login seguinte batia
+      // na mesma API parada. A sessão fica, e a tela de erro oferece tentar de
+      // novo.
+      throw new Error(
+        "O servidor do painel não respondeu. Sua sessão continua ativa: tente de novo em alguns segundos.",
+      );
     }
   },
 );

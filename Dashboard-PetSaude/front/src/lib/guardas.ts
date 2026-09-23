@@ -46,9 +46,11 @@ export async function exigirAdmin(): Promise<SessionStatus> {
  * pessoa estivesse deslogada.
  */
 export async function redirecionarSeAutenticado(): Promise<void> {
-  const sessao = await getSession();
+  // Sem resposta do servidor, a tela de login aparece: é dela a frase que diz
+  // o que fazer se entrar também falhar.
+  const sessao = await getSession().catch(() => null);
 
-  if (sessao.authenticated) {
+  if (sessao?.authenticated) {
     throw redirect({ to: "/" });
   }
 }
