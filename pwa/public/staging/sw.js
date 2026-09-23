@@ -2,7 +2,7 @@
  * Service worker do staging: só avisos.
  *
  * Separado do /sw.js de propósito. O do `/` guarda páginas em cache para o chat
- * de campo abrir sem rede; este não guarda nada — o staging muda a cada
+ * de campo abrir sem rede; este não guarda nada: o staging muda a cada
  * atualização, e uma tela velha servida do cache faria o teste medir a versão
  * errada. O escopo /staging/ garante que um não mexe nas páginas do outro.
  */
@@ -95,7 +95,7 @@ self.addEventListener('pushsubscriptionchange', (evento) => {
 /**
  * Avisa o servidor que o aviso apareceu ou foi aberto.
  *
- * Nunca atrasa nem impede a notificação: falhou, falhou — é estatística, e o
+ * Nunca atrasa nem impede a notificação: falhou, falhou; é estatística, e o
  * aviso já cumpriu o papel dele.
  */
 async function enviarRecibo(dados, evento) {

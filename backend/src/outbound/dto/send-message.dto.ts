@@ -16,7 +16,7 @@ export class SendMessageDto {
 
   @ApiProperty({
     example: '5516999998888@s.whatsapp.net',
-    description: 'JID do WhatsApp ou número em E.164 — ambos são aceitos.',
+    description: 'JID do WhatsApp ou número em E.164. Os dois são aceitos.',
   })
   @IsString()
   @Length(5, 128)

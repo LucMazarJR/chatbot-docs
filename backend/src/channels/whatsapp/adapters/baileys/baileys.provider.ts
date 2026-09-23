@@ -21,7 +21,7 @@ import { toInboundMessage, type RawBaileysMessage } from './baileys-event.mapper
  * O Baileys 6.7+ é ESM puro e a aplicação é CommonJS, então ele só pode ser
  * carregado por `import()` dinâmico. O módulo é cacheado após a primeira carga.
  *
- * Os tipos são derivados da própria expressão de import — assim o arquivo não
+ * Os tipos são derivados da própria expressão de import, assim o arquivo não
  * precisa do atributo `resolution-mode` que um `import type` de pacote ESM
  * exigiria em módulo CommonJS.
  */
@@ -46,7 +46,7 @@ interface SessionRuntime {
   reconnectAttempts: number;
   lastError: string | null;
   qrDataUrl: string | null;
-  /** Conexão em andamento — evita dois sockets para a mesma sessão. */
+  /** Conexão em andamento: evita dois sockets para a mesma sessão. */
   starting: Promise<void> | null;
   /** Distingue desconexão pedida por nós de queda real. */
   shuttingDown: boolean;
@@ -123,7 +123,7 @@ export class BaileysProvider extends WhatsAppProvider implements OnModuleDestroy
     try {
       await runtime?.socket?.logout();
     } catch (error) {
-      // Se o socket já caiu, o logout remoto falha — as credenciais locais
+      // Se o socket já caiu, o logout remoto falha: as credenciais locais
       // ainda precisam sumir, senão o próximo boot tenta reusar sessão morta.
       this.logger.warn({ err: error, sessionId }, 'Logout remoto falhou; limpando credenciais');
     }
@@ -328,7 +328,7 @@ export class BaileysProvider extends WhatsAppProvider implements OnModuleDestroy
       // obriga alguém a ler um QR code novo. Logar só o sessionId deixava a
       // pessoa sem saber SE foi desvinculação de verdade no celular ou o
       // `Stream Errored (conflict)` de outro aparelho pendurado em "Aparelhos
-      // conectados" — que o Baileys também reporta como loggedOut, e cuja
+      // conectados", que o Baileys também reporta como loggedOut, e cuja
       // solução é completamente diferente.
       this.logger.error(
         { sessionId, statusCode, motivo: error?.message ?? 'sem detalhe' },
@@ -342,7 +342,7 @@ export class BaileysProvider extends WhatsAppProvider implements OnModuleDestroy
     this.scheduleReconnect(sessionId, runtime);
   }
 
-  /** Backoff exponencial com teto — não martelar o WhatsApp durante uma queda. */
+  /** Backoff exponencial com teto, para não martelar o WhatsApp durante uma queda. */
   private scheduleReconnect(sessionId: string, runtime: SessionRuntime): void {
     this.cancelReconnect(runtime);
 

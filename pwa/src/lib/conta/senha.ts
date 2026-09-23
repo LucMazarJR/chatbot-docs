@@ -13,7 +13,7 @@ export const SENHA_MAX = 200;
  * Parâmetros do scrypt.
  *
  * LÓGICA DO LUCIANO: scrypt nativo do Node, e não bcrypt ou argon2. Os dois
- * dependem de binário compilado, e a imagem é `node:24-alpine` — é o tipo de
+ * dependem de binário compilado, e a imagem é `node:24-alpine`: é o tipo de
  * dependência que passa no computador de quem escreveu e quebra no build do
  * container, ou na Vercel, sem mensagem clara.
  *
@@ -54,7 +54,7 @@ export async function gerarHashDeSenha(senha: string): Promise<string> {
  *
  * Usado quando o e-mail não existe: sem ele, "e-mail inexistente" responderia
  * na hora e "senha errada" levaria o tempo do scrypt, e cronometrar o login
- * diria a qualquer um quais e-mails têm conta — num assistente de saúde, isso
+ * diria a qualquer um quais e-mails têm conta: num assistente de saúde, isso
  * já é informação sobre a pessoa.
  */
 let hashFalso: Promise<string> | null = null;

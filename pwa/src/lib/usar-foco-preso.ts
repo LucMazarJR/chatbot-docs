@@ -8,7 +8,7 @@ const FOCAVEIS = 'button:not([disabled]), textarea, [href], input:not([type="fil
  * Prende o foco dentro de um diálogo e devolve ao sair.
  *
  * LÓGICA DO LUCIANO: `aria-modal="true"` é uma promessa ao leitor de tela, não
- * um comportamento — o navegador não faz nada com ele. A folha de avaliação se
+ * um comportamento: o navegador não faz nada com ele. A folha de avaliação se
  * declarava modal e não era: o foco continuava na conversa atrás dela, e quem
  * navegava por teclado seguia tabulando por balões e polegares invisíveis sob a
  * cortina, sem nunca alcançar as estrelas, e sem como fechar.
@@ -18,7 +18,7 @@ const FOCAVEIS = 'button:not([disabled]), textarea, [href], input:not([type="fil
  *
  * `aoFechar` fica numa ref, e o efeito depende só do alvo. Quem chama costuma
  * passar uma função criada na hora; com ela nas dependências, o efeito rodava
- * de novo a cada renderização da página — e cada rodada devolve o foco ao
+ * de novo a cada renderização da página, e cada rodada devolve o foco ao
  * primeiro botão. Com a folha de avaliação aberta, uma resposta do assistente
  * chegando no fundo arrancava o cursor do campo de comentário no meio da frase.
  */

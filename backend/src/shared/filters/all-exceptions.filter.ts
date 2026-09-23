@@ -10,7 +10,7 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 import { CorrelationService } from '@/shared/correlation/correlation.service';
 
-/** A partir daqui o erro é nosso, não do cliente — vira log de erro. */
+/** A partir daqui o erro é nosso, não do cliente: vira log de erro. */
 const SERVER_ERROR_THRESHOLD = 500;
 
 interface ErrorBody {

@@ -7,7 +7,7 @@ import { useEffect } from 'react';
  *
  * Só em contexto seguro: por IP da rede local (http) o navegador recusa, e sem
  * esta guarda o console enche de erro a cada carregamento. Na prática significa
- * que instalar no celular exige o Cloudflare Tunnel — ver docs/prototipo-pwa.md.
+ * que instalar no celular exige o Cloudflare Tunnel: ver docs/prototipo-pwa.md.
  */
 export function RegistrarSW() {
   useEffect(() => {

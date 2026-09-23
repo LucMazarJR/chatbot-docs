@@ -17,7 +17,7 @@ type Props = {
  * Folha de avaliação do fim da conversa.
  *
  * Três perguntas numa tela só: nota de satisfação, NPS e o campo aberto. Todas
- * opcionais — cobrar resposta de quem só queria encerrar a conversa é a melhor
+ * opcionais: cobrar resposta de quem só queria encerrar a conversa é a melhor
  * forma de não receber nenhuma.
  */
 export function FolhaAvaliacao({ onEnviar, onVoltar }: Props) {

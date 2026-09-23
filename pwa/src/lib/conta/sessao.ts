@@ -48,7 +48,7 @@ function viaHttps(requisicao: Request): boolean {
  * O cookie da conta.
  *
  * LÓGICA DO LUCIANO: `Secure` só quando a requisição veio por HTTPS, e não
- * sempre. Com `Secure` fixo, o navegador descarta o cookie recebido por HTTP — e
+ * sempre. Com `Secure` fixo, o navegador descarta o cookie recebido por HTTP, e
  * o teste presencial pelo IP da rede local (`http://192.168…:8080`) passaria a
  * aceitar a senha e esquecer o login na tela seguinte, sem erro nenhum. Push
  * não funciona por HTTP de qualquer jeito; o login, sim.
@@ -121,7 +121,7 @@ export async function encerrarTodasAsSessoes(usuarioId: string): Promise<void> {
  *
  * Defesa em profundidade sobre o `SameSite=Lax`: navegadores antigos não o
  * respeitam, e uma rota que apaga conta não deve depender de uma única camada.
- * Sem cabeçalho `Origin` passa — é o caso do curl de diagnóstico, que não carrega
+ * Sem cabeçalho `Origin` passa: é o caso do curl de diagnóstico, que não carrega
  * cookie de ninguém.
  */
 export function origemConfiavel(requisicao: Request): boolean {

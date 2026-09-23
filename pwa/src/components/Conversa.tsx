@@ -34,7 +34,7 @@ const MINIMO_PERGUNTAS_PARA_AVALIAR = 3;
 /**
  * A sessão fica em `localStorage`, e não em `sessionStorage`.
  *
- * No celular, sair do navegador e voltar depois costuma descartar a aba — com
+ * No celular, sair do navegador e voltar depois costuma descartar a aba, com
  * `sessionStorage` a conversa se perderia nesse ir e vir, que é o uso normal de
  * quem está testando o protótipo enquanto conversa com alguém.
  *
@@ -47,7 +47,7 @@ type Item = {
   papel: Papel;
   texto: string;
   hora: string;
-  /** Id no banco — só nas respostas do bot, é o alvo do polegar. */
+  /** Id no banco, só nas respostas do bot, é o alvo do polegar. */
   mensagemId?: string;
   comFeedback?: boolean;
   /** Nas mensagens do participante: dois tiques azuis quando a resposta chegou. */
@@ -61,10 +61,10 @@ type Item = {
 /**
  * Pedido de aceite, antes de qualquer pergunta.
  *
- * O aviso era passivo — um recado no meio da conversa, que dava para ignorar e
+ * O aviso era passivo: um recado no meio da conversa, que dava para ignorar e
  * seguir perguntando. Como o protótipo grava relato de saúde, o consentimento
  * precisa ser um ato: sem tocar em "Aceitar", o campo não envia. E a data fica
- * registrada, o que transforma o aviso em evidência — numa auditoria de LGPD,
+ * registrada, o que transforma o aviso em evidência: numa auditoria de LGPD,
  * "avisamos na tela" vale menos que "aceite às 14h31".
  */
 const PEDIDO_DE_ACEITE = [
@@ -149,7 +149,7 @@ export type PropsConversa = {
  * O chat.
  *
  * LÓGICA DO LUCIANO: saiu de `app/page.tsx` para servir às duas rotas, e não foi
- * copiado. Com duas cópias, cada correção — e este arquivo já teve dezenas —
+ * copiado. Com duas cópias, cada correção (e este arquivo já teve dezenas)
  * precisaria ser feita duas vezes, e a segunda seria esquecida. Toda diferença
  * entre os modos passa pela prop `modo`; sem ela, o comportamento é o de antes
  * da extração, linha por linha.
@@ -194,7 +194,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
    * Abrir o menu leva o foco para dentro dele; Esc fecha e devolve o foco.
    *
    * LÓGICA DO LUCIANO: o menu só fechava por clique fora, num onClick do
-   * container — quem navega por teclado abria e ficava preso: Tab passeava pela
+   * container; quem navega por teclado abria e ficava preso: Tab passeava pela
    * conversa inteira por baixo do menu aberto, e não havia como desistir.
    */
   useEffect(() => {
@@ -242,7 +242,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
 
     void (async () => {
       // Com conta, quem sabe qual é a conversa aberta é o servidor, e não o
-      // aparelho — é o que faz ela aparecer igual no celular e no computador.
+      // aparelho: é o que faz ela aparecer igual no celular e no computador.
       if (comConta) {
         await abrirConversaDaConta();
         return;
@@ -306,7 +306,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
       const inicio = new Date(dados.iniciadaEm);
       setIniciadaEm(inicio);
       setItens([
-        // O aceite é local e nunca foi para o banco, então é remontado aqui —
+        // O aceite é local e nunca foi para o banco, então é remontado aqui,
         // com a hora em que a conversa começou, não a do refresh. Quem já
         // aceitou vê o pedido já respondido, e não recebe outro. Com conta, o
         // aceite foi no cadastro, e repeti-lo em cada conversa seria ruído.
@@ -360,7 +360,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
    * Marca o botão escolhido e some com os outros.
    *
    * Sem isso, uma conversa retomada mostraria botões já usados, convidando ao
-   * clique duplo — e no caso do aceite, a um segundo registro de consentimento.
+   * clique duplo, e no caso do aceite, a um segundo registro de consentimento.
    */
   function marcarEscolha(chave: string, valor: string) {
     setItens((atuais) =>
@@ -390,7 +390,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
       }).catch(() => {});
     }
 
-    // Aceitou: o campo é liberado e recebe o foco na hora. Nada de saudação —
+    // Aceitou: o campo é liberado e recebe o foco na hora. Nada de saudação:
     // quem acabou de tocar em "Aceitar" quer perguntar, não ser cumprimentado.
     if (aceitando) campoRef.current?.focus();
     else
@@ -433,7 +433,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
 
     // Passado um tempo sem resposta, avisa que ainda está trabalhando. Ficar
     // olhando três pontinhos por minutos sem explicação é o que faz alguém
-    // fechar a aba — e aí a conversa e a avaliação se perdem junto.
+    // fechar a aba, e aí a conversa e a avaliação se perdem junto.
     const iniciouEm = Date.now();
     const avisos = AVISOS_DE_DEMORA.map(({ ms, texto }) =>
       setTimeout(() => adicionarBot(texto, null), ms),
@@ -479,7 +479,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
       );
     } catch {
       // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
-      // provável é a plataforma ter cortado a função no teto dela — isso é
+      // provável é a plataforma ter cortado a função no teto dela: isso é
       // demora. Falhando rápido, o servidor do protótipo é que não respondeu.
       const demorou = Date.now() - iniciouEm >= MS_PARA_CONSIDERAR_DEMORA;
       adicionarBot(demorou ? TEXTO_DEMOROU_DEMAIS : TEXTO_FORA_DO_AR, null);
@@ -495,7 +495,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   /**
    * Registra a tentativa e mostra a recusa do canal.
    *
-   * LÓGICA DO LUCIANO: o conteúdo não sai do aparelho — vão só tipo, tamanho e
+   * LÓGICA DO LUCIANO: o conteúdo não sai do aparelho: vão só tipo, tamanho e
    * duração. Os botões existem para medir quanta gente tenta mandar foto do
    * exame ou áudio em vez de digitar, e essa resposta só aparece se houver o
    * botão para tentar; guardar a gravação seria acumular voz de pessoas
@@ -618,7 +618,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
             {/* `role="status"` porque este texto é o único lugar onde a espera
                 aparece em palavras. Os três pontinhos do balão são desenho, e
                 quem não enxerga a tela ficaria sem saber que a resposta está
-                sendo preparada — que é justamente o momento em que a pessoa
+                sendo preparada, que é justamente o momento em que a pessoa
                 precisa saber, porque aqui ela dura dezenas de segundos. */}
             <span role="status">
               {digitando
@@ -647,8 +647,8 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
           </button>
         </header>
 
-        {/* LÓGICA DO LUCIANO: eram três itens — "Enviar feedback", "Relatar um
-            problema" e "Encerrar e avaliar" — e os três chamavam exatamente a
+        {/* LÓGICA DO LUCIANO: eram três itens ("Enviar feedback", "Relatar um
+            problema" e "Encerrar e avaliar"), e os três chamavam exatamente a
             mesma folha de avaliação, que encerra a conversa. Três nomes para uma
             ação só, e dois deles mentindo: quem tocava em "Relatar um problema"
             no meio da conversa a encerrava sem querer.
@@ -712,7 +712,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
             </button>
             {/* Por último, e em vermelho: é a única opção do menu que não tem
                 volta. Some com a conversa encerrada porque, ao avaliar, a chave
-                da sessão já saiu do aparelho — o pedido passaria a falhar, e o
+                da sessão já saiu do aparelho: o pedido passaria a falhar, e o
                 caminho certo é o contato da página de privacidade. */}
             {!encerrada && sessaoId && (
               <button
@@ -799,7 +799,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
 
         <footer className="barra-envio">
           {/* O canal real só lê texto, e estes dois botões existem para medir
-              quanta gente tenta outra coisa — pergunta que não tem resposta sem
+              quanta gente tenta outra coisa: pergunta que não tem resposta sem
               o botão para tentar. O conteúdo nunca sai do aparelho. */}
           <input
             ref={arquivoRef}
@@ -872,7 +872,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
                 if (campo.value) campo.style.height = `${campo.scrollHeight}px`;
               }}
               onKeyDown={(evento) => {
-                // Enter envia, Shift+Enter quebra linha — como no WhatsApp Web.
+                // Enter envia, Shift+Enter quebra linha, como no WhatsApp Web.
                 if (evento.key === 'Enter' && !evento.shiftKey) {
                   evento.preventDefault();
                   void enviar();
@@ -900,7 +900,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
                 : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
           </p>
 
-              {/* Microfone enquanto não há texto, avião quando há — a troca do
+              {/* Microfone enquanto não há texto, avião quando há: a troca do
                   WhatsApp. Os dois ao mesmo tempo deixariam três botões
                   redondos lado a lado numa tela de 360px. */}
               {texto.trim() ? (
@@ -937,7 +937,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
         <FolhaApagar
           sessaoId={sessaoId}
           aoVoltar={() => setApagandoConversa(false)}
-          // Com conta, a sessão não mora no aparelho — e o que mora lá é a
+          // Com conta, a sessão não mora no aparelho, e o que mora lá é a
           // conversa anônima que a pessoa pode ter no `/`, que não é desta.
           esquecerNoAparelho={!comConta}
         />

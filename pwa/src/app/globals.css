@@ -1,7 +1,7 @@
 /*
  * Aparência do WhatsApp, recriada em CSS.
  *
- * Nenhum arquivo de imagem da Meta é usado — cores, formas e o padrão de fundo
+ * Nenhum arquivo de imagem da Meta é usado: cores, formas e o padrão de fundo
  * são reproduzidos aqui. A fidelidade visual é o ponto: o participante precisa
  * julgar a experiência do canal real, não a de um chat genérico.
  */
@@ -13,7 +13,7 @@
    * Multiplicador do tamanho do texto, ajustável no painel de acessibilidade.
    *
    * LÓGICA DO LUCIANO: multiplicador em cima do `font-size` do body, e não
-   * `html { font-size: N% }` como se costuma fazer — este CSS mede em px, e
+   * `html { font-size: N% }` como se costuma fazer: este CSS mede em px, e
    * mudar a raiz não moveria nada. Quem precisa acompanhar a escala usa `em`,
    * e é por isso que os tamanhos do balão, dos avisos e da folha de avaliação
    * estão em `em` e os do cabeçalho não: o cabeçalho tem altura fixa e cresceria
@@ -48,7 +48,7 @@
  * Paleta escura, por ATRIBUTO e não por media query.
  *
  * LÓGICA DO LUCIANO: com `@media (prefers-color-scheme: dark)` não havia como
- * alguém escolher o tema — quem usa o celular no escuro o dia inteiro ficava
+ * alguém escolher o tema: quem usa o celular no escuro o dia inteiro ficava
  * sem o modo claro, e vice-versa. Quem resolve "automático" agora é o script no
  * <head>, que lê a preferência guardada, consulta o matchMedia e carimba
  * `data-tema` antes da primeira pintura. Assim existe UMA fonte da verdade, e
@@ -87,7 +87,7 @@
  *
  * Usado onde a informação existe visualmente mas não em palavras: os tiques de
  * entrega, o aviso de que o assistente está digitando, o atalho para pular a
- * conversa. Não é `display: none` nem `visibility: hidden` — os dois escondem
+ * conversa. Não é `display: none` nem `visibility: hidden`: os dois escondem
  * do leitor de tela também, que é o oposto do que se quer aqui.
  */
 .sr-only {
@@ -105,7 +105,7 @@
 /*
  * Anel de foco visível, em tudo que recebe foco.
  *
- * LÓGICA DO LUCIANO: `:focus-visible`, e não `:focus` — o navegador só mostra o
+ * LÓGICA DO LUCIANO: `:focus-visible`, e não `:focus`: o navegador só mostra o
  * anel para quem está navegando por teclado, então o toque e o clique continuam
  * limpos. Sem isto, quem usa só o teclado não tinha como saber onde estava:
  * botões e balões não mudavam de aparência nenhuma ao receber foco.
@@ -120,7 +120,7 @@
  *
  * Os polegares 👍/👎 sob cada resposta são focáveis. Numa conversa de vinte
  * respostas, isso são quarenta paradas de Tab entre o topo da página e o campo
- * de mensagem — na prática, o teclado deixa de servir para conversar. O atalho
+ * de mensagem: na prática, o teclado deixa de servir para conversar. O atalho
  * aparece ao receber foco, como manda o padrão: some para quem usa o mouse.
  */
 .pular {
@@ -187,7 +187,7 @@ button {
 
 /*
  * O consentimento entra como um recado no meio da conversa, no lugar da antiga
- * tela de entrada — o mesmo padrão do aviso de criptografia do WhatsApp.
+ * tela de entrada: o mesmo padrão do aviso de criptografia do WhatsApp.
  * Informa sem cobrar um formulário de quem só quer fazer uma pergunta.
  */
 .aviso-chat {
@@ -298,7 +298,7 @@ button {
 }
 
 /* Estava em opacity 0.85, o que dava 3.99:1 de contraste contra o verde do
-   cabeçalho — abaixo dos 4.5:1 que a WCAG pede para texto deste tamanho. A
+   cabeçalho: abaixo dos 4.5:1 que a WCAG pede para texto deste tamanho. A
    opacidade cheia leva para 4.89:1. A hierarquia continua pelo tamanho. */
 .topo-nome span {
   font-size: 12.5px;
@@ -361,7 +361,7 @@ button {
   padding: 12px 5% 8px;
   overflow-y: auto;
   background-color: var(--fundo-chat);
-  /* Padrão abstrato próprio, em SVG embutido — nenhum arquivo da Meta.
+  /* Padrão abstrato próprio, em SVG embutido: nenhum arquivo da Meta.
      A cor do traço fica FIXA dentro do SVG: um `data:` URI é renderizado em
      contexto isolado e não enxerga as variáveis CSS desta página, então
      `var(--x)` aqui dentro sairia inválido e o padrão não
@@ -426,7 +426,7 @@ button {
 /*
  * Rabinho: triângulo recortado, só no primeiro balão da sequência.
  *
- * Os dois lados precisam de recortes ESPELHADOS, e não do mesmo polígono — a
+ * Os dois lados precisam de recortes ESPELHADOS, e não do mesmo polígono: a
  * ordem dos vértices não muda a forma, então declarar
  * `polygon(0 0, 100% 0, 100% 100%)` e `polygon(100% 0, 0 0, 100% 100%)` produz
  * exatamente o mesmo triângulo, e um dos lados fica com o rabo virado ao
@@ -604,7 +604,7 @@ button {
  *
  * LÓGICA DO LUCIANO: o clipe estava FORA dela, solto à esquerda, e era isso que
  * deixava a barra estranha mesmo depois de alinhada. No WhatsApp a cápsula é o
- * campo inteiro — os ícones de anexo moram dentro dela, e só o botão redondo
+ * campo inteiro: os ícones de anexo moram dentro dela, e só o botão redondo
  * verde fica de fora. Com o clipe solto, a barra virava três blocos de peso
  * parecido em vez de um campo largo com um botão ao lado.
  *
@@ -630,7 +630,7 @@ button {
  *
  * LÓGICA DO LUCIANO: `padding: 0` aqui NÃO é enfeite. O `box-sizing: border-box`
  * global faz o `height` incluir o padding, então `height: 1.4em` com `padding:
- * 5px 0` deixava menos de 10px para uma linha que precisa de 20 — o texto não
+ * 5px 0` deixava menos de 10px para uma linha que precisa de 20: o texto não
  * cabia na própria caixa e nascia com barra de rolagem, tanto o placeholder
  * quanto o que a pessoa digitava. O respiro em volta do texto passou a ser o
  * padding da cápsula, que é onde ele deveria estar desde o começo.
@@ -673,7 +673,7 @@ button {
 /*
  * O placeholder não quebra linha.
  *
- * Diferente do texto digitado, ele não tem como crescer a caixa — quando
+ * Diferente do texto digitado, ele não tem como crescer a caixa, quando
  * quebrava, a segunda linha ficava fora da área visível e o campo nascia com
  * barra de rolagem, sem nada escrito nele. Cortar com reticências é o que o
  * WhatsApp faz, e mantém o campo de uma linha em qualquer tamanho de fonte.
@@ -710,12 +710,12 @@ button {
 /* --- Anexo e áudio ------------------------------------------------------- */
 
 /*
- * O clipe, dentro da cápsula e à direita do texto — a posição do WhatsApp.
+ * O clipe, dentro da cápsula e à direita do texto: a posição do WhatsApp.
  *
  * O canal real só lê texto: o botão existe para medir quanta gente tenta mandar
  * foto do exame, e essa resposta só aparece se houver o botão para tentar.
  *
- * 40px de alvo dentro de uma cápsula de 46 — cheio o bastante para o dedo e
+ * 40px de alvo dentro de uma cápsula de 46: cheio o bastante para o dedo e
  * pequeno o bastante para não empurrar o campo. Fora dela eram 44, e isso dava
  * a ele o mesmo peso visual do botão de enviar, que é a ação principal.
  */
@@ -796,7 +796,7 @@ button {
 }
 
 /* Recado passageiro acima do campo: microfone recusado, envio que não foi.
-   Fica FORA da conversa de propósito — é assunto entre a pessoa e o aparelho,
+   Fica FORA da conversa de propósito: é assunto entre a pessoa e o aparelho,
    não uma fala do assistente, e não tem por que entrar na transcrição. */
 .aviso-composer {
   flex: 0 0 auto;
@@ -984,8 +984,8 @@ button {
 /*
  * Veio do painel de configurações da versão B, e é a peça que faltava: este
  * chat mede tudo em px para imitar o WhatsApp, então ignorava a fonte do
- * sistema. Quem usa o telefone com a fonte no máximo — boa parte de quem vai
- * testar no posto — não conseguiria ler as respostas que veio avaliar.
+ * sistema. Quem usa o telefone com a fonte no máximo (boa parte de quem vai
+ * testar no posto) não conseguiria ler as respostas que veio avaliar.
  *
  * Entra deslizando pela direita, como uma tela de configuração de aplicativo,
  * e não como caixa no meio: a conversa continua visível atrás, e a pessoa vê
@@ -1067,7 +1067,7 @@ button {
   text-transform: uppercase;
 }
 
-/* Passo a passo, e não um controle contínuo: um slider exige mira fina —
+/* Passo a passo, e não um controle contínuo: um slider exige mira fina,
    justamente o que falta a quem tem tremor, que é parte do público. */
 .escala-passo {
   display: flex;
@@ -1098,7 +1098,7 @@ button {
 }
 
 /* A amostra repete as medidas do balão da conversa, então o efeito aparece
-   aqui exatamente como vai aparecer lá — sem fechar o painel para descobrir. */
+   aqui exatamente como vai aparecer lá, sem fechar o painel para descobrir. */
 .amostra {
   margin-top: 14px;
   padding: 12px;
@@ -1224,7 +1224,7 @@ button {
 /*
  * Página de privacidade.
  *
- * Mesma cara do painel de acessibilidade — cabeçalho verde com seta de voltar —
+ * Mesma cara do painel de acessibilidade (cabeçalho verde com seta de voltar)
  * para ler como uma tela do mesmo aplicativo, e não como um documento jurídico
  * que abriu por engano. Largura limitada porque linha de texto longa demais
  * cansa, e quem lê isto está justamente decidindo se confia no chat.

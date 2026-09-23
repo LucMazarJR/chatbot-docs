@@ -100,7 +100,7 @@ describe('toInboundMessage', () => {
       const raw = build();
       raw.key!.fromMe = true;
 
-      // Sem isto, cada resposta do bot dispararia um novo webhook — laço infinito.
+      // Sem isto, cada resposta do bot dispararia um novo webhook: laço infinito.
       expect(toInboundMessage(SESSION, raw)).toBeNull();
     });
 
@@ -175,7 +175,7 @@ describe('toInboundMessage', () => {
     });
 
     it('remove o sufixo de dispositivo do JID', () => {
-      // Sem isso, a mesma pessoa em dois aparelhos vira dois chats — e a
+      // Sem isso, a mesma pessoa em dois aparelhos vira dois chats, e a
       // memória da conversa no n8n se parte ao meio.
       const result = toInboundMessage(
         SESSION,

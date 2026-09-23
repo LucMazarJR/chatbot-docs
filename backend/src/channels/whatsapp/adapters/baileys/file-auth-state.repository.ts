@@ -10,8 +10,8 @@ import { TypedConfigService } from '@/config/typed-config.service';
  * Credenciais de sessão em disco (volume Docker).
  *
  * É a implementação mínima que cumpre o requisito real da Fase 1: sobreviver a
- * um restart sem pedir QR de novo. Não escala horizontalmente — duas réplicas
- * com o mesmo volume corromperiam o estado do Signal —, e é exatamente por isso
+ * um restart sem pedir QR de novo. Não escala horizontalmente (duas réplicas
+ * com o mesmo volume corromperiam o estado do Signal), e é exatamente por isso
  * que existe a porta `AuthStateRepository`: a Fase 2 troca isto por Postgres.
  */
 @Injectable()
@@ -53,7 +53,7 @@ export class FileAuthStateRepository extends AuthStateRepository {
   }
 }
 
-/** Só letras, números, hífen e underscore — o resto vira `-`. */
+/** Só letras, números, hífen e underscore: o resto vira `-`. */
 export function sanitizeSessionId(sessionId: string): string {
   const cleaned = sessionId.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 64);
 

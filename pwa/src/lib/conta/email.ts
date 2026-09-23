@@ -3,7 +3,7 @@
  *
  * Só minúsculo e espaço nas pontas. Não remove pontos nem o trecho depois do
  * "+": isso vale para o Gmail, mas em outros provedores `ana.silva` e
- * `anasilva` são pessoas diferentes — e juntar as duas contas seria entregar os
+ * `anasilva` são pessoas diferentes, e juntar as duas contas seria entregar os
  * lembretes de saúde de uma para a outra.
  */
 export function normalizarEmail(email: string): string {

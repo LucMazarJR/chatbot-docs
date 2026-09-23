@@ -32,8 +32,8 @@ export function FormularioEntrar({ googleAtivo }: { googleAtivo: boolean }) {
   /**
    * Nada de botão desabilitado esperando a pessoa adivinhar o que falta.
    *
-   * LÓGICA DO LUCIANO: o aceite é obrigatório, mas travar o botão não diz isso
-   * — quem não marcou a caixa vê um botão apagado e conclui que o cadastro está
+   * LÓGICA DO LUCIANO: o aceite é obrigatório, mas travar o botão não diz isso:
+   * quem não marcou a caixa vê um botão apagado e conclui que o cadastro está
    * quebrado. Aqui o toque sempre vale: quando falta alguma coisa, a frase diz
    * qual é, o foco vai para o campo, e a caixa do aceite fica destacada.
    */

@@ -5,13 +5,13 @@ import { limites } from './db';
  *
  * O acesso é aberto de propósito (o link circula entre participantes), mas a
  * cota gratuita é de 500 conversas/dia. Sem nenhum limite, uma aba deixada
- * segurando F5 — ou alguém curioso com o link — derruba o teste do dia inteiro.
+ * segurando F5, ou alguém curioso com o link, derruba o teste do dia inteiro.
  *
  * A contagem vive no MongoDB, e não em memória, por causa do Vercel: lá cada
  * requisição pode cair numa instância diferente, e instâncias frias começam com
  * a memória zerada. Um limite em memória contaria "1 de 40" indefinidamente e
- * não seguraria nada. No Docker, onde há um processo só, o resultado é o mesmo
- * — mas o custo de uma escrita por mensagem é irrelevante e vale a garantia.
+ * não seguraria nada. No Docker, onde há um processo só, o resultado é o mesmo,
+ * mas o custo de uma escrita por mensagem é irrelevante e vale a garantia.
  *
  * Isto é proteção contra acidente, não contra ataque: quem quiser burlar troca
  * de IP.

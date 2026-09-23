@@ -36,7 +36,7 @@ let rodadaEmAndamento: Promise<ResultadoDespacho> | null = null;
  *
  * Seguro de chamar de vários lugares ao mesmo tempo. Dentro do mesmo processo,
  * quem chega durante uma rodada recebe o resultado dela em vez de abrir outra.
- * Entre processos diferentes — o Docker e um relógio externo, duas réplicas —,
+ * Entre processos diferentes (o Docker e um relógio externo, duas réplicas),
  * quem garante é a reivindicação atômica: cada aviso só passa para `enviando`
  * uma vez.
  */
@@ -64,7 +64,7 @@ async function rodar(limite: number): Promise<ResultadoDespacho> {
 
     // `enviando` com a trava vencida é aviso de uma rodada que morreu no meio
     // (o container reiniciou). Sem pegá-lo de volta, ele ficaria preso para
-    // sempre. Pode sair duplicado se o envio chegou a acontecer — e a `tag` da
+    // sempre. Pode sair duplicado se o envio chegou a acontecer, e a `tag` da
     // notificação faz o aparelho substituir em vez de mostrar duas.
     const aviso = await col.findOneAndUpdate(
       {

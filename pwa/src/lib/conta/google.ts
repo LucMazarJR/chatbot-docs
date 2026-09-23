@@ -68,7 +68,7 @@ export function urlDeAutorizacao(fluxo: EstadoDoFluxo, clientId: string, redirec
     code_challenge: desafioPkce(fluxo.verificador),
     code_challenge_method: 'S256',
     // Sem isto, quem tem mais de uma conta Google no aparelho entra direto na
-    // última usada — num celular emprestado, a de outra pessoa.
+    // última usada: num celular emprestado, a de outra pessoa.
     prompt: 'select_account',
   });
   return `${URL_DE_AUTORIZACAO}?${parametros}`;

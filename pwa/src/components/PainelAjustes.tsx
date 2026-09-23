@@ -26,7 +26,7 @@ const TEMAS: { id: Tema; rotulo: string; descricao: string }[] = [
  * LÓGICA DO LUCIANO: veio do painel de configurações da versão B, e é a peça de
  * acessibilidade que faltava. O protótipo vai a posto de saúde, onde boa parte
  * de quem vai testar tem presbiopia e usa o telefone com a fonte do sistema no
- * máximo — e este chat ignorava a fonte do sistema, porque mede tudo em px para
+ * máximo, e este chat ignorava a fonte do sistema, porque mede tudo em px para
  * imitar o WhatsApp. Sem um controle próprio, essas pessoas não conseguiriam ler
  * as respostas que vieram avaliar, e o teste mediria a visão delas em vez da
  * qualidade do assistente.
@@ -104,7 +104,7 @@ export function PainelAjustes({ aoFechar }: { aoFechar: () => void }) {
             </div>
 
             {/* A amostra usa as mesmas medidas do balão da conversa, então o
-                efeito aparece aqui exatamente como vai aparecer lá — sem a
+                efeito aparece aqui exatamente como vai aparecer lá, sem a
                 pessoa ter de fechar o painel para descobrir se ficou bom. */}
             <div className="amostra" aria-hidden="true">
               <div className="amostra-balao">

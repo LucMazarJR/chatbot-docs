@@ -4,7 +4,7 @@ DESTRUTIVO E IRREVERSÍVEL. Leia antes de rodar.
 
 As FAQs criadas pelo dashboard têm `file_id: "dashboard_manual"` e NÃO existem
 no Google Drive. Rodar `enviar_dados.py` depois traz de volta apenas o que veio
-do Drive — tudo que foi digitado no dashboard some para sempre.
+do Drive: tudo que foi digitado no dashboard some para sempre.
 
 Rode `python backup_faqs.py` antes. Sempre.
 
@@ -126,7 +126,7 @@ def confirmar(col_dados) -> bool:
 
     print()
     print("!" * 60)
-    print("ATENÇÃO — ESTA OPERAÇÃO É IRREVERSÍVEL")
+    print("ATENÇÃO: ESTA OPERAÇÃO É IRREVERSÍVEL")
     print("!" * 60)
     print(f"  FAQs que serão apagadas:     {total}")
     print(f"  ...criadas pelo dashboard:   {do_dashboard}  <-- NÃO voltam numa reingestão")
@@ -169,7 +169,7 @@ def main():
         col_dados = db[COL_DADOS]
 
         if not confirmar(col_dados):
-            logger.info("Operação cancelada — nada foi apagado.")
+            logger.info("Operação cancelada: nada foi apagado.")
             return 1
 
         print()
@@ -177,10 +177,10 @@ def main():
         print("LIMPEZA DO BANCO E RECONFIGURAÇÃO DO ÍNDICE VETORIAL")
         print("=" * 60)
 
-        logger.info("Etapa 1/2 — Limpando dados...")
+        logger.info("Etapa 1/2: Limpando dados...")
         limpar_dados(db)
 
-        logger.info("Etapa 2/2 — Verificando/recriando índice vetorial...")
+        logger.info("Etapa 2/2: Verificando/recriando índice vetorial...")
         recriar_indice_vetorial(col_dados)
 
         print("=" * 60)

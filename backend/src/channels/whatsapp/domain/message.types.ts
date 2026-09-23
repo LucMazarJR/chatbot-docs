@@ -1,7 +1,7 @@
 /**
  * Tipos de conteúdo que o gateway reconhece.
  *
- * A Fase 1 só *envia* texto, mas *recebe* e classifica tudo — quem decide a
+ * A Fase 1 só *envia* texto, mas *recebe* e classifica tudo: quem decide a
  * resposta para mídia é o n8n, preservando a divisão de responsabilidade atual
  * (a copy do bot vive no fluxo, não no backend).
  */
@@ -29,7 +29,7 @@ export interface MessageSender {
 /**
  * Mensagem recebida, já normalizada.
  *
- * Nenhum campo cru do Baileys aparece aqui — essa é a fronteira que permite
+ * Nenhum campo cru do Baileys aparece aqui: essa é a fronteira que permite
  * trocar o provedor (Cloud API oficial da Meta) sem tocar no resto do sistema.
  */
 export interface InboundMessage {

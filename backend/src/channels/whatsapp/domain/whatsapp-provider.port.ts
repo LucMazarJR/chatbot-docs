@@ -8,7 +8,7 @@ import type { WhatsAppEventHandler } from './whatsapp-event.types';
  * É a peça que dá sentido a todo o resto: a Fase 1 entrega um adapter Baileys
  * (não-oficial, o mesmo motor que o WAHA usava por baixo), e a migração futura
  * para a WhatsApp Cloud API oficial da Meta é escrever um segundo adapter
- * — sem tocar em `inbound/`, `outbound/`, `sessions/` ou `webhooks/`.
+ * sem tocar em `inbound/`, `outbound/`, `sessions/` ou `webhooks/`.
  *
  * Por isso é `abstract class` e não `interface`: serve como token de injeção
  * do Nest sem precisar de um símbolo separado.
@@ -35,13 +35,13 @@ export abstract class WhatsAppProvider {
    * Confirma se o JID corresponde a uma conta de WhatsApp existente.
    *
    * Devolve `null` quando não foi possível verificar (socket fora do ar, erro
-   * na consulta). Quem chama decide o que fazer com a incerteza — aqui a
+   * na consulta). Quem chama decide o que fazer com a incerteza: aqui a
    * escolha é seguir com o envio, porque bloquear uma mensagem legítima é pior
    * do que deixar passar um número errado.
    */
   abstract isRegistered(sessionId: string, jid: string): Promise<boolean | null>;
 
-  /** Presença "digitando..." — parte da estratégia anti-ban. */
+  /** Presença "digitando...": parte da estratégia anti-ban. */
   abstract sendTyping(sessionId: string, chatId: string, durationMs: number): Promise<void>;
 
   /** Marca como lida a última mensagem recebida do chat. */

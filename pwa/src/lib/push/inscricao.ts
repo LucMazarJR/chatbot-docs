@@ -18,8 +18,8 @@ const BASE64URL = /^[A-Za-z0-9_-]+$/;
  * nome do servidor, e aceitar qualquer URL transformaria a inscrição num jeito
  * de fazer o servidor chamar endereços internos da rede.
  *
- * As chaves têm tamanho conhecido — p256dh é um ponto da curva P-256 (65 bytes)
- * e auth são 16 bytes —, então o teto é folgado mas existe.
+ * As chaves têm tamanho conhecido: p256dh é um ponto da curva P-256 (65 bytes)
+ * e auth são 16 bytes. O teto é folgado, mas existe.
  */
 export function validarInscricao(corpo: unknown): InscricaoRecebida | null {
   const dados = corpo as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } } | null;

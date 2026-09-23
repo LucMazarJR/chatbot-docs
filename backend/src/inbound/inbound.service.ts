@@ -80,7 +80,7 @@ export class InboundService implements OnModuleInit {
       await this.provider
         .markAsRead(message.sessionId, message.chatId, message.id)
         .catch((error: unknown) => {
-          // Confirmação de leitura é cosmética — não pode impedir a resposta.
+          // Confirmação de leitura é cosmética: não pode impedir a resposta.
           this.logger.warn({ err: error, messageId: message.id }, 'Falha ao marcar como lida');
         });
     }

@@ -16,7 +16,7 @@ Fica em `ministerio_saude.faq_medicamentos`, no MongoDB Atlas, e é **compartilh
 | `tags`, `source` | Metadados de curadoria |
 | `text` | O texto que virou vetor: `Assunto: … / Pergunta: … / Resposta: …` |
 | `embedding` | O vetor, 3072 dimensões |
-| `embedding_model`, `embedding_dim`, `embedded_at` | Procedência do vetor — permite achar o que ficou para trás numa troca de modelo |
+| `embedding_model`, `embedding_dim`, `embedded_at` | Procedência do vetor: permite achar o que ficou para trás numa troca de modelo |
 | `content_hash` | MD5 de `pergunta\|resposta`. É o contrato de deduplicação entre a ingestão Python e a importação do dashboard |
 | `embedding_content_hash` | O `content_hash` que o vetor representa. Diferente do atual = vetor desatualizado |
 | `isActive` | `false` é exclusão suave. O fluxo filtra por isto |
@@ -37,13 +37,13 @@ Fica em `ministerio_saude.faq_medicamentos`, no MongoDB Atlas, e é **compartilh
 
 O [enviar_dados.py](../scripts/enviar_dados.py) cria o índice se não existir, e o [limpar_banco.py](../scripts/limpar_banco.py) o recria com os mesmos valores. Os dois fluxos do n8n consultam esse mesmo nome.
 
-**Por que `isActive` precisa ser filtrável.** A exclusão no dashboard é suave: marca `isActive: false` e mantém o documento — com embedding — na coleção indexada. Sem pré-filtro, uma FAQ "excluída" continuava voltando em primeiro lugar na busca, com a equipe convencida de que a tinha removido. O fluxo usa `preFilter: {"isActive": true}`.
+**Por que `isActive` precisa ser filtrável.** A exclusão no dashboard é suave: marca `isActive: false` e mantém o documento, com embedding, na coleção indexada. Sem pré-filtro, uma FAQ "excluída" continuava voltando em primeiro lugar na busca, com a equipe convencida de que a tinha removido. O fluxo usa `preFilter: {"isActive": true}`.
 
 ---
 
 ## A regra que quebra tudo em silêncio
 
-**O modelo de embedding precisa ser idêntico em três lugares.** Divergir não gera erro em lugar nenhum — a busca só devolve resultado ruim, ou a FAQ nunca aparece, porque pergunta e documentos caem em espaços vetoriais diferentes.
+**O modelo de embedding precisa ser idêntico em três lugares.** Divergir não gera erro em lugar nenhum: a busca só devolve resultado ruim, ou a FAQ nunca aparece, porque pergunta e documentos caem em espaços vetoriais diferentes.
 
 | Onde | Configuração |
 |---|---|
@@ -51,15 +51,15 @@ O [enviar_dados.py](../scripts/enviar_dados.py) cria o índice se não existir, 
 | Dashboard | `GEMINI_EMBEDDING_MODEL` no `Dashboard-PetSaude/back/.env` |
 | n8n | o nó `Embeddings Google Gemini` do fluxo |
 
-Hoje os três estão em `gemini-embedding-2`, 3072 dimensões. Já aconteceu de o nó do n8n ficar com os parâmetros **vazios**, usando o modelo padrão dele enquanto a base estava no `gemini-embedding-2` — e nada acusou.
+Hoje os três estão em `gemini-embedding-2`, 3072 dimensões. Já aconteceu de o nó do n8n ficar com os parâmetros **vazios**, usando o modelo padrão dele enquanto a base estava no `gemini-embedding-2`, e nada acusou.
 
 Trocar de modelo exige **reindexar a base inteira** e atualizar os três lugares. Não é troca de uma linha.
 
 ### Por que o assunto entra no texto embedado
 
-O texto vetorizado é `Assunto: … / Pergunta: … / Resposta: …`. Antes era só pergunta + resposta, e isso tinha uma consequência ruim: muitas FAQs de exames diferentes têm o **texto idêntico** ("Como me preparar para o exame?"). Zinco e paratormônio chegaram a dar score igual até a última casa decimal — o desempate era arbitrário.
+O texto vetorizado é `Assunto: … / Pergunta: … / Resposta: …`. Antes era só pergunta + resposta, e isso tinha uma consequência ruim: muitas FAQs de exames diferentes têm o **texto idêntico** ("Como me preparar para o exame?"). Zinco e paratormônio chegaram a dar score igual até a última casa decimal, e o desempate era arbitrário.
 
-Depois da mudança, na consulta *"preciso de jejum para o exame de zinco?"*: 3 dos 5 primeiros passaram a ser do zinco, e a faixa entre o 1º e o 5º colocado ficou **6× mais larga**. O ganho não é o primeiro lugar, é a **discriminação** — a busca passa a separar assuntos que antes colidiam.
+Depois da mudança, na consulta *"preciso de jejum para o exame de zinco?"*: 3 dos 5 primeiros passaram a ser do zinco, e a faixa entre o 1º e o 5º colocado ficou **6× mais larga**. O ganho não é o primeiro lugar, é a **discriminação**: a busca passa a separar assuntos que antes colidiam.
 
 ---
 
@@ -74,11 +74,11 @@ Os scripts ficam em [scripts/](../scripts/) e só são necessários quando entra
 ### Configuração
 
 1. **Python 3.8+** e `pip install -r requirements.txt`, a partir de `scripts/`
-2. **Gemini** — chave em [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
-3. **Google Drive** — crie um projeto no [Google Cloud Console](https://console.cloud.google.com/), ative a **Google Drive API**, crie uma **Conta de Serviço**, gere a chave JSON como `scripts/credentials.json` e **compartilhe a pasta do Drive com o e-mail da conta de serviço**
-4. **`.env`** — `cp .env.example .env` dentro de `scripts/`
+2. **Gemini**: chave em [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+3. **Google Drive**: crie um projeto no [Google Cloud Console](https://console.cloud.google.com/), ative a **Google Drive API**, crie uma **Conta de Serviço**, gere a chave JSON como `scripts/credentials.json` e **compartilhe a pasta do Drive com o e-mail da conta de serviço**
+4. **`.env`**: `cp .env.example .env` dentro de `scripts/`
 
-> `credentials.json` e `.env` estão no `.gitignore`. Se uma chave privada for parar no histórico do git, revogue no Google Cloud Console — tirar do repositório não basta.
+> `credentials.json` e `.env` estão no `.gitignore`. Se uma chave privada for parar no histórico do git, revogue no Google Cloud Console: tirar do repositório não basta.
 
 ### Os scripts
 
@@ -128,11 +128,11 @@ Troca de assunto dentro do documento:
 
 | Situação | O que acontece |
 |---|---|
-| Arquivo não mudou no Drive | Pula — não gasta API nem tempo |
+| Arquivo não mudou no Drive | Pula, sem gastar API nem tempo |
 | Arquivo foi editado | Reprocessa só esse arquivo |
 | Conteúdo P/R igual ao anterior | Reutiliza o embedding existente |
 | Conteúdo P/R mudou | Gera embedding novo |
-| Teto de embeddings por execução (700) | Envia o restante sem vetor — rode `gerar_embeddings.py` depois |
+| Teto de embeddings por execução (700) | Envia o restante sem vetor. Rode `gerar_embeddings.py` depois |
 
 ---
 
@@ -140,11 +140,11 @@ Troca de assunto dentro do documento:
 
 O caminho do dia a dia, para quem não mexe em script:
 
-- **Criar e editar FAQ** — o embedding é gerado na hora, e só quando o texto embedado realmente muda. Corrigir só a tag não gasta cota; corrigir a categoria gasta, porque ela entra no vetor.
-- **Importação em lote** — prévia antes de gravar, marcando duplicata exata (pelo `content_hash`), pergunta parecida já existente e assunto fora da lista oficial. Nada disso bloqueia o lote: a decisão é de quem está olhando a prévia.
-- **Categorias** — a lista oficial de assuntos, com chave canônica (minúsculo, sem acento) e índice único. Renomear um assunto reescreve o `category` e o `text` de todas as FAQs dele, e devolve quantas precisam ser reindexadas.
-- **Saúde dos vetores** — quantas FAQs estão sem vetor, com dimensão errada, com modelo divergente ou com vetor desatualizado, e um backfill por modo, com limite e parada.
-- **Testar a busca** — roda a mesma busca do chatbot para uma pergunta digitada e mostra os scores, marcando quais passariam do corte.
+- **Criar e editar FAQ**: o embedding é gerado na hora, e só quando o texto embedado realmente muda. Corrigir só a tag não gasta cota; corrigir a categoria gasta, porque ela entra no vetor.
+- **Importação em lote**: prévia antes de gravar, marcando duplicata exata (pelo `content_hash`), pergunta parecida já existente e assunto fora da lista oficial. Nada disso bloqueia o lote: a decisão é de quem está olhando a prévia.
+- **Categorias**: a lista oficial de assuntos, com chave canônica (minúsculo, sem acento) e índice único. Renomear um assunto reescreve o `category` e o `text` de todas as FAQs dele, e devolve quantas precisam ser reindexadas.
+- **Saúde dos vetores**: quantas FAQs estão sem vetor, com dimensão errada, com modelo divergente ou com vetor desatualizado, e um backfill por modo, com limite e parada.
+- **Testar a busca**: roda a mesma busca do chatbot para uma pergunta digitada e mostra os scores, marcando quais passariam do corte.
 
 Detalhes de uso e telas em [Dashboard-PetSaude/README.md](../Dashboard-PetSaude/README.md).
 

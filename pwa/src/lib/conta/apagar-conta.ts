@@ -6,7 +6,7 @@ import { banco, contasSessoes, sessoes, usuarios } from '@/lib/db';
  *
  * LÓGICA DO LUCIANO: as conversas vão pelo `apagarConversa`, e não por um
  * `deleteMany` direto. Ele é quem sabe que as perguntas sem resposta foram
- * copiadas para a curadoria, em outro banco — apagar só as mensagens deixaria o
+ * copiadas para a curadoria, em outro banco: apagar só as mensagens deixaria o
  * texto da pessoa guardado lá, com a conta dela já inexistente.
  *
  * A conta sai por último. Se algo falhar no meio, a pessoa continua logada e

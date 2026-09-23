@@ -5,7 +5,7 @@
  *
  * LÓGICA DO LUCIANO: isto é acessibilidade, não enfeite. O protótipo vai a posto
  * de saúde, onde boa parte de quem vai testar tem presbiopia e usa o telefone
- * com a fonte do sistema no máximo — e o chat ignorava a fonte do sistema, por
+ * com a fonte do sistema no máximo, e o chat ignorava a fonte do sistema, por
  * medir tudo em px para imitar o WhatsApp. Sem um controle próprio, essas
  * pessoas não conseguiriam ler as respostas que vieram avaliar, e a
  * validação mediria a visão delas em vez da qualidade do assistente.
@@ -21,7 +21,7 @@ export type Escala = { id: string; rotulo: string; valor: number };
 /**
  * Quatro degraus, e não um controle contínuo.
  *
- * Um slider exige mira fina — justamente o que falta a quem tem tremor, que é
+ * Um slider exige mira fina, justamente o que falta a quem tem tremor, que é
  * parte do público. Com degraus, errar o toque muda um passo, e o passo seguinte
  * corrige.
  */
@@ -53,7 +53,7 @@ export function lerEscala(): Escala {
   }
 }
 
-/** Resolve "auto" contra o sistema — é o que o CSS precisa saber. */
+/** Resolve "auto" contra o sistema: é o que o CSS precisa saber. */
 export function temaEfetivo(tema: Tema): 'claro' | 'escuro' {
   if (tema !== 'auto') return tema;
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';

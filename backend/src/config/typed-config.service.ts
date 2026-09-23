@@ -8,7 +8,7 @@ import type { Env } from './env.schema';
  * Evita o `get<string>('...')` espalhado pelo código, que é só um cast disfarçado.
  *
  * Vive em arquivo próprio, separado de `config.module.ts`, porque o módulo
- * valida o ambiente no momento em que é carregado — se os dois estivessem
+ * valida o ambiente no momento em que é carregado: se os dois estivessem
  * juntos, qualquer arquivo que importasse este serviço exigiria um `.env`
  * completo só para ser carregado (inclusive em teste unitário).
  */

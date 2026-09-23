@@ -112,7 +112,7 @@
 }
 
 /* O menu ⋮ se posiciona pelo topo da área de conteúdo (ver `position: relative`
-   acima), e não mais da tela — senão abriria por cima do cabeçalho. */
+   acima), e não mais da tela, senão abriria por cima do cabeçalho. */
 .st-conteudo .menu {
   top: 52px;
 }
@@ -250,7 +250,7 @@
   font-weight: 600;
 }
 
-/* #00a884 com texto branco dá 3:1 — abaixo do mínimo. O botão de enviar do
+/* #00a884 com texto branco dá 3:1: abaixo do mínimo. O botão de enviar do
    chat escuro já resolve assim. */
 :root[data-tema='escuro'] .st-botao {
   color: #111b21;

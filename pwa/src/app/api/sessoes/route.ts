@@ -18,7 +18,7 @@ export async function POST(requisicao: Request) {
 
   // LÓGICA DO LUCIANO: a conversa só é da conta quando a tela PEDE, com
   // `comConta: true`. O cookie da conta vale para o site inteiro, então ele
-  // também chega aqui quando a pessoa logada abre o `/` — e deduzir a conta
+  // também chega aqui quando a pessoa logada abre o `/`, e deduzir a conta
   // pelo cookie mudaria o chat anônimo para quem tem conta, que é exatamente o
   // que não pode acontecer com o teste de campo.
   if (corpo.comConta === true) return abrirDaConta(requisicao);
@@ -63,7 +63,7 @@ export async function POST(requisicao: Request) {
  * aparecer no celular e no computador. Só nasce outra depois que esta for
  * encerrada com a avaliação.
  *
- * Sessão de conta não tem chave — quem autentica é o cookie. E o nome segue a
+ * Sessão de conta não tem chave: quem autentica é o cookie. E o nome segue a
  * numeração de sempre, e NÃO o e-mail: o painel de conversas é lido por quem
  * analisa respostas, e essa pessoa não precisa saber de quem é o relato.
  */

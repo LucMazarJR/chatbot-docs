@@ -3,7 +3,7 @@
 Fica aqui, e não dentro de cada script, porque `enviar_dados.py` e
 `test_enviar_dados.py` precisam enxergar exatamente o mesmo conjunto de
 arquivos. Enquanto cada um tinha sua própria cópia da consulta, o teste
-afirmava estar validando o que a sincronização faria — e não estava.
+afirmava estar validando o que a sincronização faria, e não estava.
 """
 from typing import Callable, Dict, List
 
@@ -26,7 +26,7 @@ def listar_arquivos_faq(service, pasta_id: str, log: Callable[[str], None] = pri
     - percorre subpastas, então basta jogar o arquivo em qualquer lugar abaixo
       da pasta configurada (subpasta herda o compartilhamento da pasta mãe, e
       portanto continua visível para a Conta de Serviço);
-    - pagina o resultado — a API devolve 100 itens por padrão e o restante
+    - pagina o resultado: a API devolve 100 itens por padrão e o restante
       ficava de fora sem nenhum aviso;
     - aceita Google Docs nativo além de `.docx`. Arquivo criado dentro do Drive
       não é `.docx`; ele só vira um na exportação, e por isso era ignorado.
@@ -74,7 +74,7 @@ def _remover_duplicatas(arquivos: List[dict], log: Callable[[str], None]) -> Lis
 
     Subir a mesma pasta duas vezes no Drive não sobrescreve nada: cria um
     segundo arquivo, de mesmo nome e id diferente. Sem este filtro, cada cópia
-    entraria como um `file_id` distinto — gastando embedding duas vezes pelo
+    entraria como um `file_id` distinto, gastando embedding duas vezes pelo
     mesmo conteúdo e deixando o acervo com FAQs repetidas, que é exatamente o
     que faz o agente responder sempre a mesma coisa.
 

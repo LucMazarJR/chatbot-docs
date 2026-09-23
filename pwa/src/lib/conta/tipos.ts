@@ -21,7 +21,7 @@ export type Usuario = {
   emailVerificado: boolean;
   /** Nulo em conta criada só pelo Google. */
   senhaHash: string | null;
-  /** O `sub` do Google — estável, ao contrário do e-mail, que a pessoa pode trocar lá. */
+  /** O `sub` do Google: estável, ao contrário do e-mail, que a pessoa pode trocar lá. */
   googleSub: string | null;
   nome: string | null;
   /** Aceite dos termos no cadastro. Cobre as conversas feitas com a conta. */
@@ -33,7 +33,7 @@ export type SessaoDeConta = {
   /**
    * SHA-256 do token do cookie, e nunca o token.
    *
-   * Quem ler este banco — um backup, um acesso indevido — não consegue entrar
+   * Quem ler este banco (um backup, um acesso indevido) não consegue entrar
    * na conta de ninguém com o que está aqui.
    */
   _id: string;

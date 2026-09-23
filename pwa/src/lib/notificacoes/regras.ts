@@ -15,7 +15,7 @@ export const TRAVA_MS = 2 * 60 * 1000;
  *
  * LÓGICA DO LUCIANO: aviso vencido não sai. O despachante roda no PC que
  * hospeda o Docker; se ele ficou desligado a noite toda, "seu exame é daqui a 2
- * horas" chegaria 10 horas depois do exame — pior do que não chegar, porque a
+ * horas" chegaria 10 horas depois do exame: pior do que não chegar, porque a
  * pessoa pode acreditar nele.
  */
 export function decidir(validaAte: Date, agora: Date): 'enviar' | 'expirar' {
@@ -26,7 +26,7 @@ export function decidir(validaAte: Date, agora: Date): 'enviar' | 'expirar' {
  * O que um código de resposta do serviço de push quer dizer.
  *
  * - 404/410: o aparelho desinstalou, limpou os dados ou revogou a permissão. A
- *   inscrição morreu e não volta — insistir só gera erro para sempre.
+ *   inscrição morreu e não volta: insistir só gera erro para sempre.
  * - 401/403: a inscrição foi feita com outras chaves VAPID. Também não volta.
  * - 429 e 5xx: o serviço está sobrecarregado ou fora; tentar mais tarde.
  * - `null`: nem chegou a responder (rede, DNS). Tentar mais tarde.

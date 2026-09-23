@@ -4,7 +4,7 @@ import type { SessionStatus } from '@/channels/whatsapp/domain/session.types';
 /**
  * Envelope canônico entregue ao n8n.
  *
- * Contrato público entre o gateway e o fluxo — mudar qualquer campo aqui exige
+ * Contrato público entre o gateway e o fluxo: mudar qualquer campo aqui exige
  * atualizar `n8n/whatsapp-chatbot.json` na mesma alteração. É deliberadamente
  * plano e estável, ao contrário do payload do WAHA, em que o fluxo precisava
  * cavar até `payload._data.key.remoteJidAlt` (campo interno do motor Baileys,

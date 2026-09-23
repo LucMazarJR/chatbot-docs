@@ -19,7 +19,7 @@ type Configuracao = { _id: string; publica: string; privada: string; criadaEm: D
  *    participante é dado de validação, descartável. Misturar as duas coisas na
  *    mesma base convida a um `drop` errado.
  * 2. Ao fim da validação, apagar tudo é `db.dropDatabase()` num banco que só
- *    tem isso dentro — sem risco de levar FAQ junto.
+ *    tem isso dentro, sem risco de levar FAQ junto.
  *
  * O banco é escolhido EXPLICITAMENTE por nome, e não pelo caminho da
  * `MONGODB_URI`. Essa é a armadilha nº 1 do projeto (ver docs/armadilhas.md):
@@ -54,7 +54,7 @@ const cache = globalThis as unknown as {
 
 async function conectar(): Promise<MongoClient> {
   const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error('MONGODB_URI não definida — o serviço não sobe sem ela.');
+  if (!uri) throw new Error('MONGODB_URI não definida: o serviço não sobe sem ela.');
 
   const cliente = new MongoClient(uri, { appName: 'pwa-prototipo' });
   await cliente.connect();
@@ -145,7 +145,7 @@ async function criarIndices(db: Db) {
     db.collection('contas_sessoes').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
     db.collection('contas_sessoes').createIndex({ usuarioId: 1 }),
     // Avisos. A fila é lida sempre por "o que está pendente e já venceu", do
-    // mais antigo para o mais novo — o índice é exatamente essa consulta.
+    // mais antigo para o mais novo: o índice é exatamente essa consulta.
     db.collection('notificacoes').createIndex({ estado: 1, enviarEm: 1 }),
     db.collection('notificacoes').createIndex({ usuarioId: 1, criadaEm: -1 }),
     db.collection('notificacoes').createIndex({ loteId: 1 }),
@@ -179,7 +179,7 @@ async function criarIndices(db: Db) {
  * privacidade pode prometer um número que o sistema de fato cumpre.
  *
  * Mudar `PWA_RETENCAO_DIAS` depois que o índice existe faz o `createIndex`
- * falhar com conflito de opções — e como isto roda na conexão, a falha
+ * falhar com conflito de opções, e como isto roda na conexão, a falha
  * derrubaria o chat inteiro. Por isso o conflito vira um `collMod`, que só
  * troca o prazo do índice que já está lá.
  *

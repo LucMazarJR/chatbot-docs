@@ -1,6 +1,6 @@
 # Instalação
 
-Como subir tudo do zero, numa máquina nova. Para entender o que cada peça faz, ver [arquitetura.md](arquitetura.md). Quando algo der errado de um jeito estranho, ver [armadilhas.md](armadilhas.md) — quase tudo que quebra em silêncio está lá.
+Como subir tudo do zero, numa máquina nova. Para entender o que cada peça faz, ver [arquitetura.md](arquitetura.md). Quando algo der errado de um jeito estranho, ver [armadilhas.md](armadilhas.md): quase tudo que quebra em silêncio está lá.
 
 Ambiente de referência: Windows 11 + PowerShell + Docker Desktop. Em Linux ou macOS só mudam os comandos de shell.
 
@@ -13,7 +13,7 @@ Ambiente de referência: Windows 11 + PowerShell + Docker Desktop. Em Linux ou m
 - Chave de API do Google Gemini
 - Túnel do Cloudflare com token, se o webhook do n8n precisar ser alcançável de fora
 - Um celular com WhatsApp para parear
-- Node **não é necessário** para o chatbot — o build acontece dentro do container. Só é preciso para rodar o dashboard fora do Docker
+- Node **não é necessário** para o chatbot: o build acontece dentro do container. Só é preciso para rodar o dashboard fora do Docker
 
 ---
 
@@ -31,9 +31,9 @@ Gere cada segredo **distinto**:
 
 Preencha `GATEWAY_API_KEY`, `N8N_WEBHOOK_TOKEN`, `N8N_WEBHOOK_SECRET`, `REDIS_PASSWORD` e `POSTGRES_PASSWORD`, mais o token e a URL do Cloudflare, a `MONGODB_URI` e a `GEMINI_API_KEY`.
 
-> ⚠️ **A `MONGODB_URI` precisa ter o nome do banco no caminho** — `…/ministerio_saude?appName=…`, não `…/?appName=…`. Sem isso o driver assume `test`, e existe um `test.faq_medicamentos` com dois documentos de lixo nesse cluster. Tudo sobe, conecta e simplesmente não encontra as FAQs reais, sem erro nenhum. Já mordeu o n8n e o dashboard, em ocasiões separadas.
+> ⚠️ **A `MONGODB_URI` precisa ter o nome do banco no caminho**: `…/ministerio_saude?appName=…`, não `…/?appName=…`. Sem isso o driver assume `test`, e existe um `test.faq_medicamentos` com dois documentos de lixo nesse cluster. Tudo sobe, conecta e simplesmente não encontra as FAQs reais, sem erro nenhum. Já mordeu o n8n e o dashboard, em ocasiões separadas.
 
-O gateway valida a configuração no boot e **recusa subir** com valor faltando ou com menos de 16 caracteres — a mensagem diz qual campo corrigir.
+O gateway valida a configuração no boot e **recusa subir** com valor faltando ou com menos de 16 caracteres, e a mensagem diz qual campo corrigir.
 
 ---
 
@@ -45,7 +45,7 @@ docker compose ps
 curl.exe http://localhost:3000/health/live
 ```
 
-Se o Postgres não subir com erro de *"socket forbidden"*, a porta 5432 do host está ocupada por uma instalação nativa — a mensagem não deixa isso óbvio. Troque `POSTGRES_HOST_PORT` no `.env` (ex.: `55432`).
+Se o Postgres não subir com erro de *"socket forbidden"*, a porta 5432 do host está ocupada por uma instalação nativa: a mensagem não deixa isso óbvio. Troque `POSTGRES_HOST_PORT` no `.env` (ex.: `55432`).
 
 ---
 
@@ -55,7 +55,7 @@ O gateway inicia a sessão sozinho e gera o QR code.
 
 > ⚠️ **Antes de escanear, desconecte todos os aparelhos** em WhatsApp → Configurações → Aparelhos conectados. Com mais de uma sessão pendurada, o WhatsApp derruba uma com `Stream Errored (conflict)`, o gateway classifica isso como `loggedOut` e **apaga as credenciais**. Sintoma: `CONNECTED` seguido de "Sessão desvinculada" em menos de um segundo.
 
-O ASCII do QR **não sai no log em produção** — baixe o PNG:
+O ASCII do QR **não sai no log em produção**. Baixe o PNG:
 
 ```powershell
 $KEY = ((Get-Content .env | Select-String '^GATEWAY_API_KEY=') -split '=',2)[1].Trim()
@@ -63,11 +63,11 @@ curl.exe -sS -f -H "X-Api-Key: $KEY" "http://localhost:3000/api/v1/sessions/defa
 if ($?) { (Get-Item qr.png).Length; start qr.png }
 ```
 
-Alguns KB = QR real. ~200 bytes = um JSON de erro com extensão `.png`, que nenhum visualizador abre — **confira o tamanho** antes de tentar.
+Alguns KB = QR real. ~200 bytes = um JSON de erro com extensão `.png`, que nenhum visualizador abre: **confira o tamanho** antes de tentar.
 
 No celular: **Configurações → Aparelhos conectados → Conectar um aparelho**, e escaneie.
 
-Confirme que a conexão **sustenta** — espere uns 30s, não basta ver `CONNECTED` uma vez:
+Confirme que a conexão **sustenta**. Espere uns 30s, não basta ver `CONNECTED` uma vez:
 
 ```powershell
 curl.exe -H "X-Api-Key: $KEY" http://localhost:3000/api/v1/sessions/default
@@ -76,7 +76,7 @@ curl.exe -s -o nul -w "ready: HTTP %{http_code}" http://localhost:3000/health/re
 
 Quer `"status":"CONNECTED"` e `ready: HTTP 200`. A sessão fica no volume `wa_sessions` e sobrevive a restarts.
 
-> ⚠️ **Nunca** use `DELETE /api/v1/sessions/default` — apaga as credenciais e exige QR novo.
+> ⚠️ **Nunca** use `DELETE /api/v1/sessions/default`: apaga as credenciais e exige QR novo.
 
 ---
 
@@ -91,7 +91,7 @@ curl.exe -X POST http://localhost:3000/api/v1/messages `
   -d '{\"to\":\"5516999998888\",\"text\":\"Teste do gateway\"}'
 ```
 
-A mensagem chega em alguns segundos — o atraso é a fila anti-ban.
+A mensagem chega em alguns segundos: o atraso é a fila anti-ban.
 
 ---
 
@@ -108,7 +108,7 @@ Em `http://localhost:5678`, cadastre:
 
 Depois: **Workflows → Import from File** → [n8n/whatsapp-chatbot.json](../n8n/whatsapp-chatbot.json), vincule as credenciais (os nós vêm marcados), confirme que **Redis Chat Memory** está ligado ao **AI Agent**, e **ative** o workflow.
 
-Duas coisas que já custaram tempo aqui — a credencial salva pela tela nem sempre cola, e importar pelo CLI desativa o fluxo. Ver [armadilhas.md](armadilhas.md#n8n).
+Duas coisas que já custaram tempo aqui: a credencial salva pela tela nem sempre cola, e importar pelo CLI desativa o fluxo. Ver [armadilhas.md](armadilhas.md#n8n).
 
 ---
 
@@ -116,7 +116,7 @@ Duas coisas que já custaram tempo aqui — a credencial salva pela tela nem sem
 
 Opcional para o chatbot funcionar, mas é como a equipe gerencia o conteúdo sem mexer no banco na mão.
 
-**No compose** — sobe junto com o resto:
+**No compose**, subindo junto com o resto:
 
 ```powershell
 # no .env: COMPOSE_PROFILES=dashboard
@@ -130,7 +130,7 @@ As migrations do Postgres rodam sozinhas no boot (`DB_RUN_MIGRATIONS=true`). Cri
 docker compose exec dashboard-api node dist/database/seeds/create-admin.js
 ```
 
-**Localmente** — para desenvolver com hot reload:
+**Localmente**, para desenvolver com hot reload:
 
 ```powershell
 cd Dashboard-PetSaude/back
@@ -146,13 +146,13 @@ npx vite dev --port 5173
 
 > ⚠️ As duas formas disputam as portas 3333 e 5173. Pare o container antes de rodar `pnpm start:dev`, ou vice-versa.
 
-O seed é **idempotente**: se já houver usuário, não faz nada. A senha do admin é provisória — a troca é exigida no primeiro acesso.
+O seed é **idempotente**: se já houver usuário, não faz nada. A senha do admin é provisória: a troca é exigida no primeiro acesso.
 
 ---
 
 ## 7. Protótipo PWA
 
-Opcional, e usado para validar a qualidade das respostas com participantes. Sobe com o mesmo compose e tem fluxo, token e credencial próprios — passo a passo em [prototipo-pwa.md](prototipo-pwa.md).
+Opcional, e usado para validar a qualidade das respostas com participantes. Sobe com o mesmo compose e tem fluxo, token e credencial próprios: passo a passo em [prototipo-pwa.md](prototipo-pwa.md).
 
 ---
 
@@ -170,7 +170,7 @@ Roteiro mínimo:
 
 | # | O que mandar | O que precisa acontecer |
 |---|---|---|
-| 1 | `oi` | Saudação cordial — **não** pode cair no "não encontrei" |
+| 1 | `oi` | Saudação cordial. **Não** pode cair no "não encontrei" |
 | 2 | Uma pergunta que existe na base | Resposta correta. Na execução, `Buscar FAQs` mostra documentos recuperados **antes** do agente |
 | 3 | Uma pergunta fora do escopo | Admite que não sabe, sem inventar e sem citar trecho de outro assunto |
 | 4 | **Três perguntas seguidas sobre assuntos diferentes** | As três respostas precisam ser **diferentes entre si**. É o teste do "bot viciado" |

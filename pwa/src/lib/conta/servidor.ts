@@ -7,7 +7,7 @@ import type { Usuario } from './tipos';
  * A conta logada, para páginas renderizadas no servidor.
  *
  * Separado de `sessao.ts` porque `next/headers` só existe dentro de uma
- * renderização do Next — as rotas de API leem o cookie da própria requisição.
+ * renderização do Next: as rotas de API leem o cookie da própria requisição.
  */
 export async function contaAtual(): Promise<Usuario | null> {
   return contaPeloToken((await cookies()).get(COOKIE_CONTA)?.value ?? null);

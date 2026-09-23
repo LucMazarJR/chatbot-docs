@@ -11,12 +11,12 @@ let iniciado = false;
  * Dispara o despachante a cada 30 segundos.
  *
  * LÓGICA DO LUCIANO: dentro do próprio servidor do PWA, e não num fluxo do n8n.
- * Um fluxo precisaria ser importado, ativado e ter a credencial cadastrada à mão
- * — e importar pelo CLI desativa o fluxo em silêncio. Aqui não há nada a
+ * Um fluxo precisaria ser importado, ativado e ter a credencial cadastrada à mão,
+ * e importar pelo CLI desativa o fluxo em silêncio. Aqui não há nada a
  * configurar: o container sobe e os avisos começam a sair.
  *
  * Só roda onde há processo que fica de pé (o Docker). Na Vercel cada função
- * congela entre requisições, então um intervalo ali não dispararia nada — ver a
+ * congela entre requisições, então um intervalo ali não dispararia nada: ver a
  * guarda em `instrumentation.ts`. Para um relógio de fora, existe
  * `POST /api/notificacoes/despachar`.
  */

@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
  * Rede de segurança de formatação.
  *
  * O prompt do agente no n8n pedia HTML do Telegram (`<b>`, `<p>`,
- * `parse_mode=HTML`) enquanto a entrega sempre foi WhatsApp — resultado: as
+ * `parse_mode=HTML`) enquanto a entrega sempre foi WhatsApp. Resultado: as
  * tags chegavam literais para o cidadão. O prompt foi corrigido, mas um LLM
  * eventualmente desobedece; este serviço garante que nada disso vaze.
  *

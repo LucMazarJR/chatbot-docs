@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-gateway",
   "version": "0.1.0",
-  "description": "Gateway de WhatsApp do chatbot de saúde — substitui o WAHA",
+  "description": "Gateway de WhatsApp do chatbot de saúde, no lugar do WAHA",
   "private": true,
   "license": "UNLICENSED",
   "engines": {

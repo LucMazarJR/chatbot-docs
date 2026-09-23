@@ -41,7 +41,7 @@ export function PainelConta({
       if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
       window.location.assign('/staging/entrar?apagada=1');
     } catch {
-      setErro('Não consegui apagar agora. Sua conta continua como estava — tente de novo.');
+      setErro('Não consegui apagar agora. Sua conta continua como estava: tente de novo.');
       setOcupado(false);
     }
   }

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * Ativa os avisos neste aparelho, para a conta logada.
  *
  * Se o mesmo navegador já estava inscrito em outra conta, a inscrição passa
- * para esta. Um aparelho recebe os avisos de quem está logado nele agora — do
+ * para esta. Um aparelho recebe os avisos de quem está logado nele agora: do
  * contrário, quem trocou de conta num computador compartilhado continuaria
  * recebendo os lembretes de saúde da pessoa anterior.
  */
