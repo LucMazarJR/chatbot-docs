@@ -66,3 +66,13 @@ export function diaDaSemanaEHora(valor: Date | string | number): string {
     minute: "2-digit",
   });
 }
+
+/**
+ * 2026-09-16, o dia de Brasília no formato do campo de data (`<input type="date">`).
+ *
+ * O `toISOString` daria o dia de Greenwich: depois das 21h, o campo abriria no
+ * dia seguinte.
+ */
+export function diaIso(valor: Date | string | number): string {
+  return paraData(valor).toLocaleDateString("sv-SE", { timeZone: FUSO });
+}

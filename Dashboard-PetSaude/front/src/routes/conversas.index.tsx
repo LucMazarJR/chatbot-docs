@@ -10,7 +10,6 @@ import {
   listarConversas,
   type ConversaResumida,
   type EstatisticasConversas,
-  type FiltroVersao,
   type Periodo,
   type Situacao,
 } from "@/lib/conversas.functions";
@@ -19,11 +18,15 @@ import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { Segmentos } from "@/components/segmentos";
 import { Selo, type TomDoSelo } from "@/components/selo";
-import { SeloConta, SeloVersao } from "@/components/selos-conversa";
+import { SeloConta } from "@/components/selos-conversa";
 import { Button } from "@/components/ui/button";
-import { diaEHora } from "@/lib/datas";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { dataPorExtenso, diaEHora, diaIso } from "@/lib/datas";
 
-type Busca = { periodo?: Periodo; versao?: FiltroVersao; situacao?: Situacao };
+type Busca = { periodo?: Periodo; dia?: string; situacao?: Situacao };
+
+const FORMATO_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 export const Route = createFileRoute("/conversas/")({
   beforeLoad: () => exigirAdmin(),
@@ -31,9 +34,7 @@ export const Route = createFileRoute("/conversas/")({
   // em toda visita.
   validateSearch: (search: Record<string, unknown>): Busca => ({
     ...(search.periodo && search.periodo !== "tudo" ? { periodo: search.periodo as Periodo } : {}),
-    ...(search.versao && search.versao !== "todas"
-      ? { versao: search.versao as FiltroVersao }
-      : {}),
+    ...(typeof search.dia === "string" && FORMATO_DIA.test(search.dia) ? { dia: search.dia } : {}),
     ...(search.situacao && search.situacao !== "validas"
       ? { situacao: search.situacao as Situacao }
       : {}),
@@ -48,13 +49,8 @@ const PERIODOS: { valor: Periodo; rotulo: string }[] = [
   { valor: "hoje", rotulo: "Hoje" },
   { valor: "7d", rotulo: "7 dias" },
   { valor: "30d", rotulo: "30 dias" },
+  { valor: "dia", rotulo: "Um dia" },
   { valor: "tudo", rotulo: "Tudo" },
-];
-
-const VERSOES: { valor: FiltroVersao; rotulo: string }[] = [
-  { valor: "todas", rotulo: "A + B" },
-  { valor: "a", rotulo: "Versão A" },
-  { valor: "b", rotulo: "Versão B" },
 ];
 
 const SITUACOES: { valor: Situacao; rotulo: string; titulo?: string }[] = [
@@ -75,17 +71,20 @@ function ConversasPage() {
   const navigate = Route.useNavigate();
 
   const periodo = busca.periodo ?? "tudo";
-  const versao = busca.versao ?? "todas";
   const situacao = busca.situacao ?? "validas";
+  // "Um dia" sem data escolhida mostra hoje: é o caso de quem abre a tela no
+  // fim de um teste presencial para rever as conversas do dia.
+  const hoje = diaIso(new Date());
+  const dia = periodo === "dia" ? (busca.dia ?? hoje) : undefined;
 
   const estatisticas = useQuery({
-    queryKey: ["conversas-estatisticas", { periodo, versao }],
-    queryFn: () => getEstatisticasConversas({ data: { periodo, versao } }),
+    queryKey: ["conversas-estatisticas", { periodo, dia }],
+    queryFn: () => getEstatisticasConversas({ data: { periodo, dia } }),
   });
 
   const conversas = useQuery({
-    queryKey: ["conversas", { periodo, versao, situacao }],
-    queryFn: () => listarConversas({ data: { periodo, versao, situacao } }),
+    queryKey: ["conversas", { periodo, dia, situacao }],
+    queryFn: () => listarConversas({ data: { periodo, dia, situacao } }),
   });
 
   const lista = conversas.data ?? [];
@@ -113,26 +112,42 @@ function ConversasPage() {
           <Carregando compacto texto="Calculando os números…" />
         )}
 
-        {/* Três recortes, cada um no seu trilho: quando, o que aconteceu, e
-            qual interface. */}
+        {/* Dois recortes, cada um no seu trilho: quando, e o que aconteceu. */}
         <div className="flex flex-wrap items-center gap-3">
           <Segmentos
             rotulo="Período"
             opcoes={PERIODOS}
             valor={periodo}
-            aoMudar={(valor) => navigate({ search: (a) => ({ ...a, periodo: valor }) })}
+            aoMudar={(valor) =>
+              navigate({
+                search: (a) => ({ ...a, periodo: valor, dia: valor === "dia" ? a.dia : undefined }),
+              })
+            }
           />
+          {periodo === "dia" && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="filtro-dia">Dia</Label>
+              <Input
+                id="filtro-dia"
+                type="date"
+                className="w-auto"
+                value={dia}
+                max={hoje}
+                onChange={(e) => {
+                  // Apagar a data no campo volta para hoje, em vez de filtrar por nada.
+                  const escolhido = e.target.value;
+                  navigate({
+                    search: (a) => ({ ...a, dia: FORMATO_DIA.test(escolhido) ? escolhido : undefined }),
+                  });
+                }}
+              />
+            </div>
+          )}
           <Segmentos
             rotulo="Situação"
             opcoes={SITUACOES}
             valor={situacao}
             aoMudar={(valor) => navigate({ search: (a) => ({ ...a, situacao: valor }) })}
-          />
-          <Segmentos
-            rotulo="Interface"
-            opcoes={VERSOES}
-            valor={versao}
-            aoMudar={(valor) => navigate({ search: (a) => ({ ...a, versao: valor }) })}
           />
         </div>
 
@@ -146,16 +161,18 @@ function ConversasPage() {
           <EstadoVazio
             titulo="Nenhuma conversa com esses filtros"
             acao={
-              periodo !== "tudo" || situacao !== "validas" || versao !== "todas" ? (
+              periodo !== "tudo" || situacao !== "validas" ? (
                 <Button variant="outline" onClick={() => navigate({ search: {} })}>
                   Ver todas as conversas
                 </Button>
               ) : undefined
             }
           >
-            {periodo === "hoje"
+            {periodo === "hoje" || (periodo === "dia" && dia === hoje)
               ? "Ninguém conversou com o chatbot hoje ainda."
-              : "Troque o período ou a situação para ver outras."}
+              : periodo === "dia" && dia
+                ? `Ninguém conversou com o chatbot em ${dataPorExtenso(`${dia}T12:00:00-03:00`)}. Escolha outro dia no campo acima.`
+                : "Troque o período ou a situação para ver outras."}
           </EstadoVazio>
         ) : (
           <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -212,7 +229,6 @@ function LinhaConversa({ conversa }: { conversa: ConversaResumida }) {
         className="grid min-h-[60px] grid-cols-[minmax(0,1fr)_20px] items-center gap-x-4 gap-y-1.5 px-4 py-3 text-[15px] text-foreground transition-colors hover:bg-surface-2 sm:px-5 lg:grid-cols-[minmax(0,1.3fr)_130px_100px_90px_minmax(0,1fr)_20px] lg:py-0"
       >
         <span className="flex min-w-0 flex-wrap items-center gap-2">
-          <SeloVersao versao={conversa.versao} />
           <strong className="font-semibold">{conversa.nome}</strong>
           <SeloConta usuarioId={conversa.usuarioId} />
         </span>

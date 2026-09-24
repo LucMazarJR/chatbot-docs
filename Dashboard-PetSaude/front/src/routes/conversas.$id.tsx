@@ -7,7 +7,7 @@ import { GateShell } from "@/components/gate";
 import { ApagarConversa } from "@/components/apagar-conversa";
 import { exigirAdmin } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
-import { SeloConta, SeloVersao } from "@/components/selos-conversa";
+import { SeloConta } from "@/components/selos-conversa";
 import { diaEHora, hora } from "@/lib/datas";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
@@ -79,12 +79,7 @@ function ConversaPage() {
             <CabecalhoPagina
               antes={voltar}
               titulo={sessao.nome}
-              selos={
-                <>
-                  <SeloVersao versao={sessao.versao} />
-                  <SeloConta usuarioId={sessao.usuarioId} />
-                </>
-              }
+              selos={<SeloConta usuarioId={sessao.usuarioId} />}
               frase={
                 <span className="text-sm sm:text-[15px]">
                   {diaEHora(sessao.iniciadaEm)} · {duracao(sessao.iniciadaEm, sessao.encerradaEm)}
