@@ -14,6 +14,8 @@ A aplicação está totalmente separada e hospedada na nuvem nos seguintes servi
   * Acesso: https://dashboard-pet-saude-seven.vercel.app/
 * **Back-end (API / Banco de Dados):** Hospedado no Render.
 
+Os dois publicam a partir da `main`. O endereço sem "-seven" na Vercel é de outro projeto e não recebe os deploys.
+
 ## Stack de Tecnologia
 O projeto é dividido em dois serviços principais:
 
