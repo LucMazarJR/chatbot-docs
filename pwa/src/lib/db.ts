@@ -2,6 +2,7 @@ import { MongoClient, MongoServerError, type Collection, type Db } from 'mongodb
 
 import type { SessaoDeConta, Usuario } from './conta/tipos';
 import type { RegistroDeLimite } from './limite';
+import type { Contador } from './participante';
 import type { Notificacao } from './notificacoes/tipos';
 import type { InscricaoPush } from './push/tipos';
 import type { Mensagem, Sessao } from './tipos';
@@ -93,6 +94,10 @@ export async function limites(): Promise<Collection<RegistroDeLimite>> {
   return (await banco()).collection<RegistroDeLimite>('limites');
 }
 
+export async function contadores(): Promise<Collection<Contador>> {
+  return (await banco()).collection<Contador>('contadores');
+}
+
 export async function usuarios(): Promise<Collection<Usuario>> {
   return (await banco()).collection<Usuario>('usuarios');
 }
@@ -129,6 +134,8 @@ async function criarIndices(db: Db) {
     // O contador de limite se apaga sozinho: sem TTL, a coleção acumularia um
     // documento por IP para sempre.
     db.collection('limites').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
+    // Um contador de participantes por dia: o de ontem não serve para mais nada.
+    db.collection('contadores').createIndex({ expiraEm: 1 }, { expireAfterSeconds: 0 }),
 
     // Contas. O índice único no e-mail normalizado é a garantia contra duas
     // contas para a mesma pessoa: a checagem antes do insert é uma corrida,

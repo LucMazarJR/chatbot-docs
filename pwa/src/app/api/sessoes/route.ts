@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { sessoes } from '@/lib/db';
 import { contaDaRequisicao, origemConfiavel } from '@/lib/conta/sessao';
+import { proximoParticipante } from '@/lib/participante';
 import { gerarChaveDeSessao } from '@/lib/sessao-autenticada';
 import type { Sessao, Versao } from '@/lib/tipos';
 
@@ -30,10 +31,10 @@ export async function POST(requisicao: Request) {
 
   const col = await sessoes();
 
-  // Sem tela de entrada, ninguem informa um nome. Numerar por ordem de chegada
-  // e o que mantem a lista da revisao legivel: "Participante 7" da para citar
-  // numa conversa, um UUID nao.
-  const rotulo = nome || `Participante ${(await col.countDocuments({})) + 1}`;
+  // Sem tela de entrada, ninguém informa um nome. Numerar por ordem de chegada
+  // é o que mantém a lista da revisão legível: "Participante 7 25/09/2026" dá
+  // para citar numa conversa, um UUID não.
+  const rotulo = nome || (await proximoParticipante());
 
   const sessao: Sessao = {
     _id: randomUUID(),
@@ -85,7 +86,7 @@ async function abrirDaConta(requisicao: Request) {
 
   const sessao: Sessao = {
     _id: randomUUID(),
-    nome: `Participante ${(await col.countDocuments({})) + 1}`,
+    nome: await proximoParticipante(),
     versao: 'a',
     iniciadaEm: new Date(),
     encerradaEm: null,

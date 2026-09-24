@@ -212,7 +212,7 @@ As funções da Vercel saem de IPs variáveis. Em **Atlas → Network Access**, 
 
 ### Chat: `/`
 
-Mobile. **Abre direto na conversa**: não há tela de entrada nem pergunta de nome: a sessão é criada sozinha e as sessões são numeradas por ordem de chegada (`Participante 7`), o que mantém a lista da revisão legível. O aviso de consentimento aparece dentro do chat, no mesmo padrão do aviso de criptografia do WhatsApp.
+Mobile. **Abre direto na conversa**: não há tela de entrada nem pergunta de nome: a sessão é criada sozinha e as sessões são numeradas por ordem de chegada dentro de cada dia de Brasília, com a data junto (`Participante 7 25/09/2026`). O número recomeça todo dia, o que mantém a lista da revisão legível e deixa citar "o participante 7 do teste de ontem". O aviso de consentimento aparece dentro do chat, no mesmo padrão do aviso de criptografia do WhatsApp.
 
 Balões com rabinho, tiques de leitura, "digitando…", e a formatação do WhatsApp (`*negrito*`, `_itálico_`, `•`) renderizada como no aplicativo.
 
