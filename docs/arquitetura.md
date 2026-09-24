@@ -151,7 +151,7 @@ Webhook → If → Dados → Switch → Buscar FAQs → Montar contexto → AI A
 | **Switch** | `TipoMensagem == "text"` segue para a busca; o resto vai para o aviso de somente texto, sem chegar ao agente |
 | **Buscar FAQs** | Vector Store em `mode: load`, `topK: 10`, `preFilter: {"isActive": true}` |
 | **Montar contexto** | Nó Code: agrega os documentos num item só, descarta trechos com `score < 0.82` e reanexa os campos que o Vector Store derruba |
-| **AI Agent** | `gemini-3.1-flash-lite` (cota gratuita de 500 por dia), com 3 tentativas contra sobrecarga e `gemini-2.5-flash-lite` de reserva quando as três falham |
+| **AI Agent** | `gemini-3.1-flash-lite` (cota gratuita de 500 por dia), com 3 tentativas contra sobrecarga e `gemini-2.5-flash-lite` de reserva quando as três falham. No fluxo do PWA, se as duas falharem, um segundo agente tenta o `gemini-3.5-flash-lite` antes da mensagem de indisponibilidade |
 | **Redis Chat Memory** | db 0, janela de **4 mensagens** (2 turnos), TTL de 1h |
 | **Embeddings Google Gemini** | `gemini-embedding-2`, que precisa ser **o mesmo modelo da base**. Ver [base-de-faqs.md](base-de-faqs.md#a-regra-que-quebra-tudo-em-silêncio) |
 | **Enviar \*** | `POST /api/v1/messages` no gateway, com `idempotencyKey = EventId` |
