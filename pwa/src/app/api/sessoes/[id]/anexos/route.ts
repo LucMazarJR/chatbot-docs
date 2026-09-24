@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { mensagens } from '@/lib/db';
-import { dentroDoLimite, identificar } from '@/lib/limite';
+import { LIMITE_POR_CONVERSA, dentroDoLimite, identificar } from '@/lib/limite';
 import { TEXTO_SOMENTE_TEXTO } from '@/lib/mensagens-fixas';
 import { autenticarSessao } from '@/lib/sessao-autenticada';
 import type { Mensagem, TipoAnexo } from '@/lib/tipos';
@@ -53,6 +53,15 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   const autenticada = await autenticarSessao(requisicao, id);
   if ('erro' in autenticada) return autenticada.erro;
   const { sessao } = autenticada;
+
+  // Depois da autenticação, e não antes: o id da conversa não é segredo, e
+  // contar antes deixaria qualquer um esgotar o limite da conversa de outra pessoa.
+  if (!(await dentroDoLimite(`conversa:${sessao._id}`, LIMITE_POR_CONVERSA))) {
+    return Response.json(
+      { erro: 'muitas mensagens em pouco tempo, aguarde alguns minutos' },
+      { status: 429 },
+    );
+  }
 
   if (sessao.encerradaEm) return Response.json({ erro: 'sessão já encerrada' }, { status: 409 });
 
