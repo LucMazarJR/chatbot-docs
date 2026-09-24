@@ -1,12 +1,12 @@
 # Como trabalhar no dashboard
 
-Valem as regras de trabalho do repositório que hospeda este aqui, em `chatbot-docs/CLAUDE.md`: commits pequenos na main, padrão de aplicação profissional, UX conferida na tela de verdade, escrita sem marcadores de IA (nada de travessão), verificação contra o ambiente real e privacidade no conteúdo escrito por cidadão.
+Valem as regras de trabalho do repositório que hospeda este aqui, em `chatbot-docs/CLAUDE.md`: commits pequenos numa branch por funcionalidade, padrão de aplicação profissional, UX conferida na tela de verdade, escrita sem marcadores de IA (nada de travessão), verificação contra o ambiente real e privacidade no conteúdo escrito por cidadão.
 
 O que é específico daqui:
 
 ## Antes de mexer
 
-Este painel é a única parte do projeto que a equipe usa todo dia, e ele grava na mesma base de FAQs que o chatbot lê. Mudança aqui se verifica antes do push, com login de verdade nos três papéis quando a tela muda.
+O painel é a ferramenta de trabalho da equipe, e grava na mesma base de FAQs que o chatbot lê. Mudança aqui se verifica antes do push, com login de verdade nos três papéis quando a tela muda.
 
 ## Estrutura que precisa ser respeitada
 
@@ -30,4 +30,6 @@ cd back;  npx jest; npx tsc --noEmit -p tsconfig.json
 cd front; npx tsc --noEmit; npx vite build; npx eslint src/<arquivo>
 ```
 
-Front publicado na Vercel, back no Render. Os dois saem do `main`, e o front novo depende do back novo: publicar o back primeiro.
+O front novo pode chamar rota que só o back novo tem: publicar o back primeiro. Onde cada parte está publicada fica no [README](README.md#hospedagem-e-produção-links).
+
+Este arquivo guarda só regra de trabalho. Estado do momento vai para o README ou para `chatbot-docs/docs/`, e regra que deixou de valer é corrigida no mesmo commit da mudança que a invalidou.
