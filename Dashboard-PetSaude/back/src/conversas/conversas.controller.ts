@@ -24,7 +24,7 @@ export class ConversasController {
     // "estatisticas" e "exportar" como se fossem um id.
     @Get('estatisticas')
     estatisticas(@Query() query: ListarConversasQueryDto) {
-        return this.conversas.estatisticas(query.periodo ?? 'tudo', query.versao ?? 'todas');
+        return this.conversas.estatisticas(query.periodo ?? 'tudo', query.versao ?? 'todas', query.dia);
     }
 
     @Get('exportar')
@@ -40,6 +40,7 @@ export class ConversasController {
             query.situacao ?? 'validas',
             query.periodo ?? 'tudo',
             query.versao ?? 'todas',
+            query.dia,
         );
     }
 

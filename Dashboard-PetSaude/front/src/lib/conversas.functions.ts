@@ -11,8 +11,7 @@ import { apiFetch } from "./api.server";
  * cidadãos identificáveis pelo que contam.
  */
 
-export const PERIODOS = ["hoje", "7d", "30d", "tudo"] as const;
-export const VERSOES = ["a", "b", "todas"] as const;
+export const PERIODOS = ["hoje", "7d", "30d", "dia", "tudo"] as const;
 export const SITUACOES = [
   "validas",
   "todas",
@@ -23,7 +22,6 @@ export const SITUACOES = [
 ] as const;
 
 export type Periodo = (typeof PERIODOS)[number];
-export type FiltroVersao = (typeof VERSOES)[number];
 export type Situacao = (typeof SITUACOES)[number];
 
 export type Avaliacao = {
@@ -97,9 +95,13 @@ export type EstatisticasConversas = {
   respostasLentas: number;
 };
 
+/** `dia` é "AAAA-MM-DD" e só vale com periodo "dia". */
 const recorte = z.object({
   periodo: z.enum(PERIODOS).default("tudo"),
-  versao: z.enum(VERSOES).default("todas"),
+  dia: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 const recorteComSituacao = recorte.extend({

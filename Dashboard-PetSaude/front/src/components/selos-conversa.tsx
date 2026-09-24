@@ -1,7 +1,6 @@
 import { Lock } from "lucide-react";
 
 import { Selo } from "@/components/selo";
-import { cn } from "@/lib/utils";
 
 /**
  * Marca a conversa feita com conta, sem dizer de quem.
@@ -17,26 +16,5 @@ export function SeloConta({ usuarioId }: { usuarioId?: string }) {
     <Selo icone={<Lock aria-hidden="true" />} title="Conversa feita com conta">
       Com conta
     </Selo>
-  );
-}
-
-export function SeloVersao({ versao, className }: { versao?: "a" | "b"; className?: string }) {
-  // Sessões anteriores às duas interfaces não têm o campo: contam como "a",
-  // que era a única que existia.
-  const letra = (versao ?? "a").toUpperCase();
-  return (
-    <span
-      title={`Interface ${letra}`}
-      aria-label={`Interface ${letra}`}
-      className={cn(
-        "inline-grid size-6 shrink-0 place-items-center rounded-md text-xs font-bold",
-        versao === "b"
-          ? "bg-warning-soft text-warning"
-          : "bg-primary-soft text-primary-soft-foreground",
-        className,
-      )}
-    >
-      {letra}
-    </span>
   );
 }

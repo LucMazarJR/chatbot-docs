@@ -6,14 +6,14 @@ import { Sessao, SessaoDocument } from './schemas/sessao.schema';
 import { Mensagem, MensagemDocument } from './schemas/mensagem.schema';
 import { CONEXAO_PROTOTIPO } from './conexao';
 import { ActivityService } from '../activity/activity.service';
-import { inicioDoDia } from '../comum/fuso';
+import { inicioDoDia, intervaloDoDia } from '../comum/fuso';
 import { Rodada, RodadaDocument } from '../curadoria/schemas/rodada.schema';
 import { Sugestao, SugestaoDocument } from '../curadoria/schemas/sugestao.schema';
 
 /** O mesmo texto que o PWA usa, para as duas portas de exclusão deixarem o mesmo rastro. */
 export const MARCA_APAGADA = '[apagada a pedido da pessoa]';
 
-export type Periodo = 'hoje' | '7d' | '30d' | 'tudo';
+export type Periodo = 'hoje' | '7d' | '30d' | 'dia' | 'tudo';
 export type FiltroVersao = 'a' | 'b' | 'todas';
 export type FiltroSituacao =
     | 'validas'
@@ -48,14 +48,23 @@ export class ConversasService {
         private readonly activityService: ActivityService,
     ) { }
 
-    /** Início do intervalo, ou null quando o filtro é "tudo". */
-    private desde(periodo: Periodo): Date | null {
+    /**
+     * Condição sobre `iniciadaEm`, ou null quando o filtro é "tudo".
+     *
+     * "dia" é um dia do calendário, escolhido na tela para rever um teste
+     * presencial. Data inválida vale como "tudo", como os outros filtros.
+     */
+    private intervalo(periodo: Periodo, dia?: string): { $gte: Date; $lt?: Date } | null {
         const agora = new Date();
 
         // No fuso da equipe: o servidor roda em UTC (ver comum/fuso.ts).
-        if (periodo === 'hoje') return inicioDoDia(agora);
-        if (periodo === '7d') return new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
-        if (periodo === '30d') return new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+        if (periodo === 'hoje') return { $gte: inicioDoDia(agora) };
+        if (periodo === '7d') return { $gte: new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000) };
+        if (periodo === '30d') return { $gte: new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000) };
+        if (periodo === 'dia' && dia) {
+            const doDia = intervaloDoDia(dia);
+            if (doDia) return { $gte: doDia.inicio, $lt: doDia.fim };
+        }
         return null;
     }
 
@@ -65,11 +74,11 @@ export class ConversasService {
      * Sessões antigas não têm o campo `versao`: são anteriores à existência
      * das duas interfaces. Contam como "a", que era a única que existia.
      */
-    private filtroDeSessao(periodo: Periodo, versao: FiltroVersao): Record<string, unknown> {
+    private filtroDeSessao(periodo: Periodo, versao: FiltroVersao, dia?: string): Record<string, unknown> {
         const filtro: Record<string, unknown> = {};
 
-        const inicio = this.desde(periodo);
-        if (inicio) filtro.iniciadaEm = { $gte: inicio };
+        const intervalo = this.intervalo(periodo, dia);
+        if (intervalo) filtro.iniciadaEm = intervalo;
 
         if (versao === 'a') filtro.$or = [{ versao: 'a' }, { versao: { $exists: false } }];
         else if (versao === 'b') filtro.versao = 'b';
@@ -78,8 +87,8 @@ export class ConversasService {
     }
 
     /** Números do topo da tela, recortados por período e interface. */
-    async estatisticas(periodo: Periodo = 'tudo', versao: FiltroVersao = 'todas') {
-        const base = this.filtroDeSessao(periodo, versao);
+    async estatisticas(periodo: Periodo = 'tudo', versao: FiltroVersao = 'todas', dia?: string) {
+        const base = this.filtroDeSessao(periodo, versao, dia);
         const noRecorte = await this.sessaoModel.find(base).select('_id').lean().exec();
         const idsNoRecorte = noRecorte.map((s) => s._id);
 
@@ -198,10 +207,11 @@ export class ConversasService {
         situacao: FiltroSituacao = 'validas',
         periodo: Periodo = 'tudo',
         versao: FiltroVersao = 'todas',
+        dia?: string,
         limite = 200,
     ) {
         const pipeline: PipelineStage[] = [
-            { $match: this.filtroDeSessao(periodo, versao) },
+            { $match: this.filtroDeSessao(periodo, versao, dia) },
             { $sort: { iniciadaEm: -1 } },
             {
                 $lookup: {
