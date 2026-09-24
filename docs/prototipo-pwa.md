@@ -8,6 +8,21 @@ Existe por um motivo prático: validar a **qualidade das respostas** com usuári
 
 ---
 
+## Em uso e em validação
+
+Esta seção é o estado do projeto, e muda com ele. As regras de trabalho ([CLAUDE.md](../CLAUDE.md)) apontam para cá em vez de repetir o estado.
+
+| Parte | Situação | Onde a novidade entra antes |
+|---|---|---|
+| Chat anônimo, `/` | em uso por participantes da validação: não muda de comportamento | `/staging` |
+| Contas e avisos push, `/staging` | em validação com a equipe | variável própria, desligada por padrão (como `GATILHOS_ATIVOS`) |
+| Painel da equipe | ferramenta de trabalho diária | selo `emTeste: true` no menu |
+| Canal do WhatsApp | pausado: só o PWA fica no ar, e o gateway pode ficar parado sem o QR lido | nenhum |
+
+Quando uma parte muda de situação (o `/staging` é promovido para o `/`, o WhatsApp volta), a linha dela muda no mesmo commit.
+
+---
+
 ## O que ele não toca
 
 O canal em produção continua igual. O isolamento é de ponta a ponta:

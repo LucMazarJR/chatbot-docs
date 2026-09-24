@@ -81,10 +81,12 @@ Documento descreve o sistema, não o momento. Nada de "hoje fizemos", "nesta fas
 
 Decisão não óbvia vira comentário no código, com o motivo, ou uma linha em [docs/armadilhas.md](docs/armadilhas.md) quando é do tipo que quebra em silêncio.
 
+Este arquivo guarda só regra de trabalho. O estado do momento (o que está publicado, onde, o que está em validação) mora em `docs/`, nunca aqui. Regra que deixou de valer é corrigida no mesmo commit da mudança que a invalidou, porque regra velha aqui é seguida à risca e faz trabalho errado.
+
 ## O que exige cuidado extra
 
-* **O `/` do chat está em teste de campo** e não pode mudar de comportamento. Coisa nova entra em `/staging` primeiro.
-* **O painel é o que a equipe usa todo dia.** Mexer nele pede verificação antes do push.
+* **O que está em uso por pessoas de verdade não muda de comportamento sem validação.** Novidade entra isolada (rota, chave ou variável própria, desligada por padrão) e só é promovida depois de validada. Qual parte está em uso real, e onde fica o espaço isolado de cada uma, está em [docs/prototipo-pwa.md](docs/prototipo-pwa.md#em-uso-e-em-validação).
+* **O painel é a ferramenta de trabalho da equipe.** Mexer nele pede verificação antes do push.
 * Variável de ambiente nova nasce com padrão vazio e o sistema funciona sem ela, como o login do Google, que fica oculto enquanto não houver credencial.
 * Segredo não entra no código nem no log, e `.env` não vai para o repositório.
 
