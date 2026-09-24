@@ -93,7 +93,7 @@ Ele não menciona `output` nem `standalone`, e leva a procurar no lugar errado. 
 
 **`PWA_PUBLIC_URL` precisa ser alcançável pelo container do n8n.** É o endereço para onde o fluxo devolve a resposta pronta. Deduzi-lo do cabeçalho `Host` não funciona: `localhost` dentro do n8n é o próprio n8n, e a resposta morre com `ECONNREFUSED`. No Docker, `http://pwa:8080`.
 
-**O limite de 40 mensagens por IP a cada 10 minutos é proposital.** Com acesso aberto, uma aba segurando F5 queimaria a cota do dia. Se um teste presencial legítimo esbarrar nele (muitos celulares atrás do mesmo NAT), o valor está em `pwa/src/lib/limite.ts`.
+**O limite de mensagens tem dois tetos, e o baixo é o da conversa.** São 30 mensagens por conversa e 300 por IP a cada 10 minutos. O acidente que gasta a cota (aba segurando F5) acontece dentro de uma conversa só. Num teste presencial a turma inteira sai pelo mesmo IP do Wi-Fi, e um teto baixo por IP travava o chat para todos: com o antigo, de 40, vinte pessoas mandavam duas perguntas cada. Os valores estão em `pwa/src/lib/limite.ts`.
 
 **Instalar como aplicativo exige HTTPS.** Por IP da rede local o chat funciona, mas o navegador recusa registrar o service worker e o "Adicionar à tela de início" não aparece. Não é defeito do protótipo.
 

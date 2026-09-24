@@ -15,10 +15,22 @@ import { limites } from './db';
  *
  * Isto é proteção contra acidente, não contra ataque: quem quiser burlar troca
  * de IP.
+ *
+ * LÓGICA DO LUCIANO: são dois tetos, e cada um segura uma coisa. O acidente
+ * (aba presa, dedo no Enter) acontece dentro de UMA conversa, e é o teto por
+ * conversa que o segura. O teto por IP ficou alto porque num teste presencial
+ * a turma inteira usa o mesmo Wi-Fi e sai pelo mesmo IP: com 40 por IP, como
+ * era, 20 pessoas mandavam 2 perguntas cada e o chat travava para todas.
  */
 
 const JANELA_MS = 10 * 60 * 1000;
-const MAX_POR_JANELA = 40;
+const MAX_POR_JANELA = 300;
+
+/**
+ * Uma pergunta a cada 20 segundos, por 10 minutos seguidos. A resposta leva
+ * perto de 10 segundos, então quem conversa de verdade não chega aqui.
+ */
+export const LIMITE_POR_CONVERSA = { janelaMs: JANELA_MS, maximo: 30 };
 
 type Registro = {
   _id: string;
