@@ -55,7 +55,7 @@ $novo = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
 
 Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só assim se sabe que os dois lados foram atualizados.
 
-**Sobrecarga do Gemini derruba todos os canais de uma vez.** O Google responde 503 ("high demand") por minutos seguidos num modelo, e as 3 tentativas do agente caem todas dentro do pico. O chat mostra "Não consegui responder agora" para todo mundo. Os dois fluxos têm um modelo de reserva (`Gemini reserva`, ligado ao AI Agent com *Enable Fallback Model*). A reserva é o `2.5-flash-lite`, de cota gratuita pequena: não trocar a ordem, senão a cota diária acaba antes do meio-dia.
+**Sobrecarga do Gemini derruba todos os canais de uma vez.** O Google responde 503 ("high demand") por minutos seguidos num modelo, e as 3 tentativas do agente caem todas dentro do pico. O chat mostra "Não consegui responder agora" para todo mundo. Os dois fluxos têm um modelo de reserva (`Gemini reserva`, ligado ao AI Agent com *Enable Fallback Model*). A reserva é o `2.5-flash-lite`, de cota gratuita pequena: não trocar a ordem, senão a cota diária acaba antes do meio-dia. O agente aceita um modelo de reserva só, então a terceira camada do PWA (`gemini-3.5-flash-lite`) é um segundo agente na saída de erro do primeiro, depois do nó "Recuperar pergunta": sem ele, o segundo agente receberia o erro no lugar da pergunta, e a memória ficaria sem o id da conversa. O `3.5` vive sobrecarregado, por isso é a última tentativa e não a primeira.
 
 ---
 
