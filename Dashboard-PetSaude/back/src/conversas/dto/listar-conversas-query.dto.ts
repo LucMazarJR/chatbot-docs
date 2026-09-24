@@ -1,8 +1,8 @@
-import { IsIn, IsOptional } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 import type { FiltroSituacao, FiltroVersao, Periodo } from '../conversas.service';
 
-export const PERIODOS: Periodo[] = ['hoje', '7d', '30d', 'tudo'];
+export const PERIODOS: Periodo[] = ['hoje', '7d', '30d', 'dia', 'tudo'];
 export const VERSOES: FiltroVersao[] = ['a', 'b', 'todas'];
 export const SITUACOES: FiltroSituacao[] = [
     'validas',
@@ -23,6 +23,13 @@ export class ListarConversasQueryDto {
     @IsOptional()
     @IsIn(VERSOES)
     versao?: FiltroVersao;
+
+    // Só vale com periodo=dia. É texto, e não @IsDateString, pelo mesmo motivo
+    // do comentário acima: data inválida cai no "tudo" (ver intervaloDoDia).
+    @IsOptional()
+    @IsString()
+    @MaxLength(10)
+    dia?: string;
 
     // O filtro de situação NÃO vale para as estatísticas, só para a lista: se
     // valesse, "3 conversas com polegar para baixo" viraria "100% com polegar

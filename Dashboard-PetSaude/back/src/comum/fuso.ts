@@ -32,3 +32,27 @@ export function inicioDoDia(agora: Date, fuso: string = FUSO): Date {
 
     return new Date(Date.UTC(ano, mes, dia) - deslocamento);
 }
+
+/**
+ * O dia inteiro de uma data "AAAA-MM-DD" no fuso da equipe, do início dele ao
+ * início do dia seguinte.
+ *
+ * O fim é o início do dia seguinte, e não o início mais 24h: num dia de troca
+ * de horário de verão o dia tem 23 ou 25 horas. Texto que não é uma data real
+ * ("2026-02-31", "ontem") devolve null, e a tela cai no "tudo" em vez de erro.
+ */
+export function intervaloDoDia(dia: string, fuso: string = FUSO): { inicio: Date; fim: Date } | null {
+    const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dia);
+    if (!partes) return null;
+    const ano = Number(partes[1]);
+    const mes = Number(partes[2]) - 1;
+    const numero = Number(partes[3]);
+
+    // Meio-dia UTC é de manhã no Brasil: o instante cai com certeza dentro do
+    // dia pedido, e o inicioDoDia faz o resto.
+    const meioDia = new Date(Date.UTC(ano, mes, numero, 12));
+    if (meioDia.getUTCMonth() !== mes || meioDia.getUTCDate() !== numero) return null;
+    const seguinte = new Date(Date.UTC(ano, mes, numero + 1, 12));
+
+    return { inicio: inicioDoDia(meioDia, fuso), fim: inicioDoDia(seguinte, fuso) };
+}
