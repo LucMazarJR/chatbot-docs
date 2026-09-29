@@ -16,6 +16,7 @@ import {
 } from "@/lib/conversas.functions";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { CartaoNumero } from "@/components/cartao-numero";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { Segmentos } from "@/components/segmentos";
 import { Selo, type TomDoSelo } from "@/components/selo";
@@ -319,29 +320,3 @@ function Numeros({ dados }: { dados: EstatisticasConversas }) {
   );
 }
 
-function CartaoNumero({
-  rotulo,
-  valor,
-  contexto,
-  tom,
-}: {
-  rotulo: string;
-  valor: string;
-  contexto: React.ReactNode;
-  tom?: "warning" | "destructive";
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-border bg-card px-4 py-3.5 lg:px-5 lg:py-[18px]">
-      <span className="text-sm font-medium text-muted-foreground">{rotulo}</span>
-      <strong
-        className={
-          "text-[26px] font-semibold leading-tight tabular-nums lg:text-[32px] " +
-          (tom === "warning" ? "text-warning" : tom === "destructive" ? "text-destructive" : "")
-        }
-      >
-        {valor}
-      </strong>
-      <span className="text-sm text-muted-foreground">{contexto}</span>
-    </div>
-  );
-}
