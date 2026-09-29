@@ -1,9 +1,5 @@
 import type { TomDoSelo } from "@/components/selo";
-import type {
-  CausaPergunta,
-  PublicoPergunta,
-  SituacaoPergunta,
-} from "@/lib/relatorios.functions";
+import type { CausaPergunta, PublicoPergunta, SituacaoPergunta } from "@/lib/relatorios.functions";
 
 /**
  * Os nomes e as cores do relatório do dia, num lugar só.
@@ -36,17 +32,6 @@ export const ROTULO_CAUSA: Record<CausaPergunta, string> = {
   falha_tecnica: "Falha técnica",
   nao_classificada: "Sem classificação da IA",
 };
-
-/** A ordem em que as causas aparecem no resumo: a que pede ação primeiro. */
-export const ORDEM_DAS_CAUSAS: CausaPergunta[] = [
-  "falta_conteudo",
-  "busca_nao_trouxe",
-  "sem_contexto",
-  "fora_de_escopo",
-  "respondida_revisar",
-  "falha_tecnica",
-  "nao_classificada",
-];
 
 export const ROTULO_PUBLICO: Record<PublicoPergunta, string> = {
   cidadao: "Cidadão",

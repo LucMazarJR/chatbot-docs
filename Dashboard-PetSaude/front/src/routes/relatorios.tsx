@@ -20,7 +20,6 @@ import { exigirAdmin } from "@/lib/guardas";
 import { dataEHora, dataPorExtenso, hora } from "@/lib/datas";
 import {
   COR_DA_BARRA,
-  ORDEM_DAS_CAUSAS,
   ROTULO_CAUSA,
   ROTULO_PUBLICO,
   ROTULO_SITUACAO,
@@ -213,7 +212,10 @@ function VisaoDoRelatorio({
       const { baixarRelatorioEmPdf } = await import("@/lib/pdf/relatorio-pdf");
       await baixarRelatorioEmPdf(relatorio);
       toast.success("PDF baixado. Ele está na pasta de downloads do navegador.");
-    } catch {
+    } catch (erro) {
+      // Só no console do navegador de quem clicou: é a única pista quando a
+      // biblioteca de PDF falha, e não sai do aparelho.
+      console.error("Falha ao montar o PDF do relatório", erro);
       toast.error(
         "Não foi possível montar o PDF. Tente de novo; se continuar, recarregue a página.",
       );
@@ -259,7 +261,9 @@ function VisaoDoRelatorio({
           />
           {relatorio.andamento && relatorio.andamento.total > 1 && (
             <Progress
-              value={Math.round((relatorio.andamento.processados / relatorio.andamento.total) * 100)}
+              value={Math.round(
+                (relatorio.andamento.processados / relatorio.andamento.total) * 100,
+              )}
               className="mt-2"
               aria-label="Andamento da análise"
             />
@@ -287,18 +291,9 @@ function VisaoDoRelatorio({
             <Numeros relatorio={relatorio} />
             {concluido && (
               <>
-                {relatorio.resumo && (
-                  <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
-                    <h3 className="text-base font-semibold">Resumo</h3>
-                    <p className="mt-2 max-w-prose text-[15px] leading-relaxed">{relatorio.resumo}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Escrito pela IA. Os números acima são contados pelo sistema.
-                    </p>
-                  </section>
-                )}
-                <Causas relatorio={relatorio} />
+                <PrincipaisPontos relatorio={relatorio} />
+                <PontosImportantes relatorio={relatorio} />
                 <BarrasPorArea relatorio={relatorio} />
-                <Escopos relatorio={relatorio} />
                 <Comentarios relatorio={relatorio} />
                 <Perguntas relatorio={relatorio} />
               </>
@@ -349,7 +344,9 @@ function Numeros({ relatorio }: { relatorio: RelatorioDoDia }) {
         {plural(n.negativos, "negativo", "negativos")} nas respostas.{" "}
         {n.avaliacoes > 0
           ? `${plural(n.avaliacoes, "avaliação", "avaliações")} no fim da conversa` +
-            (n.notaMedia != null ? `, nota média ${n.notaMedia.toFixed(1).replace(".", ",")} de 5` : "") +
+            (n.notaMedia != null
+              ? `, nota média ${n.notaMedia.toFixed(1).replace(".", ",")} de 5`
+              : "") +
             (n.npsMedio != null
               ? `, recomendação média ${n.npsMedio.toFixed(1).replace(".", ",")} de 10`
               : "") +
@@ -358,33 +355,43 @@ function Numeros({ relatorio }: { relatorio: RelatorioDoDia }) {
         {n.falhas + n.semRetorno > 0 &&
           ` ${plural(n.falhas + n.semRetorno, "resposta falhou", "respostas falharam")}.`}
         {n.aceitaramSemPerguntar > 0 &&
-          ` ${plural(n.aceitaramSemPerguntar, "pessoa aceitou", "pessoas aceitaram")} os termos e não fez pergunta nenhuma.`}
+          ` ${plural(
+            n.aceitaramSemPerguntar,
+            "pessoa aceitou os termos e não fez",
+            "pessoas aceitaram os termos e não fizeram",
+          )} pergunta nenhuma.`}
       </p>
     </div>
   );
 }
 
-function Causas({ relatorio }: { relatorio: RelatorioDoDia }) {
-  const linhas = ORDEM_DAS_CAUSAS.map((causa) => ({
-    causa,
-    n: relatorio.porCausa[causa] ?? 0,
-  })).filter((l) => l.n > 0);
-  if (linhas.length === 0) return null;
-
+/**
+ * O que ler primeiro: frases curtas sobre quem foi mais afetado.
+ *
+ * As frases com número vêm do sistema; o parágrafo de baixo é da IA e fala por
+ * grandes áreas. Ficam separados e identificados para ninguém tomar a leitura
+ * do modelo por contagem.
+ */
+function PrincipaisPontos({ relatorio }: { relatorio: RelatorioDoDia }) {
+  if (relatorio.destaques.length === 0 && !relatorio.resumo) return null;
   return (
-    <section className="space-y-3">
-      <h3 className="text-lg font-semibold">O que aconteceu com as que não foram bem</h3>
-      <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-        {linhas.map((l) => (
-          <li
-            key={l.causa}
-            className="flex items-baseline justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
-          >
-            <span className="text-[15px]">{ROTULO_CAUSA[l.causa]}</span>
-            <strong className="text-xl font-semibold">{l.n}</strong>
-          </li>
-        ))}
-      </ul>
+    <section className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5">
+      <h3 className="text-lg font-semibold">Principais pontos</h3>
+      {relatorio.destaques.length > 0 && (
+        <ul className="max-w-prose list-disc space-y-1.5 pl-5 text-[15px] leading-relaxed marker:text-muted-foreground">
+          {relatorio.destaques.map((frase) => (
+            <li key={frase}>{frase}</li>
+          ))}
+        </ul>
+      )}
+      {relatorio.resumo && (
+        <div className="max-w-prose border-t border-border pt-3">
+          <p className="text-[15px] leading-relaxed">{relatorio.resumo}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Leitura da IA. As frases de cima e os números são contados pelo sistema.
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -409,10 +416,18 @@ function BarrasPorArea({ relatorio }: { relatorio: RelatorioDoDia }) {
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold">Perguntas por área</h3>
+        <div>
+          <h3 className="text-lg font-semibold">Perguntas por área</h3>
+          <p className="text-sm text-muted-foreground">
+            A nota de cada área é da IA; as contagens, do sistema.
+          </p>
+        </div>
         <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Legenda">
           {PARTES_DA_BARRA.map((parte) => (
-            <li key={parte.chave} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <li
+              key={parte.chave}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground"
+            >
               <span
                 aria-hidden="true"
                 className="inline-block size-2.5 rounded-[3px]"
@@ -431,16 +446,26 @@ function BarrasPorArea({ relatorio }: { relatorio: RelatorioDoDia }) {
             className="grid grid-cols-1 gap-1.5 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,13rem)] sm:items-center sm:gap-4"
           >
             <span className="text-[15px] font-medium">{area.area}</span>
-            <div aria-hidden="true" className="flex h-3" style={{ width: `${(area.total / maior) * 100}%` }}>
-              <div className="flex w-full gap-[2px]">
-                {PARTES_DA_BARRA.filter((parte) => area[parte.chave] > 0).map((parte, i, visiveis) => (
-                  <div
-                    key={parte.chave}
-                    title={`${parte.rotulo}: ${area[parte.chave]} de ${area.total}`}
-                    className={i === visiveis.length - 1 ? "rounded-r-[4px]" : ""}
-                    style={{ flexGrow: area[parte.chave], flexBasis: 0, backgroundColor: parte.cor }}
-                  />
-                ))}
+            <div
+              aria-hidden="true"
+              className="flex h-3"
+              style={{ width: `${(area.total / maior) * 100}%` }}
+            >
+              <div className="flex w-full gap-0.5">
+                {PARTES_DA_BARRA.filter((parte) => area[parte.chave] > 0).map(
+                  (parte, i, visiveis) => (
+                    <div
+                      key={parte.chave}
+                      title={`${parte.rotulo}: ${area[parte.chave]} de ${area.total}`}
+                      className={i === visiveis.length - 1 ? "rounded-r-md" : ""}
+                      style={{
+                        flexGrow: area[parte.chave],
+                        flexBasis: 0,
+                        backgroundColor: parte.cor,
+                      }}
+                    />
+                  ),
+                )}
               </div>
             </div>
             <span className="text-sm text-muted-foreground">
@@ -448,6 +473,9 @@ function BarrasPorArea({ relatorio }: { relatorio: RelatorioDoDia }) {
               {area.semResposta > 0 && `, ${area.semResposta} sem resposta`}
               {area.falhas > 0 && `, ${area.falhas} falharam`}
             </span>
+            {area.nota && (
+              <p className="text-sm text-muted-foreground sm:col-span-3 sm:-mt-2">{area.nota}</p>
+            )}
           </li>
         ))}
       </ul>
@@ -455,47 +483,70 @@ function BarrasPorArea({ relatorio }: { relatorio: RelatorioDoDia }) {
   );
 }
 
-function Escopos({ relatorio }: { relatorio: RelatorioDoDia }) {
+/**
+ * Os temas para revisar, em tabela curta: o que é, quantas perguntas, o que fazer.
+ *
+ * Numa tela larga são três colunas; no celular cada tema vira um bloco, com os
+ * mesmos rótulos. As perguntas de cada tema ficam recolhidas.
+ */
+function PontosImportantes({ relatorio }: { relatorio: RelatorioDoDia }) {
   if (relatorio.escopos.length === 0) return null;
 
   return (
     <section className="space-y-3">
-      <h3 className="text-lg font-semibold">Temas para revisar na base</h3>
-      <ol className="space-y-3">
-        {relatorio.escopos.map((escopo, i) => (
-          <li key={`${escopo.tema}-${i}`} className="rounded-xl border border-border bg-card p-4 sm:p-5">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <strong className="text-base font-semibold">
-                {i + 1}. {escopo.tema}
-              </strong>
-              <span className="text-sm text-muted-foreground">
-                {plural(escopo.perguntas.length, "pergunta", "perguntas")}
+      <h3 className="text-lg font-semibold">Pontos importantes</h3>
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div
+          aria-hidden="true"
+          className="hidden grid-cols-[minmax(0,1.1fr)_7rem_minmax(0,1.2fr)] gap-4 border-b border-border bg-muted/50 px-5 py-2.5 text-sm font-semibold text-muted-foreground sm:grid"
+        >
+          <span>Tema</span>
+          <span>Perguntas</span>
+          <span>O que fazer</span>
+        </div>
+        <ol className="divide-y divide-border">
+          {relatorio.escopos.map((escopo, i) => (
+            <li
+              key={`${escopo.tema}-${i}`}
+              className="grid grid-cols-1 gap-1.5 px-4 py-3.5 sm:grid-cols-[minmax(0,1.1fr)_7rem_minmax(0,1.2fr)] sm:gap-4 sm:px-5"
+            >
+              <div className="min-w-0">
+                <strong className="text-[15px] font-semibold">
+                  {i + 1}. {escopo.tema}
+                </strong>
+                {escopo.motivo && (
+                  <p className="mt-1 text-sm text-muted-foreground">{escopo.motivo}</p>
+                )}
+                <details className="mt-1 text-sm">
+                  <summary className="min-h-11 cursor-pointer py-2 font-semibold text-primary sm:min-h-0 sm:py-1">
+                    Ver as perguntas
+                  </summary>
+                  <ul className="mt-1 space-y-1 text-muted-foreground">
+                    {escopo.perguntas.map((indice) => {
+                      const p = relatorio.perguntas[indice];
+                      return p ? <li key={indice}>“{p.pergunta}”</li> : null;
+                    })}
+                  </ul>
+                </details>
+              </div>
+              <span className="text-[15px]">
+                <span className="text-sm text-muted-foreground sm:hidden">Perguntas: </span>
+                {escopo.perguntas.length}
               </span>
-            </div>
-            {escopo.motivo && <p className="mt-2 text-[15px]">{escopo.motivo}</p>}
-            {escopo.sugestao && (
-              <p className="mt-2 text-[15px]">
-                <span className="font-semibold">O que fazer: </span>
-                {escopo.sugestao}
+              <p className="text-[15px]">
+                <span className="text-sm font-semibold sm:hidden">O que fazer: </span>
+                {escopo.sugestao || "Sem sugestão da IA."}
               </p>
-            )}
-            <details className="mt-3 text-sm">
-              <summary className="min-h-11 cursor-pointer py-2 font-semibold text-primary sm:min-h-0">
-                Ver as perguntas
-              </summary>
-              <ul className="mt-1 space-y-1 text-muted-foreground">
-                {escopo.perguntas.map((indice) => {
-                  const p = relatorio.perguntas[indice];
-                  return p ? <li key={indice}>“{p.pergunta}”</li> : null;
-                })}
-              </ul>
-            </details>
-          </li>
-        ))}
-      </ol>
+            </li>
+          ))}
+        </ol>
+      </div>
       <p className="text-sm text-muted-foreground">
         Temas levantados pela IA. Para transformar em FAQ, use a tela{" "}
-        <Link to="/curadoria" className="text-foreground underline underline-offset-2 hover:text-primary">
+        <Link
+          to="/curadoria"
+          className="text-foreground underline underline-offset-2 hover:text-primary"
+        >
           Sem resposta
         </Link>
         .
@@ -531,7 +582,8 @@ function Perguntas({ relatorio }: { relatorio: RelatorioDoDia }) {
 
   const visiveis = useMemo(() => {
     if (filtro === "sem-resposta") return semResposta;
-    if (filtro === "revisar") return relatorio.perguntas.filter((p) => p.causa === "respondida_revisar");
+    if (filtro === "revisar")
+      return relatorio.perguntas.filter((p) => p.causa === "respondida_revisar");
     return relatorio.perguntas;
   }, [filtro, relatorio.perguntas, semResposta]);
 
@@ -659,7 +711,10 @@ function ListaDeRelatorios({
                 >
                   {ROTULO_ESTADO[r.estado]}
                 </Selo>
-                <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+                <ChevronRight
+                  aria-hidden="true"
+                  className="size-5 shrink-0 text-muted-foreground"
+                />
               </button>
             </li>
           );

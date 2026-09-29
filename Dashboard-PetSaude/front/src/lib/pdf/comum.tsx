@@ -1,5 +1,9 @@
-import { pdf, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Font, pdf, StyleSheet, Text } from "@react-pdf/renderer";
 import type { ReactElement } from "react";
+
+// Sem hifenização: a regra da biblioteca é a do inglês, e partia palavras do
+// português em lugar errado ("documen-tação", "re-ceita").
+Font.registerHyphenationCallback((palavra) => [palavra]);
 
 /**
  * Peças comuns aos PDFs do painel.
@@ -35,9 +39,17 @@ export const estilos = StyleSheet.create({
     color: TINTA.primaria,
     lineHeight: 1.35,
   },
-  titulo: { fontSize: 18, fontFamily: "Helvetica-Bold", marginBottom: 2 },
+  // Altura de linha própria em todo texto grande: herdada da página, ela é
+  // calculada sobre a letra do corpo, e o título invadia a linha de baixo.
+  titulo: { fontSize: 18, fontFamily: "Helvetica-Bold", lineHeight: 1.25, marginBottom: 4 },
   subtitulo: { fontSize: 9.5, color: TINTA.secundaria, marginBottom: 14 },
-  secao: { fontSize: 12, fontFamily: "Helvetica-Bold", marginTop: 16, marginBottom: 6 },
+  secao: {
+    fontSize: 12,
+    fontFamily: "Helvetica-Bold",
+    lineHeight: 1.25,
+    marginTop: 16,
+    marginBottom: 6,
+  },
   nota: { fontSize: 8.5, color: TINTA.secundaria },
   negrito: { fontFamily: "Helvetica-Bold" },
   caixa: {
@@ -51,20 +63,24 @@ export const estilos = StyleSheet.create({
     bottom: 20,
     left: 36,
     right: 36,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    textAlign: "right",
     fontSize: 8,
     color: TINTA.fraca,
   },
 });
 
-/** Rodapé com a origem e a página, repetido em todas as páginas. */
+/**
+ * Rodapé com a origem, repetido em todas as páginas.
+ *
+ * Sem número de página: nesta versão da biblioteca, o texto com `render`, que
+ * é o jeito de escrever "Página 2 de 5", sai em branco, sem erro nenhum. Texto
+ * fixo comum aparece, e é o que fica.
+ */
 export function Rodape({ texto }: { texto: string }) {
   return (
-    <View style={estilos.rodape} fixed>
-      <Text>{texto}</Text>
-      <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
-    </View>
+    <Text style={estilos.rodape} fixed>
+      {texto}
+    </Text>
   );
 }
 

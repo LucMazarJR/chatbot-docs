@@ -54,6 +54,8 @@ export type ContagemPorArea = {
   respondidas: number;
   semResposta: number;
   falhas: number;
+  /** O que a IA disse da área: o resumo por grande assunto. */
+  nota?: string;
 };
 
 export type EscopoParaRevisar = {
@@ -94,6 +96,8 @@ export type RelatorioDoDia = {
   porArea: ContagemPorArea[];
   porCausa: Partial<Record<CausaPergunta, number>>;
   escopos: EscopoParaRevisar[];
+  /** Frases do topo, escritas pelo código a partir das contagens. */
+  destaques: string[];
   resumo: string;
   perguntas: PerguntaDoRelatorio[];
 };
@@ -117,9 +121,8 @@ export const listarRelatorios = createServerFn({ method: "GET" }).handler(
 
 export const detalharRelatorio = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
-  .handler(
-    async ({ data }: { data: { id: string } }): Promise<RelatorioDoDia> =>
-      apiFetch<RelatorioDoDia>(`/relatorios/${encodeURIComponent(data.id)}`),
+  .handler(async ({ data }: { data: { id: string } }): Promise<RelatorioDoDia> =>
+    apiFetch<RelatorioDoDia>(`/relatorios/${encodeURIComponent(data.id)}`),
   );
 
 export const gerarRelatorio = createServerFn({ method: "POST" })
@@ -130,7 +133,6 @@ export const gerarRelatorio = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(
-    async ({ data }: { data: { data: string } }): Promise<{ id: string }> =>
-      apiFetch("/relatorios", { method: "POST", body: JSON.stringify({ data: data.data }) }),
+  .handler(async ({ data }: { data: { data: string } }): Promise<{ id: string }> =>
+    apiFetch("/relatorios", { method: "POST", body: JSON.stringify({ data: data.data }) }),
   );
