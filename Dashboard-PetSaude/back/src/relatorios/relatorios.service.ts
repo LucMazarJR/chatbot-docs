@@ -10,6 +10,7 @@ import { Sessao, SessaoDocument } from '../conversas/schemas/sessao.schema';
 import { GeminiService } from '../gemini/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
 import {
+    type Area,
     type Classificacao,
     contarPorArea,
     contarPorCausa,
@@ -19,7 +20,9 @@ import {
     type Escopo,
     intervaloDoDia,
     juntarEscopos,
+    lerNotasDeArea,
     lerResumo,
+    montarDestaques,
     type MensagemLida,
     montarPrompt,
     montarPromptDeSintese,
@@ -162,6 +165,7 @@ export class RelatoriosService {
 
             const classificacoes: Classificacao[] = [];
             const escopos: Escopo[] = [];
+            const notasDosLotes = new Map<Area, string[]>();
             const modelos = new Set<string>();
             let resumo = '';
             let deslocamento = 0;
@@ -177,6 +181,9 @@ export class RelatoriosService {
 
                 classificacoes.push(...sanearClassificacao(bruta, lote));
                 escopos.push(...sanearEscopos(bruta, lote.length, deslocamento));
+                for (const [area, nota] of lerNotasDeArea(bruta)) {
+                    notasDosLotes.set(area, [...(notasDosLotes.get(area) ?? []), nota]);
+                }
                 if (lotes.length === 1) resumo = lerResumo(bruta);
 
                 deslocamento += lote.length;
@@ -185,10 +192,12 @@ export class RelatoriosService {
 
             const porArea = contarPorArea(trocas, classificacoes);
             let escoposFinais = escopos;
+            // Com um lote só, a nota da área é a única que existe.
+            let notas = new Map([...notasDosLotes].map(([area, lista]) => [area, lista[0]]));
 
             if (lotes.length > 1) {
                 const { dados: sintese, modelo } = await this.geminiService.gerarJsonComModelo<unknown>(
-                    montarPromptDeSintese(numeros, porArea, escopos, trocas),
+                    montarPromptDeSintese(numeros, porArea, escopos, trocas, notasDosLotes),
                     ESQUEMA_DA_SINTESE,
                     { maxOutputTokens: TETO_DE_SAIDA },
                 );
@@ -196,8 +205,12 @@ export class RelatoriosService {
                 brutas.push(JSON.stringify(sintese));
                 escoposFinais = juntarEscopos(sintese, escopos);
                 resumo = lerResumo(sintese);
+                // Área que a síntese esqueceu fica com a nota da primeira parte.
+                notas = new Map([...notas, ...lerNotasDeArea(sintese)]);
                 this.jobsService.avancar(jobId);
             }
+            for (const linha of porArea) linha.nota = notas.get(linha.area) ?? '';
+            doc.destaques = montarDestaques(numeros, porArea, classificacoes);
 
             doc.perguntas = doc.perguntas.map((p, i) => ({ ...p, ...classificacoes[i] }));
             doc.porArea = porArea;
@@ -321,6 +334,7 @@ export class RelatoriosService {
             porArea: doc.porArea ?? [],
             porCausa: doc.porCausa ?? {},
             escopos: doc.escopos ?? [],
+            destaques: doc.destaques ?? [],
             resumo: doc.resumo ?? '',
             perguntas: (doc.perguntas ?? []).map((p) => ({
                 perguntaId: p.perguntaId,

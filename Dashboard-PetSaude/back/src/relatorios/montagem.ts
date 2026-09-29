@@ -105,7 +105,7 @@ export type Troca = {
     situacao: Situacao;
     feedback: 'up' | 'down' | null;
     latenciaMs: number | null;
-    /** Os melhores trechos que a busca devolveu, na ordem dela. */
+    /** Os cinco melhores trechos que a busca devolveu, na ordem dela. */
     trechos: { question: string | null; category: string | null; score: number; usado: boolean }[];
 };
 
@@ -201,7 +201,10 @@ export function parearTrocas(mensagens: MensagemLida[], inicio: Date, fim: Date)
             situacao: situacaoDa(resposta),
             feedback: resposta?.feedback ?? null,
             latenciaMs: typeof resposta?.latenciaMs === 'number' && resposta.latenciaMs > 0 ? resposta.latenciaMs : null,
-            trechos: (resposta?.trechosDebug ?? []).slice(0, 3).map((t) => ({
+            // Cinco, e não três: com três, o modelo via só as variações do mesmo
+            // remédio no topo e concluía que a base não tinha o assunto, quando
+            // a FAQ geral estava logo abaixo.
+            trechos: (resposta?.trechosDebug ?? []).slice(0, 5).map((t) => ({
                 question: t.question ?? null,
                 category: t.category ?? null,
                 score: t.score,
@@ -374,28 +377,36 @@ export function montarPrompt(lote: Troca[]): string {
         '- causa:',
         '  se a situação é RESPONDIDA: "respondida", ou "respondida_revisar" quando a resposta',
         '  parece não tratar do que foi perguntado ou usa FAQ de outro assunto.',
-        '  se a situação é SEM RESPOSTA: "falta_conteudo" (nenhuma FAQ listada trata do assunto),',
-        '  "busca_nao_trouxe" (a base parece ter o assunto, mas a busca não trouxe a FAQ certa:',
-        '  trouxe FAQs parecidas demais, como a receita de cada remédio, ou a pergunta curta ou',
-        '  com erro de grafia não chegou nela), "sem_contexto" (a pergunta depende da anterior,',
-        '  como "e lá?" ou "mas precisa de encaminhamento?") ou "fora_de_escopo".',
+        '  se a situação é SEM RESPOSTA, escolha olhando as FAQs próximas, inclusive as abaixo',
+        '  do corte:',
+        '    "busca_nao_trouxe" quando alguma FAQ listada é do MESMO serviço, lugar ou assunto',
+        '    (por exemplo, a pergunta é "endereço nga" e aparece "Onde fica o NGA da Saúde',
+        '    Auditiva?"), ou quando as listadas são quase todas variações de um item específico',
+        '    (a receita de cada remédio, o preparo de cada exame) e a pergunta é geral sobre o',
+        '    tema: a base provavelmente tem o conteúdo e a busca não chegou nele;',
+        '    "falta_conteudo" quando nenhuma FAQ listada é sobre o mesmo serviço ou assunto;',
+        '    "sem_contexto" quando a pergunta depende da anterior ("e lá?", "mas precisa de',
+        '    encaminhamento?");',
+        '    "fora_de_escopo" quando não é pergunta sobre saúde ou serviço de saúde.',
         '  se a situação é FALHOU ou SEM RETORNO: "falha_tecnica".',
         '- comentario: uma frase curta, de até 160 caracteres, dizendo o que aconteceu e, se não',
         '  foi respondida, o que falta. Não escreva orientação de saúde. Não adivinhe o que a',
         '  pessoa quis escrever (nome de lugar, sigla): se nenhuma FAQ trata do nome, diga só isso.',
         '',
         'Depois, no geral:',
+        '- areas: para cada área que apareceu, uma nota de até 140 caracteres dizendo o que mais',
+        '  perguntaram e o que faltou responder. Direto, sem números.',
         '- escopos: até 6 temas que precisam de revisão na base, cada um com os números das',
         '  perguntas, o motivo e uma sugestão prática (por exemplo: "escrever uma FAQ geral sobre',
         '  renovação de receita vencida"). Priorize os temas com mais perguntas sem resposta.',
-        '- resumo: de 3 a 5 frases para a equipe, em português simples, dizendo o que funcionou,',
-        '  o que falhou e o que fazer primeiro. Não escreva números nem percentuais: eles já',
-        '  aparecem no relatório, contados pelo sistema.',
+        '- resumo: no máximo 2 frases curtas, falando das grandes áreas (endereços,',
+        '  medicamentos, consultas...): onde está o maior problema e o que fazer primeiro. Não',
+        '  escreva números nem percentuais: eles já aparecem no relatório, contados pelo sistema.',
         '',
         'Responda só com JSON neste formato:',
         '{"perguntas":[{"n":1,"area":"Vacinação","publico":"cidadao","causa":"respondida",',
-        '"comentario":"..."}],"escopos":[{"tema":"...","perguntas":[2,5],"motivo":"...",',
-        '"sugestao":"..."}],"resumo":"..."}',
+        '"comentario":"..."}],"areas":[{"area":"Vacinação","nota":"..."}],',
+        '"escopos":[{"tema":"...","perguntas":[2,5],"motivo":"...","sugestao":"..."}],"resumo":"..."}',
         '',
         'Toda pergunta aparece exatamente uma vez em "perguntas", com o mesmo número.',
         '',
@@ -408,17 +419,24 @@ export function montarPrompt(lote: Troca[]): string {
 /**
  * O prompt que junta os lotes, quando o dia teve perguntas demais para um só.
  *
- * Recebe o que já foi contado e os escopos de cada lote: o modelo junta temas
- * repetidos e escreve um resumo só, sem reler as perguntas.
+ * Recebe o que já foi contado, as notas por área e os escopos de cada lote: o
+ * modelo junta temas repetidos e escreve um resumo só, sem reler as perguntas.
  */
 export function montarPromptDeSintese(
     numeros: Numeros,
     porArea: ContagemPorArea[],
     escopos: Escopo[],
     trocas: Troca[],
+    notasDosLotes: Map<Area, string[]>,
 ): string {
     const areas = porArea
-        .map((a) => `- ${a.area}: ${a.total} perguntas, ${a.semResposta} sem resposta`)
+        .map((a) => {
+            const notas = notasDosLotes.get(a.area) ?? [];
+            return (
+                `- ${a.area}: ${a.total} perguntas, ${a.semResposta} sem resposta.` +
+                (notas.length ? ` Notas das partes do dia: ${notas.join(' / ')}` : '')
+            );
+        })
         .join('\n');
     const lista = escopos
         .map((e, i) => {
@@ -442,14 +460,17 @@ export function montarPromptDeSintese(
         lista,
         '',
         'Devolva:',
+        '- areas: para cada área listada, uma nota só, de até 140 caracteres, juntando as notas',
+        '  das partes: o que mais perguntaram e o que faltou responder. Direto, sem números.',
         '- escopos: até 6 temas, juntando os repetidos. Em "de", liste os números dos temas',
         '  de cima que foram juntados em cada um.',
-        '- resumo: de 3 a 5 frases para a equipe, em português simples, dizendo o que funcionou,',
-        '  o que falhou e o que fazer primeiro. Não escreva números nem percentuais: eles já',
-        '  aparecem no relatório, contados pelo sistema.',
+        '- resumo: no máximo 2 frases curtas, falando das grandes áreas (endereços,',
+        '  medicamentos, consultas...): onde está o maior problema e o que fazer primeiro. Não',
+        '  escreva números nem percentuais: eles já aparecem no relatório, contados pelo sistema.',
         '',
         'Responda só com JSON neste formato:',
-        '{"escopos":[{"tema":"...","de":[1,3],"motivo":"...","sugestao":"..."}],"resumo":"..."}',
+        '{"areas":[{"area":"Vacinação","nota":"..."}],',
+        '"escopos":[{"tema":"...","de":[1,3],"motivo":"...","sugestao":"..."}],"resumo":"..."}',
     ].join('\n');
 }
 
@@ -564,7 +585,26 @@ export function juntarEscopos(bruta: unknown, escoposDosLotes: Escopo[]): Escopo
 
 export function lerResumo(bruta: unknown): string {
     const resumo = (bruta as { resumo?: unknown })?.resumo;
-    return typeof resumo === 'string' ? resumo.trim().slice(0, 1500) : '';
+    return typeof resumo === 'string' ? resumo.trim().slice(0, 600) : '';
+}
+
+/**
+ * A nota de cada área, a parte do resumo que fala por grande assunto.
+ *
+ * Área fora da lista é descartada: a nota só aparece ao lado da barra da área,
+ * e uma área que não existe no gráfico não tem onde aparecer.
+ */
+export function lerNotasDeArea(bruta: unknown): Map<Area, string> {
+    const lista = Array.isArray((bruta as { areas?: unknown })?.areas)
+        ? ((bruta as { areas: unknown[] }).areas as Record<string, unknown>[])
+        : [];
+    const notas = new Map<Area, string>();
+    for (const item of lista) {
+        if (!AREAS.includes(item?.area as Area) || typeof item?.nota !== 'string') continue;
+        const nota = limpar(item.nota, 200);
+        if (nota && !notas.has(item.area as Area)) notas.set(item.area as Area, nota);
+    }
+    return notas;
 }
 
 export type ContagemPorArea = {
@@ -573,6 +613,8 @@ export type ContagemPorArea = {
     respondidas: number;
     semResposta: number;
     falhas: number;
+    /** O que a IA disse da área. Vazio até a análise terminar. */
+    nota?: string;
 };
 
 /** Quantas perguntas por área, a partir do rótulo que o modelo deu a cada uma. */
@@ -592,12 +634,107 @@ export function contarPorArea(trocas: Troca[], classificacoes: Classificacao[]):
     );
 }
 
+/**
+ * As frases do topo do relatório: quem foi mais afetado e o que chama atenção.
+ *
+ * LÓGICA DO LUCIANO: escritas pelo código, e não pela IA, porque cada uma traz
+ * número. O modelo escreveria "a área mais afetada foi Medicamentos, com 12 sem
+ * resposta" com a mesma segurança estando certo ou errado. Aqui o número vem da
+ * contagem, e a IA fica com o que só ela sabe fazer: a nota de cada área e o que
+ * fazer a respeito.
+ */
+export function montarDestaques(
+    numeros: Numeros,
+    porArea: ContagemPorArea[],
+    classificacoes: Classificacao[],
+): string[] {
+    const destaques: string[] = [];
+    if (numeros.perguntas === 0) return destaques;
+
+    const afetadas = porArea
+        .filter((a) => a.semResposta > 0)
+        .sort((a, b) => b.semResposta - a.semResposta || b.semResposta / b.total - a.semResposta / a.total)
+        .slice(0, 3);
+    if (afetadas.length > 0) {
+        const itens = afetadas.map((a) => `${a.area} (${a.semResposta} de ${a.total})`);
+        destaques.push(
+            `${afetadas.length === 1 ? 'A área com mais perguntas sem resposta foi' : 'As áreas com mais perguntas sem resposta foram'} ${juntarComE(itens)}.`,
+        );
+    }
+
+    const melhor = porArea
+        .filter((a) => a.total >= 3)
+        .sort((a, b) => b.respondidas / b.total - a.respondidas / a.total || b.total - a.total)[0];
+    if (melhor && melhor.respondidas > 0) {
+        destaques.push(
+            `Onde o chatbot foi melhor: ${melhor.area}, com ${melhor.respondidas} de ${melhor.total} respondidas.`,
+        );
+    }
+
+    const causas = contarPorCausa(classificacoes);
+    const partes = [
+        causas.falta_conteudo ? `${causas.falta_conteudo} por falta de conteúdo na base` : null,
+        causas.busca_nao_trouxe ? `${causas.busca_nao_trouxe} com a FAQ na base e a busca sem trazê-la` : null,
+        causas.sem_contexto ? `${causas.sem_contexto} por depender da pergunta anterior` : null,
+        causas.fora_de_escopo ? `${causas.fora_de_escopo} fora do escopo da saúde` : null,
+    ].filter((p): p is string => Boolean(p));
+    if (numeros.semResposta > 0 && partes.length > 0) {
+        destaques.push(`Das ${numeros.semResposta} sem resposta, ${juntarComE(partes)}.`);
+    }
+
+    const profissionais = classificacoes.filter((c) => c.publico === 'profissional').length;
+    if (profissionais > 0) {
+        destaques.push(
+            profissionais === 1
+                ? '1 pergunta era de profissional de saúde (conduta, protocolo), e não de cidadão.'
+                : `${profissionais} perguntas eram de profissionais de saúde (conduta, protocolo), e não de cidadãos.`,
+        );
+    }
+
+    if (numeros.latenciaMediana != null) {
+        const segundos = (ms: number) => `${(ms / 1000).toFixed(1).replace('.', ',')} s`;
+        destaques.push(
+            `Metade das respostas chegou em até ${segundos(numeros.latenciaMediana)}` +
+                (numeros.respostasAcimaDe60s > 0
+                    ? `; ${numeros.respostasAcimaDe60s} ${numeros.respostasAcimaDe60s === 1 ? 'passou' : 'passaram'} de 1 minuto.`
+                    : '.'),
+        );
+    }
+
+    if (numeros.aceitaramSemPerguntar > 0) {
+        destaques.push(
+            numeros.aceitaramSemPerguntar === 1
+                ? '1 pessoa aceitou os termos e não fez pergunta nenhuma.'
+                : `${numeros.aceitaramSemPerguntar} pessoas aceitaram os termos e não fizeram pergunta nenhuma.`,
+        );
+    }
+
+    return destaques;
+}
+
+function juntarComE(itens: string[]): string {
+    if (itens.length <= 1) return itens.join('');
+    return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
+}
+
 /** Quantas perguntas por causa, para o relatório dizer onde está o problema. */
 export function contarPorCausa(classificacoes: Classificacao[]): Partial<Record<Causa, number>> {
     const contagem: Partial<Record<Causa, number>> = {};
     for (const c of classificacoes) contagem[c.causa] = (contagem[c.causa] ?? 0) + 1;
     return contagem;
 }
+
+const ESQUEMA_DAS_NOTAS = {
+    type: 'ARRAY',
+    items: {
+        type: 'OBJECT',
+        properties: {
+            area: { type: 'STRING', enum: [...AREAS] },
+            nota: { type: 'STRING' },
+        },
+        required: ['area', 'nota'],
+    },
+};
 
 /**
  * O formato que se pede ao modelo, no dialeto da API do Gemini.
@@ -623,6 +760,7 @@ export const ESQUEMA_DO_LOTE = {
                 required: ['n', 'area', 'publico', 'causa', 'comentario'],
             },
         },
+        areas: ESQUEMA_DAS_NOTAS,
         escopos: {
             type: 'ARRAY',
             items: {
@@ -638,12 +776,13 @@ export const ESQUEMA_DO_LOTE = {
         },
         resumo: { type: 'STRING' },
     },
-    required: ['perguntas', 'escopos', 'resumo'],
+    required: ['perguntas', 'areas', 'escopos', 'resumo'],
 };
 
 export const ESQUEMA_DA_SINTESE = {
     type: 'OBJECT',
     properties: {
+        areas: ESQUEMA_DAS_NOTAS,
         escopos: {
             type: 'ARRAY',
             items: {
@@ -659,5 +798,5 @@ export const ESQUEMA_DA_SINTESE = {
         },
         resumo: { type: 'STRING' },
     },
-    required: ['escopos', 'resumo'],
+    required: ['areas', 'escopos', 'resumo'],
 };

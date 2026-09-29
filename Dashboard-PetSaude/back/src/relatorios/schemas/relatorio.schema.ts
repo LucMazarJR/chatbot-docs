@@ -89,6 +89,10 @@ export class AreaDoRelatorio {
 
     @Prop()
     falhas: number;
+
+    /** O que a IA disse da área: o resumo por grande assunto. */
+    @Prop({ default: '' })
+    nota?: string;
 }
 
 export const AreaDoRelatorioSchema = SchemaFactory.createForClass(AreaDoRelatorio);
@@ -145,6 +149,10 @@ export class Relatorio {
 
     @Prop({ type: [EscopoDoRelatorioSchema], default: [] })
     escopos: EscopoDoRelatorio[];
+
+    /** As frases do topo, escritas pelo código a partir das contagens. */
+    @Prop({ type: [String], default: [] })
+    destaques: string[];
 
     @Prop({ default: '' })
     resumo: string;

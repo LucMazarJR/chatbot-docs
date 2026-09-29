@@ -5,6 +5,8 @@ import {
     dividirEmLotes,
     intervaloDoDia,
     juntarEscopos,
+    lerNotasDeArea,
+    montarDestaques,
     type MensagemLida,
     montarPrompt,
     parearTrocas,
@@ -250,6 +252,49 @@ describe('montagem do relatório do dia', () => {
                     .perguntas,
             ).toEqual([1]);
         });
+    });
+
+    it('escreve os destaques com os números da contagem', () => {
+        const numeros = {
+            perguntas: 10,
+            semResposta: 4,
+            latenciaMediana: 9800,
+            respostasAcimaDe60s: 1,
+            aceitaramSemPerguntar: 2,
+        } as Parameters<typeof montarDestaques>[0];
+        const porArea = [
+            { area: 'Exames' as const, total: 4, respondidas: 4, semResposta: 0, falhas: 0 },
+            { area: 'Medicamentos e receitas' as const, total: 5, respondidas: 2, semResposta: 3, falhas: 0 },
+            { area: 'Vacinação' as const, total: 1, respondidas: 0, semResposta: 1, falhas: 0 },
+        ];
+        const c = (causa: string, publico = 'cidadao') => ({ area: 'Exames', publico, causa, comentario: '' }) as any;
+
+        const destaques = montarDestaques(numeros, porArea, [
+            c('falta_conteudo'),
+            c('falta_conteudo'),
+            c('busca_nao_trouxe'),
+            c('sem_contexto', 'profissional'),
+        ]);
+
+        expect(destaques).toEqual([
+            'As áreas com mais perguntas sem resposta foram Medicamentos e receitas (3 de 5) e Vacinação (1 de 1).',
+            'Onde o chatbot foi melhor: Exames, com 4 de 4 respondidas.',
+            'Das 4 sem resposta, 2 por falta de conteúdo na base, 1 com a FAQ na base e a busca sem trazê-la e 1 por depender da pergunta anterior.',
+            '1 pergunta era de profissional de saúde (conduta, protocolo), e não de cidadão.',
+            'Metade das respostas chegou em até 9,8 s; 1 passou de 1 minuto.',
+            '2 pessoas aceitaram os termos e não fizeram pergunta nenhuma.',
+        ]);
+    });
+
+    it('lê a nota de cada área e descarta área que não existe', () => {
+        const notas = lerNotasDeArea({
+            areas: [
+                { area: 'Vacinação', nota: 'Perguntaram onde tomar a BCG; falta FAQ por vacina.' },
+                { area: 'Vacinas', nota: 'fora da lista' },
+                { area: 'Vacinação', nota: 'repetida' },
+            ],
+        });
+        expect([...notas]).toEqual([['Vacinação', 'Perguntaram onde tomar a BCG; falta FAQ por vacina.']]);
     });
 
     it('conta por área a partir do rótulo de cada pergunta', () => {
