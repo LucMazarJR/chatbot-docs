@@ -31,8 +31,9 @@ type Configuracao = { _id: string; publica: string; privada: string; criadaEm: D
 const NOME_BANCO_PADRAO = 'pwa_prototipo';
 
 /**
- * O banco das FAQs, onde a curadoria guarda CÓPIAS das perguntas dos
- * participantes (sugestoes_faq e curadoria_rodadas). O PWA só escreve lá para
+ * O banco das FAQs, onde a curadoria e o relatório do dia guardam CÓPIAS das
+ * perguntas dos participantes (sugestoes_faq, curadoria_rodadas e
+ * relatorios_ia). O PWA só escreve lá para
  * uma coisa: apagar essas cópias quando a pessoa pede para apagar a conversa.
  * Mesmo cuidado do banco acima: nome explícito, nunca deduzido da URI.
  */

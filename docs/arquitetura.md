@@ -236,7 +236,7 @@ Repositório separado, clonado em `Dashboard-PetSaude/`. O `.gitignore` da raiz 
 - **front**: TanStack Start na porta 5173.
 - Login individual com JWT, três papéis: `admin` (gerencia usuários e FAQs), `editor` (cria/edita/exclui FAQs), `leitor` (só consulta). Sessões revogáveis: desativar um usuário ou trocar a senha derruba o acesso na hora.
 
-Quatro telas nasceram do primeiro teste com participantes, e cada uma resolve um problema concreto:
+Estas telas nasceram dos testes com participantes, e cada uma resolve um problema concreto:
 
 | Tela | O que resolve |
 |---|---|
@@ -244,10 +244,13 @@ Quatro telas nasceram do primeiro teste com participantes, e cada uma resolve um
 | **Categorias** (`/categorias`) | A lista oficial de assuntos e a fila do que está fora dela |
 | **Sem resposta** (`/curadoria`, admin) | As perguntas que o chatbot não soube responder, agrupadas por um modelo em sugestões de FAQ |
 | **Testar a busca** (na home das FAQs) | Roda a busca do chatbot para uma pergunta digitada e mostra os scores, sem passar pelo chatbot |
+| **Relatório do dia** (`/relatorios`, admin) | O resumo de um dia de uso, com PDF para quem não usa o painel: números, áreas mais afetadas, pontos para revisar na base e a análise de cada pergunta |
 
 **Por que categorias viraram entidade.** Categoria era um agregado derivado: o resultado de um `$group` sobre o campo `category`. Quem "criava" uma categoria era quem digitava um nome novo no formulário. O resultado foram **236 categorias distintas para ~2500 FAQs**, boa parte a mesma coisa escrita de outro jeito: a criação manual gravava o que foi digitado e a importação forçava minúsculo, então "Exames" e "exames" viraram dois assuntos. Como a categoria entra no texto embedado (`Assunto: …`), para a busca isso são dois temas diferentes. A lista agora tem chave canônica e índice único, e começa **vazia**: quem decide quais assuntos existem é a área de saúde.
 
 **Por que o teste de busca existe.** A única forma de saber por que o chatbot não respondeu algo era mandar a pergunta pelo chat e esperar, sem ver os scores. E o "por quanto" decide o trabalho: *"Onde fica a UBS?"* deu 0,816 contra um corte de 0,82. Sem o número, esse caso e um de conteúdo faltando são indistinguíveis, e a correção de um é o oposto da do outro.
+
+**O relatório do dia separa o que é contagem do que é leitura do modelo.** Os números, e as frases do topo que citam número ("as áreas com mais perguntas sem resposta foram…"), saem do banco pelo código. O modelo recebe as perguntas do dia com a situação registrada e as cinco FAQs mais próximas de cada uma, e devolve só a classificação (área, público, causa), uma nota por área, os pontos para revisar e duas frases de resumo. A causa que ele propõe é conferida contra a situação do banco: uma pergunta respondida não pode sair como "falta conteúdo". Custa uma chamada por lote de até 100 perguntas, mais uma de síntese quando há mais de um lote, e nenhum embedding. Cada relatório fica em `relatorios_ia` com as perguntas que entraram e a resposta crua, como a rodada da curadoria, e a exclusão de uma conversa alcança essa cópia. A classificação varia um pouco de uma geração para outra; os números, não.
 
 **O que a curadoria custa.** Uma chamada de geração por rodada de até 10 perguntas, e **nenhum embedding**: as FAQs vizinhas já ficaram gravadas em `trechosDebug` quando o chatbot respondeu. O modelo agrupa e propõe, mas **não escreve orientação de saúde**: a resposta sai vazia quando as FAQs fornecidas não continham a informação, e aí a lacuna é de conteúdo mesmo. Toda rodada fica registrada em `curadoria_rodadas`, com as perguntas que entraram e a resposta crua do modelo.
 

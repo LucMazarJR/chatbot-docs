@@ -33,7 +33,7 @@ O gateway também **mascara segredos no log**: falha de entrega ao n8n registra 
 
 ### A exclusão alcança as cópias
 
-As perguntas que o chatbot não soube responder são **copiadas** para a curadoria (em `sugestoes_faq` e `curadoria_rodadas`, no banco das FAQs) justamente para sobreviverem ao fim do protótipo. Apagar só a conversa daria à pessoa a impressão de exclusão com o texto dela ainda guardado noutro lugar, então a exclusão vai até lá e troca esses textos por uma marca.
+As perguntas que o chatbot não soube responder são **copiadas** para a curadoria (em `sugestoes_faq` e `curadoria_rodadas`, no banco das FAQs) justamente para sobreviverem ao fim do protótipo. O relatório do dia também guarda uma cópia de cada pergunta do dia, com o comentário do modelo sobre ela (em `relatorios_ia`). Apagar só a conversa daria à pessoa a impressão de exclusão com o texto dela ainda guardado noutro lugar, então a exclusão vai até lá e troca esses textos por uma marca.
 
 As cópias saem **primeiro**. Se a limpeza falhar no meio, a conversa continua existindo e o pedido pode ser repetido; na ordem inversa, sem a sessão não haveria como achar as cópias.
 
@@ -43,6 +43,7 @@ O que a exclusão **não** alcança, e por quê:
 - As execuções do n8n, que somem pela poda de 14 dias.
 - A resposta crua do modelo numa rodada de curadoria é apagada **inteira**, e não só o trecho daquela pessoa: o texto do modelo pode repetir a pergunta com outras palavras, e não há como separar com segurança. Custa a auditoria daquela rodada, que é o preço certo diante de um pedido de exclusão.
 - A pergunta reescrita pelo modelo numa sugestão fica: ela já não é a frase da pessoa, é o rascunho de uma FAQ.
+- No relatório do dia, a resposta crua do modelo sai inteira, pelo mesmo motivo da rodada de curadoria. Ficam os temas para revisar e o resumo, que falam do conjunto do dia e não citam a pergunta de ninguém.
 
 ---
 

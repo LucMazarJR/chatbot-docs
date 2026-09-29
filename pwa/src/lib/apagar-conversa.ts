@@ -10,6 +10,8 @@ export type ResultadoExclusao = {
   sugestoes: number;
   /** Rodadas de curadoria que tinham uma pergunta desta conversa. */
   rodadas: number;
+  /** Relatórios do dia que listavam uma pergunta desta conversa. */
+  relatorios: number;
 };
 
 /**
@@ -36,6 +38,9 @@ export type ResultadoExclusao = {
  *   rodada, que é o preço certo diante de um pedido de exclusão.
  * - O texto da sugestão em si é uma pergunta reescrita pelo modelo para virar
  *   FAQ, não a frase da pessoa, e fica.
+ * - No relatório do dia, saem a pergunta, o comentário do modelo sobre ela e a
+ *   resposta crua inteira; ficam os temas e o resumo, que falam do conjunto e
+ *   não citam a pergunta de ninguém.
  */
 export async function apagarConversa(sessaoId: string): Promise<ResultadoExclusao> {
   const faqs = await bancoDeFaqs();
@@ -52,6 +57,18 @@ export async function apagarConversa(sessaoId: string): Promise<ResultadoExclusa
     { arrayFilters: [{ 'lacuna.sessaoId': sessaoId }] },
   );
 
+  const relatorios = await faqs.collection('relatorios_ia').updateMany(
+    { 'perguntas.sessaoId': sessaoId },
+    {
+      $set: {
+        'perguntas.$[pergunta].pergunta': MARCA_APAGADA,
+        'perguntas.$[pergunta].comentario': MARCA_APAGADA,
+        respostaBruta: MARCA_APAGADA,
+      },
+    },
+    { arrayFilters: [{ 'pergunta.sessaoId': sessaoId }] },
+  );
+
   const apagadas = await (await mensagens()).deleteMany({ sessaoId });
   const sessao = await (await sessoes()).deleteOne({ _id: sessaoId });
 
@@ -60,5 +77,6 @@ export async function apagarConversa(sessaoId: string): Promise<ResultadoExclusa
     sessao: sessao.deletedCount === 1,
     sugestoes: sugestoes.modifiedCount,
     rodadas: rodadas.modifiedCount,
+    relatorios: relatorios.modifiedCount,
   };
 }

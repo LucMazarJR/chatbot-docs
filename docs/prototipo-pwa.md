@@ -315,7 +315,7 @@ node -e "const {MongoClient}=require('mongodb');(async()=>{const c=new MongoClie
 
 O banco do protótipo guarda também o que é do `/staging`: as **contas**, os aparelhos inscritos, os avisos e as **chaves VAPID** (em `configuracoes`). Apagá-lo apaga as contas, e as chaves novas geradas depois fazem todo aparelho precisar ativar os avisos de novo. Para apagar só as conversas anônimas, filtre `sessoes` e `mensagens` sem `usuarioId` em vez de derrubar o banco.
 
-Ele não alcança as **cópias das perguntas** que a curadoria guardou em `ministerio_saude` (`sugestoes_faq` e `curadoria_rodadas`). É de propósito: a sugestão é material da base de conteúdo e precisa sobreviver ao protótipo. Apagar também essas cópias é outra operação, sobre outro banco.
+Ele não alcança as **cópias das perguntas** que a curadoria e o relatório do dia guardaram em `ministerio_saude` (`sugestoes_faq`, `curadoria_rodadas` e `relatorios_ia`). É de propósito: a sugestão é material da base de conteúdo e precisa sobreviver ao protótipo. Apagar também essas cópias é outra operação, sobre outro banco.
 
 ---
 
