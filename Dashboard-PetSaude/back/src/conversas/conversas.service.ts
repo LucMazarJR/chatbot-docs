@@ -9,6 +9,7 @@ import { ActivityService } from '../activity/activity.service';
 import { inicioDoDia } from '../comum/fuso';
 import { Rodada, RodadaDocument } from '../curadoria/schemas/rodada.schema';
 import { Sugestao, SugestaoDocument } from '../curadoria/schemas/sugestao.schema';
+import { Relatorio, RelatorioDocument } from '../relatorios/schemas/relatorio.schema';
 
 /** O mesmo texto que o PWA usa, para as duas portas de exclusão deixarem o mesmo rastro. */
 export const MARCA_APAGADA = '[apagada a pedido da pessoa]';
@@ -45,6 +46,8 @@ export class ConversasService {
         private readonly sugestaoModel: Model<SugestaoDocument>,
         @InjectModel(Rodada.name)
         private readonly rodadaModel: Model<RodadaDocument>,
+        @InjectModel(Relatorio.name)
+        private readonly relatorioModel: Model<RelatorioDocument>,
         private readonly activityService: ActivityService,
     ) { }
 
@@ -310,6 +313,23 @@ export class ConversasService {
             )
             .exec();
 
+        // O comentário do modelo sai junto da pergunta: ele pode repeti-la com
+        // outras palavras. Os temas e o resumo do dia ficam, porque falam do
+        // conjunto e não citam pergunta de ninguém.
+        const relatorios = await this.relatorioModel
+            .updateMany(
+                { 'perguntas.sessaoId': id },
+                {
+                    $set: {
+                        'perguntas.$[pergunta].pergunta': MARCA_APAGADA,
+                        'perguntas.$[pergunta].comentario': MARCA_APAGADA,
+                        respostaBruta: MARCA_APAGADA,
+                    },
+                },
+                { arrayFilters: [{ 'pergunta.sessaoId': id }] },
+            )
+            .exec();
+
         const mensagens = await this.mensagemModel.deleteMany({ sessaoId: id }).exec();
         await this.sessaoModel.deleteOne({ _id: id }).exec();
 
@@ -317,6 +337,7 @@ export class ConversasService {
             mensagens: mensagens.deletedCount,
             sugestoes: sugestoes.modifiedCount,
             rodadas: rodadas.modifiedCount,
+            relatorios: relatorios.modifiedCount,
         };
 
         void this.activityService.registrar({
