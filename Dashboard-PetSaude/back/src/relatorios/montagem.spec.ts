@@ -274,4 +274,14 @@ describe('montagem do relatório do dia', () => {
         expect(prompt).toContain(`1. [SEM RESPOSTA] "endereço 'nga'"`);
         expect(prompt).not.toContain('—');
     });
+
+    it('o prompt não arredonda um trecho de fora para dentro do corte', () => {
+        const prompt = montarPrompt([
+            {
+                ...troca('sem_resposta', 'nga-16'),
+                trechos: [{ question: 'O que é o NGA 16?', category: null, score: 0.8198, usado: false }],
+            },
+        ]);
+        expect(prompt).toContain('0.8198 abaixo do corte: O que é o NGA 16?');
+    });
 });

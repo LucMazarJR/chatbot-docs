@@ -339,11 +339,15 @@ const ROTULO_DA_SITUACAO: Record<Situacao, string> = {
 /** O prompt de um lote. As perguntas são numeradas de 1 dentro do lote. */
 export function montarPrompt(lote: Troca[]): string {
     const blocos = lote.map((troca, i) => {
+        // Quatro casas e o veredito escrito. Com três, 0,8198 aparecia como
+        // "0.820", e o modelo concluía que a FAQ tinha passado do corte e que o
+        // sistema falhou em usá-la.
         const trechos = troca.trechos.length
             ? troca.trechos
                   .map(
                       (t) =>
-                          `${t.score.toFixed(3)} ${limpar(t.question ?? '(sem pergunta)', 90)}` +
+                          `${t.score.toFixed(4)} ${t.usado ? 'usada' : 'abaixo do corte'}: ` +
+                          limpar(t.question ?? '(sem pergunta)', 90) +
                           (t.category ? ` (${limpar(t.category, 40)})` : ''),
                   )
                   .join(' | ')
@@ -377,15 +381,16 @@ export function montarPrompt(lote: Troca[]): string {
         '  como "e lá?" ou "mas precisa de encaminhamento?") ou "fora_de_escopo".',
         '  se a situação é FALHOU ou SEM RETORNO: "falha_tecnica".',
         '- comentario: uma frase curta, de até 160 caracteres, dizendo o que aconteceu e, se não',
-        '  foi respondida, o que falta. Não escreva orientação de saúde.',
+        '  foi respondida, o que falta. Não escreva orientação de saúde. Não adivinhe o que a',
+        '  pessoa quis escrever (nome de lugar, sigla): se nenhuma FAQ trata do nome, diga só isso.',
         '',
         'Depois, no geral:',
         '- escopos: até 6 temas que precisam de revisão na base, cada um com os números das',
         '  perguntas, o motivo e uma sugestão prática (por exemplo: "escrever uma FAQ geral sobre',
         '  renovação de receita vencida"). Priorize os temas com mais perguntas sem resposta.',
-        '- resumo: de 3 a 5 frases para a equipe, em português simples, sem repetir números',
-        '  (eles já aparecem no relatório), dizendo o que funcionou, o que falhou e o que fazer',
-        '  primeiro.',
+        '- resumo: de 3 a 5 frases para a equipe, em português simples, dizendo o que funcionou,',
+        '  o que falhou e o que fazer primeiro. Não escreva números nem percentuais: eles já',
+        '  aparecem no relatório, contados pelo sistema.',
         '',
         'Responda só com JSON neste formato:',
         '{"perguntas":[{"n":1,"area":"Vacinação","publico":"cidadao","causa":"respondida",',
@@ -439,8 +444,9 @@ export function montarPromptDeSintese(
         'Devolva:',
         '- escopos: até 6 temas, juntando os repetidos. Em "de", liste os números dos temas',
         '  de cima que foram juntados em cada um.',
-        '- resumo: de 3 a 5 frases para a equipe, em português simples, sem repetir números,',
-        '  dizendo o que funcionou, o que falhou e o que fazer primeiro.',
+        '- resumo: de 3 a 5 frases para a equipe, em português simples, dizendo o que funcionou,',
+        '  o que falhou e o que fazer primeiro. Não escreva números nem percentuais: eles já',
+        '  aparecem no relatório, contados pelo sistema.',
         '',
         'Responda só com JSON neste formato:',
         '{"escopos":[{"tema":"...","de":[1,3],"motivo":"...","sugestao":"..."}],"resumo":"..."}',
