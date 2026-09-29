@@ -17,6 +17,7 @@ import { ImportModule } from './import/import.module';
 import { ConversasModule } from './conversas/conversas.module';
 import { CuradoriaModule } from './curadoria/curadoria.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
+import { RelatoriosModule } from './relatorios/relatorios.module';
 import { CONEXAO_PROTOTIPO } from './conversas/conexao';
 import { ImportScript } from './import-scripts/entities/import-script.entity';
 import { User } from './users/entities/user.entity';
@@ -103,6 +104,7 @@ import { UserSession } from './users/entities/user-session.entity';
     ConversasModule,
     CuradoriaModule,
     NotificacoesModule,
+    RelatoriosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

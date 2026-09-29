@@ -25,6 +25,10 @@ export class GeminiService {
     private readonly modelo: string;
     private readonly taskType: string;
     private readonly modeloTexto: string;
+    private readonly modeloReserva: string;
+
+    /** Duas esperas: três tentativas no total, em pouco mais de 10 segundos. */
+    private static readonly ESPERAS_ENTRE_TENTATIVAS_MS = [2_000, 8_000];
 
     constructor(private configService: ConfigService) {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -47,6 +51,11 @@ export class GeminiService {
         // variável a menos entre o que se lê aqui e o que o chatbot faz lá.
         this.modeloTexto =
             this.configService.get<string>('GEMINI_TEXT_MODEL') ?? 'gemini-3.1-flash-lite';
+
+        // A mesma reserva dos fluxos do n8n. A cota gratuita dela é pequena, e
+        // por isso ela é a reserva e não o principal.
+        this.modeloReserva =
+            this.configService.get<string>('GEMINI_TEXT_MODEL_RESERVA') ?? 'gemini-2.5-flash-lite';
     }
 
     get modeloDeTexto(): string {
@@ -106,22 +115,98 @@ export class GeminiService {
      * `temperature` baixa pelo mesmo motivo: aqui não se quer criatividade, se
      * quer que a mesma fila produza a mesma leitura.
      */
-    async gerarJson<T>(prompt: string, esquema?: Record<string, unknown>): Promise<T> {
-        const resultado = await this.genAI.models.generateContent({
-            model: this.modeloTexto,
-            contents: prompt,
-            config: {
-                temperature: 0.2,
-                responseMimeType: 'application/json',
-                ...(esquema ? { responseSchema: esquema } : {}),
-            },
-        });
+    async gerarJson<T>(
+        prompt: string,
+        esquema?: Record<string, unknown>,
+        opcoes: { maxOutputTokens?: number } = {},
+    ): Promise<T> {
+        return (await this.gerarJsonComModelo<T>(prompt, esquema, opcoes)).dados;
+    }
 
-        const texto = (resultado.text ?? '').trim();
-        if (!texto) {
-            throw new Error('O modelo devolveu resposta vazia.');
+    /**
+     * O mesmo que `gerarJson`, dizendo também qual modelo respondeu.
+     *
+     * LÓGICA DO LUCIANO: o Google responde 503 ("high demand") por minutos
+     * seguidos num modelo, e foi o que derrubou o primeiro relatório do dia
+     * gerado com dados reais. Os fluxos do n8n já tinham aprendido isso: três
+     * tentativas e um modelo de reserva. Aqui é o mesmo desenho. Quem grava o
+     * acionamento precisa saber qual modelo de fato escreveu, por isso o nome
+     * volta junto.
+     */
+    async gerarJsonComModelo<T>(
+        prompt: string,
+        esquema?: Record<string, unknown>,
+        opcoes: { maxOutputTokens?: number } = {},
+    ): Promise<{ dados: T; modelo: string }> {
+        const config = {
+            temperature: 0.2,
+            responseMimeType: 'application/json',
+            ...(esquema ? { responseSchema: esquema } : {}),
+            // Uma resposta cortada no teto chega como JSON pela metade, e o
+            // erro diz "JSON inválido" em vez de "resposta longa demais".
+            // Quem pede muita saída de uma vez (o relatório do dia, com um
+            // comentário por pergunta) declara o teto que precisa.
+            ...(opcoes.maxOutputTokens ? { maxOutputTokens: opcoes.maxOutputTokens } : {}),
+        };
+
+        let modelo = this.modeloTexto;
+        let texto: string;
+        try {
+            texto = await this.gerarComTentativas(modelo, prompt, config);
+        } catch (erro) {
+            if (!GeminiService.ehSobrecarga(erro) || !this.modeloReserva || this.modeloReserva === modelo) {
+                throw erro;
+            }
+            this.logger.warn(`${modelo} sobrecarregado; tentando o modelo de reserva ${this.modeloReserva}.`);
+            modelo = this.modeloReserva;
+            texto = await this.gerarComTentativas(modelo, prompt, config);
         }
 
+        return { dados: this.lerJson<T>(texto), modelo };
+    }
+
+    /**
+     * Uma chamada, repetida só quando o erro é sobrecarga passageira.
+     *
+     * Cota esgotada e pedido inválido não se repetem: repetir não muda a
+     * resposta e, no caso da cota, só queima o que resta dela.
+     */
+    private async gerarComTentativas(
+        modelo: string,
+        prompt: string,
+        config: Record<string, unknown>,
+    ): Promise<string> {
+        for (let tentativa = 0; ; tentativa++) {
+            try {
+                const resultado = await this.genAI.models.generateContent({ model: modelo, contents: prompt, config });
+                const texto = (resultado.text ?? '').trim();
+                if (!texto) throw new Error('O modelo devolveu resposta vazia.');
+                return texto;
+            } catch (erro) {
+                const espera = GeminiService.ESPERAS_ENTRE_TENTATIVAS_MS[tentativa];
+                if (!GeminiService.ehSobrecarga(erro) || espera === undefined) throw erro;
+                await this.esperar(espera);
+            }
+        }
+    }
+
+    /** Separado para o teste não precisar esperar de verdade. */
+    protected esperar(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    /**
+     * Verdadeiro quando o modelo está sobrecarregado: passa sozinho.
+     *
+     * É outra coisa que a cota: a sobrecarga é do Google, some em minutos e
+     * vale tentar de novo; a cota é nossa, só volta no dia seguinte.
+     */
+    static ehSobrecarga(erro: unknown): boolean {
+        const texto = (erro instanceof Error ? erro.message : String(erro)).toLowerCase();
+        return ['503', 'unavailable', 'overloaded', 'high demand'].some((termo) => texto.includes(termo));
+    }
+
+    private lerJson<T>(texto: string): T {
         try {
             return JSON.parse(texto) as T;
         } catch {

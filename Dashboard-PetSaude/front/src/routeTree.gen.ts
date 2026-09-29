@@ -16,6 +16,7 @@ import { Route as CuradoriaRouteImport } from './routes/curadoria'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotificacoesRouteImport } from './routes/notificacoes'
+import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as CategoriasIndexRouteImport } from './routes/categorias.index'
 import { Route as CategoriasCategoriaRouteImport } from './routes/categorias.$categoria'
@@ -58,6 +59,11 @@ const NotificacoesRoute = NotificacoesRouteImport.update({
   path: '/notificacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RelatoriosRoute = RelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
@@ -97,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
+  '/relatorios': typeof RelatoriosRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
+  '/relatorios': typeof RelatoriosRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
+  '/relatorios': typeof RelatoriosRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/login'
     | '/notificacoes'
+    | '/relatorios'
     | '/usuarios'
     | '/categorias/$categoria'
     | '/conversas/$id'
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/login'
     | '/notificacoes'
+    | '/relatorios'
     | '/usuarios'
     | '/categorias/$categoria'
     | '/conversas/$id'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/login'
     | '/notificacoes'
+    | '/relatorios'
     | '/usuarios'
     | '/categorias/$categoria'
     | '/conversas/$id'
@@ -191,6 +203,7 @@ export interface RootRouteChildren {
   ImportarRoute: typeof ImportarRoute
   LoginRoute: typeof LoginRoute
   NotificacoesRoute: typeof NotificacoesRoute
+  RelatoriosRoute: typeof RelatoriosRoute
   UsuariosRoute: typeof UsuariosRoute
   CategoriasCategoriaRoute: typeof CategoriasCategoriaRoute
   ConversasIdRoute: typeof ConversasIdRoute
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/relatorios': {
+      id: '/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/usuarios': {
       id: '/usuarios'
       path: '/usuarios'
@@ -303,6 +323,7 @@ const rootRouteChildren: RootRouteChildren = {
   ImportarRoute: ImportarRoute,
   LoginRoute: LoginRoute,
   NotificacoesRoute: NotificacoesRoute,
+  RelatoriosRoute: RelatoriosRoute,
   UsuariosRoute: UsuariosRoute,
   CategoriasCategoriaRoute: CategoriasCategoriaRoute,
   ConversasIdRoute: ConversasIdRoute,

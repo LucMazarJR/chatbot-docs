@@ -107,6 +107,19 @@ export class JobsService {
         job.contadores[chave] = (job.contadores[chave] ?? 0) + quanto;
     }
 
+    /**
+     * Corrige o total depois de criado.
+     *
+     * Há job que só sabe quanto trabalho tem depois de ler o banco, e a leitura
+     * acontece já dentro dele: é o caso do relatório, que só conhece o número de
+     * lotes depois de juntar as perguntas do dia.
+     */
+    definirTotal(id: string, total: number): void {
+        const job = this.jobs.get(id);
+        if (!job) return;
+        job.total = total;
+    }
+
     avancar(id: string, quanto = 1): void {
         const job = this.jobs.get(id);
         if (!job) return;
