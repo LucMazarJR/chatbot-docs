@@ -121,9 +121,20 @@ export const listarRelatorios = createServerFn({ method: "GET" }).handler(
 
 export const detalharRelatorio = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
-  .handler(async ({ data }: { data: { id: string } }): Promise<RelatorioDoDia> =>
-    apiFetch<RelatorioDoDia>(`/relatorios/${encodeURIComponent(data.id)}`),
-  );
+  .handler(async ({ data }: { data: { id: string } }): Promise<RelatorioDoDia> => {
+    const relatorio = await apiFetch<RelatorioDoDia>(`/relatorios/${encodeURIComponent(data.id)}`);
+    // Campo que o back ainda não manda chega como lista vazia. Acontece no
+    // intervalo em que o front novo já saiu e o back novo ainda está subindo,
+    // e com relatório gravado antes de o campo existir.
+    return {
+      ...relatorio,
+      destaques: relatorio.destaques ?? [],
+      escopos: relatorio.escopos ?? [],
+      porArea: relatorio.porArea ?? [],
+      porCausa: relatorio.porCausa ?? {},
+      perguntas: relatorio.perguntas ?? [],
+    };
+  });
 
 export const gerarRelatorio = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
