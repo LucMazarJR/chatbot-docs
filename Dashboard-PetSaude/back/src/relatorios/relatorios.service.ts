@@ -162,15 +162,17 @@ export class RelatoriosService {
 
             const classificacoes: Classificacao[] = [];
             const escopos: Escopo[] = [];
+            const modelos = new Set<string>();
             let resumo = '';
             let deslocamento = 0;
 
             for (const lote of lotes) {
-                const bruta = await this.geminiService.gerarJson<unknown>(
+                const { dados: bruta, modelo } = await this.geminiService.gerarJsonComModelo<unknown>(
                     montarPrompt(lote),
                     ESQUEMA_DO_LOTE,
                     { maxOutputTokens: TETO_DE_SAIDA },
                 );
+                modelos.add(modelo);
                 brutas.push(JSON.stringify(bruta));
 
                 classificacoes.push(...sanearClassificacao(bruta, lote));
@@ -185,11 +187,12 @@ export class RelatoriosService {
             let escoposFinais = escopos;
 
             if (lotes.length > 1) {
-                const sintese = await this.geminiService.gerarJson<unknown>(
+                const { dados: sintese, modelo } = await this.geminiService.gerarJsonComModelo<unknown>(
                     montarPromptDeSintese(numeros, porArea, escopos, trocas),
                     ESQUEMA_DA_SINTESE,
                     { maxOutputTokens: TETO_DE_SAIDA },
                 );
+                modelos.add(modelo);
                 brutas.push(JSON.stringify(sintese));
                 escoposFinais = juntarEscopos(sintese, escopos);
                 resumo = lerResumo(sintese);
@@ -202,6 +205,9 @@ export class RelatoriosService {
             doc.escopos = escoposFinais;
             doc.resumo = resumo;
             doc.respostaBruta = brutas.join('\n');
+            // O modelo que de fato escreveu, e não o configurado: com a
+            // sobrecarga, parte do relatório pode ter saído da reserva.
+            doc.modelo = [...modelos].join(', ');
             await this.encerrar(doc, 'concluido');
 
             // Sem nenhuma pergunta no registro: ele diz quem acionou a IA, sobre
@@ -214,7 +220,7 @@ export class RelatoriosService {
                 entity_type: 'sistema',
                 entity_id: String(doc._id),
                 target: `Relatório do dia ${doc.data}: ${trocas.length} perguntas analisadas por IA`,
-                after: { perguntas: trocas.length, chamadas: brutas.length, modelo: this.geminiService.modeloDeTexto },
+                after: { perguntas: trocas.length, chamadas: brutas.length, modelo: doc.modelo },
             });
 
             this.jobsService.finalizar(jobId, 'concluido');
@@ -233,8 +239,13 @@ export class RelatoriosService {
             }
 
             this.logger.error(`Relatório ${String(doc._id)} falhou: ${mensagem}`);
-            await this.encerrar(doc, 'erro', mensagem);
-            this.jobsService.finalizar(jobId, 'erro', mensagem);
+            // O texto do Google é um JSON em inglês; quem está na tela precisa
+            // saber que passa sozinho e o que fazer.
+            const paraATela = GeminiService.ehSobrecarga(erro)
+                ? 'O Gemini está sobrecarregado agora, inclusive o modelo de reserva. Isso costuma passar em minutos: gere o relatório de novo.'
+                : mensagem;
+            await this.encerrar(doc, 'erro', paraATela);
+            this.jobsService.finalizar(jobId, 'erro', paraATela);
         }
     }
 
