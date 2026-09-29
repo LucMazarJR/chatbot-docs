@@ -106,7 +106,11 @@ export class GeminiService {
      * `temperature` baixa pelo mesmo motivo: aqui não se quer criatividade, se
      * quer que a mesma fila produza a mesma leitura.
      */
-    async gerarJson<T>(prompt: string, esquema?: Record<string, unknown>): Promise<T> {
+    async gerarJson<T>(
+        prompt: string,
+        esquema?: Record<string, unknown>,
+        opcoes: { maxOutputTokens?: number } = {},
+    ): Promise<T> {
         const resultado = await this.genAI.models.generateContent({
             model: this.modeloTexto,
             contents: prompt,
@@ -114,6 +118,11 @@ export class GeminiService {
                 temperature: 0.2,
                 responseMimeType: 'application/json',
                 ...(esquema ? { responseSchema: esquema } : {}),
+                // Uma resposta cortada no teto chega como JSON pela metade, e o
+                // erro diz "JSON inválido" em vez de "resposta longa demais".
+                // Quem pede muita saída de uma vez (o relatório do dia, com um
+                // comentário por pergunta) declara o teto que precisa.
+                ...(opcoes.maxOutputTokens ? { maxOutputTokens: opcoes.maxOutputTokens } : {}),
             },
         });
 

@@ -53,6 +53,16 @@ export class Sessao {
     avaliacao: Avaliacao | null;
 
     /**
+     * Quando a pessoa aceitou os termos. Nulo enquanto não aceitou.
+     *
+     * O relatório do dia usa para contar quem aceitou e não chegou a perguntar:
+     * foi o sinal de que faltava dizer, depois do aceite, que já dava para
+     * começar.
+     */
+    @Prop({ type: Date, default: null })
+    consentimentoEm?: Date | null;
+
+    /**
      * A conta dona da conversa, quando a conversa foi feita com login.
      *
      * O painel mostra só que a conversa TEM conta, nunca de quem: quem analisa
