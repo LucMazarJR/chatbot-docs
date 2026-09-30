@@ -66,6 +66,14 @@ export class Mensagem {
     @Prop({ default: false })
     pendente: boolean;
 
+    /** Tentativa de mandar arquivo ou áudio. Ausente em mensagem de texto. */
+    @Prop({ type: String, default: undefined })
+    tipo?: 'arquivo' | 'audio';
+
+    /** Staging: a pergunta foi ditada, e não digitada. O áudio nunca chega ao banco. */
+    @Prop({ type: String, default: undefined })
+    origem?: 'voz';
+
     // Daqui para baixo, só nas mensagens do bot.
 
     @Prop()

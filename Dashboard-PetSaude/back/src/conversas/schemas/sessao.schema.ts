@@ -62,6 +62,10 @@ export class Sessao {
     @Prop({ type: Date, default: null })
     consentimentoEm?: Date | null;
 
+    /** Staging: o que a pessoa fez com o tutorial. Ausente quando ele não foi oferecido. */
+    @Prop({ type: Object, default: undefined })
+    tutorial?: { escolha: 'visto' | 'pulado' | 'recusado' | 'ignorado'; em: Date };
+
     /**
      * A conta dona da conversa, quando a conversa foi feita com login.
      *
