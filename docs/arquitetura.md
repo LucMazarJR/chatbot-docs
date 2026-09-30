@@ -158,6 +158,8 @@ Webhook → If → Dados → Switch → Buscar FAQs → Montar contexto → AI A
 
 Existe um segundo fluxo, [n8n/pwa-chatbot.json](../n8n/pwa-chatbot.json), cópia deste com outra rota, outro token e outra credencial do Gemini. Ele não interfere no canal: ver [prototipo-pwa.md](prototipo-pwa.md).
 
+E um terceiro, [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), rota `/webhook/pwa-chat-staging`, que só a conversa do `/staging` usa: é o do PWA com a **reescrita da pergunta** antes da busca (ver [Perguntas de acompanhamento](#perguntas-de-acompanhamento-ainda-falham)).
+
 ### Por que a busca é obrigatória
 
 Numa versão anterior o vector store era uma **ferramenta** do agente (`retrieve-as-tool`): quem decidia buscar era o modelo. Com um modelo pequeno, tool-calling é irregular, quando ele não chamava a ferramenta, respondia por conhecimento próprio ou dizia que não encontrou. O system prompt pedia "sempre busque primeiro", mas isso é **garantia por pedido, não por estrutura**.
@@ -226,6 +228,24 @@ Os dois primeiros continuam abaixo do corte: o tema melhora, mas a base não tem
 
 A correção de verdade é **condensação por LLM**, que resolve a referência e descarta o assunto anterior: reescreveria "E fralda geriátrica?" como "Onde consigo pegar fralda geriátrica?". Custa uma chamada de modelo a mais por mensagem, sobre uma latência que já é o maior problema de experiência. Ou se faz assim, ou não se faz.
 
+#### A reescrita, em validação no `/staging`
+
+O fluxo de staging faz a condensação, e aproveita a chamada para atacar mais dois padrões que as perguntas sem resposta do primeiro teste de campo mostraram (42 das 50 sem resposta tinham trechos acima do corte, mas não a FAQ certa): a pergunta curta ou abreviada ("endereço nga" ficava em 0,78; "onde fica o nga 16" passava com 0,85) e o top-10 tomado por FAQs quase iguais (a validade da receita de cada remédio empurrava para fora a regra geral de receita vencida).
+
+```
+Dados → Montar reescrita → Reescrever pergunta → Consultas → Precisa buscar? → Buscar FAQs → Montar contexto → AI Agent
+         (Code: prompt       (HTTP ao Gemini,      (Code: 1 item                      (uma busca
+          + 4 mensagens)      8 s de prazo)         por consulta)                      por consulta)
+```
+
+- Um modelo pequeno (`gemini-3.1-flash-lite`, credencial **Gemini Reescrita**, chave própria) recebe a pergunta e as últimas 4 mensagens, que o PWA manda junto, e devolve a **pergunta completa** e de 1 a 3 **consultas**: a específica e uma geral do mesmo assunto ("onde tomo a BCG" gera também "Onde tomo as vacinas de rotina?").
+- Cada consulta é uma busca. Os trechos entram por **rodízio** (o melhor de cada consulta primeiro), sem FAQ repetida, até 10, e cada consulta extra entra com no máximo 3. O corte continua 0,82.
+- **Saudação pula a busca** e economiza o embedding. Fora de escopo ainda busca: um modelo pequeno pode confundir pergunta de profissional com assunto de fora.
+- **Se a reescrita falhar** (prazo, cota, JSON quebrado), a busca usa o texto original, que é o comportamento sem reescrita.
+- O agente recebe a pergunta original e a entendida. A mensagem guarda a pergunta entendida, as consultas e o tempo da reescrita, e o painel mostra isso nos bastidores da resposta.
+
+**Medição antes de ir a campo.** O [n8n/avaliar-reescrita.mjs](../n8n/avaliar-reescrita.mjs) reaplica as perguntas de um dia com e sem reescrita, lendo o prompt do próprio fluxo, e compara o que a busca traria. Com as perguntas do primeiro teste de campo, a versão inicial fez as 9 perguntas que não traziam nenhum trecho passarem a trazer, e nenhuma das respondidas de controle perdeu os trechos. Mas também mostrou os dois riscos que o prompt atual evita: siglas expandidas para nomes inventados ("NGA" virou "Núcleo de Gestão Assistencial") e consulta geral vaga ("unidades de saúde em Franca") trazendo FAQ de outro assunto com 0,89, que é o caminho para o erro do "15 dias" descrito acima. O teste dos nós de código fica em [n8n/testar-codigo-staging.mjs](../n8n/testar-codigo-staging.mjs).
+
 ---
 
 ## O dashboard
@@ -279,5 +299,5 @@ Dívidas em aberto, com o impacto de cada uma:
 | n8n valida o token, não a assinatura HMAC | n8n | Proteção menor que a possível; o gateway já envia a assinatura |
 | Só recebe e envia texto | backend | Áudio e imagem caem no aviso de somente texto |
 | Baileys não-oficial | backend | Risco de bloqueio do número. Ver [caminho-para-producao.md](caminho-para-producao.md) |
-| Perguntas de acompanhamento falham | fluxo | Ver a seção acima; a correção custa uma chamada de LLM por mensagem |
+| Perguntas de acompanhamento falham | fluxos do WhatsApp e do `/` | A reescrita por LLM está em validação no `/staging` (ver a seção acima); custa uma chamada de modelo por mensagem, de 1 a 2 segundos na mediana |
 | Latência mediana de ~24s | fluxo | É o maior problema de experiência, e ainda não foi medido onde o tempo é gasto (embedding, busca no Atlas, Gemini ou as 3 tentativas do agente) |

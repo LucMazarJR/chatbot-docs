@@ -68,6 +68,15 @@ Só existem na rota de validação: ver [contas-de-usuario.md](contas-de-usuario
 - **Apagar a conta** leva as conversas (com as cópias da curadoria, pelo mesmo caminho da exclusão de conversa), os avisos, os aparelhos e as sessões, e a conta por último.
 - **Senha**: guardada só como hash `scrypt`. As sessões guardam o hash do token, nunca o token.
 
+### Reescrita, voz e tutorial
+
+Também só no `/staging` ([prototipo-pwa.md](prototipo-pwa.md#contas-e-avisos-staging)).
+
+- **A reescrita manda ao Gemini a pergunta e as últimas 4 mensagens da conversa**, por outra chave (`GEMINI_API_KEY_3`, credencial `Gemini Reescrita`). Não é destinatário novo: o agente que responde já recebe a pergunta e o histórico pelo mesmo Gemini. O que volta, a pergunta como o modelo entendeu e as consultas feitas, fica gravado **na mensagem da resposta**, em `mensagens`, e por isso some junto com a conversa: pelo prazo de retenção, pelo *Apagar minha conversa*, pela exclusão no painel e pela exclusão da conta. É texto derivado do que o cidadão escreveu, e segue as mesmas regras dele: não vai para log nem para auditoria, e no painel aparece só nos bastidores da resposta, para quem já pode ler a transcrição.
+- **O ditado é feito pelo navegador**, com o serviço de voz dele (do Google no Chrome, da Apple no Safari). O áudio vai do aparelho para esse serviço e **nunca passa pelo nosso servidor**; o que chega aqui é o texto, que a pessoa revisa antes de enviar, e a marca `origem: 'voz'` na mensagem. É um destinatário a mais, que a página `/privacidade` nomeia. Nenhum áudio é guardado.
+- **Ouvir a resposta usa a voz do próprio aparelho** (`speechSynthesis`). Nada sai do celular por esse caminho, e a preferência de velocidade e de leitura automática fica só no aparelho.
+- **O tutorial** grava na sessão o que a pessoa fez com ele (viu, pulou, recusou ou ignorou) e quando. Não é dado de saúde, e existe para medir se o tutorial serve. O aparelho guarda a mesma escolha, só para não oferecer de novo.
+
 ---
 
 ## O que depende da instituição
