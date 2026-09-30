@@ -31,6 +31,8 @@ export type TrechoDebug = {
   category: string | null;
   question: string | null;
   previa: string | null;
+  /** No fluxo com reescrita: qual das consultas trouxe este trecho. */
+  consulta?: string | null;
 };
 
 /**
@@ -142,6 +144,17 @@ export type Mensagem = {
   modelo?: string | null;
   /** O agente respondeu o texto de "não encontrei": lacuna de conteúdo. */
   semResposta?: boolean;
+
+  // Só no fluxo de staging, com reescrita da pergunta. É o registro do
+  // acionamento da IA que prepara a busca: o que entrou está na conversa, e
+  // o que ela devolveu fica aqui.
+  /** A pergunta reescrita por inteiro, entendível sem a conversa. */
+  perguntaCompleta?: string | null;
+  /** As buscas que a reescrita gerou, na ordem. */
+  consultas?: string[];
+  reescritaMs?: number | null;
+  /** A reescrita não respondeu e a busca foi feita com o texto original. */
+  reescritaFalhou?: boolean;
   erro?: boolean;
   /** Por que falhou: timeout, HTTP 404 do n8n, variável ausente. Só quando `erro`. */
   motivoErro?: string | null;

@@ -1,0 +1,667 @@
+{
+  "id": "PrototipoPwaStg1",
+  "name": "PET-SAÚDE: Protótipo PWA, staging com reescrita",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pwa-chat-staging",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -512,
+        -16
+      ],
+      "id": "edf8953e-ae3c-43e3-ac19-12b5f6ca66dc",
+      "name": "Webhook",
+      "webhookId": "50f7b3de-121a-4e84-af1b-de2c6ba34b02",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "PwaWebhookTok001",
+          "name": "PWA Webhook Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0b6f1c22-4d97-4a03-9e58-71c4a8b3f206",
+              "name": "IdChat",
+              "value": "=pwa:{{ $json.body.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "1c7a2d33-5e08-4b14-af69-82d5b9c4e317",
+              "name": "TextoMensagem",
+              "value": "={{ $json.body.texto }}",
+              "type": "string"
+            },
+            {
+              "id": "2d8b3e44-6f19-4c25-b07a-93e6cad5f428",
+              "name": "NomeUser",
+              "value": "={{ $json.body.nome }}",
+              "type": "string"
+            },
+            {
+              "id": "3e9c4f55-7a2a-4d36-c18b-a4f7dbe6a539",
+              "name": "EventId",
+              "value": "={{ $json.body.mensagemId }}",
+              "type": "string"
+            },
+            {
+              "id": "4fad5a66-8b3b-4e47-d29c-b5a8ecf7b640",
+              "name": "CorrelationId",
+              "value": "={{ $json.headers['x-correlation-id'] }}",
+              "type": "string"
+            },
+            {
+              "id": "5abe6b77-9c4c-4f58-e3ad-c6b9fda8c752",
+              "name": "UrlDeRetorno",
+              "value": "={{ $json.body.urlDeRetorno }}",
+              "type": "string"
+            },
+            {
+              "id": "45e0b505-105d-4a92-96f8-7be372a4059d",
+              "name": "Historico",
+              "value": "={{ JSON.stringify($json.body.historico || []) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -288,
+        -16
+      ],
+      "id": "786cb25d-c91d-476a-ad3a-9b49aa29d737",
+      "name": "Dados"
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "prompt": "={{ $json.TextoBusca }}",
+        "topK": 10,
+        "mongoCollection": {
+          "__rl": true,
+          "value": "faq_medicamentos",
+          "mode": "list",
+          "cachedResultName": "faq_medicamentos"
+        },
+        "metadata_field": "isActive, category",
+        "vectorIndexName": "vector_index_3072",
+        "options": {
+          "preFilter": "{\"isActive\": true}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreMongoDBAtlas",
+      "typeVersion": 1.3,
+      "position": [
+        -48,
+        -16
+      ],
+      "id": "8452fc29-74d6-471f-b1e2-0a34a554264e",
+      "name": "Buscar FAQs",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mongoDb": {
+          "id": "FcsqaFE5ejMSt7kW",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-2"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        176
+      ],
+      "id": "e3334f8e-dfd0-411c-8f9a-d63fefc98e21",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PwaGeminiCred01",
+          "name": "Gemini PWA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Junta os trechos de todas as consultas num item só.\n//\n// Mesmo papel do nó de mesmo nome no fluxo sem reescrita (fan-out, campos que\n// o vector store derruba, pageContent vazio, corte de relevância), com duas\n// diferenças:\n//\n// 1. MAIS DE UMA BUSCA. Cada consulta da reescrita fez a sua. A FAQ que veio\n//    em duas conta uma vez só, com o melhor score.\n//\n// 2. RODÍZIO, E NÃO SÓ SCORE. O melhor trecho de cada consulta entra primeiro,\n//    depois o segundo de cada uma, e assim até 10. Ordenando só por score, a\n//    consulta específica (a receita de cada remédio, 0,90) empurraria para fora\n//    a consulta geral (a FAQ de receita vencida, 0,88), que é justamente a que\n//    a reescrita existe para trazer.\n//\n// O corte continua 0.82, o mesmo dos outros fluxos.\nconst dados = $('Consultas').first().json;\nconst LIMIAR_SCORE = 0.82;\nconst MAXIMO_TRECHOS = 10;\nconst TOP_K = 10;\n\nconst entradas = $input.all();\nconst pulouBusca = entradas.length === 1 && entradas[0].json && entradas[0].json.PularBusca === true;\n\nconst porConsulta = new Map();\nconst debug = [];\n\nif (!pulouBusca) {\n  entradas.forEach((item, posicao) => {\n    // De qual consulta veio o trecho: o n8n liga cada saída à entrada que a\n    // gerou. Sem essa ligação, a ordem é consulta a consulta, TOP_K de cada.\n    const ligado = item.pairedItem && typeof item.pairedItem.item === 'number' ? item.pairedItem.item : null;\n    const indice = ligado !== null ? ligado : Math.floor(posicao / TOP_K);\n\n    const doc = (item.json && item.json.document) || item.json || {};\n    const meta = doc.metadata || {};\n    const score = item.json && typeof item.json.score === 'number' ? item.json.score : 1;\n    const passou = score >= LIMIAR_SCORE;\n\n    // `||` e não `??`: string vazia precisa cair para a próxima fonte.\n    let texto = (doc.pageContent || '').trim();\n    if (!texto) texto = (meta.text || '').trim();\n    if (!texto && (meta.question || meta.answer)) {\n      texto = [\n        meta.category ? 'Assunto: ' + meta.category : null,\n        meta.question ? 'Pergunta: ' + meta.question : null,\n        meta.answer ? 'Resposta: ' + meta.answer : null,\n      ].filter(Boolean).join('\\n');\n    }\n\n    const faqId = meta._id || meta.id || doc.id || (item.json && item.json.id) || null;\n    debug.push({\n      score: Number(score.toFixed(4)),\n      usado: false,\n      faqId: faqId ? String(faqId) : null,\n      category: meta.category || null,\n      question: meta.question || null,\n      previa: texto ? texto.slice(0, 240) : null,\n      consulta: dados.Consultas[indice] || null,\n    });\n\n    if (passou && texto) {\n      const chave = faqId ? String(faqId) : (meta.question || '') + '|' + (meta.category || '') + '|' + texto.slice(0, 80);\n      if (!porConsulta.has(indice)) porConsulta.set(indice, []);\n      porConsulta.get(indice).push({ chave, texto, score, posicao: debug.length - 1 });\n    }\n  });\n}\n\nconst listas = [...porConsulta.keys()]\n  .sort((a, b) => a - b)\n  .map((indice) => porConsulta.get(indice).sort((a, b) => b.score - a.score));\nconst escolhidos = [];\nconst vistos = new Set();\nfor (let rodada = 0; escolhidos.length < MAXIMO_TRECHOS && listas.some((l) => l.length > rodada); rodada++) {\n  for (const lista of listas) {\n    const trecho = lista[rodada];\n    if (!trecho || vistos.has(trecho.chave) || escolhidos.length >= MAXIMO_TRECHOS) continue;\n    vistos.add(trecho.chave);\n    escolhidos.push(trecho);\n    debug[trecho.posicao].usado = true;\n  }\n}\n\nconst contexto = escolhidos.map((t, i) => '[Trecho ' + (i + 1) + ']\\n' + t.texto).join('\\n\\n');\n\nreturn [\n  {\n    json: {\n      ...dados,\n      ContextoFaq: contexto,\n      TemContexto: escolhidos.length > 0,\n      QtdTrechos: escolhidos.length,\n      TrechosDebug: debug,\n      LimiarScore: LIMIAR_SCORE,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -16
+      ],
+      "id": "899f2306-813c-42d4-a5b3-52f147ab14c4",
+      "name": "Montar contexto"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Pergunta do cidadão:\n{{ $json.TextoMensagem }}{{ $json.PerguntaCompleta && $json.PerguntaCompleta !== $json.TextoMensagem ? '\\n(entendida como: ' + $json.PerguntaCompleta + ')' : '' }}\n\n===== TRECHOS DA BASE DE FAQs =====\n{{ $json.TemContexto ? $json.ContextoFaq : 'NENHUM TRECHO ENCONTRADO NA BASE.' }}\n===== FIM DOS TRECHOS =====",
+        "options": {
+          "systemMessage": "Contexto do Agente — Assistente Virtual de Saúde (PT-BR)\n\nIDENTIDADE\nVocê é uma assistente virtual especializada em saúde, bem-estar e serviços/gestão de saúde da região.\n\nCOMO VOCÊ RECEBE INFORMAÇÃO\nA cada mensagem você recebe duas coisas:\n1. A pergunta do cidadão.\n2. Um bloco TRECHOS DA BASE DE FAQs, com o resultado de uma busca que JÁ FOI EXECUTADA automaticamente na base oficial antes de você.\n\nVocê NÃO tem ferramenta de busca. A busca já aconteceu. Nunca diga que vai \"consultar\", \"verificar na base\" ou \"pesquisar\" — isso não existe do seu lado.\n\nHIERARQUIA DAS FONTES — esta é a regra mais importante deste prompt\n\n1. TRECHOS DA BASE = única fonte de CONTEÚDO.\n   Toda informação factual da sua resposta precisa sair dos trechos que vieram NESTA mensagem.\n\n2. HISTÓRICO DA CONVERSA = serve só para ENTENDER a pergunta.\n   Use o histórico exclusivamente para resolver referências como \"e sobre isso?\", \"e o jejum?\", \"quanto tempo?\".\n   NUNCA use o histórico como fonte de conteúdo.\n   NUNCA repita uma resposta anterior só porque a pergunta pareceu parecida com a anterior.\n   Se os trechos desta mensagem tratam de assunto diferente do da sua última resposta, responda sobre os trechos NOVOS e ignore a resposta antiga.\n   Cada pergunta é respondida do zero, com os trechos que chegaram agora.\n\n3. SEU CONHECIMENTO PRÓPRIO = não é fonte.\n   Não complete lacunas dos trechos com conhecimento geral de saúde. Se o trecho não diz, você não sabe.\n\nQUANDO NÃO VIEREM TRECHOS ÚTEIS\nSe o bloco disser \"NENHUM TRECHO ENCONTRADO NA BASE\", ou se os trechos recebidos não responderem à pergunta feita, responda exatamente isto:\n\nDesculpe — não encontrei essa informação nos recursos disponíveis. Posso ajudar com serviços, exames ou unidades próximas?\n\nDepois, ofereça de 2 a 4 sugestões curtas de assuntos que você cobre.\nExceção: saudações, agradecimentos e despedidas não dependem de trechos — ver SAUDAÇÃO.\n\nESCOPO\nResponder exclusivamente sobre:\n- saúde e bem-estar\n- sintomas e orientações gerais (sem diagnóstico definitivo)\n- exames e prevenção\n- tratamentos (informações gerais)\n- medicamentos (informações gerais, sem doses)\n- locais de atendimento (unidades, horários, contatos quando disponíveis)\n- departamentos administrativos, responsáveis por setores, políticas e procedimentos locais\n\nFORMATO DE SAÍDA OBRIGATÓRIO\nA resposta será enviada pelo WhatsApp, que NÃO interpreta HTML nem Markdown.\nUse exclusivamente a formatação nativa do WhatsApp:\n\n1. Negrito: *texto entre asteriscos simples*\n2. Itálico: _texto entre underlines_\n3. Tachado: ~texto entre tis~\n4. Listas: use o caractere • no início da linha\n5. Quebra de linha: pule linha normalmente\n\nPROIBIDO\n- Qualquer tag HTML (<b>, <i>, <p>, <a>, <br> etc.). Elas aparecem literalmente na tela do cidadão.\n- Qualquer Markdown: **negrito**, __itálico__, # títulos, [links](url), > citação.\n- Entidades HTML como &amp;, &lt;, &gt;. Escreva &, < e > diretamente.\n- Iniciar linha com * ou - para fazer lista: o WhatsApp interpreta como negrito e desconfigura a mensagem. Use •.\n- Citar a existência dos trechos, da base, do sistema ou de ferramentas internas. O cidadão não sabe que existe uma busca.\n\nPADRÃO DE FORMATAÇÃO\nQuando houver rótulo, use:\n*Rótulo:* texto\n\nQuando houver lista de orientações, uma por linha:\n*Jejum:* 8 horas\n*Suplementos:* Informe o laboratório se usar zinco ou multivitamínicos.\n*Álcool:* Evite bebidas alcoólicas nas 24 horas anteriores à coleta.\n\nTAMANHO\nMensagem de WhatsApp deve ser curta. Mire em 3 a 8 linhas.\nSe a resposta for longa, entregue o essencial e ofereça detalhar.\n\nUSO DOS TRECHOS\n- Não devolva o texto cru dos trechos.\n- Sintetize e reformule: combine os trechos relevantes, elimine repetições e entregue uma resposta clara, curta e amigável.\n- Ignore trechos que não tenham relação com a pergunta. Vir no bloco não significa ser relevante.\n- Se dois trechos se contradisserem, diga brevemente que há variações e oriente procurar o setor responsável.\n- NUNCA misture o texto de \"não encontrei\" com um fragmento de um trecho que fala de outro assunto. Ou o trecho responde à pergunta feita e você o usa, ou nenhum trecho responde e a resposta é só o texto de \"não encontrei\" — nunca as duas coisas juntas. Um número ou prazo real, tirado de um trecho sobre outro assunto e apresentado como se valesse para a pergunta feita, é pior do que admitir que você não sabe.\n\nSAUDAÇÃO\nPara entradas básicas como \"oi\", \"bom dia\", \"obrigado\":\n\nOlá, sou seu chatbot de auxílio em saúde.\nPosso ajudar com serviços, exames ou dúvidas gerais sobre saúde.\nComo posso ajudar?\n\nSINTOMAS / CONTEXTO CLÍNICO\n- Fornecer orientações gerais e educativas; não diagnosticar.\n- Não prescrever medicamentos nem informar doses.\n- Solicitar apenas informações essenciais, de forma breve.\n- Evitar transformar a conversa em anamnese completa sem necessidade.\n\nEMERGÊNCIA\nSe for emergência ou houver risco iminente à vida, oriente procurar atendimento médico imediato ou ligar para o SAMU (192).\n\nFORA DO ESCOPO\nSou um assistente focado apenas em saúde; não posso ajudar com esse assunto.\n\nTOM E ESTILO\n- Cordial, acolhedor, profissional, claro e objetivo.\n- Evitar jargões sem explicação.\n- Não ser alarmista.\n- Não inventar informações nem especular.\n\nESTRUTURA DA RESPOSTA, QUANDO POSSÍVEL\n1. Resposta direta e curta.\n2. Detalhes úteis em no máximo 2 ou 3 blocos curtos.\n3. Próximo passo claro.\n\nEXEMPLO DE SAÍDA CORRETA PARA EXAMES\nPara o exame de dosagem de zinco, siga estas orientações:\n\n*Jejum:* 8 horas.\n*Suplementos:* Informe o laboratório se fizer uso de zinco ou multivitamínicos.\n*Álcool:* Evite bebidas alcoólicas nas 24 horas anteriores à coleta.\n\nPosso ajudar com mais alguma coisa?"
+        },
+        "needsFallback": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -16
+      ],
+      "id": "2ce230e4-4230-484b-8d5d-f9091a6e690d",
+      "name": "AI Agent",
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        336,
+        208
+      ],
+      "id": "33710c8a-3391-49da-9a49-88aba5000ea3",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PwaGeminiCred01",
+          "name": "Gemini PWA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ String($json.IdChat) }}",
+        "sessionTTL": 3600,
+        "contextWindowLength": 4
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        496,
+        208
+      ],
+      "id": "45263f7f-9682-461d-aa5b-a3e91e6801df",
+      "name": "Redis Chat Memory",
+      "credentials": {
+        "redis": {
+          "id": "OBpFliPd43Keam2u",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').item.json.UrlDeRetorno }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Token",
+              "value": "={{ $env.PWA_CALLBACK_TOKEN }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $('Dados').item.json.CorrelationId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  mensagemId: $('Dados').item.json.EventId,\n  sessionId: $('Dados').item.json.IdChat,\n  ok: true,\n  resposta: $json.output,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  perguntaCompleta: $('Montar contexto').item.json.PerguntaCompleta,\n  consultas: $('Montar contexto').item.json.Consultas,\n  reescritaMs: $('Montar contexto').item.json.ReescritaMs,\n  reescritaFalhou: $('Montar contexto').item.json.ReescritaFalhou,\n  modelo: $('AI Agent (última reserva)').isExecuted ? 'models/gemini-3.5-flash-lite' : 'models/gemini-3.1-flash-lite'\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        -112
+      ],
+      "id": "6c4611cf-2afc-4fa5-9cad-c641cc0fdafd",
+      "name": "Responder",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').item.json.UrlDeRetorno }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Token",
+              "value": "={{ $env.PWA_CALLBACK_TOKEN }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $('Dados').item.json.CorrelationId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  mensagemId: $('Dados').item.json.EventId,\n  sessionId: $('Dados').item.json.IdChat,\n  ok: false,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  perguntaCompleta: $('Montar contexto').item.json.PerguntaCompleta,\n  consultas: $('Montar contexto').item.json.Consultas,\n  reescritaMs: $('Montar contexto').item.json.ReescritaMs,\n  reescritaFalhou: $('Montar contexto').item.json.ReescritaFalhou\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1072,
+        400
+      ],
+      "id": "cec45340-f3df-4b9b-9f75-441bf1c0f70f",
+      "name": "Responder com indisponibilidade",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        496,
+        268
+      ],
+      "id": "eaab217d-4585-4798-9450-361a4910c67d",
+      "name": "Gemini reserva",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PwaGeminiCred01",
+          "name": "Gemini PWA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// A saída de erro do AI Agent entrega o erro, e não a pergunta. A última\n// reserva precisa do mesmo item que o agente principal recebeu: pergunta,\n// trechos da base e o id da conversa, que a memória usa como chave.\nreturn [{ json: $('Montar contexto').first().json }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        304
+      ],
+      "id": "d2c99dfa-451f-4665-8afe-9704c12a67bc",
+      "name": "Recuperar pergunta"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Pergunta do cidadão:\n{{ $json.TextoMensagem }}{{ $json.PerguntaCompleta && $json.PerguntaCompleta !== $json.TextoMensagem ? '\\n(entendida como: ' + $json.PerguntaCompleta + ')' : '' }}\n\n===== TRECHOS DA BASE DE FAQs =====\n{{ $json.TemContexto ? $json.ContextoFaq : 'NENHUM TRECHO ENCONTRADO NA BASE.' }}\n===== FIM DOS TRECHOS =====",
+        "options": {
+          "systemMessage": "Contexto do Agente — Assistente Virtual de Saúde (PT-BR)\n\nIDENTIDADE\nVocê é uma assistente virtual especializada em saúde, bem-estar e serviços/gestão de saúde da região.\n\nCOMO VOCÊ RECEBE INFORMAÇÃO\nA cada mensagem você recebe duas coisas:\n1. A pergunta do cidadão.\n2. Um bloco TRECHOS DA BASE DE FAQs, com o resultado de uma busca que JÁ FOI EXECUTADA automaticamente na base oficial antes de você.\n\nVocê NÃO tem ferramenta de busca. A busca já aconteceu. Nunca diga que vai \"consultar\", \"verificar na base\" ou \"pesquisar\" — isso não existe do seu lado.\n\nHIERARQUIA DAS FONTES — esta é a regra mais importante deste prompt\n\n1. TRECHOS DA BASE = única fonte de CONTEÚDO.\n   Toda informação factual da sua resposta precisa sair dos trechos que vieram NESTA mensagem.\n\n2. HISTÓRICO DA CONVERSA = serve só para ENTENDER a pergunta.\n   Use o histórico exclusivamente para resolver referências como \"e sobre isso?\", \"e o jejum?\", \"quanto tempo?\".\n   NUNCA use o histórico como fonte de conteúdo.\n   NUNCA repita uma resposta anterior só porque a pergunta pareceu parecida com a anterior.\n   Se os trechos desta mensagem tratam de assunto diferente do da sua última resposta, responda sobre os trechos NOVOS e ignore a resposta antiga.\n   Cada pergunta é respondida do zero, com os trechos que chegaram agora.\n\n3. SEU CONHECIMENTO PRÓPRIO = não é fonte.\n   Não complete lacunas dos trechos com conhecimento geral de saúde. Se o trecho não diz, você não sabe.\n\nQUANDO NÃO VIEREM TRECHOS ÚTEIS\nSe o bloco disser \"NENHUM TRECHO ENCONTRADO NA BASE\", ou se os trechos recebidos não responderem à pergunta feita, responda exatamente isto:\n\nDesculpe — não encontrei essa informação nos recursos disponíveis. Posso ajudar com serviços, exames ou unidades próximas?\n\nDepois, ofereça de 2 a 4 sugestões curtas de assuntos que você cobre.\nExceção: saudações, agradecimentos e despedidas não dependem de trechos — ver SAUDAÇÃO.\n\nESCOPO\nResponder exclusivamente sobre:\n- saúde e bem-estar\n- sintomas e orientações gerais (sem diagnóstico definitivo)\n- exames e prevenção\n- tratamentos (informações gerais)\n- medicamentos (informações gerais, sem doses)\n- locais de atendimento (unidades, horários, contatos quando disponíveis)\n- departamentos administrativos, responsáveis por setores, políticas e procedimentos locais\n\nFORMATO DE SAÍDA OBRIGATÓRIO\nA resposta será enviada pelo WhatsApp, que NÃO interpreta HTML nem Markdown.\nUse exclusivamente a formatação nativa do WhatsApp:\n\n1. Negrito: *texto entre asteriscos simples*\n2. Itálico: _texto entre underlines_\n3. Tachado: ~texto entre tis~\n4. Listas: use o caractere • no início da linha\n5. Quebra de linha: pule linha normalmente\n\nPROIBIDO\n- Qualquer tag HTML (<b>, <i>, <p>, <a>, <br> etc.). Elas aparecem literalmente na tela do cidadão.\n- Qualquer Markdown: **negrito**, __itálico__, # títulos, [links](url), > citação.\n- Entidades HTML como &amp;, &lt;, &gt;. Escreva &, < e > diretamente.\n- Iniciar linha com * ou - para fazer lista: o WhatsApp interpreta como negrito e desconfigura a mensagem. Use •.\n- Citar a existência dos trechos, da base, do sistema ou de ferramentas internas. O cidadão não sabe que existe uma busca.\n\nPADRÃO DE FORMATAÇÃO\nQuando houver rótulo, use:\n*Rótulo:* texto\n\nQuando houver lista de orientações, uma por linha:\n*Jejum:* 8 horas\n*Suplementos:* Informe o laboratório se usar zinco ou multivitamínicos.\n*Álcool:* Evite bebidas alcoólicas nas 24 horas anteriores à coleta.\n\nTAMANHO\nMensagem de WhatsApp deve ser curta. Mire em 3 a 8 linhas.\nSe a resposta for longa, entregue o essencial e ofereça detalhar.\n\nUSO DOS TRECHOS\n- Não devolva o texto cru dos trechos.\n- Sintetize e reformule: combine os trechos relevantes, elimine repetições e entregue uma resposta clara, curta e amigável.\n- Ignore trechos que não tenham relação com a pergunta. Vir no bloco não significa ser relevante.\n- Se dois trechos se contradisserem, diga brevemente que há variações e oriente procurar o setor responsável.\n- NUNCA misture o texto de \"não encontrei\" com um fragmento de um trecho que fala de outro assunto. Ou o trecho responde à pergunta feita e você o usa, ou nenhum trecho responde e a resposta é só o texto de \"não encontrei\" — nunca as duas coisas juntas. Um número ou prazo real, tirado de um trecho sobre outro assunto e apresentado como se valesse para a pergunta feita, é pior do que admitir que você não sabe.\n\nSAUDAÇÃO\nPara entradas básicas como \"oi\", \"bom dia\", \"obrigado\":\n\nOlá, sou seu chatbot de auxílio em saúde.\nPosso ajudar com serviços, exames ou dúvidas gerais sobre saúde.\nComo posso ajudar?\n\nSINTOMAS / CONTEXTO CLÍNICO\n- Fornecer orientações gerais e educativas; não diagnosticar.\n- Não prescrever medicamentos nem informar doses.\n- Solicitar apenas informações essenciais, de forma breve.\n- Evitar transformar a conversa em anamnese completa sem necessidade.\n\nEMERGÊNCIA\nSe for emergência ou houver risco iminente à vida, oriente procurar atendimento médico imediato ou ligar para o SAMU (192).\n\nFORA DO ESCOPO\nSou um assistente focado apenas em saúde; não posso ajudar com esse assunto.\n\nTOM E ESTILO\n- Cordial, acolhedor, profissional, claro e objetivo.\n- Evitar jargões sem explicação.\n- Não ser alarmista.\n- Não inventar informações nem especular.\n\nESTRUTURA DA RESPOSTA, QUANDO POSSÍVEL\n1. Resposta direta e curta.\n2. Detalhes úteis em no máximo 2 ou 3 blocos curtos.\n3. Próximo passo claro.\n\nEXEMPLO DE SAÍDA CORRETA PARA EXAMES\nPara o exame de dosagem de zinco, siga estas orientações:\n\n*Jejum:* 8 horas.\n*Suplementos:* Informe o laboratório se fizer uso de zinco ou multivitamínicos.\n*Álcool:* Evite bebidas alcoólicas nas 24 horas anteriores à coleta.\n\nPosso ajudar com mais alguma coisa?"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        848,
+        304
+      ],
+      "id": "4741b1b6-3284-421f-8917-e12ecd7a0834",
+      "name": "AI Agent (última reserva)",
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        848,
+        544
+      ],
+      "id": "0ec13fda-15dd-4570-b4ea-3ddb5c98fdb5",
+      "name": "Gemini última reserva",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PwaGeminiCred01",
+          "name": "Gemini PWA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Monta o pedido de reescrita da pergunta, antes da busca.\n//\n// LÓGICA DO LUCIANO: no primeiro teste de campo, 42 das 50 perguntas sem\n// resposta tinham trechos acima do corte, e não a FAQ certa. Três padrões:\n// pergunta curta ou abreviada (\"endereço nga\" ficou em 0,78, \"onde fica o nga\n// 16\" passou com 0,85), pergunta de continuação sem referente (\"mas precisa de\n// encaminhamento?\"), e top-10 tomado por FAQs quase iguais (a receita de cada\n// remédio empurrava para fora a FAQ geral de receita vencida). Um modelo\n// pequeno reescreve a pergunta por inteiro e gera uma consulta específica e\n// uma geral; cada uma vira uma busca.\n//\n// O prompt fica entre os marcadores abaixo porque o n8n/avaliar-reescrita.mjs\n// lê o texto daqui: a avaliação mede exatamente o que o fluxo faz.\nconst dados = $('Dados').first().json;\n\nlet historico = [];\ntry {\n  historico = JSON.parse(dados.Historico || '[]');\n} catch (erro) {\n  historico = [];\n}\nconst conversa = (Array.isArray(historico) ? historico : [])\n  .slice(-4)\n  .map((m) => (m && m.papel === 'user' ? 'Cidadão: ' : 'Assistente: ') + String((m && m.texto) || '').replace(/\\s+/g, ' ').slice(0, 300));\n\n// INICIO-DO-PROMPT\nconst PROMPT = \"Você prepara a busca de um chatbot de saúde pública de Franca (SP). A busca compara a\\nmensagem com uma base de perguntas frequentes (FAQs), escritas assim:\\n\\\"Onde fica a UBS Guanabara e qual o horário?\\\", \\\"Como marco consulta com o oftalmologista?\\\",\\n\\\"Qual a validade da receita de antibiótico?\\\", \\\"Preciso agendar para tomar vacina?\\\".\\n\\nVocê recebe a mensagem nova do cidadão e, quando houver, as mensagens anteriores da conversa.\\nNão responda à pergunta. Só prepare a busca.\\n\\nDevolva:\\n- tipo: \\\"saudacao\\\" para oi, bom dia, obrigado, tchau, ok e parecidos; \\\"fora_de_escopo\\\" só\\n  quando claramente não é sobre saúde nem sobre serviço público de saúde; o resto é \\\"pergunta\\\".\\n- perguntaCompleta: a pergunta reescrita por inteiro, entendível sem a conversa. Resolva\\n  referências à conversa (\\\"e lá?\\\", \\\"e o jejum?\\\", \\\"mas precisa de encaminhamento?\\\") com o\\n  assunto da mensagem anterior. Se a mensagem nova muda de assunto, ignore o anterior. Corrija\\n  grafia e escreva por extenso as abreviações comuns (ubs, ps, upa, nga, caps, sus). Não\\n  acrescente nada que a pessoa não disse.\\n- consultas: de 1 a 3 frases curtas no estilo das FAQs acima:\\n  1. a pergunta específica, como a pessoa quis perguntar;\\n  2. uma versão mais geral do mesmo serviço ou tema, para quando a base só tiver a regra\\n     geral. Exemplos: \\\"onde tomo a BCG\\\" pede também \\\"Onde tomo as vacinas de rotina?\\\";\\n     \\\"minha receita de losartana venceu\\\" pede também \\\"Como renovar uma receita vencida?\\\";\\n  3. só se a mensagem tiver duas perguntas diferentes, a segunda.\\n  Não invente nome de unidade, bairro, remédio ou exame que a pessoa não citou. Para\\n  saudação e fora de escopo, devolva consultas vazio.\";\n// FIM-DO-PROMPT\n\nconst texto = [\n  PROMPT,\n  '',\n  conversa.length ? 'Conversa até aqui:\\n' + conversa.join('\\n') : 'Conversa até aqui: nenhuma.',\n  '',\n  'Mensagem nova do cidadão:',\n  String(dados.TextoMensagem || ''),\n].join('\\n');\n\nreturn [\n  {\n    json: {\n      ...dados,\n      InicioReescrita: Date.now(),\n      corpo: {\n        contents: [{ role: 'user', parts: [{ text: texto }] }],\n        generationConfig: {\n          temperature: 0,\n          maxOutputTokens: 400,\n          responseMimeType: 'application/json',\n          responseSchema: {\"type\":\"OBJECT\",\"properties\":{\"tipo\":{\"type\":\"STRING\",\"enum\":[\"pergunta\",\"saudacao\",\"fora_de_escopo\"]},\"perguntaCompleta\":{\"type\":\"STRING\"},\"consultas\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\"}}},\"required\":[\"tipo\",\"perguntaCompleta\",\"consultas\"]},\n        },\n      },\n    },\n  },\n];\n"
+      },
+      "id": "6eb5a25a-458d-4c6a-acd0-fd20870c7e05",
+      "name": "Montar reescrita",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "id": "d83f81df-f533-44a3-8f8c-1ebe80501181",
+      "name": "Reescrever pergunta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        92,
+        -256
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PwaGeminiReesc01",
+          "name": "Gemini Reescrita"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lê a reescrita e transforma cada consulta num item da busca.\n//\n// Se a reescrita falhou (prazo de 8 s, cota, sobrecarga, JSON quebrado), a\n// busca segue com o texto original, que é o comportamento do fluxo sem\n// reescrita: uma etapa que existe para melhorar a busca não pode deixar o\n// cidadão sem resposta.\n//\n// Só a saudação pula a busca, e economiza o embedding. \"Fora de escopo\" ainda\n// busca: um modelo pequeno pode confundir pergunta de profissional de saúde com\n// assunto de fora, e aí a busca é a última chance de achar alguma coisa.\nconst dados = $('Montar reescrita').first().json;\nconst resposta = $input.first().json || {};\n\nlet lido = null;\ntry {\n  const partes = (resposta.candidates && resposta.candidates[0] && resposta.candidates[0].content && resposta.candidates[0].content.parts) || [];\n  lido = JSON.parse(partes.map((p) => p.text || '').join(''));\n} catch (erro) {\n  lido = null;\n}\n\nconst original = String(dados.TextoMensagem || '').trim();\nconst tipo = lido && ['pergunta', 'saudacao', 'fora_de_escopo'].includes(lido.tipo) ? lido.tipo : 'pergunta';\nconst perguntaCompleta =\n  lido && typeof lido.perguntaCompleta === 'string' && lido.perguntaCompleta.trim()\n    ? lido.perguntaCompleta.trim().slice(0, 400)\n    : original;\nlet consultas = lido && Array.isArray(lido.consultas)\n  ? lido.consultas.filter((c) => typeof c === 'string' && c.trim()).map((c) => c.trim().slice(0, 300))\n  : [];\nconsultas = [...new Set(consultas)].slice(0, 3);\nif (consultas.length === 0) consultas = [perguntaCompleta || original];\n\nconst { corpo, ...resto } = dados;\nconst base = {\n  ...resto,\n  Tipo: tipo,\n  PerguntaCompleta: perguntaCompleta,\n  Consultas: consultas,\n  ReescritaFalhou: !lido,\n  ReescritaMs: Date.now() - Number(dados.InicioReescrita || Date.now()),\n};\n\nif (tipo === 'saudacao') {\n  return [{ json: { ...base, PularBusca: true, TextoBusca: original, IndiceConsulta: 0 } }];\n}\nreturn consultas.map((consulta, indice) => ({\n  json: { ...base, PularBusca: false, TextoBusca: consulta, IndiceConsulta: indice },\n}));\n"
+      },
+      "id": "fa139eac-010e-4810-9687-31b0b1e2fce3",
+      "name": "Consultas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        312,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3de72d96-cc9f-4bc9-b1e9-efcae806f7b0",
+              "leftValue": "={{ $json.PularBusca }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "78e357e8-d10f-457a-a24e-25cde341874e",
+      "name": "Precisa buscar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        532,
+        -256
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados": {
+      "main": [
+        [
+          {
+            "node": "Montar reescrita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar FAQs": {
+      "main": [
+        [
+          {
+            "node": "Montar contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar contexto": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Recuperar pergunta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Buscar FAQs",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "AI Agent (última reserva)",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini reserva": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Recuperar pergunta": {
+      "main": [
+        [
+          {
+            "node": "AI Agent (última reserva)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent (última reserva)": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder com indisponibilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini última reserva": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent (última reserva)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar reescrita": {
+      "main": [
+        [
+          {
+            "node": "Reescrever pergunta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reescrever pergunta": {
+      "main": [
+        [
+          {
+            "node": "Consultas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultas": {
+      "main": [
+        [
+          {
+            "node": "Precisa buscar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Precisa buscar?": {
+      "main": [
+        [
+          {
+            "node": "Buscar FAQs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Montar contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
