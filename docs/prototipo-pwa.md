@@ -222,13 +222,15 @@ O que fica guardado é o par `{id, chave}`. A **chave** é gerada na criação d
 
 Sob cada resposta do bot há **👍/👎**. É o dado mais valioso da validação: diz *qual* resposta falhou, não só que a conversa foi ruim.
 
-A avaliação final abre pelo menu (**Encerrar e avaliar**) ou sozinha, após 2 minutos parado com pelo menos 3 perguntas feitas. São três campos, todos opcionais: nota ★1–5, NPS 0–10 e um comentário.
+A avaliação final abre pelo menu (**Encerrar e avaliar**) ou sozinha, após 2 minutos parado de verdade com pelo menos 3 perguntas feitas. "Parado" exclui quem está esperando resposta, digitando, gravando, com outro painel aberto ou com a aba escondida: o relógio para quando a pergunta sai e recomeça com a resposta, e qualquer toque, tecla ou rolagem o reinicia. Sozinha, ela abre uma vez só por conversa, se apresenta como opcional e o botão de sair diz **Continuar conversando**. Nos dois casos ela avisa que enviar encerra a conversa. São três campos, todos opcionais: nota ★1–5, NPS 0–10 e um comentário.
 
-Antes da primeira pergunta o bot pede o **aceite**, com dois botões, e o campo só libera depois de *Aceitar*; a data do aceite ou da recusa fica gravada na sessão. Não há saudação nem atalhos de assunto: aceitou, o chat está pronto para a pergunta, e o que o assistente entende, entende do texto.
+> A regra nasceu do primeiro teste de campo: a folha abriu enquanto uma participante esperava uma resposta de 100 segundos, a nota que ela deu encerrou a conversa, e ela não perguntou mais nada. A decisão está em [avaliacao-automatica.ts](../pwa/src/lib/avaliacao-automatica.ts), com teste.
+
+Antes da primeira pergunta o bot pede o **aceite**, com dois botões, e o campo só libera depois de *Aceitar*; a data do aceite ou da recusa fica gravada na sessão. Ao aceitar, o assistente responde que já pode perguntar, apontando o campo pelo nome escrito nele (*Escreva sua pergunta*), e o campo ganha foco e um destaque breve. Sem esse retorno, no primeiro teste de campo, metade das pessoas levou de 3 a 18 minutos para a primeira pergunta. Não há saudação nem atalhos de assunto: o que o assistente entende, entende do texto.
 
 O **menu ⋮** tem quatro itens:
 
-- **Acessibilidade**: tamanho do texto em quatro degraus, com uma amostra que mostra o efeito na hora, e tema claro, escuro ou automático. Existe porque o chat mede tudo em px para imitar o WhatsApp e por isso ignora a fonte do sistema, e no posto muita gente usa o celular com a fonte no máximo.
+- **Acessibilidade**: tamanho do texto em quatro degraus, com uma amostra que mostra o efeito na hora, tema claro, escuro ou automático, e contraste normal ou alto. Existe porque o chat mede tudo em px para imitar o WhatsApp e por isso ignora a fonte do sistema, e no posto muita gente usa o celular com a fonte no máximo. O contraste alto põe contorno em balão, botão e campo, tira o desenho do fundo e escurece o texto secundário: num monitor de posto, o balão branco sumia no fundo bege. Sem escolha feita, ele segue o "aumentar contraste" do sistema.
 - **Privacidade**: a página `/privacidade`, que também tem link no aviso do topo da conversa.
 - **Encerrar e avaliar**: abre a avaliação.
 - **Apagar minha conversa**: depois de confirmar, apaga a conversa e as cópias das perguntas guardadas pela curadoria. Some quando a conversa já foi encerrada, porque a chave sai do aparelho ao avaliar; nesse caso a equipe apaga pela transcrição no dashboard.
