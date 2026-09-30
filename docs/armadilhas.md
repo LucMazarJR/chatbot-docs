@@ -93,6 +93,8 @@ Ele não menciona `output` nem `standalone`, e leva a procurar no lugar errado. 
 
 **`HOSTNAME=0.0.0.0` no Dockerfile não é decorativo.** O servidor gerado pelo `output: standalone` escuta só em `localhost` *dentro* do container; sem a variável, a porta publicada responde *connection refused* e o container parece saudável.
 
+**Ordenar a conversa só por data põe a resposta antes da pergunta.** A resposta do bot nasce pendente no mesmo milissegundo da pergunta, e com `sort({ em: 1 })` o banco escolhe a ordem do empate. Aconteceu nas conversas do primeiro teste de campo, na conversa reaberta e na transcrição do painel. Toda leitura de transcrição usa `ORDEM_DA_CONVERSA` (`{ em: 1, papel: -1 }`, de [db.ts](../pwa/src/lib/db.ts)); o painel usa a mesma ordem, e o relatório do dia pareia pelo `correlationId`.
+
 **Um `data:` URI de SVG não enxerga as variáveis CSS da página.** O padrão de fundo do chat é renderizado em contexto isolado, por isso a cor do traço está fixa dentro do SVG e o tema escuro troca a imagem inteira. Usar `var(--x)` ali dentro faz o fundo sumir, sem erro no console.
 
 **`PWA_PUBLIC_URL` precisa ser alcançável pelo container do n8n.** É o endereço para onde o fluxo devolve a resposta pronta. Deduzi-lo do cabeçalho `Host` não funciona: `localhost` dentro do n8n é o próprio n8n, e a resposta morre com `ECONNREFUSED`. No Docker, `http://pwa:8080`.

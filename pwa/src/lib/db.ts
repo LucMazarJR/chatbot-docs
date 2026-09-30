@@ -91,6 +91,16 @@ export async function mensagens(): Promise<Collection<Mensagem>> {
   return (await banco()).collection<Mensagem>('mensagens');
 }
 
+/**
+ * A ordem de uma transcrição: por data e, no empate, a pergunta antes.
+ *
+ * LÓGICA DO LUCIANO: a resposta nasce no mesmo milissegundo da pergunta (é
+ * criada pendente, junto com ela), e ordenar só por data deixava o banco
+ * escolher. Na conversa reaberta, a resposta aparecia acima da pergunta. Os
+ * papéis são "user" e "bot", e em ordem decrescente "user" vem primeiro.
+ */
+export const ORDEM_DA_CONVERSA = { em: 1, papel: -1 } as const;
+
 export async function limites(): Promise<Collection<RegistroDeLimite>> {
   return (await banco()).collection<RegistroDeLimite>('limites');
 }

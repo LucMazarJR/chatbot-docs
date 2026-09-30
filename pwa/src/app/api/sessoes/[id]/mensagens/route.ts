@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { mensagens } from '@/lib/db';
+import { mensagens, ORDEM_DA_CONVERSA } from '@/lib/db';
 import { LIMITE_POR_CONVERSA, dentroDoLimite, identificar } from '@/lib/limite';
 import { despachar, urlDeRetorno } from '@/lib/n8n';
 import { autenticarSessao } from '@/lib/sessao-autenticada';
@@ -35,7 +35,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
       { sessaoId: id },
       { projection: { papel: 1, texto: 1, em: 1, erro: 1, feedback: 1, pendente: 1 } },
     )
-    .sort({ em: 1 })
+    .sort(ORDEM_DA_CONVERSA)
     .toArray();
 
   return Response.json({
