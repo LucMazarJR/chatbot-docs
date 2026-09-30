@@ -62,11 +62,22 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 async function gemini(caminho, corpo) {
   for (let tentativa = 0; ; tentativa++) {
     const inicio = Date.now();
-    const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/${caminho}?key=${CHAVE}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(corpo),
-    });
+    let resposta;
+    try {
+      resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/${caminho}?key=${CHAVE}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo),
+      });
+    } catch (erro) {
+      // Conexão caída no meio (ECONNRESET): numa avaliação de dezenas de
+      // chamadas, acontece. Tenta de novo antes de desistir da pergunta.
+      if (tentativa < 4) {
+        await esperar(5000 * (tentativa + 1));
+        continue;
+      }
+      throw erro;
+    }
     if (resposta.ok) return { ...(await resposta.json()), _ms: Date.now() - inicio };
     // Cota por minuto e sobrecarga passam sozinhas; o resto é erro de verdade.
     if ((resposta.status === 429 || resposta.status === 503) && tentativa < 4) {
@@ -193,7 +204,20 @@ const amostra = [...semResposta, ...respondidas.filter((_, i) => i % passo === 0
 console.log(`${dia}: ${semResposta.length} sem resposta e ${Math.min(quantasRespondidas, respondidas.length)} respondidas de controle\n`);
 
 const resultados = [];
+const perdidas = [];
 for (const [i, t] of amostra.entries()) {
+  try {
+    resultados.push(await avaliar(i, t));
+  } catch (erro) {
+    // Uma pergunta que falhou de vez não derruba a avaliação inteira: ela
+    // sai do resumo e aparece na contagem de perdidas.
+    perdidas.push(t.pergunta);
+    console.log(`${i + 1}. PERDIDA (${erro.message.slice(0, 120)}): ${t.pergunta}`);
+  }
+  await esperar(300);
+}
+
+async function avaliar(i, t) {
   const antes = await buscar(await embedding(t.pergunta, TASK_TYPE));
   const passaAntes = antes.filter((x) => x.score >= LIMIAR);
   let reescrita;
@@ -222,12 +246,11 @@ for (const [i, t] of amostra.entries()) {
     depois: { passam: depois.length, top: depois.slice(0, 4).map((x) => `${x.score.toFixed(3)} ${x.question}`) },
     novas: novas.slice(0, 4).map((x) => `${x.score.toFixed(3)} ${x.question}`),
   };
-  resultados.push(r);
   console.log(`${i + 1}. [${t.semResposta ? 'SEM RESPOSTA' : 'respondida'}] ${t.pergunta}`);
   console.log(`   entendida: ${r.perguntaCompleta} | consultas: ${consultas.join(' || ')} | ${r.reescritaMs ?? '?'} ms${r.falhou ? ' | FALHOU: ' + r.falhou : ''}`);
   console.log(`   antes: ${r.antes.passam} acima do corte (melhor ${r.antes.melhor.toFixed(3)}) | depois: ${r.depois.passam}`);
   if (r.novas.length) console.log(`   FAQs novas no contexto: ${r.novas.join(' | ')}`);
-  await esperar(300);
+  return r;
 }
 
 const semAntes = resultados.filter((r) => r.semResposta && r.antes.passam === 0);
@@ -242,6 +265,7 @@ console.log(`- Sem resposta e sem nenhum trecho antes: ${semAntes.length}; passa
 console.log(`- Sem resposta que passaram a trazer FAQ que não vinha antes: ${comNovas.length} de ${resultados.filter((r) => r.semResposta).length}`);
 console.log(`- Respondidas de controle que perderam todo trecho: ${controlePerdeu.length}`);
 console.log(`- Reescrita: mediana ${percentil(0.5)} ms, p90 ${percentil(0.9)} ms, falhas ${resultados.filter((r) => r.falhou).length}`);
+if (perdidas.length) console.log(`- Perguntas perdidas por erro de rede ou cota: ${perdidas.length}`);
 
 const saida = argumento('saida', null);
 if (saida) fs.writeFileSync(saida, JSON.stringify(resultados, null, 2));
