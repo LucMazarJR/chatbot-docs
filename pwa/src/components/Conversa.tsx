@@ -27,6 +27,8 @@ import { formatarDuracao, useGravador } from '@/lib/usar-gravador';
 import type { Papel, TipoAnexo } from '@/lib/tipos';
 import { Carregando } from '@/components/Carregando';
 import { decidirAvaliacao, INATIVIDADE_MS } from '@/lib/avaliacao-automatica';
+import { Tutorial, type PassoDoTutorial } from '@/components/Tutorial';
+import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
 /**
@@ -119,6 +121,65 @@ function confirmacaoDoAceite(quando?: Date): Item {
   return { chave: 'aceite-pronto', papel: 'bot', texto: ACEITE_CONFIRMADO, hora: horaAgora(quando) };
 }
 
+/**
+ * A oferta do tutorial, dentro da conversa.
+ *
+ * LÓGICA DO LUCIANO: um convite, e não um tutorial que abre sozinho. Quem já
+ * sabe usar WhatsApp perderia tempo com cinco passos, e a maioria sabe. Quem
+ * não sabe toca em "Ver como usar". E quem ignora e já escreve a pergunta não
+ * é interrompido: a oferta fica lá, e o menu tem "Como usar".
+ */
+const OFERTA_DO_TUTORIAL = 'Quer ver em poucos passos como usar este chat? Se já sabe, é só perguntar.';
+
+const BOTOES_DO_TUTORIAL: BotaoRapido[] = [
+  { rotulo: 'Ver como usar', valor: 'ver' },
+  { rotulo: 'Já sei usar', valor: 'recusar' },
+];
+
+const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
+  {
+    alvo: '.barra-envio .campo',
+    titulo: 'Onde escrever',
+    texto:
+      'Toque aqui e escreva sua dúvida do seu jeito, como numa conversa de WhatsApp. Não precisa escrever certinho.',
+  },
+  {
+    alvo: '.barra-envio .enviar',
+    titulo: 'Como enviar',
+    texto:
+      'Depois de escrever, toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone.',
+  },
+  {
+    alvo: null,
+    titulo: 'Diga se a resposta ajudou',
+    texto:
+      'Embaixo de cada resposta aparecem dois botões. Toque no polegar para cima se ajudou, ou para baixo se não ajudou. É assim que a equipe descobre o que melhorar.',
+    exemplo: (
+      <>
+        <div className="amostra-balao">Para marcar consulta, procure a UBS mais perto de casa.</div>
+        <div className="avaliar-msg">
+          <button type="button" tabIndex={-1}>
+            👍
+          </button>
+          <button type="button" tabIndex={-1}>
+            👎
+          </button>
+        </div>
+      </>
+    ),
+  },
+  {
+    alvo: 'button[aria-label="Mais opções"]',
+    titulo: 'Letra maior e outras opções',
+    texto: 'Neste menu você aumenta a letra, liga o contraste alto e encerra a conversa.',
+  },
+  {
+    alvo: null,
+    titulo: 'Pronto!',
+    texto: 'Pode perguntar. Se quiser ver este passo a passo de novo, ele fica no menu, em Como usar.',
+  },
+];
+
 function horaAgora(quando: Date = new Date()) {
   return hora(quando);
 }
@@ -160,6 +221,8 @@ export type PropsConversa = {
   modo?: 'anonimo' | 'conta';
   /** Destinos extras no menu ⋮, entre Privacidade e Encerrar. */
   itensDeMenu?: { rotulo: string; href: string }[];
+  /** Staging: oferece o passo a passo de como usar, e põe "Como usar" no menu. */
+  comTutorial?: boolean;
 };
 
 /**
@@ -171,7 +234,7 @@ export type PropsConversa = {
  * entre os modos passa pela prop `modo`; sem ela, o comportamento é o de antes
  * da extração, linha por linha.
  */
-export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) {
+export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = false }: PropsConversa) {
   const comConta = modo === 'conta';
   const [sessaoId, setSessaoId] = useState<string | null>(null);
   const [falhaAoAbrir, setFalhaAoAbrir] = useState(false);
@@ -190,6 +253,8 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   const [aceitou, setAceitou] = useState(false);
   /** Logo depois do aceite: o campo pisca em destaque para mostrar onde escrever. */
   const [destacarCampo, setDestacarCampo] = useState(false);
+  const [tutorialAberto, setTutorialAberto] = useState(false);
+  const ofertaFeitaRef = useRef(false);
   /** Recado passageiro acima do campo: microfone recusado, envio falhou. */
   const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
 
@@ -413,6 +478,30 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
     }
   }
 
+  // A oferta do tutorial entra uma vez, quando a conversa abre, e só no
+  // primeiro uso do aparelho.
+  useEffect(() => {
+    if (!comTutorial || !sessaoId || ofertaFeitaRef.current || tutorialJaOferecido()) return;
+    ofertaFeitaRef.current = true;
+    setItens((atuais) => [
+      ...atuais,
+      { chave: 'tutorial-oferta', papel: 'bot', texto: OFERTA_DO_TUTORIAL, hora: horaAgora(), botoes: BOTOES_DO_TUTORIAL },
+    ]);
+  }, [comTutorial, sessaoId]);
+
+  /** Lembra no aparelho e grava na sessão o que a pessoa fez com o tutorial. */
+  function registrarTutorial(escolha: EscolhaDoTutorial) {
+    lembrarTutorial(escolha);
+    if (!sessaoId) return;
+    // Sem esperar e sem avisar se falhar: é dado de medição, não pode
+    // atrapalhar quem está começando a conversa.
+    void fetch(`/api/sessoes/${sessaoId}/tutorial`, {
+      method: 'POST',
+      headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ escolha }),
+    }).catch(() => {});
+  }
+
   useEffect(() => {
     if (!aceitou || !destacarCampo) return;
     campoRef.current?.focus();
@@ -436,6 +525,15 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
 
   async function escolherBotao(item: Item, botao: BotaoRapido) {
     marcarEscolha(item.chave, botao.valor);
+
+    if (item.chave === 'tutorial-oferta') {
+      if (botao.valor === 'ver') setTutorialAberto(true);
+      else {
+        registrarTutorial('recusado');
+        campoRef.current?.focus();
+      }
+      return;
+    }
 
     if (!CHAVES_DE_ACEITE.includes(item.chave)) {
       // Sugestão de assunto: vale como pergunta digitada.
@@ -499,6 +597,14 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
     // Esperar resposta não é estar parado. O relógio volta no `finally`,
     // quando a resposta chega.
     pararInatividade();
+
+    // Perguntou sem responder à oferta do tutorial: não precisa dele, e a
+    // oferta não volta nas próximas conversas.
+    const ofertaSemResposta = itens.find((item) => item.chave === 'tutorial-oferta' && !item.escolhido);
+    if (ofertaSemResposta) {
+      marcarEscolha('tutorial-oferta', 'ignorado');
+      registrarTutorial('ignorado');
+    }
 
     const chaveUsuario = crypto.randomUUID();
     setItens((atuais) => [
@@ -625,7 +731,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
     esperando: digitando,
     gravando: gravador.gravando,
     texto,
-    outroPainel: menuAberto || ajustando || apagandoConversa || avaliando,
+    outroPainel: menuAberto || ajustando || apagandoConversa || avaliando || tutorialAberto,
     encerrada,
   };
 
@@ -761,6 +867,18 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
             >
               Acessibilidade
             </button>
+            {comTutorial && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuAberto(false);
+                  setTutorialAberto(true);
+                }}
+              >
+                Como usar
+              </button>
+            )}
             <Link href="/privacidade" role="menuitem" onClick={() => setMenuAberto(false)}>
               Privacidade
             </Link>
@@ -1032,6 +1150,17 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
       </section>
 
       {ajustando && <PainelAjustes aoFechar={() => setAjustando(false)} />}
+
+      {tutorialAberto && (
+        <Tutorial
+          passos={PASSOS_DO_TUTORIAL}
+          aoTerminar={(motivo) => {
+            setTutorialAberto(false);
+            registrarTutorial(motivo);
+            campoRef.current?.focus();
+          }}
+        />
+      )}
 
       {apagandoConversa && sessaoId && (
         <FolhaApagar

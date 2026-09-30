@@ -1466,3 +1466,121 @@ button {
     animation-duration: 2.4s;
   }
 }
+
+/* --- Tutorial (staging) ---------------------------------------------------- */
+
+/*
+ * O destaque é um recorte: a sombra enorme escurece a tela inteira, menos a
+ * caixa do elemento. Assim o elemento de verdade aparece aceso, e não uma
+ * cópia desenhada dele.
+ */
+.tutorial {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  font-size: calc(15px * var(--escala));
+}
+
+.tutorial-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 20, 26, 0.62);
+}
+
+.tutorial-destaque {
+  position: absolute;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 3px var(--acento),
+    0 0 0 9999px rgba(11, 20, 26, 0.62);
+  pointer-events: none;
+}
+
+.tutorial-balao {
+  position: absolute;
+  left: 50%;
+  width: min(92vw, 22em);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 1em 1.1em;
+  border-radius: 12px;
+  background: var(--painel);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  color: var(--texto);
+  translate: -50% 0;
+}
+
+:root[data-contraste='alto'] .tutorial-balao {
+  box-shadow: 0 0 0 2px var(--contorno);
+}
+
+.tutorial-passo {
+  margin: 0 0 0.3em;
+  color: var(--texto-fraco);
+  font-size: 0.85em;
+}
+
+.tutorial-balao h2 {
+  margin: 0 0 0.4em;
+  font-size: 1.15em;
+  line-height: 1.3;
+}
+
+.tutorial-balao h2:focus {
+  outline: none;
+}
+
+.tutorial-balao h2:focus-visible {
+  outline: 3px solid var(--acento);
+}
+
+.tutorial-balao p {
+  margin: 0 0 0.6em;
+  line-height: 1.45;
+}
+
+.tutorial-exemplo {
+  margin: 0.4em 0 0.8em;
+  padding: 0.7em;
+  border-radius: 8px;
+  background: var(--fundo-chat);
+}
+
+.tutorial-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  margin-top: 0.4em;
+}
+
+.tutorial-navegar {
+  display: flex;
+  gap: 0.5em;
+}
+
+/* 44px de altura: é o passo a passo de quem tem mais dificuldade de acertar
+   o toque. */
+.tutorial-acoes button {
+  min-height: 44px;
+  padding: 0 1em;
+  border: 1px solid var(--borda);
+  border-radius: 22px;
+  background: transparent;
+  color: var(--texto);
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.tutorial-acoes .tutorial-pular {
+  border-color: transparent;
+  color: var(--texto-fraco);
+  text-decoration: underline;
+}
+
+.tutorial-acoes .tutorial-proximo {
+  border-color: var(--acento);
+  background: var(--acento);
+  color: var(--acento-texto);
+}
