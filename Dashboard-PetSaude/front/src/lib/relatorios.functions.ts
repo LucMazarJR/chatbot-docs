@@ -46,6 +46,10 @@ export type NumerosDoDia = {
   respostasAcimaDe60s: number;
   aceitaramSemPerguntar: number;
   tentativasDeAudioOuArquivo: number;
+  // Medições do staging. Ausentes nos relatórios gerados antes delas; a tela
+  // mostra o que elas dizem pelas frases de destaque, que o back já escreve.
+  perguntasPorVoz?: number;
+  tutorial?: { visto: number; pulado: number; recusado: number; ignorado: number };
 };
 
 export type ContagemPorArea = {

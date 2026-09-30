@@ -78,6 +78,8 @@ export type MensagemLida = {
     em: Date;
     correlationId?: string | null;
     tipo?: string | null;
+    /** Staging: "voz" quando a pergunta foi ditada. */
+    origem?: string | null;
     pendente?: boolean;
     semResposta?: boolean;
     erro?: boolean;
@@ -92,6 +94,8 @@ export type SessaoLida = {
     iniciadaEm: Date;
     consentimentoEm?: Date | null;
     avaliacao?: { estrelas: number | null; nps: number | null; comentario: string | null } | null;
+    /** Staging: o que a pessoa fez com o tutorial. */
+    tutorial?: { escolha: string; em: Date } | null;
 };
 
 /** Uma pergunta do cidadão com a resposta que ela recebeu. */
@@ -105,6 +109,8 @@ export type Troca = {
     situacao: Situacao;
     feedback: 'up' | 'down' | null;
     latenciaMs: number | null;
+    /** Staging: a pergunta foi ditada pelo microfone. */
+    porVoz: boolean;
     /** Os cinco melhores trechos que a busca devolveu, na ordem dela. */
     trechos: { question: string | null; category: string | null; score: number; usado: boolean }[];
 };
@@ -179,6 +185,7 @@ export function parearTrocas(mensagens: MensagemLida[], inicio: Date, fim: Date)
             resposta: resposta?.texto ?? '',
             situacao: situacaoDa(resposta),
             feedback: resposta?.feedback ?? null,
+            porVoz: pergunta.origem === 'voz',
             latenciaMs: typeof resposta?.latenciaMs === 'number' && resposta.latenciaMs > 0 ? resposta.latenciaMs : null,
             // Cinco, e não três: com três, o modelo via só as variações do mesmo
             // remédio no topo e concluía que a base não tinha o assunto, quando
@@ -224,6 +231,10 @@ export type Numeros = {
     /** Aceitaram os termos no dia e não fizeram pergunta nenhuma. */
     aceitaramSemPerguntar: number;
     tentativasDeAudioOuArquivo: number;
+    /** Staging: perguntas ditadas pelo microfone. */
+    perguntasPorVoz: number;
+    /** Staging: o que as pessoas fizeram com o tutorial no dia. Zeros quando não houve oferta. */
+    tutorial: { visto: number; pulado: number; recusado: number; ignorado: number };
 };
 
 /**
@@ -282,7 +293,20 @@ export function calcularNumeros(
         tentativasDeAudioOuArquivo: mensagens.filter(
             (m) => m.papel === 'user' && m.tipo && noDia(m.em),
         ).length,
+        perguntasPorVoz: trocas.filter((t) => t.porVoz).length,
+        tutorial: contarTutorial(sessoes.filter((s) => s.tutorial && noDia(s.tutorial.em))),
     };
+}
+
+function contarTutorial(sessoes: SessaoLida[]): Numeros['tutorial'] {
+    const contagem = { visto: 0, pulado: 0, recusado: 0, ignorado: 0 };
+    for (const s of sessoes) {
+        const escolha = s.tutorial?.escolha;
+        if (escolha === 'visto' || escolha === 'pulado' || escolha === 'recusado' || escolha === 'ignorado') {
+            contagem[escolha] += 1;
+        }
+    }
+    return contagem;
 }
 
 function media(valores: number[]): number {
@@ -659,7 +683,11 @@ export function montarDestaques(
         causas.fora_de_escopo ? `${causas.fora_de_escopo} fora do escopo da saúde` : null,
     ].filter((p): p is string => Boolean(p));
     if (numeros.semResposta > 0 && partes.length > 0) {
-        destaques.push(`Das ${numeros.semResposta} sem resposta, ${juntarComE(partes)}.`);
+        destaques.push(
+            numeros.semResposta === 1
+                ? `Sem resposta (1): ${juntarComE(partes)}.`
+                : `Das ${numeros.semResposta} sem resposta, ${juntarComE(partes)}.`,
+        );
     }
 
     const profissionais = classificacoes.filter((c) => c.publico === 'profissional').length;
@@ -686,6 +714,31 @@ export function montarDestaques(
             numeros.aceitaramSemPerguntar === 1
                 ? '1 pessoa aceitou os termos e não fez pergunta nenhuma.'
                 : `${numeros.aceitaramSemPerguntar} pessoas aceitaram os termos e não fizeram pergunta nenhuma.`,
+        );
+    }
+
+    // As duas medições do staging só aparecem quando existem: no dia sem
+    // staging, uma frase "0 perguntas por voz" seria ruído.
+    if (numeros.perguntasPorVoz > 0) {
+        destaques.push(
+            numeros.perguntasPorVoz === 1
+                ? '1 pergunta foi ditada pelo microfone, e não digitada.'
+                : `${numeros.perguntasPorVoz} perguntas foram ditadas pelo microfone, e não digitadas.`,
+        );
+    }
+    const t = numeros.tutorial;
+    const oferecidos = t.visto + t.pulado + t.recusado + t.ignorado;
+    if (oferecidos > 0) {
+        const partes = [
+            t.visto ? `${t.visto} ${t.visto === 1 ? 'viu' : 'viram'} até o fim` : null,
+            t.pulado ? `${t.pulado} ${t.pulado === 1 ? 'pulou' : 'pularam'} no meio` : null,
+            t.recusado
+                ? `${t.recusado} ${t.recusado === 1 ? 'disse que já sabia' : 'disseram que já sabiam'} usar`
+                : null,
+            t.ignorado ? `${t.ignorado} ${t.ignorado === 1 ? 'perguntou' : 'perguntaram'} direto` : null,
+        ].filter((p): p is string => Boolean(p));
+        destaques.push(
+            `O passo a passo de como usar foi oferecido a ${oferecidos} ${oferecidos === 1 ? 'pessoa' : 'pessoas'}: ${juntarComE(partes)}.`,
         );
     }
 

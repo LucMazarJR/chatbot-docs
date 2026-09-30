@@ -109,7 +109,7 @@ export class RelatoriosService {
         try {
             const mensagens = (await this.mensagemModel
                 .find({ em: { $gte: inicio, $lt: fim } })
-                .select('sessaoId papel texto em correlationId tipo pendente semResposta erro feedback latenciaMs trechosDebug')
+                .select('sessaoId papel texto em correlationId tipo origem pendente semResposta erro feedback latenciaMs trechosDebug')
                 .lean()
                 .exec()) as unknown as MensagemLida[];
 
@@ -119,9 +119,11 @@ export class RelatoriosService {
                     $or: [
                         { _id: { $in: idsComMensagem } },
                         { consentimentoEm: { $gte: inicio, $lt: fim } },
+                        // Quem viu o tutorial e saiu sem perguntar também conta.
+                        { 'tutorial.em': { $gte: inicio, $lt: fim } },
                     ],
                 })
-                .select('nome iniciadaEm consentimentoEm avaliacao')
+                .select('nome iniciadaEm consentimentoEm avaliacao tutorial')
                 .lean()
                 .exec()) as unknown as SessaoLida[];
 

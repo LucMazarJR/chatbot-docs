@@ -123,7 +123,7 @@ describe('montagem do relatório do dia', () => {
             const mensagens = [
                 pergunta('1', '12:00:00'),
                 resposta('1', '12:00:00', { feedback: 'up', latenciaMs: 10_000 }),
-                pergunta('2', '12:05:00'),
+                pergunta('2', '12:05:00', { origem: 'voz' }),
                 resposta('2', '12:05:00', { semResposta: true, feedback: 'down', latenciaMs: 70_000 }),
                 pergunta('3', '12:06:00', { tipo: 'audio' }),
             ];
@@ -137,6 +137,9 @@ describe('montagem do relatório do dia', () => {
                 },
                 // Aceitou e foi embora sem perguntar.
                 { _id: 's2', nome: 'Participante 2', iniciadaEm: em('13:00:00'), consentimentoEm: em('13:00:05') },
+                // Staging: viu o tutorial hoje; o de ontem não conta.
+                { _id: 's3', nome: 'Participante 3', iniciadaEm: em('14:00:00'), tutorial: { escolha: 'visto', em: em('14:00:10') } },
+                { _id: 's4', nome: 'Participante 4', iniciadaEm: em('14:00:00'), tutorial: { escolha: 'pulado', em: new Date('2026-09-28T15:00:00Z') } },
             ];
             const trocas = parearTrocas(mensagens, dia.inicio, dia.fim);
 
@@ -158,6 +161,8 @@ describe('montagem do relatório do dia', () => {
                 respostasAcimaDe60s: 1,
                 aceitaramSemPerguntar: 1,
                 tentativasDeAudioOuArquivo: 1,
+                perguntasPorVoz: 1,
+                tutorial: { visto: 1, pulado: 0, recusado: 0, ignorado: 0 },
             });
         });
     });
@@ -183,6 +188,7 @@ describe('montagem do relatório do dia', () => {
         situacao,
         feedback: null,
         latenciaMs: null,
+        porVoz: false,
         trechos: [],
     });
 
@@ -249,6 +255,8 @@ describe('montagem do relatório do dia', () => {
             latenciaMediana: 9800,
             respostasAcimaDe60s: 1,
             aceitaramSemPerguntar: 2,
+            perguntasPorVoz: 3,
+            tutorial: { visto: 1, pulado: 0, recusado: 2, ignorado: 0 },
         } as Parameters<typeof montarDestaques>[0];
         const porArea = [
             { area: 'Exames' as const, total: 4, respondidas: 4, semResposta: 0, falhas: 0 },
@@ -271,6 +279,8 @@ describe('montagem do relatório do dia', () => {
             '1 pergunta era de profissional de saúde (conduta, protocolo), e não de cidadão.',
             'Metade das respostas chegou em até 9,8 s; 1 passou de 1 minuto.',
             '2 pessoas aceitaram os termos e não fizeram pergunta nenhuma.',
+            '3 perguntas foram ditadas pelo microfone, e não digitadas.',
+            'O passo a passo de como usar foi oferecido a 3 pessoas: 1 viu até o fim e 2 disseram que já sabiam usar.',
         ]);
     });
 
