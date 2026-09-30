@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 
 import { ActivityService } from '../activity/activity.service';
-import { inicioDoDia } from '../comum/fuso';
+import { intervaloDoDia } from '../comum/fuso';
 import { CONEXAO_PROTOTIPO } from '../conversas/conexao';
 import { Mensagem, MensagemDocument } from '../conversas/schemas/mensagem.schema';
 import { Sessao, SessaoDocument } from '../conversas/schemas/sessao.schema';
@@ -18,7 +18,6 @@ import {
     ESQUEMA_DA_SINTESE,
     ESQUEMA_DO_LOTE,
     type Escopo,
-    intervaloDoDia,
     juntarEscopos,
     lerNotasDeArea,
     lerResumo,
@@ -72,11 +71,9 @@ export class RelatoriosService {
      * acompanhar desde o primeiro segundo.
      */
     async iniciar(data: string, actor: { id?: string; name: string }): Promise<{ id: string }> {
-        let intervalo: { inicio: Date; fim: Date };
-        try {
-            intervalo = intervaloDoDia(data, inicioDoDia);
-        } catch (erro) {
-            throw new BadRequestException(erro instanceof Error ? erro.message : 'Data inválida.');
+        const intervalo = intervaloDoDia(data);
+        if (!intervalo) {
+            throw new BadRequestException('Essa data não existe. Escolha o dia no calendário.');
         }
         if (intervalo.inicio > new Date()) {
             throw new BadRequestException('Esse dia ainda não chegou. Escolha hoje ou um dia anterior.');

@@ -125,27 +125,6 @@ export type Escopo = {
 };
 
 /**
- * O dia pedido, no fuso da equipe, como intervalo [início, fim).
- *
- * Recebe a função de início do dia para não depender de `comum/fuso` aqui:
- * quem chama passa a mesma que o resto do sistema usa.
- */
-export function intervaloDoDia(
-    data: string,
-    inicioDoDia: (agora: Date) => Date,
-): { inicio: Date; fim: Date } {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) {
-        throw new Error(`Data inválida: ${data}. Use o formato AAAA-MM-DD.`);
-    }
-    // Meio-dia em UTC cai no mesmo dia do calendário em qualquer fuso do
-    // Brasil. Partir da meia-noite UTC daria o dia anterior em Brasília.
-    const meioDia = new Date(`${data}T12:00:00Z`);
-    const inicio = inicioDoDia(meioDia);
-    const seguinte = new Date(meioDia.getTime() + 24 * 60 * 60 * 1000);
-    return { inicio, fim: inicioDoDia(seguinte) };
-}
-
-/**
  * Pareia cada pergunta de texto do dia com a resposta que ela recebeu.
  *
  * LÓGICA DO LUCIANO: o par é o `correlationId`, e não a ordem. A resposta nasce

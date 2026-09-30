@@ -1,9 +1,8 @@
-import { inicioDoDia } from '../comum/fuso';
+import { intervaloDoDia } from '../comum/fuso';
 import {
     calcularNumeros,
     contarPorArea,
     dividirEmLotes,
-    intervaloDoDia,
     juntarEscopos,
     lerNotasDeArea,
     montarDestaques,
@@ -25,7 +24,7 @@ import {
  * respondida, mandaria a equipe trabalhar no lugar errado.
  */
 describe('montagem do relatório do dia', () => {
-    const dia = intervaloDoDia('2026-09-29', inicioDoDia);
+    const dia = intervaloDoDia('2026-09-29')!;
     const em = (hhmmss: string) => new Date(`2026-09-29T${hhmmss}.000Z`);
 
     const pergunta = (id: string, hhmmss: string, extra: Partial<MensagemLida> = {}): MensagemLida => ({
@@ -47,17 +46,6 @@ describe('montagem do relatório do dia', () => {
         correlationId: `c-${id}`,
         latenciaMs: 8000,
         ...extra,
-    });
-
-    describe('intervaloDoDia', () => {
-        it('usa o dia de Brasília, e não o de Greenwich', () => {
-            expect(dia.inicio.toISOString()).toBe('2026-09-29T03:00:00.000Z');
-            expect(dia.fim.toISOString()).toBe('2026-09-30T03:00:00.000Z');
-        });
-
-        it('recusa data em outro formato', () => {
-            expect(() => intervaloDoDia('29/09/2026', inicioDoDia)).toThrow('AAAA-MM-DD');
-        });
     });
 
     describe('parearTrocas', () => {
