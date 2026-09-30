@@ -26,10 +26,8 @@ import {
 import { formatarDuracao, useGravador } from '@/lib/usar-gravador';
 import type { Papel, TipoAnexo } from '@/lib/tipos';
 import { Carregando } from '@/components/Carregando';
+import { decidirAvaliacao, INATIVIDADE_MS } from '@/lib/avaliacao-automatica';
 import { hora, rotuloDoDia } from '@/lib/datas';
-
-const INATIVIDADE_MS = 2 * 60 * 1000;
-const MINIMO_PERGUNTAS_PARA_AVALIAR = 3;
 
 /**
  * A sessão fica em `localStorage`, e não em `sessionStorage`.
@@ -163,6 +161,8 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   const [itens, setItens] = useState<Item[]>([]);
   const [digitando, setDigitando] = useState(false);
   const [avaliando, setAvaliando] = useState(false);
+  /** A folha abriu sozinha, e não pelo menu: ela se apresenta como opcional. */
+  const [avaliacaoAutomatica, setAvaliacaoAutomatica] = useState(false);
   const [ajustando, setAjustando] = useState(false);
   const [apagandoConversa, setApagandoConversa] = useState(false);
   const [encerrada, setEncerrada] = useState(false);
@@ -180,6 +180,20 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   const relogioRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const perguntasRef = useRef(0);
   const abrindoRef = useRef(false);
+  const ofereceuRef = useRef(false);
+  /**
+   * O que o relógio da avaliação precisa saber quando dispara.
+   *
+   * Em ref, e não lido do estado: o setTimeout guarda a função da renderização
+   * em que foi criado, e leria um "digitando" de dois minutos atrás.
+   */
+  const momentoRef = useRef({
+    esperando: false,
+    gravando: false,
+    texto: '',
+    outroPainel: false,
+    encerrada: false,
+  });
 
   // --- Rolagem -------------------------------------------------------------
 
@@ -218,17 +232,43 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
    * Depois de um tempo parado, oferece a avaliação sozinho.
    *
    * Sem isso, a maioria das sessões terminaria com a aba fechada, e o
-   * protótipo perderia justamente o dado que ele existe para coletar. O piso de
-   * perguntas evita abordar quem mal começou a conversar.
+   * protótipo perderia justamente o dado que ele existe para coletar.
+   *
+   * "Parado" é parado de verdade: o relógio para quando a pergunta sai e só
+   * volta quando a resposta chega, e qualquer toque, tecla ou rolagem o
+   * reinicia. Quando ele dispara, `decidirAvaliacao` ainda confere se a pessoa
+   * não está no meio de alguma coisa; se estiver, espera outro intervalo.
    */
-  const reiniciarInatividade = useCallback(() => {
+  const pararInatividade = useCallback(() => {
     if (relogioRef.current) clearTimeout(relogioRef.current);
-    if (encerrada) return;
+    relogioRef.current = null;
+  }, []);
+
+  const reiniciarInatividade = useCallback(() => {
+    pararInatividade();
+    if (ofereceuRef.current || momentoRef.current.encerrada) return;
 
     relogioRef.current = setTimeout(() => {
-      if (perguntasRef.current >= MINIMO_PERGUNTAS_PARA_AVALIAR) setAvaliando(true);
+      const agora = momentoRef.current;
+      const decisao = decidirAvaliacao({
+        perguntas: perguntasRef.current,
+        encerrada: agora.encerrada,
+        jaOfereceu: ofereceuRef.current,
+        esperandoResposta: agora.esperando,
+        gravando: agora.gravando,
+        textoNoCampo: agora.texto.trim().length > 0,
+        outroPainelAberto: agora.outroPainel,
+        abaVisivel: document.visibilityState === 'visible',
+      });
+      if (decisao === 'oferecer') {
+        ofereceuRef.current = true;
+        setAvaliacaoAutomatica(true);
+        setAvaliando(true);
+      } else if (decisao === 'adiar') {
+        reiniciarInatividade();
+      }
     }, INATIVIDADE_MS);
-  }, [encerrada]);
+  }, [pararInatividade]);
 
   useEffect(() => () => void (relogioRef.current && clearTimeout(relogioRef.current)), []);
 
@@ -423,6 +463,10 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
     // por botão.
     if (!sessaoId || !aceitou || digitando || encerrada) return;
 
+    // Esperar resposta não é estar parado. O relógio volta no `finally`,
+    // quando a resposta chega.
+    pararInatividade();
+
     const chaveUsuario = crypto.randomUUID();
     setItens((atuais) => [
       ...atuais,
@@ -544,6 +588,14 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
     aoFalhar: setAvisoComposer,
   });
 
+  momentoRef.current = {
+    esperando: digitando,
+    gravando: gravador.gravando,
+    texto,
+    outroPainel: menuAberto || ajustando || apagandoConversa || avaliando,
+    encerrada,
+  };
+
   function adicionarBot(conteudo: string, mensagemId: string | null) {
     setItens((atuais) => [
       ...atuais,
@@ -591,7 +643,14 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   const podeEnviarAnexo = Boolean(sessaoId) && aceitou && !digitando && !encerrada;
 
   return (
-    <div id="app" onClick={() => setMenuAberto(false)}>
+    <div
+      id="app"
+      onClick={() => setMenuAberto(false)}
+      // Qualquer toque ou tecla é sinal de que a pessoa está aqui: o relógio
+      // da avaliação começa de novo.
+      onPointerDown={reiniciarInatividade}
+      onKeyDown={reiniciarInatividade}
+    >
       {/* O service worker do `/` tem escopo no site inteiro e guarda páginas
           em cache: registrado daqui, passaria a controlar o staging, que tem o
           seu próprio. */}
@@ -705,6 +764,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
               role="menuitem"
               onClick={() => {
                 setMenuAberto(false);
+                setAvaliacaoAutomatica(false);
                 setAvaliando(true);
               }}
             >
@@ -734,7 +794,14 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
             conversa, e traz de graça o "anuncie só o que foi acrescentado". Com
             aria-live solto num container que o React repinta, o leitor de tela
             relia trechos antigos a cada renderização. */}
-        <main className="mensagens" ref={listaRef} role="log" aria-label="Conversa">
+        <main
+          className="mensagens"
+          ref={listaRef}
+          role="log"
+          aria-label="Conversa"
+          // Quem está relendo a resposta está usando o chat.
+          onScroll={reiniciarInatividade}
+        >
           <div className="divisor">
             <span>{rotuloDoDia(iniciadaEm ?? new Date())}</span>
           </div>
@@ -945,9 +1012,11 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
 
       {avaliando && (
         <FolhaAvaliacao
+          automatica={avaliacaoAutomatica}
           onEnviar={enviarAvaliacao}
           onVoltar={() => {
             setAvaliando(false);
+            // Recusada uma vez, não volta sozinha: continua no menu.
             reiniciarInatividade();
           }}
         />
