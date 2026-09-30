@@ -32,6 +32,10 @@ export class TrechoDebug {
 
     @Prop({ type: String, default: null })
     previa: string | null;
+
+    /** No fluxo com reescrita (staging): qual das consultas trouxe o trecho. */
+    @Prop({ type: String, default: null })
+    consulta: string | null;
 }
 
 export const TrechoDebugSchema = SchemaFactory.createForClass(TrechoDebug);
@@ -85,6 +89,23 @@ export class Mensagem {
     /** O agente respondeu o texto de "não encontrei": lacuna de conteúdo. */
     @Prop({ default: false })
     semResposta: boolean;
+
+    // Só no fluxo de staging, com reescrita da pergunta antes da busca.
+
+    /** A pergunta reescrita por inteiro, entendível sem a conversa. */
+    @Prop({ type: String, default: null })
+    perguntaCompleta: string | null;
+
+    /** As buscas que a reescrita gerou, na ordem. */
+    @Prop({ type: [String], default: undefined })
+    consultas?: string[];
+
+    @Prop({ type: Number, default: null })
+    reescritaMs: number | null;
+
+    /** A reescrita não respondeu e a busca usou o texto original. */
+    @Prop({ type: Boolean, default: undefined })
+    reescritaFalhou?: boolean;
 
     /**
      * Onde esta lacuna está na fila de curadoria.
