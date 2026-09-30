@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Header, Param, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Header, Param, Post, Query } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -47,6 +47,12 @@ export class ConversasController {
     @Get(':id')
     detalhar(@Param('id') id: string) {
         return this.conversas.detalhar(id);
+    }
+
+    /** Alguém vai baixar a conversa em PDF: fica no histórico, sem conteúdo. */
+    @Post(':id/exportacao')
+    registrarExportacao(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+        return this.conversas.registrarExportacao(id, { id: user.id, name: user.name });
     }
 
     /** Pedido de exclusão que chegou à equipe por fora do chat. */
