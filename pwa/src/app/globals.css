@@ -671,6 +671,32 @@ button {
 }
 
 /*
+ * Destaque de logo depois do aceite: o anel do campo pulsa duas vezes.
+ *
+ * Mostra onde escrever sem depender de "aqui embaixo", que mente quando o
+ * teclado do celular abre e o campo muda de lugar.
+ */
+.barra-envio .campo.destaque {
+  animation: destaque-campo 1.2s ease-out 2;
+}
+
+@keyframes destaque-campo {
+  0% {
+    box-shadow: 0 0 0 0 var(--acento);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barra-envio .campo.destaque {
+    animation: none;
+    box-shadow: 0 0 0 4px var(--acento);
+  }
+}
+
+/*
  * O placeholder não quebra linha.
  *
  * Diferente do texto digitado, ele não tem como crescer a caixa, quando

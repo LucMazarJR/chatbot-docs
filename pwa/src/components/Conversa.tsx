@@ -100,6 +100,25 @@ const BOTAO_DE_ACEITE_DEPOIS: BotaoRapido[] = [{ rotulo: 'Aceitar', valor: 'acei
 /** A chave do pedido inicial e a da mensagem de recusa, que também aceita. */
 const CHAVES_DE_ACEITE = ['aceite', 'aceite-depois'];
 
+/**
+ * O retorno depois do aceite.
+ *
+ * LÓGICA DO LUCIANO: tocar em "Aceitar" só liberava o campo, em silêncio. No
+ * teste de campo, quatro de oito pessoas levaram de 3 a 18 minutos entre o
+ * aceite e a primeira pergunta, e duas nunca perguntaram: não sabiam que já
+ * podiam começar. A frase aponta para o campo pelo nome que está escrito nele,
+ * e não por "aqui embaixo": com o teclado aberto, o campo muda de lugar.
+ */
+const ACEITE_CONFIRMADO = [
+  'Pronto, já pode perguntar!',
+  '',
+  'Escreva sua dúvida no campo *Escreva sua pergunta* e toque no botão de enviar, ao lado dele.',
+].join('\n');
+
+function confirmacaoDoAceite(quando?: Date): Item {
+  return { chave: 'aceite-pronto', papel: 'bot', texto: ACEITE_CONFIRMADO, hora: horaAgora(quando) };
+}
+
 function horaAgora(quando: Date = new Date()) {
   return hora(quando);
 }
@@ -169,6 +188,8 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
   const [menuAberto, setMenuAberto] = useState(false);
   const [texto, setTexto] = useState('');
   const [aceitou, setAceitou] = useState(false);
+  /** Logo depois do aceite: o campo pisca em destaque para mostrar onde escrever. */
+  const [destacarCampo, setDestacarCampo] = useState(false);
   /** Recado passageiro acima do campo: microfone recusado, envio falhou. */
   const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
 
@@ -352,11 +373,9 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
         // aceite foi no cadastro, e repeti-lo em cada conversa seria ruído.
         ...(comConta
           ? []
-          : [
-              dados.consentimento
-                ? { ...pedidoDeAceite(inicio), escolhido: 'aceitar' }
-                : pedidoDeAceite(inicio),
-            ]),
+          : dados.consentimento
+            ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, confirmacaoDoAceite(inicio)]
+            : [pedidoDeAceite(inicio)]),
         ...dados.mensagens.map((m) => ({
           chave: m._id,
           papel: m.papel,
@@ -394,6 +413,13 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
     }
   }
 
+  useEffect(() => {
+    if (!aceitou || !destacarCampo) return;
+    campoRef.current?.focus();
+    const apagar = setTimeout(() => setDestacarCampo(false), 2400);
+    return () => clearTimeout(apagar);
+  }, [aceitou, destacarCampo]);
+
   // --- Botões de resposta rápida -------------------------------------------
 
   /**
@@ -430,10 +456,17 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
       }).catch(() => {});
     }
 
-    // Aceitou: o campo é liberado e recebe o foco na hora. Nada de saudação:
-    // quem acabou de tocar em "Aceitar" quer perguntar, não ser cumprimentado.
-    if (aceitando) campoRef.current?.focus();
-    else
+    // Aceitou: a frase diz que já pode perguntar, e o campo ganha foco e um
+    // destaque breve. O foco sai no efeito abaixo, e não aqui: neste instante
+    // o campo ainda está desativado, e focar um campo desativado não faz nada.
+    if (aceitando) {
+      setItens((atuais) =>
+        atuais.some((item) => item.chave === 'aceite-pronto')
+          ? atuais
+          : [...atuais, confirmacaoDoAceite()],
+      );
+      setDestacarCampo(true);
+    } else
       setItens((atuais) => [
         ...atuais,
         {
@@ -908,7 +941,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
             </div>
           ) : (
             <>
-              <div className="campo">
+              <div className={destacarCampo ? 'campo destaque' : 'campo'}>
             <textarea
               id="campo-mensagem"
               ref={campoRef}
@@ -917,7 +950,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [] }: PropsConversa) 
                 encerrada
                   ? 'Conversa encerrada'
                   : aceitou
-                    ? 'Mensagem'
+                    ? 'Escreva sua pergunta'
                     : 'Aceite para começar'
               }
               enterKeyHint="send"
