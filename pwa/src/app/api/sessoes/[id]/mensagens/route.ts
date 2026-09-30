@@ -100,6 +100,26 @@ export async function POST(requisicao: Request, { params }: Contexto) {
 
   const correlationId = randomUUID();
 
+  // Só a conversa do staging manda o histórico: é ela que vai para o fluxo
+  // com reescrita, que usa as últimas mensagens para entender "e lá?". Lido
+  // antes de gravar a pergunta nova, para ela não entrar duas vezes.
+  const staging = Boolean(sessao.usuarioId);
+  const historico = staging
+    ? (
+        await colMensagens
+          .find(
+            { sessaoId: sessao._id, pendente: { $ne: true }, tipo: { $exists: false } },
+            { projection: { papel: 1, texto: 1 } },
+          )
+          .sort({ em: -1, papel: 1 })
+          .limit(4)
+          .toArray()
+      )
+        .reverse()
+        .filter((m) => m.texto)
+        .map((m) => ({ papel: m.papel, texto: m.texto }))
+    : undefined;
+
   const pergunta: Mensagem = {
     _id: randomUUID(),
     sessaoId: sessao._id,
@@ -129,6 +149,8 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     nome: sessao.nome,
     correlationId,
     urlDeRetorno: urlDeRetorno(requisicao),
+    staging,
+    historico,
   });
 
   if (!entrega.aceito) {

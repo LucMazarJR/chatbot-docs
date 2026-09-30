@@ -20,7 +20,32 @@ type Corpo = {
   trechosDebug?: TrechoDebug[];
   limiarScore?: number | null;
   modelo?: string | null;
+  // Só no fluxo de staging, com reescrita da pergunta.
+  perguntaCompleta?: string | null;
+  consultas?: unknown;
+  reescritaMs?: number | null;
+  reescritaFalhou?: boolean;
 };
+
+/**
+ * Os campos da reescrita, quando o fluxo mandou.
+ *
+ * Validados aqui porque vão para o banco e para o painel: lista que não é de
+ * texto vira lista vazia, e texto grande é cortado. O fluxo do `/` não manda
+ * nada disso, e a mensagem dele fica exatamente como era.
+ */
+function camposDaReescrita(corpo: Corpo): Record<string, unknown> {
+  if (corpo.perguntaCompleta === undefined && corpo.consultas === undefined) return {};
+  const consultas = Array.isArray(corpo.consultas)
+    ? corpo.consultas.filter((c): c is string => typeof c === 'string').map((c) => c.slice(0, 300)).slice(0, 3)
+    : [];
+  return {
+    perguntaCompleta: typeof corpo.perguntaCompleta === 'string' ? corpo.perguntaCompleta.slice(0, 400) : null,
+    consultas,
+    reescritaMs: typeof corpo.reescritaMs === 'number' ? corpo.reescritaMs : null,
+    reescritaFalhou: Boolean(corpo.reescritaFalhou),
+  };
+}
 
 /**
  * Retorno do n8n: a resposta ficou pronta.
@@ -79,6 +104,7 @@ export async function POST(requisicao: Request) {
         semResposta,
         erro: houveFalha,
         motivoErro: houveFalha ? 'o agente não concluiu' : null,
+        ...camposDaReescrita(corpo),
       },
     },
   );
