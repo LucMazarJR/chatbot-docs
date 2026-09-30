@@ -4,11 +4,14 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 
 import {
+  aplicarContraste,
   aplicarEscala,
   aplicarTema,
   ESCALAS,
+  lerContraste,
   lerEscala,
   lerTema,
+  type Contraste,
   type Escala,
   type Tema,
 } from '@/lib/preferencias';
@@ -18,6 +21,15 @@ const TEMAS: { id: Tema; rotulo: string; descricao: string }[] = [
   { id: 'claro', rotulo: 'Claro', descricao: 'Fundo branco, melhor sob luz forte' },
   { id: 'escuro', rotulo: 'Escuro', descricao: 'Reduz o brilho da tela' },
   { id: 'auto', rotulo: 'Automático', descricao: 'Segue a configuração do celular' },
+];
+
+const CONTRASTES: { id: Contraste; rotulo: string; descricao: string }[] = [
+  { id: 'normal', rotulo: 'Normal', descricao: 'As cores do WhatsApp' },
+  {
+    id: 'alto',
+    rotulo: 'Alto',
+    descricao: 'Contorno nas mensagens e letras mais fortes. Ajuda em tela fraca ou com sol',
+  },
 ];
 
 /**
@@ -38,6 +50,7 @@ const TEMAS: { id: Tema; rotulo: string; descricao: string }[] = [
 export function PainelAjustes({ aoFechar }: { aoFechar: () => void }) {
   const [tema, setTema] = useState<Tema>(() => lerTema());
   const [escala, setEscala] = useState<Escala>(() => lerEscala());
+  const [contraste, setContraste] = useState<Contraste>(() => lerContraste());
   const painelRef = useRef<HTMLDivElement>(null);
 
   const fechar = aoFechar;
@@ -55,6 +68,11 @@ export function PainelAjustes({ aoFechar }: { aoFechar: () => void }) {
   function mudarTema(novo: Tema) {
     setTema(novo);
     aplicarTema(novo);
+  }
+
+  function mudarContraste(novo: Contraste) {
+    setContraste(novo);
+    aplicarContraste(novo);
   }
 
   return (
@@ -124,6 +142,30 @@ export function PainelAjustes({ aoFechar }: { aoFechar: () => void }) {
                   aria-checked={tema === opcao.id}
                   className={tema === opcao.id ? 'escolhido' : ''}
                   onClick={() => mudarTema(opcao.id)}
+                >
+                  <span className="marcador" aria-hidden="true" />
+                  <span className="opcao-texto">
+                    <strong>{opcao.rotulo}</strong>
+                    <small>{opcao.descricao}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Mesmo desenho da Aparência. A amostra de balão, lá em cima, já
+              mostra o contorno quando o contraste alto está ligado. */}
+          <section className="painel-secao">
+            <h3 id="rotulo-contraste">Contraste</h3>
+            <div role="radiogroup" aria-labelledby="rotulo-contraste" className="opcoes-tema">
+              {CONTRASTES.map((opcao) => (
+                <button
+                  key={opcao.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={contraste === opcao.id}
+                  className={contraste === opcao.id ? 'escolhido' : ''}
+                  onClick={() => mudarContraste(opcao.id)}
                 >
                   <span className="marcador" aria-hidden="true" />
                   <span className="opcao-texto">

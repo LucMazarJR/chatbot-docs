@@ -37,6 +37,9 @@
   --painel: #ffffff;
   --borda: rgba(17, 27, 33, 0.1);
   --acento: #008069;
+  /* Texto sobre fundo de destaque (botão escolhido, enviar avaliação). Só o
+     contraste alto escuro troca, porque lá o destaque é claro. */
+  --acento-texto: #ffffff;
   /* Só na opção sem volta. 6.5:1 sobre o painel claro. */
   --perigo: #b3261e;
   /* Amarelo do aviso de sistema do WhatsApp. */
@@ -76,6 +79,78 @@
   --perigo: #ffb4ab;
   --aviso: #1e2a30;
   --aviso-texto: #ffd279;
+}
+
+/*
+ * Contraste alto, para tela ruim, luz forte ou vista cansada.
+ *
+ * LÓGICA DO LUCIANO: no primeiro teste de campo, num monitor de posto, não dava
+ * para distinguir o balão do fundo: branco (#fff) sobre bege (#efeae2) é uma
+ * diferença de 1,1:1, que a tela barata simplesmente apaga. O tema escuro não
+ * resolve, porque o problema é o contorno, e não a cor. Aqui cada balão, botão
+ * e campo ganha um contorno escuro (3:1 ou mais contra o fundo), o fundo perde
+ * o desenho, e o texto secundário escurece até 7:1.
+ *
+ * O contorno é uma sombra sólida, e não uma borda: borda muda o tamanho da
+ * caixa, e o chat pularia de lugar ao trocar a opção.
+ *
+ * É um eixo separado do tema: claro ou escuro, cada um com contraste normal ou
+ * alto. Quem resolve a escolha é o script do <head>, que carimba
+ * `data-contraste` antes da primeira pintura.
+ */
+:root[data-contraste='alto'] {
+  --contorno: #3b4a54;
+  --fundo-chat: #e4dfd6;
+  --texto: #000000;
+  --texto-fraco: #3b4a54;
+  --tick: #3b4a54;
+  --tick-lido: #0b6fa4;
+  --barra: #e6e9ec;
+  --borda: rgba(17, 27, 33, 0.55);
+  --acento: #006b58;
+  --aviso-texto: #3d3014;
+}
+
+:root[data-tema='escuro'][data-contraste='alto'] {
+  --contorno: #c7d0d5;
+  --topo: #0b141a;
+  --fundo-chat: #000000;
+  --balao-entrada: #1b262c;
+  --balao-saida: #004d40;
+  --texto: #ffffff;
+  --texto-fraco: #d1d7db;
+  --tick: #d1d7db;
+  --tick-lido: #7cd3ff;
+  --barra: #111b21;
+  --campo: #1b262c;
+  --divisor: #1b262c;
+  --borda: rgba(233, 237, 239, 0.6);
+  --acento: #38e5b8;
+  --acento-texto: #000000;
+  --aviso: #1b262c;
+  --aviso-texto: #ffe08a;
+}
+
+/* `main` a mais no seletor para vencer o desenho do tema escuro, que tem a
+   mesma força e vem depois no arquivo. */
+:root[data-contraste='alto'] main.mensagens {
+  background-image: none;
+}
+
+:root[data-contraste='alto'] .balao,
+:root[data-contraste='alto'] .amostra-balao,
+:root[data-contraste='alto'] .divisor span,
+:root[data-contraste='alto'] .aviso-chat,
+:root[data-contraste='alto'] .botoes-rapidos button,
+:root[data-contraste='alto'] .barra-envio .campo {
+  box-shadow: 0 0 0 1.5px var(--contorno);
+}
+
+/* Os polegares ficavam meio apagados de propósito, para não competir com a
+   resposta. No contraste alto, apagado é invisível. */
+:root[data-contraste='alto'] .avaliar-msg button {
+  border-color: var(--contorno);
+  opacity: 1;
 }
 
 * {
@@ -245,7 +320,7 @@ button {
    pode mostrar botão já usado, que convida ao clique duplo. */
 .botoes-rapidos button.escolhido {
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-texto);
   cursor: default;
 }
 
@@ -942,7 +1017,7 @@ button {
 .nps button.ativa {
   border-color: var(--acento);
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-texto);
 }
 
 .nps-legenda {
@@ -980,7 +1055,7 @@ button {
 .folha .acoes .enviar-avaliacao,
 .folha .acoes .botao-folha {
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-texto);
 }
 
 .folha .acoes .depois {
@@ -1000,7 +1075,7 @@ button {
   margin: 0 auto 14px;
   border-radius: 50%;
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-texto);
   font-size: 30px;
   place-items: center;
 }
