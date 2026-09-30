@@ -16,6 +16,13 @@ import {
   type Tema,
 } from '@/lib/preferencias';
 import { useFocoPreso } from '@/lib/usar-foco-preso';
+import {
+  guardarAutomatica,
+  guardarVelocidade,
+  lerAutomatica,
+  lerVelocidade,
+  type Velocidade,
+} from '@/lib/leitura-em-voz';
 
 const TEMAS: { id: Tema; rotulo: string; descricao: string }[] = [
   { id: 'claro', rotulo: 'Claro', descricao: 'Fundo branco, melhor sob luz forte' },
@@ -32,6 +39,60 @@ const CONTRASTES: { id: Contraste; rotulo: string; descricao: string }[] = [
   },
 ];
 
+const VELOCIDADES: { id: Velocidade; rotulo: string; descricao: string }[] = [
+  { id: 'normal', rotulo: 'Normal', descricao: 'Como uma pessoa falando' },
+  { id: 'devagar', rotulo: 'Devagar', descricao: 'Mais pausado, para acompanhar com calma' },
+];
+
+const LEITURA_AUTOMATICA: { id: 'sim' | 'nao'; rotulo: string; descricao: string }[] = [
+  { id: 'nao', rotulo: 'Não', descricao: 'Toque em Ouvir embaixo da resposta quando quiser' },
+  { id: 'sim', rotulo: 'Sim', descricao: 'Cada resposta é lida assim que chega' },
+];
+
+/**
+ * Uma escolha entre poucas opções, com o desenho de botão de rádio grande.
+ *
+ * Um lugar só para a marcação dos grupos do painel: com três cópias, a correção
+ * de acessibilidade feita num grupo acabaria esquecida nos outros.
+ */
+function GrupoDeOpcoes<T extends string>({
+  id,
+  titulo,
+  opcoes,
+  valor,
+  aoMudar,
+}: {
+  id: string;
+  titulo: string;
+  opcoes: { id: T; rotulo: string; descricao: string }[];
+  valor: T;
+  aoMudar: (novo: T) => void;
+}) {
+  return (
+    <section className="painel-secao">
+      <h3 id={`rotulo-${id}`}>{titulo}</h3>
+      <div role="radiogroup" aria-labelledby={`rotulo-${id}`} className="opcoes-tema">
+        {opcoes.map((opcao) => (
+          <button
+            key={opcao.id}
+            type="button"
+            role="radio"
+            aria-checked={valor === opcao.id}
+            className={valor === opcao.id ? 'escolhido' : ''}
+            onClick={() => aoMudar(opcao.id)}
+          >
+            <span className="marcador" aria-hidden="true" />
+            <span className="opcao-texto">
+              <strong>{opcao.rotulo}</strong>
+              <small>{opcao.descricao}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /**
  * Ajustes de leitura: tamanho do texto e tema.
  *
@@ -47,10 +108,19 @@ const CONTRASTES: { id: Contraste; rotulo: string; descricao: string }[] = [
  * quem não está enxergando: quem abriu este painel por não conseguir ler precisa
  * achar o A+ sem procurar.
  */
-export function PainelAjustes({ aoFechar }: { aoFechar: () => void }) {
+export function PainelAjustes({
+  aoFechar,
+  comVoz = false,
+}: {
+  aoFechar: () => void;
+  /** Staging: mostra a velocidade da voz e a leitura automática das respostas. */
+  comVoz?: boolean;
+}) {
   const [tema, setTema] = useState<Tema>(() => lerTema());
   const [escala, setEscala] = useState<Escala>(() => lerEscala());
   const [contraste, setContraste] = useState<Contraste>(() => lerContraste());
+  const [velocidade, setVelocidade] = useState<Velocidade>(() => lerVelocidade());
+  const [automatica, setAutomatica] = useState(() => lerAutomatica());
   const painelRef = useRef<HTMLDivElement>(null);
 
   const fechar = aoFechar;
@@ -131,51 +201,48 @@ export function PainelAjustes({ aoFechar }: { aoFechar: () => void }) {
             </div>
           </section>
 
-          <section className="painel-secao">
-            <h3 id="rotulo-tema">Aparência</h3>
-            <div role="radiogroup" aria-labelledby="rotulo-tema" className="opcoes-tema">
-              {TEMAS.map((opcao) => (
-                <button
-                  key={opcao.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={tema === opcao.id}
-                  className={tema === opcao.id ? 'escolhido' : ''}
-                  onClick={() => mudarTema(opcao.id)}
-                >
-                  <span className="marcador" aria-hidden="true" />
-                  <span className="opcao-texto">
-                    <strong>{opcao.rotulo}</strong>
-                    <small>{opcao.descricao}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
+          <GrupoDeOpcoes
+            id="tema"
+            titulo="Aparência"
+            opcoes={TEMAS}
+            valor={tema}
+            aoMudar={mudarTema}
+          />
 
-          {/* Mesmo desenho da Aparência. A amostra de balão, lá em cima, já
-              mostra o contorno quando o contraste alto está ligado. */}
-          <section className="painel-secao">
-            <h3 id="rotulo-contraste">Contraste</h3>
-            <div role="radiogroup" aria-labelledby="rotulo-contraste" className="opcoes-tema">
-              {CONTRASTES.map((opcao) => (
-                <button
-                  key={opcao.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={contraste === opcao.id}
-                  className={contraste === opcao.id ? 'escolhido' : ''}
-                  onClick={() => mudarContraste(opcao.id)}
-                >
-                  <span className="marcador" aria-hidden="true" />
-                  <span className="opcao-texto">
-                    <strong>{opcao.rotulo}</strong>
-                    <small>{opcao.descricao}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
+          {/* A amostra de balão, lá em cima, já mostra o contorno quando o
+              contraste alto está ligado. */}
+          <GrupoDeOpcoes
+            id="contraste"
+            titulo="Contraste"
+            opcoes={CONTRASTES}
+            valor={contraste}
+            aoMudar={mudarContraste}
+          />
+
+          {comVoz && (
+            <>
+              <GrupoDeOpcoes
+                id="voz-velocidade"
+                titulo="Velocidade da voz"
+                opcoes={VELOCIDADES}
+                valor={velocidade}
+                aoMudar={(nova) => {
+                  setVelocidade(nova);
+                  guardarVelocidade(nova);
+                }}
+              />
+              <GrupoDeOpcoes
+                id="voz-automatica"
+                titulo="Ler as respostas sozinho"
+                opcoes={LEITURA_AUTOMATICA}
+                valor={automatica ? 'sim' : 'nao'}
+                aoMudar={(nova) => {
+                  setAutomatica(nova === 'sim');
+                  guardarAutomatica(nova === 'sim');
+                }}
+              />
+            </>
+          )}
 
           <section className="painel-secao">
             <h3>Sobre este assistente</h3>

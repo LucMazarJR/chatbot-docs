@@ -28,6 +28,9 @@ import type { Papel, TipoAnexo } from '@/lib/tipos';
 import { Carregando } from '@/components/Carregando';
 import { decidirAvaliacao, INATIVIDADE_MS } from '@/lib/avaliacao-automatica';
 import { Tutorial, type PassoDoTutorial } from '@/components/Tutorial';
+import { OuvirResposta } from '@/components/OuvirResposta';
+import { falar, lerAutomatica } from '@/lib/leitura-em-voz';
+import { useDitado } from '@/lib/usar-ditado';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
@@ -223,6 +226,12 @@ export type PropsConversa = {
   itensDeMenu?: { rotulo: string; href: string }[];
   /** Staging: oferece o passo a passo de como usar, e põe "Como usar" no menu. */
   comTutorial?: boolean;
+  /**
+   * Staging: o microfone vira ditado (a fala vira texto no campo) e cada
+   * resposta ganha "Ouvir". Sem esta prop, o microfone continua medindo
+   * quanta gente tenta mandar áudio, como no `/`.
+   */
+  comVoz?: boolean;
 };
 
 /**
@@ -234,7 +243,12 @@ export type PropsConversa = {
  * entre os modos passa pela prop `modo`; sem ela, o comportamento é o de antes
  * da extração, linha por linha.
  */
-export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = false }: PropsConversa) {
+export function Conversa({
+  modo = 'anonimo',
+  itensDeMenu = [],
+  comTutorial = false,
+  comVoz = false,
+}: PropsConversa) {
   const comConta = modo === 'conta';
   const [sessaoId, setSessaoId] = useState<string | null>(null);
   const [falhaAoAbrir, setFalhaAoAbrir] = useState(false);
@@ -255,6 +269,8 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
   const [destacarCampo, setDestacarCampo] = useState(false);
   const [tutorialAberto, setTutorialAberto] = useState(false);
   const ofertaFeitaRef = useRef(false);
+  /** O texto do campo veio, ao menos em parte, do ditado. Vai junto da mensagem, para medir. */
+  const veioDaVozRef = useRef(false);
   /** Recado passageiro acima do campo: microfone recusado, envio falhou. */
   const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
 
@@ -622,11 +638,14 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
       setTimeout(() => adicionarBot(texto, null), ms),
     );
 
+    const porVoz = veioDaVozRef.current;
+    veioDaVozRef.current = false;
+
     try {
       const resposta = await fetch(`/api/sessoes/${sessaoId}/mensagens`, {
         method: 'POST',
         headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ texto: pergunta }),
+        body: JSON.stringify({ texto: pergunta, ...(porVoz ? { origem: 'voz' } : {}) }),
       });
 
       if (resposta.status === 429) {
@@ -660,6 +679,8 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
         textoDaFalha(pronta.causa) ?? pronta.resposta,
         pronta.erro ? null : aceite.mensagemId,
       );
+      // Quem ligou "ler as respostas sozinho" ouve a resposta assim que ela chega.
+      if (comVoz && !pronta.erro && lerAutomatica()) void falar(pronta.resposta);
     } catch {
       // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
       // provável é a plataforma ter cortado a função no teto dela: isso é
@@ -727,9 +748,42 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
     aoFalhar: setAvisoComposer,
   });
 
+  const ditado = useDitado({
+    aoOuvir: (ouvido) => {
+      veioDaVozRef.current = true;
+      setTexto(ouvido);
+    },
+    aoFalhar: setAvisoComposer,
+  });
+
+  // Terminou de ouvir: o texto fica no campo, com o foco, para a pessoa
+  // conferir antes de enviar.
+  const ouvindoAntes = useRef(false);
+  useEffect(() => {
+    if (ouvindoAntes.current && !ditado.ouvindo) campoRef.current?.focus();
+    ouvindoAntes.current = ditado.ouvindo;
+  }, [ditado.ouvindo]);
+
+  function tocarMicrofone() {
+    if (!comVoz) {
+      void gravador.iniciar();
+      return;
+    }
+    if (ditado.ouvindo) {
+      ditado.parar();
+      return;
+    }
+    setAvisoComposer(null);
+    if (!ditado.suportado || !ditado.iniciar()) {
+      setAvisoComposer(
+        'Este navegador não transforma voz em texto. Use o microfone do teclado do celular, ou escreva a sua dúvida.',
+      );
+    }
+  }
+
   momentoRef.current = {
     esperando: digitando,
-    gravando: gravador.gravando,
+    gravando: gravador.gravando || ditado.ouvindo,
     texto,
     outroPainel: menuAberto || ajustando || apagandoConversa || avaliando || tutorialAberto,
     encerrada,
@@ -995,6 +1049,9 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
                 />
               )}
               {item.comFeedback && item.mensagemId && <Feedback mensagemId={item.mensagemId} />}
+              {comVoz && item.papel === 'bot' && item.mensagemId && (
+                <OuvirResposta texto={item.texto} aoFalhar={setAvisoComposer} />
+              )}
             </div>
           ))}
 
@@ -1012,6 +1069,13 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
         {avisoComposer && (
           <p className="aviso-composer" role="alert">
             {avisoComposer}
+          </p>
+        )}
+
+        {ditado.ouvindo && (
+          <p className="aviso-composer ouvindo" role="status">
+            <span className="ponto-gravacao" aria-hidden="true" />
+            Ouvindo. Fale a sua pergunta; quando terminar, confira o texto e envie.
           </p>
         )}
 
@@ -1121,7 +1185,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
               {/* Microfone enquanto não há texto, avião quando há: a troca do
                   WhatsApp. Os dois ao mesmo tempo deixariam três botões
                   redondos lado a lado numa tela de 360px. */}
-              {texto.trim() ? (
+              {texto.trim() && !ditado.ouvindo ? (
                 <button
                   className="enviar"
                   aria-label="Enviar"
@@ -1135,12 +1199,18 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
               ) : (
                 <button
                   className="enviar"
-                  aria-label="Gravar áudio"
+                  aria-label={
+                    comVoz ? (ditado.ouvindo ? 'Parar de ouvir' : 'Falar a pergunta') : 'Gravar áudio'
+                  }
                   disabled={!podeEnviarAnexo}
-                  onClick={() => void gravador.iniciar()}
+                  onClick={tocarMicrofone}
                 >
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+                    {ditado.ouvindo ? (
+                      <path d="M7 7h10v10H7z" />
+                    ) : (
+                      <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+                    )}
                   </svg>
                 </button>
               )}
@@ -1149,7 +1219,7 @@ export function Conversa({ modo = 'anonimo', itensDeMenu = [], comTutorial = fal
         </footer>
       </section>
 
-      {ajustando && <PainelAjustes aoFechar={() => setAjustando(false)} />}
+      {ajustando && <PainelAjustes comVoz={comVoz} aoFechar={() => setAjustando(false)} />}
 
       {tutorialAberto && (
         <Tutorial

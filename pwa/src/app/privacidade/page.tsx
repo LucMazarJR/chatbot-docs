@@ -176,6 +176,18 @@ export default function Privacidade() {
             </li>
             <li>Quem da equipe lê as conversas para avaliar as respostas não vê o seu e-mail.</li>
             <li>
+              Na versão com conta, antes da busca, sua pergunta e as últimas mensagens da conversa
+              passam por outro serviço do <b>Gemini</b>, que a reescreve para a busca achar a
+              resposta certa. O que ele devolve fica registrado junto da mensagem.
+            </li>
+            <li>
+              Se você usar o <b>microfone para falar</b>, quem transforma a sua voz em texto é o
+              serviço de voz do seu navegador (do Google no Chrome, da Apple no Safari). Nós
+              recebemos só o texto, e só se você enviar. O áudio não chega até nós e não é
+              guardado. Para <b>ouvir as respostas</b>, é usada a voz do próprio aparelho, sem
+              enviar nada.
+            </li>
+            <li>
               Podemos usar esses dados porque você deu seu consentimento ao criar a conta. A conta fica
               guardada até você apagá-la: em <b>Minha conta</b>, <b>Apagar minha conta</b> apaga a
               conta, as conversas, os avisos e os aparelhos cadastrados.

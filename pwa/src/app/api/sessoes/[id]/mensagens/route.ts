@@ -67,8 +67,10 @@ export async function GET(requisicao: Request, { params }: Contexto) {
 export async function POST(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
 
-  const corpo = (await requisicao.json().catch(() => ({}))) as { texto?: string };
+  const corpo = (await requisicao.json().catch(() => ({}))) as { texto?: string; origem?: string };
   const texto = String(corpo.texto ?? '').trim();
+  // Só o rótulo: o áudio do ditado nunca chega aqui, só o texto que ele virou.
+  const porVoz = corpo.origem === 'voz';
 
   if (!texto) return Response.json({ erro: 'texto vazio' }, { status: 400 });
   if (texto.length > LIMITE_TEXTO) {
@@ -127,6 +129,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     texto,
     em: new Date(),
     correlationId,
+    ...(porVoz ? { origem: 'voz' as const } : {}),
   };
 
   const respostaBot: Mensagem = {

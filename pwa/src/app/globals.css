@@ -909,6 +909,40 @@ button {
   text-align: center;
 }
 
+/* Ditado em andamento (staging): o ponto vermelho da gravação, ao lado da frase. */
+.aviso-composer.ouvindo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--barra);
+  color: var(--texto);
+}
+
+/* "Ouvir", embaixo da resposta, no mesmo desenho dos polegares. */
+.ouvir {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  margin: -4px 0 8px 2px;
+  padding: 3px 11px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--balao-entrada);
+  color: var(--texto);
+  font-size: 0.88em;
+}
+
+.ouvir.falando {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+:root[data-contraste='alto'] .ouvir {
+  border-color: var(--contorno);
+}
+
 /* --- Folha de avaliação -------------------------------------------------- */
 
 .cortina {

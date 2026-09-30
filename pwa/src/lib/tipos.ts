@@ -125,6 +125,12 @@ export type Mensagem = {
   tipo?: TipoAnexo;
 
   /**
+   * Staging: a pergunta foi ditada, e não digitada. Mede quanta gente prefere
+   * falar. O áudio não existe aqui: o navegador o transformou em texto.
+   */
+  origem?: 'voz';
+
+  /**
    * Só metadado, nunca o conteúdo.
    *
    * Guardar a gravação seria acumular voz de gente relatando problema de saúde,

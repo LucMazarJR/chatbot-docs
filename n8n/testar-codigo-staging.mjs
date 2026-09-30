@@ -97,6 +97,17 @@ const trecho = (indiceConsulta, id, score) => ({
   console.log('ok: rodízio entre as consultas, sem FAQ repetida');
 }
 {
+  // A consulta geral traz muita coisa acima do corte; só as 3 melhores entram.
+  const gerais = Array.from({ length: 8 }, (_, i) => trecho(1, `geral-${i}`, 0.89 - i * 0.001));
+  const [saida] = rodar('Montar contexto', {
+    nos: { Consultas: consultasDados },
+    entrada: [trecho(0, 'especifica', 0.85), ...gerais],
+  });
+  const usados = saida.json.TrechosDebug.filter((t) => t.usado).map((t) => t.faqId);
+  assert.deepEqual(usados, ['especifica', 'geral-0', 'geral-1', 'geral-2']);
+  console.log('ok: consulta extra traz no máximo 3 trechos');
+}
+{
   const [saida] = rodar('Montar contexto', {
     nos: { Consultas: consultasDados },
     entrada: [trecho(0, 'baixo', 0.79), trecho(1, 'baixo-2', 0.81)],
