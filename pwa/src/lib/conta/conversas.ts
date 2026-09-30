@@ -1,4 +1,4 @@
-import { mensagens, sessoes } from '@/lib/db';
+import { mensagens, ORDEM_DA_CONVERSA, sessoes } from '@/lib/db';
 import type { Mensagem, Sessao } from '@/lib/tipos';
 
 export type ConversaResumida = {
@@ -67,7 +67,7 @@ export async function conversaDaConta(
 
   const lista = await (await mensagens())
     .find({ sessaoId, pendente: { $ne: true } })
-    .sort({ em: 1 })
+    .sort(ORDEM_DA_CONVERSA)
     .toArray();
 
   return { sessao, mensagens: lista };
