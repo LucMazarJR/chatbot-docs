@@ -16,6 +16,7 @@ Esta seção é o estado do projeto, e muda com ele. As regras de trabalho ([CLA
 |---|---|---|
 | Chat anônimo, `/` | em uso por participantes da validação: não muda de comportamento | `/staging` |
 | Contas e avisos push, `/staging` | em validação com a equipe | variável própria, desligada por padrão (como `GATILHOS_ATIVOS`) |
+| Tutorial, voz e reescrita da pergunta, `/staging` | em validação com a equipe | props `comTutorial` e `comVoz`, que só a página do staging passa; a reescrita vai por `N8N_PWA_STAGING_WEBHOOK_URL`, vazia por padrão |
 | Painel da equipe | ferramenta de trabalho diária | selo `emTeste: true` no menu |
 | Canal do WhatsApp | pausado: só o PWA fica no ar, e o gateway pode ficar parado sem o QR lido | nenhum |
 
@@ -248,6 +249,23 @@ Uma rota de validação no **mesmo app e nos mesmos bancos**, sem link a partir 
 O `/` não muda em nada: continua anônimo, com o mesmo service worker e o mesmo manifest. Tudo do staging mora em `pwa/src/app/staging/`, e levá-lo para o `/` depois é mover a pasta.
 
 Como funciona cada parte, e como medir se o push chega em cada tipo de celular: [contas-de-usuario.md](contas-de-usuario.md) e [notificacoes-push.md](notificacoes-push.md).
+
+O chat do staging tem ainda três coisas que o `/` não tem. Todas entram pelo componente de conversa de sempre, ligadas por props que só a página do staging passa.
+
+**Tutorial.** Na primeira conversa do aparelho, o assistente pergunta se a pessoa quer ver como usar, com os botões *Ver como usar* e *Já sei usar*. É convite, e não passo a passo que abre sozinho: quem já usa WhatsApp perderia tempo com cinco telas, e quem ignora a oferta e já escreve a pergunta não é interrompido. *Ver como usar* acende, um de cada vez, o campo de mensagem, o botão de enviar, os polegares (com um balão de exemplo, porque ainda não há resposta na tela) e o menu, com Voltar, Próximo e Pular. O foco fica preso no passo, o Esc pula e o leitor de tela lê cada um. Depois disso a oferta não volta no aparelho, e o passo a passo fica no menu, em **Como usar**. A sessão guarda o que a pessoa fez (viu, pulou, recusou ou ignorou), e o relatório do dia conta.
+
+**Voz.** O microfone vira ditado: a fala aparece no campo enquanto a pessoa fala, e o texto fica lá para revisar antes de enviar, porque o ditado erra nome de remédio. A transcrição é do próprio navegador (Web Speech API), sem custo e sem chave; o áudio não passa pelo nosso servidor, e a mensagem só ganha a marca `origem: 'voz'`, para medir o uso. Onde o navegador não transcreve (Firefox, alguns apps instalados no iPhone), a tela sugere o microfone do teclado do celular. Cada resposta tem **Ouvir**, que lê o texto com a voz do aparelho e para no segundo toque; a formatação (`*`, `_`, `•`) e os links ficam de fora da leitura. Em Acessibilidade entram a velocidade (normal ou devagar) e **ler as respostas sozinho**, desligado por padrão, que lê cada resposta assim que ela chega. Sem voz em português no aparelho, a tela diz isso em vez de ler com a voz em inglês, que sai incompreensível.
+
+**Reescrita da pergunta.** Com `N8N_PWA_STAGING_WEBHOOK_URL` preenchida, a conversa do staging vai para o fluxo [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), que reescreve a pergunta antes de buscar e faz até três buscas por pergunta. O PWA manda junto as últimas 4 mensagens, para a reescrita entender "e lá?". Vazia, o staging usa o fluxo do `/`. Como funciona e o que a medição mostrou: [arquitetura.md](arquitetura.md#a-reescrita-em-validação-no-staging). Para ligar, ver [Ligar a reescrita](#ligar-a-reescrita-no-staging).
+
+#### Ligar a reescrita no staging
+
+1. **Credencial no n8n:** `Gemini Reescrita`, do tipo Google Gemini(PaLM) API, com a `GEMINI_API_KEY_3`. Pelo mesmo motivo da `_2`, ela precisa ser de **outro projeto Google**: a reescrita é uma chamada a mais por pergunta, e no mesmo projeto ela dividiria a cota com as respostas.
+2. **Importar e ativar** [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), como no [passo 3](#3-importar-e-ativar-o-fluxo). Ele usa o mesmo token (`PWA Webhook Token`) e a mesma credencial `Gemini PWA` para as respostas.
+3. **Testar a rota** como no [passo 5](#5-testar-a-rota-isolada-sem-navegador), trocando `/webhook/pwa-chat` por `/webhook/pwa-chat-staging`.
+4. **Apontar o PWA:** `N8N_PWA_STAGING_WEBHOOK_URL=http://n8n:5678/webhook/pwa-chat-staging` no `.env` (e `docker compose up -d --build pwa`), e `https://petbot.lucianomjr.dev/webhook/pwa-chat-staging` na Vercel, seguido de um novo deploy.
+
+Antes de mexer no prompt da reescrita, rode `node n8n/testar-codigo-staging.mjs` (os nós de código) e `node n8n/avaliar-reescrita.mjs --dia AAAA-MM-DD` (o efeito na busca, com as perguntas reais de um dia; só lê o banco, e usa `MONGODB_URI` e `GEMINI_API_KEY_3` do `.env` da raiz, sem gastar a cota do chat). O prompt fica entre `// INICIO-DO-PROMPT` e `// FIM-DO-PROMPT` no nó **Montar reescrita**, que é de onde a avaliação o lê: editar ali muda o fluxo e a medição juntos.
 
 ### O painel de conversas
 

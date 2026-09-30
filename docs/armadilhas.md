@@ -57,6 +57,10 @@ Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só
 
 **Sobrecarga do Gemini derruba todos os canais de uma vez.** O Google responde 503 ("high demand") por minutos seguidos num modelo, e as 3 tentativas do agente caem todas dentro do pico. O chat mostra "Não consegui responder agora" para todo mundo. Os dois fluxos têm um modelo de reserva (`Gemini reserva`, ligado ao AI Agent com *Enable Fallback Model*). A reserva é o `2.5-flash-lite`, de cota gratuita pequena: não trocar a ordem, senão a cota diária acaba antes do meio-dia. O painel faz o mesmo na curadoria e no relatório do dia (três tentativas e `GEMINI_TEXT_MODEL_RESERVA`, com o mesmo modelo como padrão), e o relatório grava qual modelo de fato respondeu. O agente aceita um modelo de reserva só, então a terceira camada do PWA (`gemini-3.5-flash-lite`) é um segundo agente na saída de erro do primeiro, depois do nó "Recuperar pergunta": sem ele, o segundo agente receberia o erro no lugar da pergunta, e a memória ficaria sem o id da conversa. O `3.5` vive sobrecarregado, por isso é a última tentativa e não a primeira.
 
+**Reescrita quebrada não derruba o chat do staging, e por isso passa despercebida.** O nó que chama o Gemini segue em frente quando falha (credencial `Gemini Reescrita` ausente, chave sem cota, prazo de 8 s), e a busca usa o texto original. O chat responde como o do `/`, e a validação mediria o fluxo sem reescrita achando que mede o com. A mensagem grava `reescritaFalhou`, e o painel mostra a pergunta entendida nos bastidores de cada resposta: conferir ali depois de importar o fluxo ou trocar a chave.
+
+**O `Montar contexto` do staging sabe de qual consulta veio cada trecho pelo `pairedItem`.** O n8n liga cada saída da busca à consulta que a gerou, e é isso que faz o rodízio e o limite de 3 trechos por consulta extra funcionarem. Sem a ligação, o código conta por posição (10 trechos por consulta), o que só vale enquanto cada busca devolver exatamente 10. Ao trocar o nó de busca ou mudar o `topK`, conferir nos bastidores de uma resposta se a coluna da consulta bate com o assunto.
+
 ---
 
 ## Dashboard
@@ -106,6 +110,10 @@ Ele não menciona `output` nem `standalone`, e leva a procurar no lugar errado. 
 **Instalar como aplicativo exige HTTPS.** Por IP da rede local o chat funciona, mas o navegador recusa registrar o service worker e o "Adicionar à tela de início" não aparece. Não é defeito do protótipo.
 
 **Service worker que espera a rede sem prazo trava justamente quem já usou o site.** Com rede pendurada (sinal fraco, Wi-Fi com portal, função da Vercel acordando), a navegação fica em branco até o navegador desistir, com uma cópia boa da página parada no cache. Para quem nunca abriu, não há service worker e o erro aparece rápido, então o problema parece ser "só no meu celular". O [sw.js](../pwa/public/sw.js) dá 4 segundos à rede e depois abre a cópia. Mexer nele pede o roteiro que coloca a rede em quatro estados (normal, pendurada, fora do ar, com 500).
+
+**O ditado não existe em todo navegador, e no Chrome precisa de internet.** O Firefox não tem reconhecimento de voz, e alguns apps instalados na Tela de Início do iPhone também não. No Chrome o áudio vai para o serviço do Google, e sem rede o erro é `network`, não "sem microfone". A tela trata os três casos com frase própria ([usar-ditado.ts](../pwa/src/lib/usar-ditado.ts)); quem testa só no Chrome do computador não vê nenhum deles.
+
+**A lista de vozes chega vazia na primeira chamada.** No Chrome, `speechSynthesis.getVoices()` devolve `[]` até o evento `voiceschanged`, e o código que confia na primeira resposta conclui que o aparelho não tem voz em português. O [leitura-em-voz.ts](../pwa/src/lib/leitura-em-voz.ts) espera o evento antes de desistir.
 
 **O service worker do `/` enxerga o `/staging` inteiro.** Enquanto o do staging não foi registrado, é o do `/` que atende as páginas de lá, com conta e histórico. Por isso ele não guarda nada do `/staging`, e o nome do cache muda (`prototipo-pwa-v2`, e assim por diante) sempre que for preciso apagar o que uma versão anterior guardou.
 
