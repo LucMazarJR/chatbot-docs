@@ -240,7 +240,7 @@ Estas telas nasceram dos testes com participantes, e cada uma resolve um problem
 
 | Tela | O que resolve |
 |---|---|
-| **Conversas** (`/conversas`, admin) | As conversas do protótipo, com os trechos que geraram cada resposta e o score de cada um. Clicar num trecho abre a FAQ que o produziu: é o caminho da resposta ruim até o documento que precisa de conserto |
+| **Conversas** (`/conversas`, admin) | As conversas do protótipo, com os trechos que geraram cada resposta e o score de cada um. Clicar num trecho abre a FAQ que o produziu: é o caminho da resposta ruim até o documento que precisa de conserto. Cada conversa baixa em PDF, do jeito que a pessoa viu, para quem acompanha o teste sem usar o painel; quem baixou fica no histórico, sem conteúdo |
 | **Categorias** (`/categorias`) | A lista oficial de assuntos e a fila do que está fora dela |
 | **Sem resposta** (`/curadoria`, admin) | As perguntas que o chatbot não soube responder, agrupadas por um modelo em sugestões de FAQ |
 | **Testar a busca** (na home das FAQs) | Roda a busca do chatbot para uma pergunta digitada e mostra os scores, sem passar pelo chatbot |
@@ -251,6 +251,8 @@ Estas telas nasceram dos testes com participantes, e cada uma resolve um problem
 **Por que o teste de busca existe.** A única forma de saber por que o chatbot não respondeu algo era mandar a pergunta pelo chat e esperar, sem ver os scores. E o "por quanto" decide o trabalho: *"Onde fica a UBS?"* deu 0,816 contra um corte de 0,82. Sem o número, esse caso e um de conteúdo faltando são indistinguíveis, e a correção de um é o oposto da do outro.
 
 **O relatório do dia separa o que é contagem do que é leitura do modelo.** Os números, e as frases do topo que citam número ("as áreas com mais perguntas sem resposta foram…"), saem do banco pelo código. O modelo recebe as perguntas do dia com a situação registrada e as cinco FAQs mais próximas de cada uma, e devolve só a classificação (área, público, causa), uma nota por área, os pontos para revisar e duas frases de resumo. A causa que ele propõe é conferida contra a situação do banco: uma pergunta respondida não pode sair como "falta conteúdo". Custa uma chamada por lote de até 100 perguntas, mais uma de síntese quando há mais de um lote, e nenhum embedding. Cada relatório fica em `relatorios_ia` com as perguntas que entraram e a resposta crua, como a rodada da curadoria, e a exclusão de uma conversa alcança essa cópia. A classificação varia um pouco de uma geração para outra; os números, não.
+
+**A curadoria roda sozinha a cada 10 perguntas sem resposta.** O painel confere a fila ao subir, a cada 5 minutos e sempre que alguém abre a contagem, e começa uma rodada quando junta 10, com "Análise automática" como autor. Cota esgotada pausa até o dia seguinte e erro pausa meia hora. O botão *Analisar agora* continua, para quem quer analisar antes. No plano gratuito do Render o serviço dorme sem visita, e o relógio dorme junto: a análise automática só acontece com o painel acordado, e a primeira visita do dia recupera o atraso.
 
 **O que a curadoria custa.** Uma chamada de geração por rodada de até 10 perguntas, e **nenhum embedding**: as FAQs vizinhas já ficaram gravadas em `trechosDebug` quando o chatbot respondeu. O modelo agrupa e propõe, mas **não escreve orientação de saúde**: a resposta sai vazia quando as FAQs fornecidas não continham a informação, e aí a lacuna é de conteúdo mesmo. Toda rodada fica registrada em `curadoria_rodadas`, com as perguntas que entraram e a resposta crua do modelo.
 
