@@ -6,6 +6,7 @@ import { CONEXAO_PROTOTIPO } from '../conversas/conexao';
 import { Mensagem, MensagemSchema } from '../conversas/schemas/mensagem.schema';
 import { FaqsModule } from '../faqs/faqs.module';
 import { GeminiModule } from '../gemini/gemini.module';
+import { CuradoriaAutomaticaService } from './curadoria-automatica.service';
 import { CuradoriaController } from './curadoria.controller';
 import { CuradoriaService } from './curadoria.service';
 import { Rodada, RodadaSchema } from './schemas/rodada.schema';
@@ -35,7 +36,7 @@ import { Sugestao, SugestaoSchema } from './schemas/sugestao.schema';
         ActivityModule,
     ],
     controllers: [CuradoriaController],
-    providers: [CuradoriaService],
+    providers: [CuradoriaService, CuradoriaAutomaticaService],
     exports: [CuradoriaService],
 })
 export class CuradoriaModule { }
