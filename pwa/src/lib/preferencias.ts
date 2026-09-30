@@ -16,6 +16,14 @@
 
 export type Tema = 'claro' | 'escuro' | 'auto';
 
+/**
+ * Contraste, separado do tema: claro ou escuro, cada um em normal ou alto.
+ *
+ * Existe porque, num monitor ruim de posto, o balão sumia no fundo. Ver o
+ * comentário de `data-contraste` em globals.css.
+ */
+export type Contraste = 'normal' | 'alto';
+
 export type Escala = { id: string; rotulo: string; valor: number };
 
 /**
@@ -34,6 +42,33 @@ export const ESCALAS: Escala[] = [
 
 const CHAVE_TEMA = 'pwa:tema';
 const CHAVE_ESCALA = 'pwa:escala';
+const CHAVE_CONTRASTE = 'pwa:contraste';
+
+/**
+ * O contraste em vigor: o escolhido, ou, sem escolha, o que o sistema pede.
+ *
+ * Quem já ligou "aumentar contraste" no celular ou no Windows recebe o alto sem
+ * procurar a opção. É a mesma regra do script do <head>, que precisa decidir
+ * antes da primeira pintura.
+ */
+export function lerContraste(): Contraste {
+  try {
+    const guardado = localStorage.getItem(CHAVE_CONTRASTE);
+    if (guardado === 'normal' || guardado === 'alto') return guardado;
+  } catch {
+    // Sem armazenamento, vale o que o sistema pede.
+  }
+  return window.matchMedia?.('(prefers-contrast: more)').matches ? 'alto' : 'normal';
+}
+
+export function aplicarContraste(contraste: Contraste): void {
+  document.documentElement.dataset.contraste = contraste;
+  try {
+    localStorage.setItem(CHAVE_CONTRASTE, contraste);
+  } catch {
+    // Navegação privada bloqueia a escrita. A escolha vale para esta visita.
+  }
+}
 
 export function lerTema(): Tema {
   try {
