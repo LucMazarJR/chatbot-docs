@@ -4,6 +4,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { JobsService } from '../jobs/jobs.service';
+import { CuradoriaAutomaticaService } from './curadoria-automatica.service';
 import { CuradoriaService, JOB_CURADORIA } from './curadoria.service';
 import { AprovarSugestaoDto, ListarSugestoesQueryDto } from './dto/aprovar-sugestao.dto';
 
@@ -20,11 +21,18 @@ export class CuradoriaController {
     constructor(
         private readonly curadoria: CuradoriaService,
         private readonly jobs: JobsService,
+        private readonly automatica: CuradoriaAutomaticaService,
     ) { }
 
-    /** Quantas lacunas esperam análise: é o contador da tela de conversas. */
+    /**
+     * Quantas lacunas esperam análise: é o contador da tela de conversas.
+     *
+     * Aproveita a visita para conferir se a análise automática deve rodar: no
+     * plano gratuito o serviço dorme sem visita, e é ela que o acorda.
+     */
     @Get('fila')
     fila() {
+        void this.automatica.conferir();
         return this.curadoria.contarPendentes();
     }
 

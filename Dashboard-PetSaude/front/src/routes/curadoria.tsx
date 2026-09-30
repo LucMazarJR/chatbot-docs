@@ -116,7 +116,7 @@ function CuradoriaPage() {
             fila.data
               ? pendentes === 0
                 ? "Nenhuma pergunta esperando análise."
-                : `${pendentes} ${pendentes === 1 ? "pergunta espera" : "perguntas esperam"} análise. Cada rodada olha até ${tamanho} de uma vez.`
+                : `${pendentes} ${pendentes === 1 ? "pergunta espera" : "perguntas esperam"} análise. A análise roda sozinha quando a fila junta ${tamanho}.`
               : "As perguntas que o chatbot não soube responder, a caminho de virar FAQ."
           }
           acoes={
@@ -150,7 +150,8 @@ function CuradoriaPage() {
           <p className="flex items-start gap-2.5 rounded-xl border border-border bg-card p-4 text-[15px] text-muted-foreground">
             <AlertTriangle className="mt-0.5 size-[18px] shrink-0" />
             <span>
-              Dá para analisar já, mas juntar perto de {tamanho} rende mais: é vendo várias
+              Quando a fila juntar {tamanho}, a análise roda sozinha. Para analisar antes, use
+              Analisar agora: só que juntar perto de {tamanho} rende mais, porque é vendo várias
               perguntas juntas que dá para perceber que "onde fica a UBS" e "qual o endereço do
               posto" são a mesma FAQ faltando.
             </span>
