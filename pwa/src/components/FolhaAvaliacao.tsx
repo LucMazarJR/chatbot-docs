@@ -11,6 +11,15 @@ type Props = {
     comentario: string;
   }) => Promise<void>;
   onVoltar: () => void;
+  /**
+   * A folha abriu sozinha, por tempo parado, e não pelo menu.
+   *
+   * Nesse caso ela se apresenta como convite: diz que é opcional, que enviar
+   * encerra a conversa, e o botão de sair diz "Continuar conversando". No teste
+   * de campo, a folha aberta sozinha foi lida como o fim obrigatório da
+   * conversa, e a pessoa parou de perguntar.
+   */
+  automatica?: boolean;
 };
 
 /**
@@ -20,7 +29,7 @@ type Props = {
  * opcionais: cobrar resposta de quem só queria encerrar a conversa é a melhor
  * forma de não receber nenhuma.
  */
-export function FolhaAvaliacao({ onEnviar, onVoltar }: Props) {
+export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false }: Props) {
   const [estrelas, setEstrelas] = useState<number | null>(null);
   const [nps, setNps] = useState<number | null>(null);
   const [comentario, setComentario] = useState('');
@@ -55,8 +64,14 @@ export function FolhaAvaliacao({ onEnviar, onVoltar }: Props) {
           </div>
         ) : (
           <>
-            <h2 id="titulo-avaliacao">Como foi sua experiência?</h2>
-            <p className="sub">Sua opinião é o que nos ajuda a melhorar o assistente.</p>
+            <h2 id="titulo-avaliacao">
+              {automatica ? 'Quer avaliar a conversa?' : 'Como foi sua experiência?'}
+            </h2>
+            <p className="sub">
+              {automatica
+                ? 'É opcional. Se ainda tiver dúvidas, toque em Continuar conversando. Enviar a avaliação encerra esta conversa.'
+                : 'Sua opinião é o que nos ajuda a melhorar o assistente. Enviar a avaliação encerra esta conversa.'}
+            </p>
 
             <div className="grupo">
               <label id="rotulo-estrelas">Que nota você dá para as respostas?</label>
@@ -111,7 +126,7 @@ export function FolhaAvaliacao({ onEnviar, onVoltar }: Props) {
 
             <div className="acoes">
               <button className="depois" type="button" onClick={onVoltar} disabled={enviando}>
-                Voltar
+                {automatica ? 'Continuar conversando' : 'Voltar'}
               </button>
               <button
                 className="enviar-avaliacao"
