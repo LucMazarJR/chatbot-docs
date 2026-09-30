@@ -2,3 +2,8 @@ node_modules/
 .next/
 next-env.d.ts
 *.tsbuildinfo
+
+# Recriados pelo `next dev` a cada execução, com instruções genéricas do Next.
+# As regras do projeto estão no CLAUDE.md da raiz.
+AGENTS.md
+CLAUDE.md
