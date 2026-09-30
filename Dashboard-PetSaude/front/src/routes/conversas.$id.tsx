@@ -265,6 +265,7 @@ function Bastidores({ mensagem }: { mensagem: MensagemConversa }) {
       <h2 id="titulo-bastidores" className="scroll-mt-20 text-lg font-semibold">
         Bastidores da resposta das {hora(mensagem.em)}
       </h2>
+      <Reescrita mensagem={mensagem} />
       {trechos.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {mensagem.erro
@@ -290,6 +291,11 @@ function Bastidores({ mensagem }: { mensagem: MensagemConversa }) {
                   </span>
                   {trecho.category && (
                     <span className="text-[13px] text-muted-foreground">{trecho.category}</span>
+                  )}
+                  {trecho.consulta && (
+                    <span className="text-[13px] text-muted-foreground">
+                      veio da busca “{trecho.consulta}”
+                    </span>
                   )}
                 </>
               );
@@ -320,6 +326,42 @@ function Bastidores({ mensagem }: { mensagem: MensagemConversa }) {
         {mensagem.modelo ? ` · ${mensagem.modelo}` : ""}
       </p>
     </aside>
+  );
+}
+
+/**
+ * Como a pergunta foi entendida antes da busca, no fluxo de staging.
+ *
+ * Só aparece quando a resposta passou pela reescrita. É o que explica um trecho
+ * que parece não ter nada a ver com o que a pessoa escreveu: ele veio de uma
+ * busca que a reescrita gerou.
+ */
+function Reescrita({ mensagem }: { mensagem: MensagemConversa }) {
+  if (!mensagem.consultas?.length && !mensagem.perguntaCompleta) return null;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg bg-muted px-3.5 py-3 text-sm">
+      {mensagem.reescritaFalhou ? (
+        <p>A reescrita não respondeu a tempo; a busca usou o texto que a pessoa escreveu.</p>
+      ) : (
+        <>
+          <p>
+            <span className="font-semibold">Entendida como: </span>
+            {mensagem.perguntaCompleta}
+          </p>
+          <p className="font-semibold">Buscas feitas:</p>
+          <ol className="list-decimal space-y-0.5 pl-5">
+            {(mensagem.consultas ?? []).map((consulta) => (
+              <li key={consulta}>{consulta}</li>
+            ))}
+          </ol>
+        </>
+      )}
+      {mensagem.reescritaMs != null && (
+        <p className="text-muted-foreground">
+          A reescrita levou {(mensagem.reescritaMs / 1000).toFixed(1).replace(".", ",")} s.
+        </p>
+      )}
+    </div>
   );
 }
 

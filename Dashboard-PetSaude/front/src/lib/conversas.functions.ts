@@ -38,6 +38,8 @@ export type TrechoUsado = {
   category: string | null;
   question: string | null;
   previa: string | null;
+  /** No fluxo com reescrita (staging): qual das consultas trouxe o trecho. */
+  consulta?: string | null;
 };
 
 export type MensagemConversa = {
@@ -57,6 +59,11 @@ export type MensagemConversa = {
   motivoErro?: string | null;
   feedback?: "up" | "down" | null;
   feedbackComentario?: string | null;
+  // Só no fluxo de staging, com reescrita da pergunta.
+  perguntaCompleta?: string | null;
+  consultas?: string[];
+  reescritaMs?: number | null;
+  reescritaFalhou?: boolean;
 };
 
 export type ConversaResumida = {
