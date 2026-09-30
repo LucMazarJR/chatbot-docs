@@ -73,6 +73,8 @@ Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só
 
 **Limpar a sessão em qualquer erro tira da conta quem está trabalhando.** O `getSession` do front só pode apagar o cookie quando a API responde 401 ou 403. Tratando rede fora, 5xx ou API acordando como "sessão inválida", cada deploy do back e cada soneca do plano grátis mandava a equipe para o login, e o login batia na mesma API parada.
 
+**A análise automática da curadoria para quando o painel dorme.** O relógio que confere a fila roda dentro do back, e o plano gratuito do Render desliga o serviço sem visita. Nada avisa: a fila só cresce até alguém abrir o painel, e aí a análise sai. Se ela precisar rodar sem ninguém entrar, o caminho é um ping externo no painel ou um plano que não dorme. Rodar o back localmente contra o banco de produção também dispara a análise sobre a fila real; na verificação local, use `CURADORIA_AUTOMATICA=0`.
+
 **O PDF do painel falha com "unsupported number" em documento grande.** A biblioteca (`@react-pdf/renderer`) erra a conta de layout com `gap` combinado com largura em porcentagem, e com uma tabela de cabeçalho fixo dentro de um bloco que quebra de página. Com pouco conteúdo o PDF sai; com um dia inteiro de perguntas, não sai nada. O [relatorio-pdf.tsx](../Dashboard-PetSaude/front/src/lib/pdf/relatorio-pdf.tsx) usa largura em pontos e margem no lugar de `gap`, e cada tabela longa numa `<Page>` própria.
 
 **Texto com `render` sai em branco no PDF.** É o jeito documentado de escrever "Página 2 de 5", e nesta versão da biblioteca ele simplesmente não aparece, sem erro. O rodapé é texto fixo comum. Ao atualizar a biblioteca, conferir extraindo o texto do PDF gerado: olhando o código, parece funcionar.
