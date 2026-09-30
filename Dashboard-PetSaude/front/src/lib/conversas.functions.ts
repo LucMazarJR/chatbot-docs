@@ -137,6 +137,17 @@ export const detalharConversa = createServerFn({ method: "GET" })
   );
 
 /**
+ * Avisa o back que a conversa vai ser baixada em PDF, para ficar no histórico.
+ * O PDF só é montado depois que o registro deu certo.
+ */
+export const registrarExportacaoConversa = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(
+    async ({ data }: { data: { id: string } }): Promise<{ ok: true }> =>
+      apiFetch(`/conversas/${encodeURIComponent(data.id)}/exportacao`, { method: "POST" }),
+  );
+
+/**
  * Exclusão a pedido da pessoa. Apaga a conversa e troca as cópias das perguntas
  * guardadas pela curadoria por uma marca: ver ConversasService.apagar.
  */

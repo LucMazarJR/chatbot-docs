@@ -14,6 +14,15 @@ import { Relatorio, RelatorioDocument } from '../relatorios/schemas/relatorio.sc
 /** O mesmo texto que o PWA usa, para as duas portas de exclusão deixarem o mesmo rastro. */
 export const MARCA_APAGADA = '[apagada a pedido da pessoa]';
 
+/**
+ * A ordem de uma transcrição: por data e, no empate, a pergunta antes.
+ *
+ * A resposta nasce no mesmo milissegundo da pergunta, e ordenar só por data
+ * deixava o banco escolher: a transcrição mostrava resposta acima da pergunta.
+ * É a mesma ordem do PWA (`ORDEM_DA_CONVERSA` em pwa/src/lib/db.ts).
+ */
+export const ORDEM_DA_CONVERSA = { em: 1, papel: -1 } as const;
+
 export type Periodo = 'hoje' | '7d' | '30d' | 'dia' | 'tudo';
 export type FiltroVersao = 'a' | 'b' | 'todas';
 export type FiltroSituacao =
@@ -271,11 +280,34 @@ export class ConversasService {
 
         const mensagens = await this.mensagemModel
             .find({ sessaoId: id })
-            .sort({ em: 1 })
+            .sort(ORDEM_DA_CONVERSA)
             .lean()
             .exec();
 
         return { sessao, mensagens };
+    }
+
+    /**
+     * Registra que alguém baixou a conversa em PDF.
+     *
+     * LÓGICA DO LUCIANO: o PDF é montado no navegador, então o back não vê o
+     * arquivo sair. Mas levar a conversa para fora do painel é o acesso que mais
+     * importa registrar: depois disso ela circula em grupo de mensagem. O
+     * registro diz quem e quando, e nenhum conteúdo, como o de exclusão.
+     */
+    async registrarExportacao(id: string, actor: { id?: string; name: string }) {
+        const sessao = await this.sessaoModel.findById(id).select('_id nome').lean().exec();
+        if (!sessao) throw new NotFoundException('Conversa não encontrada. Ela pode ter sido apagada a pedido da pessoa.');
+
+        await this.activityService.registrar({
+            actor_name: actor.name,
+            actor_id: actor.id,
+            action: 'exportar',
+            entity_type: 'conversa',
+            entity_id: id,
+            target: `Conversa baixada em PDF (${sessao.nome})`,
+        });
+        return { ok: true };
     }
 
     /**
@@ -367,7 +399,7 @@ export class ConversasService {
     async exportarCsv(): Promise<string> {
         const linhas = await this.mensagemModel
             .aggregate([
-                { $sort: { em: 1 } },
+                { $sort: ORDEM_DA_CONVERSA },
                 { $lookup: { from: 'sessoes', localField: 'sessaoId', foreignField: '_id', as: 'sessao' } },
                 { $unwind: { path: '$sessao', preserveNullAndEmptyArrays: true } },
             ])

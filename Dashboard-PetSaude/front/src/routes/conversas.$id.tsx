@@ -5,6 +5,7 @@ import { Fragment, useState, type ReactNode } from "react";
 
 import { GateShell } from "@/components/gate";
 import { ApagarConversa } from "@/components/apagar-conversa";
+import { BaixarConversa } from "@/components/baixar-conversa";
 import { exigirAdmin } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
 import { SeloConta } from "@/components/selos-conversa";
@@ -88,7 +89,12 @@ function ConversaPage() {
                     ` · recomendaria ${sessao.avaliacao.nps} de 10`}
                 </span>
               }
-              acoes={<ApagarConversa id={id} />}
+              acoes={
+                <>
+                  <BaixarConversa sessao={sessao} mensagens={mensagens} />
+                  <ApagarConversa id={id} />
+                </>
+              }
             />
 
             {sessao.avaliacao?.comentario && (
