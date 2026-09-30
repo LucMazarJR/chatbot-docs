@@ -80,6 +80,9 @@ export type Sessao = {
    * pela chave, exatamente como antes (ver `sessao-autenticada.ts`).
    */
   usuarioId?: string;
+
+  /** Staging: o que a pessoa fez com o tutorial. Ausente quando ele não foi oferecido. */
+  tutorial?: { escolha: 'visto' | 'pulado' | 'recusado' | 'ignorado'; em: Date };
 };
 
 export type Avaliacao = {

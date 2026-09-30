@@ -18,6 +18,7 @@ export default async function Staging() {
   return (
     <Conversa
       modo="conta"
+      comTutorial
       itensDeMenu={[
         { rotulo: 'Avisos', href: '/staging/avisos' },
         { rotulo: 'Minha conta', href: '/staging/conta' },
