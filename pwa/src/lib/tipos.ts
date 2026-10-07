@@ -10,6 +10,7 @@
  * em `back/src/conversas/schemas/`. Este arquivo continua sendo o dono do
  * formato: mudar um campo aqui exige mudar lá na mesma alteração.
  */
+import type { ParteDaResposta } from './partes-da-resposta';
 
 /** Um trecho recuperado da busca vetorial, com o veredito do filtro de score. */
 export type TrechoDebug = {
@@ -164,6 +165,15 @@ export type Mensagem = {
   reescritaMs?: number | null;
   /** A reescrita não respondeu e a busca foi feita com o texto original. */
   reescritaFalhou?: boolean;
+  /**
+   * As partes da pergunta, com o que a resposta cobriu em cada uma. Só no
+   * fluxo com triagem, que declara isso; é o que manda para a curadoria só a
+   * parte que faltou.
+   */
+  partes?: ParteDaResposta[];
+  /** As partes que ficaram sem resposta, já escritas como pergunta completa. */
+  partesSemResposta?: string[];
+  analiseMs?: number | null;
   erro?: boolean;
   /** Por que falhou: timeout, HTTP 404 do n8n, variável ausente. Só quando `erro`. */
   motivoErro?: string | null;

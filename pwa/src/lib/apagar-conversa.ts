@@ -45,15 +45,30 @@ export type ResultadoExclusao = {
 export async function apagarConversa(sessaoId: string): Promise<ResultadoExclusao> {
   const faqs = await bancoDeFaqs();
 
+  // Além da frase da pessoa, a curadoria guarda como ela foi entendida e a
+  // pergunta anterior da mesma conversa: as duas são texto dela, e saem junto.
   const sugestoes = await faqs.collection('sugestoes_faq').updateMany(
     { 'origens.sessaoId': sessaoId },
-    { $set: { 'origens.$[origem].pergunta': MARCA_APAGADA } },
+    {
+      $set: {
+        'origens.$[origem].pergunta': MARCA_APAGADA,
+        'origens.$[origem].entendida': MARCA_APAGADA,
+        'origens.$[origem].anterior': MARCA_APAGADA,
+      },
+    },
     { arrayFilters: [{ 'origem.sessaoId': sessaoId }] },
   );
 
   const rodadas = await faqs.collection('curadoria_rodadas').updateMany(
     { 'lacunas.sessaoId': sessaoId },
-    { $set: { 'lacunas.$[lacuna].pergunta': MARCA_APAGADA, respostaBruta: MARCA_APAGADA } },
+    {
+      $set: {
+        'lacunas.$[lacuna].pergunta': MARCA_APAGADA,
+        'lacunas.$[lacuna].entendida': MARCA_APAGADA,
+        'lacunas.$[lacuna].anterior': MARCA_APAGADA,
+        respostaBruta: MARCA_APAGADA,
+      },
+    },
     { arrayFilters: [{ 'lacuna.sessaoId': sessaoId }] },
   );
 

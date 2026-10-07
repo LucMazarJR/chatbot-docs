@@ -17,7 +17,7 @@
 import { ObjectIdDe } from './busca.mjs';
 import { CotaEsgotada, textoDaResposta } from './gemini.mjs';
 
-// A mesma regex do PWA (pwa/src/app/api/n8n/resposta/route.ts), que decide o
+// A mesma regex do PWA (pwa/src/lib/partes-da-resposta.ts), que decide o
 // que vai para a curadoria quando o fluxo não manda as partes. O travessão é o
 // do texto fixo do agente.
 export const RE_NAO_ENCONTREI = /^\s*desculpe\s*[—–-]\s*n[ãa]o encontrei/i;

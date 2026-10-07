@@ -1,15 +1,9 @@
 import { mensagens } from '@/lib/db';
 import { TEXTO_INDISPONIVEL } from '@/lib/mensagens-fixas';
+import { classificarResposta, lerPartes } from '@/lib/partes-da-resposta';
 import type { TrechoDebug } from '@/lib/tipos';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * O texto exato que o prompt manda o agente responder quando nenhum trecho
- * serve. Reconhecê-lo é o que permite medir a taxa de "a base não sabia" sem
- * depender de o participante marcar nada.
- */
-const RE_NAO_ENCONTREI = /^\s*desculpe\s*[—–-]\s*n[ãa]o encontrei/i;
 
 type Corpo = {
   mensagemId?: string;
@@ -20,15 +14,18 @@ type Corpo = {
   trechosDebug?: TrechoDebug[];
   limiarScore?: number | null;
   modelo?: string | null;
-  // Só no fluxo de staging, com reescrita da pergunta.
+  // Só no fluxo de staging, com a pergunta preparada antes da busca.
   perguntaCompleta?: string | null;
   consultas?: unknown;
   reescritaMs?: number | null;
   reescritaFalhou?: boolean;
+  /** As partes da pergunta, com o que foi respondido em cada uma. */
+  partes?: unknown;
+  analiseMs?: number | null;
 };
 
 /**
- * Os campos da reescrita, quando o fluxo mandou.
+ * Os campos da preparação da pergunta, quando o fluxo mandou.
  *
  * Validados aqui porque vão para o banco e para o painel: lista que não é de
  * texto vira lista vazia, e texto grande é cortado. O fluxo do `/` não manda
@@ -37,13 +34,14 @@ type Corpo = {
 function camposDaReescrita(corpo: Corpo): Record<string, unknown> {
   if (corpo.perguntaCompleta === undefined && corpo.consultas === undefined) return {};
   const consultas = Array.isArray(corpo.consultas)
-    ? corpo.consultas.filter((c): c is string => typeof c === 'string').map((c) => c.slice(0, 300)).slice(0, 3)
+    ? corpo.consultas.filter((c): c is string => typeof c === 'string').map((c) => c.slice(0, 300)).slice(0, 5)
     : [];
   return {
     perguntaCompleta: typeof corpo.perguntaCompleta === 'string' ? corpo.perguntaCompleta.slice(0, 400) : null,
     consultas,
     reescritaMs: typeof corpo.reescritaMs === 'number' ? corpo.reescritaMs : null,
     reescritaFalhou: Boolean(corpo.reescritaFalhou),
+    ...(typeof corpo.analiseMs === 'number' ? { analiseMs: corpo.analiseMs } : {}),
   };
 }
 
@@ -79,13 +77,15 @@ export async function POST(requisicao: Request) {
   const houveFalha = corpo.ok === false;
   const resposta = corpo.resposta || TEXTO_INDISPONIVEL;
 
-  // Vale o TEXTO da resposta, e não a ausência de trechos.
+  // Vale o que a resposta declara, e não a ausência de trechos.
   //
   // Com `temContexto === false` sozinho, toda saudação contaria como lacuna da
-  // base: o prompt manda o agente responder "oi", "olá" e "bom dia" sem trecho
-  // nenhum, e a resposta está certa. Numa rodada de testes isso deu 8 de 28
+  // base: o prompt manda responder "oi", "olá" e "bom dia" sem trecho nenhum,
+  // e a resposta está certa. Numa rodada de testes isso deu 8 de 28
   // marcações, ou 29% de ruído no indicador que diz se a base precisa crescer.
-  const semResposta = RE_NAO_ENCONTREI.test(resposta);
+  // O fluxo com triagem declara as partes; o do `/`, só o texto.
+  const partes = houveFalha ? null : lerPartes(corpo.partes);
+  const { semResposta, partesSemResposta } = classificarResposta(resposta, partes);
 
   await col.updateOne(
     { _id: mensagemId },
@@ -105,6 +105,7 @@ export async function POST(requisicao: Request) {
         erro: houveFalha,
         motivoErro: houveFalha ? 'o agente não concluiu' : null,
         ...camposDaReescrita(corpo),
+        ...(partes ? { partes, partesSemResposta } : {}),
       },
     },
   );
