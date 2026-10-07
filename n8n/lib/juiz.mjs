@@ -2,15 +2,24 @@
 //
 // "Teve resposta" não quer dizer "acertou": há respostas montadas com a FAQ de
 // outro exame ou de outra unidade. Por isso cada parte da pergunta é conferida
-// contra a FAQ esperada. A resposta de texto livre (o `/` e o staging com
-// agente) não diz de qual FAQ saiu, então um modelo compara a resposta com a
-// FAQ esperada. Temperatura 0 e resultado no cache: a mesma resposta recebe
+// contra a FAQ esperada. A resposta de texto livre não diz de qual FAQ saiu,
+// então um modelo compara a resposta com a FAQ esperada e com os trechos que o
+// chat recebeu. Temperatura 0 e resultado no cache: a mesma resposta recebe
 // sempre o mesmo veredito, e o que muda entre rodadas é só a resposta.
+//
+// O juiz vê os trechos porque informação a mais não é erro quando vem da base
+// e trata do mesmo assunto: a resposta sobre a endoscopia que soma os critérios
+// de outra FAQ da endoscopia está certa. Erro é a informação de outro assunto,
+// a que contradiz a FAQ e a que não está em trecho nenhum.
+//
+// Toda resposta passa pelo juiz, inclusive a que começa com "não encontrei":
+// "não encontrei as linhas de ônibus, mas o endereço é..." respondeu a pergunta.
 import { ObjectIdDe } from './busca.mjs';
 import { CotaEsgotada, textoDaResposta } from './gemini.mjs';
 
 // A mesma regex do PWA (pwa/src/app/api/n8n/resposta/route.ts), que decide o
-// que vai para a curadoria. O travessão é o do texto fixo do agente.
+// que vai para a curadoria quando o fluxo não manda as partes. O travessão é o
+// do texto fixo do agente.
 export const RE_NAO_ENCONTREI = /^\s*desculpe\s*[—–-]\s*n[ãa]o encontrei/i;
 
 export const VEREDITOS = [
@@ -24,24 +33,34 @@ export const VEREDITOS = [
   'falha',
 ];
 
+// A FAQ esperada entra inteira até aqui: cortar antes fazia o juiz achar que o
+// fim dela (as orientações depois da endoscopia, por exemplo) não existia.
+const MAXIMO_DA_FAQ = 6000;
+
 const PROMPT = [
   'Você confere as respostas de um chatbot de saúde pública. O chatbot só pode responder com o',
-  'que está nas FAQs oficiais da prefeitura.',
+  'que está nos trechos das FAQs oficiais que ele recebeu.',
   '',
-  'Você recebe a conversa até aqui, a pergunta nova do cidadão, as partes dessa pergunta e, para',
-  'cada parte, as FAQs oficiais que a respondem, ou o aviso de que a base não tem essa',
-  'informação. Recebe também a resposta que o chatbot deu.',
+  'Você recebe a conversa até aqui, a pergunta nova do cidadão, as partes dessa pergunta com a',
+  'FAQ oficial que responde cada uma (ou o aviso de que a base não tem essa informação), os',
+  'trechos que o chatbot recebeu e a resposta que ele deu.',
   '',
   'Para cada parte, classifique a resposta do chatbot:',
   '- "certa": traz a informação essencial de uma das FAQs indicadas para a parte, sem contradizer.',
-  '- "errada": trata da parte, mas com informação que não está nas FAQs indicadas ou que as',
-  '  contradiz (por exemplo, de outro exame, de outra unidade ou de outro remédio).',
-  '- "nao_encontrou": diz que não encontrou a informação dessa parte.',
+  '  Informação a mais é aceitável quando vem dos trechos recebidos e trata do mesmo assunto da',
+  '  parte. Dizer que não encontrou um detalhe e mesmo assim trazer a informação essencial da FAQ',
+  '  indicada também é "certa".',
+  '- "errada": a informação principal da resposta para a parte vem de outro assunto (outro exame,',
+  '  outra unidade, outro remédio, outro serviço), contradiz a FAQ indicada ou não está em nenhum',
+  '  trecho recebido.',
+  '- "nao_encontrou": diz que não encontrou a informação dessa parte, sem trazer a informação da',
+  '  FAQ indicada.',
   '- "omitida": não trata dessa parte.',
-  'Numa parte que a base não tem, use "nao_encontrou" se a resposta avisa que não encontrou,',
-  '"errada" se a resposta afirma alguma coisa sobre ela, e "omitida" se nem a menciona.',
+  'Numa parte que a base não tem: "nao_encontrou" se a resposta avisa que não encontrou;',
+  '"errada" se afirma alguma coisa sobre ela que não está nos trechos ou que vem de outro',
+  'assunto; "omitida" se nem a menciona.',
   '',
-  'Não julgue estilo, tamanho nem formatação. Detalhe a mais que esteja na FAQ não é erro.',
+  'Não julgue estilo, tamanho nem formatação.',
 ].join('\n');
 
 const ESQUEMA = {
@@ -77,7 +96,7 @@ export function criarJuiz({ cliente, modelo, cache, faqs }) {
     return ids.map((id) => faqsLidas.get(id)).filter(Boolean);
   }
 
-  async function julgar({ historico, texto, partes, resposta }) {
+  async function julgar({ historico, texto, partes, resposta, contextoLido }) {
     const blocos = [];
     for (const [i, parte] of partes.entries()) {
       const titulo = `Parte ${i + 1}: ${parte.descricao || (partes.length === 1 ? 'a pergunta inteira' : 'veja a pergunta')}`;
@@ -87,7 +106,8 @@ export function criarJuiz({ cliente, modelo, cache, faqs }) {
       }
       const docs = await lerFaqs(parte.faqs);
       const textos = docs.map(
-        (d) => `  FAQ oficial:\n    Assunto: ${d.category ?? ''}\n    Pergunta: ${d.question ?? ''}\n    Resposta: ${String(d.answer ?? '').slice(0, 1500)}`,
+        (d) =>
+          `  FAQ oficial:\n    Assunto: ${d.category ?? ''}\n    Pergunta: ${d.question ?? ''}\n    Resposta: ${String(d.answer ?? '').slice(0, MAXIMO_DA_FAQ)}`,
       );
       blocos.push(`${titulo}\n${textos.join('\n')}`);
     }
@@ -109,6 +129,8 @@ export function criarJuiz({ cliente, modelo, cache, faqs }) {
                 '',
                 blocos.join('\n\n'),
                 '',
+                `Trechos que o chatbot recebeu:\n${contextoLido || 'nenhum.'}`,
+                '',
                 `Resposta do chatbot:\n${resposta}`,
               ].join('\n'),
             },
@@ -125,47 +147,55 @@ export function criarJuiz({ cliente, modelo, cache, faqs }) {
   }
 
   /**
-   * O veredito de um turno com gabarito. Devolve o veredito do turno, o de
-   * cada parte e as notas para o relatório.
+   * O veredito de um turno com gabarito: o do turno, o de cada parte, as notas
+   * para o relatório e se a resposta foi para a curadoria quando devia.
    */
   async function avaliar({ gabarito, historico, texto, resultado }) {
-    if (!resultado.resposta) return { veredito: 'falha', partes: [], notas: resultado.falhas };
-    const naoEncontrei = RE_NAO_ENCONTREI.test(resultado.resposta);
+    if (!resultado.resposta) return { veredito: 'falha', partes: [], notas: resultado.falhas, lacuna: null };
 
     if (gabarito.tipo === 'saudacao') {
-      return { veredito: naoEncontrei ? 'nao_encontrei_indevido' : 'certa', partes: [], notas: [] };
+      const naoEncontrei = RE_NAO_ENCONTREI.test(resultado.resposta);
+      return { veredito: naoEncontrei ? 'nao_encontrei_indevido' : 'certa', partes: [], notas: [], lacuna: null };
     }
 
     const partes = gabarito.partes;
-    let porParte;
     const notas = [];
-    if (naoEncontrei) {
-      porParte = partes.map((p) => (p.faqs.length ? 'nao_encontrei_indevido' : 'nao_encontrei_correto'));
-    } else {
-      let julgadas;
-      try {
-        julgadas = await julgar({ historico, texto, partes, resposta: resultado.resposta });
-      } catch (erro) {
-        if (erro instanceof CotaEsgotada) throw erro;
-        return { veredito: 'falha', partes: [], notas: [`juiz: ${erro.message}`] };
-      }
-      porParte = partes.map((p, i) => {
-        const j = julgadas.find((x) => x.parte === i + 1);
-        if (!j) return 'omitida';
-        if (j.motivo) notas.push(`parte ${i + 1}: ${j.resultado} (${j.motivo})`);
-        if (p.faqs.length) {
-          return { certa: 'certa', errada: 'faq_errada', nao_encontrou: 'nao_encontrei_indevido', omitida: 'omitida' }[j.resultado];
-        }
-        // "certa" numa parte sem FAQ quer dizer que o chat respondeu com algo
-        // da base: ou o gabarito errou, ou ele usou uma FAQ de outro assunto.
-        if (j.resultado === 'certa') notas.push(`parte ${i + 1}: o gabarito diz que a base não tem; conferir`);
-        return { certa: 'inventou', errada: 'inventou', nao_encontrou: 'nao_encontrei_correto', omitida: 'omitida' }[j.resultado];
-      });
+    let julgadas;
+    try {
+      julgadas = await julgar({ historico, texto, partes, resposta: resultado.resposta, contextoLido: resultado.contextoLido });
+    } catch (erro) {
+      if (erro instanceof CotaEsgotada) throw erro;
+      return { veredito: 'falha', partes: [], notas: [`juiz: ${erro.message}`], lacuna: null };
     }
-    return { veredito: vereditoDoTurno(porParte), partes: porParte, notas };
+    const porParte = partes.map((p, i) => {
+      const j = julgadas.find((x) => x.parte === i + 1);
+      if (!j) return 'omitida';
+      if (j.motivo) notas.push(`parte ${i + 1}: ${j.resultado} (${j.motivo})`);
+      if (p.faqs.length) {
+        return { certa: 'certa', errada: 'faq_errada', nao_encontrou: 'nao_encontrei_indevido', omitida: 'omitida' }[j.resultado];
+      }
+      // "certa" numa parte sem FAQ quer dizer que o chat respondeu com algo
+      // da base: ou o gabarito errou, ou ele usou uma FAQ de outro assunto.
+      if (j.resultado === 'certa') notas.push(`parte ${i + 1}: o gabarito diz que a base não tem; conferir`);
+      return { certa: 'inventou', errada: 'inventou', nao_encontrou: 'nao_encontrei_correto', omitida: 'omitida' }[j.resultado];
+    });
+    return { veredito: vereditoDoTurno(porParte), partes: porParte, notas, lacuna: lacunaDoTurno(partes, resultado) };
   }
 
   return { avaliar };
+}
+
+/**
+ * Se o turno foi para a curadoria quando devia. Esperada: alguma parte que a
+ * base não tem. Marcada: o que o PWA faria com a resposta, pelas partes que o
+ * fluxo declara ou, sem elas, pelo texto de "não encontrei".
+ */
+export function lacunaDoTurno(partesDoGabarito, resultado) {
+  const esperada = partesDoGabarito.some((p) => !p.faqs.length);
+  const marcada = Array.isArray(resultado.partes) && resultado.partes.length
+    ? resultado.partes.some((p) => !p.respondida)
+    : RE_NAO_ENCONTREI.test(resultado.resposta ?? '');
+  return { esperada, marcada };
 }
 
 /** Junta os vereditos das partes num veredito do turno. */

@@ -178,6 +178,9 @@ export function criarExecutor({ fluxo, triagem, analise, banco, cache }) {
       buscas,
       trechos,
       usados: trechos.filter((t) => t.usado).map((t) => t.faqId),
+      // O bloco de trechos que o agente leu: o juiz precisa dele para separar
+      // informação a mais tirada dos trechos de informação inventada.
+      contextoLido: contexto.json.TemContexto ? contexto.json.ContextoFaq : '',
       tempos,
       chamadas,
     };

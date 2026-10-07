@@ -56,14 +56,14 @@ if (opcao('limpar-cache')) {
 
 const triagem = criarCliente({ papel: 'triagem', chaves: [{ nome: 'GEMINI_API_KEY_3', valor: env.GEMINI_API_KEY_3 }] });
 // A análise usa a _4 e, quando a cota do dia dela acaba, a GEMINI_API_KEY (a
-// do fluxo do WhatsApp). O juiz não faz parte do chat e começa pela
-// GEMINI_API_KEY, para os dois não dividirem o mesmo limite por minuto. A _2 é
-// a do chat do PWA e nunca entra: o teste não pode gastar a cota de quem está
-// conversando.
+// do fluxo do WhatsApp). O juiz não faz parte do chat e reveza entre as duas:
+// cada pedido dele leva os trechos inteiros, e o limite de tokens por minuto de
+// uma chave só deixava a rodada esperando. A _2 é a do chat do PWA e nunca
+// entra: o teste não pode gastar a cota de quem está conversando.
 const chave4 = { nome: 'GEMINI_API_KEY_4', valor: env.GEMINI_API_KEY_4 };
 const chave1 = { nome: 'GEMINI_API_KEY', valor: env.GEMINI_API_KEY };
 const analise = criarCliente({ papel: 'análise', chaves: [chave4, chave1] });
-const clienteDoJuiz = criarCliente({ papel: 'juiz', chaves: [chave1, chave4] });
+const clienteDoJuiz = criarCliente({ papel: 'juiz', chaves: [chave1, chave4], rodizio: true });
 const banco = await abrirBanco(env);
 
 // --- Ferramentas para montar o gabarito --------------------------------------
@@ -207,7 +207,18 @@ function resumoDoFluxo(referencia, porTurno, filtroDeGrupo) {
       if (p.noContexto) noContexto++;
     }
   }
-  return { referencia, turnos: comGabarito.length, total: avaliados.length, contagem, partesComFaq, naBusca, noContexto };
+  // A curadoria: o turno que a base não sabe responder tem que chegar a ela, e
+  // o que foi respondido não pode chegar como lacuna.
+  const lacunas = { esperadas: 0, certas: 0, perdidas: 0, falsas: 0 };
+  for (const r of avaliados) {
+    const l = r.avaliacao.lacuna;
+    if (!l) continue;
+    if (l.esperada) lacunas.esperadas++;
+    if (l.esperada && l.marcada) lacunas.certas++;
+    if (l.esperada && !l.marcada) lacunas.perdidas++;
+    if (!l.esperada && l.marcada) lacunas.falsas++;
+  }
+  return { referencia, turnos: comGabarito.length, total: avaliados.length, contagem, partesComFaq, naBusca, noContexto, lacunas };
 }
 
 function linhaDeContagem({ total, contagem }) {
@@ -224,6 +235,10 @@ function imprimirResumo(executores, resultados) {
     console.log(`\n${e.referencia} (${e.formato}): ${geral.turnos} turnos com gabarito, ${geral.total} julgados`);
     if (geral.total) console.log(`  ${linhaDeContagem(geral)}`);
     console.log(`  FAQ esperada na busca: ${pct(geral.naBusca, geral.partesComFaq)} | no contexto do agente: ${pct(geral.noContexto, geral.partesComFaq)} (${geral.partesComFaq} partes com FAQ)`);
+    if (geral.total) {
+      const l = geral.lacunas;
+      console.log(`  curadoria: ${l.certas} de ${l.esperadas} lacunas chegariam | perdidas ${l.perdidas} | falsas ${l.falsas} (respondida, mas marcada como lacuna)`);
+    }
     for (const g of grupos) {
       const r = resumoDoFluxo(e.referencia, porTurno, g);
       if (!r.turnos) continue;
