@@ -10,15 +10,25 @@ export type FilaCuradoria = {
   tamanhoDaRodada: number;
 };
 
-export type LacunaNaFila = {
+/** O que a curadoria sabe da pergunta, além da frase que a pessoa escreveu. */
+type ContextoDaPergunta = {
+  /** Como a pergunta foi entendida pela triagem do staging (a parte que faltou, ou a pergunta reescrita). */
+  entendida: string | null;
+  /** A pergunta anterior da mesma conversa, quando ela dá o assunto a uma continuação. */
+  anterior: string | null;
+};
+
+export type LacunaNaFila = ContextoDaPergunta & {
   mensagemId: string;
   sessaoId: string;
   em: string;
   pergunta: string;
+  /** Qual parte da pergunta ficou sem resposta, contando de 1, na resposta parcial. */
+  parte: number | null;
   vizinhas: { faqId: string | null; question: string | null; score: number; previa: string | null }[];
 };
 
-export type OrigemSugestao = {
+export type OrigemSugestao = ContextoDaPergunta & {
   sessaoId: string;
   mensagemId: string;
   /** A pergunta como o cidadão escreveu, sem correção. */
@@ -76,7 +86,12 @@ export type RodadaResumida = {
   modelo: string | null;
   erro: string | null;
   /** As perguntas que entraram nesta rodada, congeladas como estavam. */
-  perguntas: { mensagemId: string; sessaoId: string; pergunta: string }[];
+  perguntas: (ContextoDaPergunta & {
+    mensagemId: string;
+    sessaoId: string;
+    pergunta: string;
+    parte: number | null;
+  })[];
   sugestoesCriadas: string[];
   foraDeEscopo: string[];
 };
@@ -84,12 +99,13 @@ export type RodadaResumida = {
 export type RodadaDetalhada = Omit<RodadaResumida, "perguntas"> & {
   /** O JSON que o modelo devolveu, palavra por palavra. */
   respostaBruta: string;
-  lacunas: {
+  lacunas: (ContextoDaPergunta & {
     mensagemId: string;
     sessaoId: string;
     pergunta: string;
+    parte: number | null;
     vizinhas: { faqId: string | null; question: string | null; score: number }[];
-  }[];
+  })[];
 };
 
 export const listarRodadas = createServerFn({ method: "GET" }).handler(

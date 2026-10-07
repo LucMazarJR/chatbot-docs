@@ -216,6 +216,10 @@ function MarcasDaResposta({ mensagem }: { mensagem: MensagemConversa }) {
   const lenta = (mensagem.latenciaMs ?? 0) >= 30_000;
   const marcas: ReactNode[] = [];
   if (mensagem.semResposta) marcas.push(<Selo tom="atencao">Não encontrou</Selo>);
+  // Resposta parcial: a pessoa recebeu parte do que perguntou, e o resto foi
+  // para a curadoria. Não é "não encontrou", que contaria como falha inteira.
+  else if (mensagem.partesSemResposta?.length)
+    marcas.push(<Selo tom="atencao">Respondeu em parte</Selo>);
   // O motivo aparece aqui porque é onde alguém vai olhar quando o chatbot "não
   // respondeu": distingue demora de token errado sem caçar o log.
   if (mensagem.erro)
@@ -332,22 +336,45 @@ function Bastidores({ mensagem }: { mensagem: MensagemConversa }) {
 /**
  * Como a pergunta foi entendida antes da busca, no fluxo de staging.
  *
- * Só aparece quando a resposta passou pela reescrita. É o que explica um trecho
- * que parece não ter nada a ver com o que a pessoa escreveu: ele veio de uma
- * busca que a reescrita gerou.
+ * Só aparece quando a resposta passou pela reescrita ou pela triagem. É o que
+ * explica um trecho que parece não ter nada a ver com o que a pessoa escreveu:
+ * ele veio de uma busca que a preparação gerou. Com partes, mostra também qual
+ * parte foi respondida e qual foi para a curadoria.
  */
 function Reescrita({ mensagem }: { mensagem: MensagemConversa }) {
   if (!mensagem.consultas?.length && !mensagem.perguntaCompleta) return null;
+  const partes = mensagem.partes ?? [];
   return (
     <div className="flex flex-col gap-1.5 rounded-lg bg-muted px-3.5 py-3 text-sm">
       {mensagem.reescritaFalhou ? (
-        <p>A reescrita não respondeu a tempo; a busca usou o texto que a pessoa escreveu.</p>
+        <p>
+          A preparação da pergunta não respondeu a tempo; a busca usou o texto que a pessoa
+          escreveu.
+        </p>
       ) : (
         <>
           <p>
             <span className="font-semibold">Entendida como: </span>
             {mensagem.perguntaCompleta}
           </p>
+          {partes.length > 1 && (
+            <>
+              <p className="font-semibold">Partes da pergunta:</p>
+              <ol className="list-decimal space-y-0.5 pl-5">
+                {partes.map((parte, i) => (
+                  <li key={i}>
+                    {parte.pergunta}{" "}
+                    <span className="text-muted-foreground">
+                      ({parte.respondida ? "respondida" : "sem resposta, foi para a curadoria"})
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
+          {partes.length === 1 && !partes[0].respondida && (
+            <p>A base não tinha a resposta, e a pergunta foi para a curadoria.</p>
+          )}
           <p className="font-semibold">Buscas feitas:</p>
           <ol className="list-decimal space-y-0.5 pl-5">
             {(mensagem.consultas ?? []).map((consulta) => (
