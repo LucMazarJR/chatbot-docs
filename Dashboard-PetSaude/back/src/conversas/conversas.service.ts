@@ -331,10 +331,18 @@ export class ConversasService {
         const sessao = await this.sessaoModel.findById(id).select('_id').lean().exec();
         if (!sessao) throw new NotFoundException('Conversa não encontrada. Ela pode ter sido apagada pelo cidadão: volte para Conversas.');
 
+        // Além da frase da pessoa, a curadoria guarda como ela foi entendida e
+        // a pergunta anterior da mesma conversa: as duas são texto dela.
         const sugestoes = await this.sugestaoModel
             .updateMany(
                 { 'origens.sessaoId': id },
-                { $set: { 'origens.$[origem].pergunta': MARCA_APAGADA } },
+                {
+                    $set: {
+                        'origens.$[origem].pergunta': MARCA_APAGADA,
+                        'origens.$[origem].entendida': MARCA_APAGADA,
+                        'origens.$[origem].anterior': MARCA_APAGADA,
+                    },
+                },
                 { arrayFilters: [{ 'origem.sessaoId': id }] },
             )
             .exec();
@@ -345,6 +353,8 @@ export class ConversasService {
                 {
                     $set: {
                         'lacunas.$[lacuna].pergunta': MARCA_APAGADA,
+                        'lacunas.$[lacuna].entendida': MARCA_APAGADA,
+                        'lacunas.$[lacuna].anterior': MARCA_APAGADA,
                         // Inteira, e não só o trecho: o texto do modelo pode repetir a
                         // pergunta com outras palavras, e não dá para separar com
                         // segurança. Custa a auditoria da rodada, que é o preço certo.
