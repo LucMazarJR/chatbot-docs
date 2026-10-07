@@ -265,7 +265,15 @@ O chat do staging tem ainda três coisas que o `/` não tem. Todas entram pelo c
 3. **Testar a rota** como no [passo 5](#5-testar-a-rota-isolada-sem-navegador), trocando `/webhook/pwa-chat` por `/webhook/pwa-chat-staging`.
 4. **Apontar o PWA:** `N8N_PWA_STAGING_WEBHOOK_URL=http://n8n:5678/webhook/pwa-chat-staging` no `.env` (e `docker compose up -d --build pwa`), e `https://petbot.lucianomjr.dev/webhook/pwa-chat-staging` na Vercel, seguido de um novo deploy.
 
-Antes de mexer no prompt da reescrita, rode `node n8n/testar-codigo-staging.mjs` (os nós de código) e `node n8n/avaliar-reescrita.mjs --dia AAAA-MM-DD` (o efeito na busca, com as perguntas reais de um dia; só lê o banco, e usa `MONGODB_URI` e `GEMINI_API_KEY_3` do `.env` da raiz, sem gastar a cota do chat). O prompt fica entre `// INICIO-DO-PROMPT` e `// FIM-DO-PROMPT` no nó **Montar reescrita**, que é de onde a avaliação o lê: editar ali muda o fluxo e a medição juntos.
+#### Testar antes de mexer no staging
+
+Rode `node n8n/testar-codigo-staging.mjs` (os nós de código) e `node n8n/testar-conversas.mjs` (conversas inteiras no `/` e no staging, com o veredito de cada resposta contra a FAQ esperada). O teste roda fora do n8n, só lê os bancos e tira o prompt, a busca e o código de cada nó do próprio arquivo do fluxo: editar o nó muda o fluxo e a medição juntos. Para medir uma mudança, compare com a versão do commit: `--fluxos raiz,git:main:n8n/pwa-chatbot-staging.json,staging`.
+
+* **Chaves.** A `GEMINI_API_KEY_3` fica com a triagem (reescrita e embeddings) e a `GEMINI_API_KEY_4` com a análise (resposta e juiz). Quando a cota do dia da `_4` acaba, a análise passa para a `GEMINI_API_KEY`. A `_2`, do chat em uso, nunca entra. O cache em disco faz a rodada seguinte gastar só no que mudou, e o juiz usa o flash-lite porque os modelos maiores têm só 20 chamadas por dia no plano gratuito.
+* **Só a busca.** `--so-busca` para no contexto, sem resposta e sem juiz: mede se a FAQ certa chega ao agente gastando só a cota da triagem.
+* **Gabarito.** Fica em `n8n/.local/gabarito.json`, fora do git e só na máquina de quem testa. Ele aponta para mensagens reais pelo id, e o texto vem do banco na hora de rodar. Conversa apagada no banco sai do gabarito na rodada seguinte, e a rodada completa apaga do cache o que não usou. `--sessao <id>`, `--buscar "texto"` e `--faq <id>` ajudam a montar e a conferir. Os casos sintéticos, com frases escritas para o teste, ficam em [n8n/casos-sinteticos.json](../n8n/casos-sinteticos.json).
+* **Um dia de conversas.** `--dia AAAA-MM-DD` reaplica as conversas reais do dia nos dois fluxos, sem gabarito, e mostra onde eles discordam sobre o "não encontrei".
+* **Relatório.** O resumo sai no terminal. O detalhe, com as frases, fica em `n8n/.local/relatorios/` e não é publicado.
 
 ### O painel de conversas
 
