@@ -100,4 +100,8 @@ docker compose up -d --build pwa        # recriar, para variável nova valer
 # Dashboard (repositório próprio, dentro desta pasta)
 cd Dashboard-PetSaude/back;  npx jest; npx tsc --noEmit -p tsconfig.json
 cd Dashboard-PetSaude/front; npx tsc --noEmit; npx vite build
+
+# Fluxos do chat, fora do n8n (só leem os bancos)
+node n8n/testar-codigo-staging.mjs      # nós de código do staging
+node n8n/testar-conversas.mjs           # conversas do gabarito no / e no staging
 ```
