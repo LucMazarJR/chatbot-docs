@@ -34,6 +34,10 @@ scripts/.venv/
 # Backups das FAQs: podem conter a base inteira, incluindo embeddings
 scripts/backups/
 
+# Gabarito, cache e relatórios do teste de conversas: têm frases de cidadão
+# ou texto derivado delas, e só existem na máquina de quem testa.
+n8n/.local/
+
 # Repositorio proprio, versionado em separado:
 #   https://github.com/LucMazarJR/Dashboard-PetSaude
 # Sem esta regra ele aparece como untracked a cada git status, e um `git add .`
