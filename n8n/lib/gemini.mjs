@@ -39,7 +39,10 @@ export class FalhaGemini extends Error {
   }
 }
 
-/** O que o 429 informa: se a cota é do dia, o limite por minuto e quanto esperar. */
+/**
+ * O que o 429 informa: se a cota é do dia, o limite por minuto (de chamadas ou
+ * de tokens) e quanto esperar.
+ */
 export function lerLimite(texto) {
   let detalhes = [];
   try {
@@ -51,9 +54,13 @@ export function lerLimite(texto) {
   const doDia = /PerDay/i.test(texto) && !violacoes.some((v) => /PerMinute/i.test(v.quotaId ?? ''));
   const porMinuto = violacoes.find((v) => /PerMinute/i.test(v.quotaId ?? ''));
   const atraso = detalhes.find((d) => d.retryDelay)?.retryDelay;
+  // O limite de tokens não vira intervalo entre chamadas: o que pesa é o
+  // tamanho de cada pedido, e o jeito é esperar o tempo que o 429 pede.
+  const deTokens = /Token/i.test(porMinuto?.quotaId ?? '');
   return {
     doDia,
-    limitePorMinuto: porMinuto ? Number(porMinuto.quotaValue) || null : null,
+    limitePorMinuto: porMinuto && !deTokens ? Number(porMinuto.quotaValue) || null : null,
+    tokensPorMinuto: porMinuto && deTokens ? Number(porMinuto.quotaValue) || null : null,
     esperaMs: atraso ? Math.ceil(parseFloat(atraso) * 1000) : null,
   };
 }
@@ -73,21 +80,25 @@ function portaoDe(nomeDaChave, modelo) {
 }
 
 /**
- * Cria o cliente de um papel. As chaves são usadas em ordem: quando a cota do
- * dia de um modelo acaba numa chave, as chamadas daquele modelo passam para a
- * seguinte, como os scripts de importação fazem com os embeddings.
+ * Cria o cliente de um papel. Sem rodízio, as chaves são usadas em ordem:
+ * quando a cota do dia de um modelo acaba numa chave, as chamadas daquele
+ * modelo passam para a seguinte, como os scripts de importação fazem com os
+ * embeddings. Com rodízio, cada chamada vai para a próxima chave da lista, e o
+ * limite por minuto de cada uma soma: serve ao juiz do teste, que não faz
+ * parte do chat e pode usar as chaves que estiverem livres.
  *
- * @param {{ papel: string, chaves: { nome: string, valor: string }[] }} config
+ * @param {{ papel: string, chaves: { nome: string, valor: string }[], rodizio?: boolean }} config
  */
-export function criarCliente({ papel, chaves }) {
+export function criarCliente({ papel, chaves, rodizio = false }) {
   const validas = chaves.filter((c) => c.valor);
   if (!validas.length) {
     throw new Error(`Falta a ${chaves.map((c) => c.nome).join(' ou a ')} no .env da raiz: é a chave da ${papel}.`);
   }
 
   let chamadas = 0;
-  // Em que chave cada modelo está; avança quando a cota do dia acaba.
-  const chaveDoModelo = new Map();
+  let vez = 0;
+  // As chaves em que a cota do dia de cada modelo acabou.
+  const esgotadas = new Map();
 
   async function aguardarVez(portao) {
     const agora = Date.now();
@@ -96,18 +107,26 @@ export function criarCliente({ papel, chaves }) {
     if (saida > agora) await esperar(saida - agora);
   }
 
+  function escolherChave(modelo) {
+    const fora = esgotadas.get(modelo) ?? new Set();
+    const livres = validas.filter((c) => !fora.has(c.nome));
+    if (!livres.length) return null;
+    return rodizio ? livres[vez++ % livres.length] : livres[0];
+  }
+
   async function chamar(caminho, corpo, opcoes) {
     for (;;) {
-      const indice = chaveDoModelo.get(opcoes.modelo) ?? 0;
-      if (indice >= validas.length) throw new CotaEsgotada(papel, opcoes.modelo);
+      const chave = escolherChave(opcoes.modelo);
+      if (!chave) throw new CotaEsgotada(papel, opcoes.modelo);
       try {
-        return await chamarCom(validas[indice].valor, portaoDe(validas[indice].nome, opcoes.modelo), caminho, corpo, opcoes);
+        return await chamarCom(chave.valor, portaoDe(chave.nome, opcoes.modelo), caminho, corpo, opcoes);
       } catch (erro) {
         if (!(erro instanceof CotaDoDiaNaChave)) throw erro;
-        chaveDoModelo.set(opcoes.modelo, Math.max(chaveDoModelo.get(opcoes.modelo) ?? 0, indice + 1));
-        const proxima = validas[indice + 1];
+        if (!esgotadas.has(opcoes.modelo)) esgotadas.set(opcoes.modelo, new Set());
+        esgotadas.get(opcoes.modelo).add(chave.nome);
+        const proxima = escolherChave(opcoes.modelo);
         process.stderr.write(
-          `\n[${papel}] ${opcoes.modelo}: a cota do dia acabou na ${validas[indice].nome}` +
+          `\n[${papel}] ${opcoes.modelo}: a cota do dia acabou na ${chave.nome}` +
             (proxima ? `; seguindo com a ${proxima.nome}\n` : '\n'),
         );
       }
@@ -149,6 +168,10 @@ export function criarCliente({ papel, chaves }) {
         if (intervalo > portao.intervaloMs) {
           portao.intervaloMs = intervalo;
           process.stderr.write(`\n[${papel}] ${modelo}: limite de ${limite.limitePorMinuto} por minuto; uma chamada a cada ${(intervalo / 1000).toFixed(1)} s\n`);
+        }
+        if (limite.tokensPorMinuto && !portao.avisouTokens) {
+          portao.avisouTokens = true;
+          process.stderr.write(`\n[${papel}] ${modelo}: limite de ${limite.tokensPorMinuto} tokens por minuto; esperando o tempo que o Gemini pede\n`);
         }
         portao.proximaSaida = Math.max(portao.proximaSaida, Date.now() + (limite.esperaMs ?? 15_000) + 500);
         if (++limitadas <= 8) continue;
