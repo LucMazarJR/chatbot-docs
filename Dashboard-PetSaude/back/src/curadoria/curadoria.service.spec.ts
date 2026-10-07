@@ -45,12 +45,21 @@ describe('CuradoriaService', () => {
 
   /** Casa o filtro do service com a lista de mensagens do teste. */
   const filtrar = (filtro: any) => {
-    if (filtro?.papel === 'user') {
+    if (filtro?.papel === 'user' && filtro.correlationId) {
       const ids = filtro.correlationId.$in;
       return mensagens.filter((m) => m.papel === 'user' && ids.includes(m.correlationId));
     }
+    if (filtro?.papel === 'user' && filtro.sessaoId) {
+      const ids = filtro.sessaoId.$in;
+      return mensagens
+        .filter((m) => m.papel === 'user' && ids.includes(m.sessaoId))
+        .sort((a, b) => a.em - b.em);
+    }
     return mensagens.filter(
-      (m) => m.semResposta === true && (m.curadoria === null || m.curadoria === 'pendente'),
+      (m) =>
+        m.papel === 'bot' &&
+        (m.semResposta === true || (m.partesSemResposta?.length ?? 0) > 0) &&
+        (m.curadoria === null || m.curadoria === 'pendente'),
     );
   };
 
@@ -120,18 +129,24 @@ describe('CuradoriaService', () => {
     service = modulo.get(CuradoriaService);
   });
 
-  /** Um par pergunta/resposta como o PWA grava. */
+  /**
+   * Um par pergunta/resposta como o PWA grava. Cada troca é uma conversa, a
+   * não ser que `sessaoId` venha em `extra`.
+   */
   const troca = (n: number, pergunta: string, extra: Record<string, unknown> = {}) => {
+    const sessaoId = (extra.sessaoId as string) ?? `s${n}`;
     mensagens.push({
       _id: `u${n}`,
       papel: 'user',
+      sessaoId,
       texto: pergunta,
       correlationId: `c${n}`,
+      em: new Date(2026, 0, n),
     });
     mensagens.push({
       _id: `b${n}`,
       papel: 'bot',
-      sessaoId: `s${n}`,
+      sessaoId,
       correlationId: `c${n}`,
       em: new Date(2026, 0, n),
       semResposta: true,
@@ -142,6 +157,13 @@ describe('CuradoriaService', () => {
       ...extra,
     });
   };
+
+  /** Uma resposta do staging em partes, com o que ficou sem resposta. */
+  const partes = (...lista: [string, boolean][]) => ({
+    semResposta: lista.every(([, respondida]) => !respondida),
+    partes: lista.map(([pergunta, respondida]) => ({ pergunta, respondida, faqIds: [] })),
+    partesSemResposta: lista.filter(([, respondida]) => !respondida).map(([pergunta]) => pergunta),
+  });
 
   describe('fila', () => {
     it('junta a pergunta do cidadao a resposta que falhou, pelo correlationId', async () => {
@@ -180,6 +202,77 @@ describe('CuradoriaService', () => {
       expect(r.pendentes).toBe(2);
       expect(r.prontoParaRodar).toBe(false);
       expect(r.tamanhoDaRodada).toBe(10);
+    });
+
+    // A resposta parcial respondeu uma parte: so a parte que faltou e lacuna,
+    // e ela chega ja escrita como pergunta completa.
+    it('resposta parcial vira uma lacuna por parte que faltou', async () => {
+      troca(1, 'a vacina de herpes e do sus? e com receita onde tomo?', {
+        ...partes(
+          ['A vacina de herpes-zoster e oferecida no SUS?', true],
+          ['Com receita, onde tomo a vacina de herpes-zoster?', false],
+        ),
+        trechosDebug: [
+          { faqId: 'faq-1', question: 'Vacinas no SUS', score: 0.9, parte: 1 },
+          { faqId: 'faq-2', question: 'Onde vacinar', score: 0.83, parte: 2 },
+        ],
+      });
+
+      const fila = await service.listarFila();
+
+      expect(fila).toHaveLength(1);
+      expect(fila[0].pergunta).toBe('a vacina de herpes e do sus? e com receita onde tomo?');
+      expect(fila[0].entendida).toBe('Com receita, onde tomo a vacina de herpes-zoster?');
+      expect(fila[0].parte).toBe(2);
+      // As vizinhas da parte, e nao as da parte que foi respondida.
+      expect(fila[0].vizinhas.map((v) => v.faqId)).toEqual(['faq-2']);
+    });
+
+    it('sem nenhuma parte respondida, cada parte vai separada', async () => {
+      troca(1, 'tem nutricionista ou alergista?', partes(['A UBS tem nutricionista?', false], ['A UBS tem alergista?', false]));
+
+      const fila = await service.listarFila();
+
+      expect(fila.map((l) => [l.entendida, l.parte])).toEqual([
+        ['A UBS tem nutricionista?', 1],
+        ['A UBS tem alergista?', 2],
+      ]);
+    });
+
+    it('lacuna do staging chega como a pergunta entendida pela triagem', async () => {
+      troca(1, 'e o jejum?', { perguntaCompleta: 'Precisa de jejum para o exame de glicose?' });
+
+      const [lacuna] = await service.listarFila();
+
+      expect(lacuna.entendida).toBe('Precisa de jejum para o exame de glicose?');
+      expect(lacuna.anterior).toBeNull();
+    });
+
+    // "como chego la?" virou a sugestao "Como chegar a uma unidade de saude?",
+    // e a conversa era sobre o aeroporto.
+    it('lacuna do / leva a pergunta anterior da mesma conversa', async () => {
+      troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(2, 'como chego la?', { sessaoId: 's1' });
+      troca(3, 'Onde fica a UBS?');
+
+      const fila = await service.listarFila();
+
+      expect(fila.map((l) => [l.pergunta, l.anterior])).toEqual([
+        ['como chego la?', 'aeroporto'],
+        ['Onde fica a UBS?', null],
+      ]);
+    });
+
+    it('as partes de uma mensagem ficam na mesma rodada', async () => {
+      for (let n = 1; n <= 9; n++) troca(n, `Pergunta ${n}?`);
+      troca(10, 'X? Y?', partes(['X?', false], ['Y?', false]));
+
+      const fila = await service.listarFila(10);
+
+      // Nove cabem; as duas partes da décima iriam para 11, e ela fica para a
+      // próxima rodada inteira, em vez de ser marcada tratada pela metade.
+      expect(fila).toHaveLength(9);
+      expect(fila.some((l) => l.mensagemId === 'b10')).toBe(false);
     });
   });
 
@@ -326,6 +419,47 @@ describe('CuradoriaService', () => {
         { _id: { $in: ['b1'] } },
         { $set: { curadoria: 'descartada' } },
       ]);
+    });
+
+    it('o prompt e o registro levam a frase da pessoa, a pergunta entendida e a anterior', async () => {
+      troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(2, 'como chego la?', { sessaoId: 's1' });
+      troca(3, 'e o jejum?', { perguntaCompleta: 'Precisa de jejum para o exame de glicose?' });
+      gerarJson.mockResolvedValue({
+        grupos: [
+          { perguntas: [1], pergunta: 'Como chego ao aeroporto?', tipo: 'nova' },
+          { perguntas: [2], pergunta: 'Precisa de jejum para o exame de glicose?', tipo: 'nova' },
+        ],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      const prompt = gerarJson.mock.calls[0][0];
+      expect(prompt).toContain('1. Pergunta do cidadao: "como chego la?"');
+      expect(prompt).toContain('Pergunta anterior na mesma conversa: "aeroporto"');
+      expect(prompt).toContain('2. Pergunta do cidadao: "Precisa de jejum para o exame de glicose?"');
+      expect(prompt).toContain('Escrita pela pessoa: "e o jejum?"');
+      // A rodada guarda tudo que o modelo leu, e a sugestao, de onde veio.
+      expect(rodadas[0].lacunas[0].anterior).toBe('aeroporto');
+      expect(rodadas[0].lacunas[1].entendida).toBe('Precisa de jejum para o exame de glicose?');
+      expect(salvas[0].origens[0]).toMatchObject({ pergunta: 'como chego la?', anterior: 'aeroporto' });
+    });
+
+    it('mensagem com uma parte fora de escopo e outra util fica processada', async () => {
+      troca(1, 'qual o melhor time? e onde fica a UBS?', partes(['Qual o melhor time?', false], ['Onde fica a UBS?', false]));
+      gerarJson.mockResolvedValue({
+        grupos: [
+          { perguntas: [1], pergunta: '', tipo: 'fora_de_escopo' },
+          { perguntas: [2], pergunta: 'Onde fica a UBS?', tipo: 'nova' },
+        ],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(updateMany).toHaveBeenCalledWith({ _id: { $in: ['b1'] } }, { $set: { curadoria: 'processada' } });
+      expect(updateMany).not.toHaveBeenCalledWith({ _id: { $in: ['b1'] } }, { $set: { curadoria: 'descartada' } });
     });
 
     it('NAO tira a lacuna da fila quando a analise falha', async () => {
