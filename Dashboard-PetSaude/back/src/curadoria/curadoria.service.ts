@@ -650,6 +650,13 @@ export class CuradoriaService {
      * é um resultado útil, não uma falha: é a confirmação de que aquilo é
      * conteúdo que falta de verdade, que foi a conclusão do primeiro teste com
      * participantes.
+     *
+     * Os nomes ficam na pergunta canônica porque o modelo tira o que não
+     * reconhece. "Como chego lá?", depois de "aeroporto", foi entendida como
+     * "Como chego ao aeroporto?", e o agrupamento ora chamou de fora de
+     * escopo, ora sugeriu "Como chegar a uma unidade de saúde específica?". A
+     * pessoa falava da UPA Aeroporto, que tem 28 FAQs na base. Nenhuma das
+     * vizinhas era dela, e é exatamente essa a lacuna.
      */
     private montarPrompt(lacunas: Lacuna[]): string {
         const blocos = lacunas.map((lacuna, i) => {
@@ -697,6 +704,8 @@ export class CuradoriaService {
             'Sua tarefa:',
             '1. Agrupe as perguntas que pedem a MESMA coisa escrita de formas diferentes.',
             '2. Para cada grupo, escreva a pergunta canonica, do jeito que ela entraria na base.',
+            '   Mantenha os nomes que a pessoa usou (unidade, bairro, remedio, exame, sigla),',
+            '   mesmo quando nenhuma FAQ proxima fala deles: e justamente o que falta na base.',
             '3. Diga se o grupo pede uma FAQ NOVA ou se e COMPLEMENTO de uma FAQ existente.',
             '   Em faqRelacionada, use APENAS um id que aparece na lista abaixo, copiado',
             '   exatamente. Se a FAQ proxima nao mostrar id, use null; nunca invente nem',
@@ -704,7 +713,9 @@ export class CuradoriaService {
             '4. Se a entrada NAO for um pedido de informacao de saude ou de servico de saude',
             '   (assunto de fora, desabafo, teste, texto sem sentido), use tipo',
             '   "fora_de_escopo". Nao invente FAQ para ela: o chatbot acertou em nao',
-            '   responder. Pode juntar varias assim num grupo so.',
+            '   responder. Pode juntar varias assim num grupo so. Nome de bairro ou de lugar',
+            '   pode ser o de uma unidade de saude da cidade (existe a UPA Aeroporto): pergunta',
+            '   sobre ele e pedido de servico de saude.',
             '',
             'Algumas perguntas dependem da conversa ("como chego la?", "tem telefone?", "e o',
             'jejum?"), e vem com o que a pessoa perguntou antes. Use isso so para descobrir o',
