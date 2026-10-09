@@ -33,6 +33,22 @@ export class LacunaRegistrada {
     @Prop()
     pergunta: string;
 
+    /**
+     * Como a pergunta entrou no prompt quando não foi pela frase da pessoa: a
+     * parte que ficou sem resposta, ou a pergunta reescrita pela triagem. É
+     * parte do que o modelo leu, e a rodada guarda tudo que ele leu.
+     */
+    @Prop({ type: String, default: null })
+    entendida: string | null;
+
+    /** A pergunta anterior da mesma conversa, quando entrou no prompt para dar o assunto. */
+    @Prop({ type: String, default: null })
+    anterior: string | null;
+
+    /** Qual parte da pergunta ficou sem resposta, contando de 1, na resposta parcial. */
+    @Prop({ type: Number, default: null })
+    parte: number | null;
+
     @Prop({ type: [VizinhaRegistradaSchema], default: [] })
     vizinhas: VizinhaRegistrada[];
 }

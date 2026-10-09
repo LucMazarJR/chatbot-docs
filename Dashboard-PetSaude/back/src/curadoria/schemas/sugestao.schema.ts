@@ -28,6 +28,14 @@ export class OrigemSugestao {
     @Prop()
     pergunta: string;
 
+    /** Como a pergunta foi entendida, quando a frase sozinha não diz o assunto. */
+    @Prop({ type: String, default: null })
+    entendida: string | null;
+
+    /** A pergunta anterior da mesma conversa, que deu o assunto a uma continuação. */
+    @Prop({ type: String, default: null })
+    anterior: string | null;
+
     @Prop()
     em: Date;
 }

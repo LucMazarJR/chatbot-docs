@@ -45,12 +45,21 @@ describe('CuradoriaService', () => {
 
   /** Casa o filtro do service com a lista de mensagens do teste. */
   const filtrar = (filtro: any) => {
-    if (filtro?.papel === 'user') {
+    if (filtro?.papel === 'user' && filtro.correlationId) {
       const ids = filtro.correlationId.$in;
       return mensagens.filter((m) => m.papel === 'user' && ids.includes(m.correlationId));
     }
+    if (filtro?.papel === 'user' && filtro.sessaoId) {
+      const ids = filtro.sessaoId.$in;
+      return mensagens
+        .filter((m) => m.papel === 'user' && ids.includes(m.sessaoId))
+        .sort((a, b) => a.em - b.em);
+    }
     return mensagens.filter(
-      (m) => m.semResposta === true && (m.curadoria === null || m.curadoria === 'pendente'),
+      (m) =>
+        m.papel === 'bot' &&
+        (m.semResposta === true || (m.partesSemResposta?.length ?? 0) > 0) &&
+        (m.curadoria === null || m.curadoria === 'pendente'),
     );
   };
 
@@ -83,6 +92,11 @@ describe('CuradoriaService', () => {
     const rodadaModel: any = function (this: any, dados: any) {
       Object.assign(this, dados);
       this._id = `rodada-${rodadas.length + 1}`;
+      // Só o caminho que o service usa: `lacunas.<i>.<campo>`.
+      this.set = (caminho: string, valor: any) => {
+        const [, indice, campo] = caminho.split('.');
+        this.lacunas[Number(indice)][campo] = valor;
+      };
       this.save = jest.fn(async () => {
         if (!rodadas.includes(this)) rodadas.push(this);
         return this;
@@ -120,18 +134,24 @@ describe('CuradoriaService', () => {
     service = modulo.get(CuradoriaService);
   });
 
-  /** Um par pergunta/resposta como o PWA grava. */
+  /**
+   * Um par pergunta/resposta como o PWA grava. Cada troca é uma conversa, a
+   * não ser que `sessaoId` venha em `extra`.
+   */
   const troca = (n: number, pergunta: string, extra: Record<string, unknown> = {}) => {
+    const sessaoId = (extra.sessaoId as string) ?? `s${n}`;
     mensagens.push({
       _id: `u${n}`,
       papel: 'user',
+      sessaoId,
       texto: pergunta,
       correlationId: `c${n}`,
+      em: new Date(2026, 0, n),
     });
     mensagens.push({
       _id: `b${n}`,
       papel: 'bot',
-      sessaoId: `s${n}`,
+      sessaoId,
       correlationId: `c${n}`,
       em: new Date(2026, 0, n),
       semResposta: true,
@@ -142,6 +162,13 @@ describe('CuradoriaService', () => {
       ...extra,
     });
   };
+
+  /** Uma resposta do staging em partes, com o que ficou sem resposta. */
+  const partes = (...lista: [string, boolean][]) => ({
+    semResposta: lista.every(([, respondida]) => !respondida),
+    partes: lista.map(([pergunta, respondida]) => ({ pergunta, respondida, faqIds: [] })),
+    partesSemResposta: lista.filter(([, respondida]) => !respondida).map(([pergunta]) => pergunta),
+  });
 
   describe('fila', () => {
     it('junta a pergunta do cidadao a resposta que falhou, pelo correlationId', async () => {
@@ -180,6 +207,101 @@ describe('CuradoriaService', () => {
       expect(r.pendentes).toBe(2);
       expect(r.prontoParaRodar).toBe(false);
       expect(r.tamanhoDaRodada).toBe(10);
+    });
+
+    // A resposta parcial respondeu uma parte: so a parte que faltou e lacuna,
+    // e ela chega ja escrita como pergunta completa.
+    it('resposta parcial vira uma lacuna por parte que faltou', async () => {
+      troca(1, 'a vacina de herpes e do sus? e com receita onde tomo?', {
+        ...partes(
+          ['A vacina de herpes-zoster e oferecida no SUS?', true],
+          ['Com receita, onde tomo a vacina de herpes-zoster?', false],
+        ),
+        trechosDebug: [
+          { faqId: 'faq-1', question: 'Vacinas no SUS', score: 0.9, parte: 1 },
+          { faqId: 'faq-2', question: 'Onde vacinar', score: 0.83, parte: 2 },
+        ],
+      });
+
+      const fila = await service.listarFila();
+
+      expect(fila).toHaveLength(1);
+      expect(fila[0].pergunta).toBe('a vacina de herpes e do sus? e com receita onde tomo?');
+      expect(fila[0].entendida).toBe('Com receita, onde tomo a vacina de herpes-zoster?');
+      expect(fila[0].parte).toBe(2);
+      // As vizinhas da parte, e nao as da parte que foi respondida.
+      expect(fila[0].vizinhas.map((v) => v.faqId)).toEqual(['faq-2']);
+    });
+
+    it('sem nenhuma parte respondida, cada parte vai separada', async () => {
+      troca(1, 'tem nutricionista ou alergista?', partes(['A UBS tem nutricionista?', false], ['A UBS tem alergista?', false]));
+
+      const fila = await service.listarFila();
+
+      expect(fila.map((l) => [l.entendida, l.parte])).toEqual([
+        ['A UBS tem nutricionista?', 1],
+        ['A UBS tem alergista?', 2],
+      ]);
+    });
+
+    it('lacuna do staging chega como a pergunta entendida pela triagem', async () => {
+      troca(1, 'e o jejum?', { perguntaCompleta: 'Precisa de jejum para o exame de glicose?' });
+
+      const [lacuna] = await service.listarFila();
+
+      expect(lacuna.entendida).toBe('Precisa de jejum para o exame de glicose?');
+      expect(lacuna.anterior).toBeNull();
+    });
+
+    // "como chego la?" virou a sugestao "Como chegar a uma unidade de saude?",
+    // e a conversa era sobre o aeroporto.
+    it('lacuna do / leva a pergunta anterior da mesma conversa', async () => {
+      troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(2, 'como chego la?', { sessaoId: 's1' });
+      troca(3, 'Onde fica a UBS?');
+
+      const fila = await service.listarFila();
+
+      expect(fila.map((l) => [l.pergunta, l.anterior])).toEqual([
+        ['como chego la?', 'aeroporto'],
+        ['Onde fica a UBS?', null],
+      ]);
+    });
+
+    // Em "aeroporto", "ata e como chego la", "como chego la?", a anterior da
+    // terceira tambem nao diz o assunto: vao as duas ultimas.
+    it('leva as duas ultimas perguntas, da mais antiga para a mais recente', async () => {
+      troca(1, 'oi', { sessaoId: 's1', semResposta: false });
+      troca(2, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(3, 'ata e como chego la', { sessaoId: 's1', semResposta: false });
+      troca(4, 'como chego la?', { sessaoId: 's1' });
+
+      const [lacuna] = await service.listarFila();
+
+      expect(lacuna.anterior).toBe('aeroporto → ata e como chego la');
+    });
+
+    // Mandada para toda pergunta, a anterior fez o modelo juntar a pneumo-20
+    // com a herpes-zoster da pergunta de antes.
+    it('pergunta que se entende sozinha nao leva a anterior', async () => {
+      troca(1, 'Vacina de herpes zoster e do SUS?', { sessaoId: 's1', semResposta: false });
+      troca(2, 'quem pode tomar a vacina especifica pneumo-20?', { sessaoId: 's1' });
+
+      const [lacuna] = await service.listarFila();
+
+      expect(lacuna.anterior).toBeNull();
+    });
+
+    it('as partes de uma mensagem ficam na mesma rodada', async () => {
+      for (let n = 1; n <= 9; n++) troca(n, `Pergunta ${n}?`);
+      troca(10, 'X? Y?', partes(['X?', false], ['Y?', false]));
+
+      const fila = await service.listarFila(10);
+
+      // Nove cabem; as duas partes da décima iriam para 11, e ela fica para a
+      // próxima rodada inteira, em vez de ser marcada tratada pela metade.
+      expect(fila).toHaveLength(9);
+      expect(fila.some((l) => l.mensagemId === 'b10')).toBe(false);
     });
   });
 
@@ -326,6 +448,104 @@ describe('CuradoriaService', () => {
         { _id: { $in: ['b1'] } },
         { $set: { curadoria: 'descartada' } },
       ]);
+    });
+
+    it('reescreve a continuacao com a anterior antes de agrupar', async () => {
+      troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(2, 'como chego la?', { sessaoId: 's1' });
+      troca(3, 'e o jejum?', { perguntaCompleta: 'Precisa de jejum para o exame de glicose?' });
+      gerarJson
+        .mockResolvedValueOnce({ perguntas: [{ item: 1, pergunta: 'Como chego ao aeroporto?' }] })
+        .mockResolvedValueOnce({
+          grupos: [
+            { perguntas: [1], pergunta: 'Como chego ao aeroporto?', tipo: 'nova' },
+            { perguntas: [2], pergunta: 'Precisa de jejum para o exame de glicose?', tipo: 'nova' },
+          ],
+        });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      // Só a continuacao vai para a reescrita: a do staging ja chega entendida.
+      const entendimento = gerarJson.mock.calls[0][0];
+      expect(entendimento).toContain('1. Antes: aeroporto\n   Pergunta: "como chego la?"');
+      expect(entendimento).not.toContain('Pergunta: "e o jejum?"');
+
+      const prompt = gerarJson.mock.calls[1][0];
+      expect(prompt).toContain('1. Pergunta do cidadao: "Como chego ao aeroporto?"');
+      expect(prompt).toContain('Escrita pela pessoa: "como chego la?"');
+      expect(prompt).not.toContain('Antes, na mesma conversa');
+      expect(prompt).toContain('2. Pergunta do cidadao: "Precisa de jejum para o exame de glicose?"');
+      expect(prompt).toContain('Escrita pela pessoa: "e o jejum?"');
+      // A rodada guarda tudo que o modelo leu, e a sugestao, de onde veio.
+      expect(rodadas[0].lacunas[0]).toMatchObject({ anterior: 'aeroporto', entendida: 'Como chego ao aeroporto?' });
+      expect(rodadas[0].lacunas[1].entendida).toBe('Precisa de jejum para o exame de glicose?');
+      expect(salvas[0].origens[0]).toMatchObject({
+        pergunta: 'como chego la?',
+        entendida: 'Como chego ao aeroporto?',
+        anterior: 'aeroporto',
+      });
+    });
+
+    it('sem a reescrita, a continuacao vai ao agrupamento com a anterior ao lado', async () => {
+      troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(2, 'como chego la?', { sessaoId: 's1' });
+      gerarJson
+        .mockRejectedValueOnce(new Error('modelo fora do ar'))
+        .mockResolvedValueOnce({ grupos: [{ perguntas: [1], pergunta: 'Como chego ao aeroporto?', tipo: 'nova' }] });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      const prompt = gerarJson.mock.calls[1][0];
+      expect(prompt).toContain('1. Pergunta do cidadao: "como chego la?"');
+      expect(prompt).toContain('Antes, na mesma conversa (da mais antiga para a mais recente): aeroporto');
+      expect(rodadas[0].lacunas[0].entendida).toBeNull();
+      expect(rodadas[0].estado).toBe('concluida');
+    });
+
+    it('cota esgotada na reescrita encerra a rodada sem tirar nada da fila', async () => {
+      troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(2, 'como chego la?', { sessaoId: 's1' });
+      gerarJson.mockRejectedValueOnce(new Error('429 RESOURCE_EXHAUSTED'));
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(gerarJson).toHaveBeenCalledTimes(1);
+      expect(rodadas[0].estado).toBe('cota_esgotada');
+      expect(updateMany).not.toHaveBeenCalled();
+    });
+
+    it('mensagem com uma parte fora de escopo e outra util fica processada', async () => {
+      troca(1, 'qual o melhor time? e onde fica a UBS?', partes(['Qual o melhor time?', false], ['Onde fica a UBS?', false]));
+      gerarJson.mockResolvedValue({
+        grupos: [
+          { perguntas: [1], pergunta: '', tipo: 'fora_de_escopo' },
+          { perguntas: [2], pergunta: 'Onde fica a UBS?', tipo: 'nova' },
+        ],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(updateMany).toHaveBeenCalledWith({ _id: { $in: ['b1'] } }, { $set: { curadoria: 'processada' } });
+      expect(updateMany).not.toHaveBeenCalledWith({ _id: { $in: ['b1'] } }, { $set: { curadoria: 'descartada' } });
+    });
+
+    it('pergunta que o modelo deixou fora de todos os grupos continua na fila', async () => {
+      troca(1, 'Onde fica a UBS?');
+      troca(2, 'Qual o horario da farmacia?');
+      gerarJson.mockResolvedValue({
+        grupos: [{ perguntas: [1], pergunta: 'Onde fica a UBS?', tipo: 'nova' }],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(updateMany).toHaveBeenCalledWith({ _id: { $in: ['b1'] } }, { $set: { curadoria: 'processada' } });
+      const marcadas = updateMany.mock.calls.flatMap(([filtro]: any[]) => filtro._id.$in);
+      expect(marcadas).not.toContain('b2');
     });
 
     it('NAO tira a lacuna da fila quando a analise falha', async () => {

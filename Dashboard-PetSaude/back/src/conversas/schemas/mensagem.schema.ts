@@ -36,9 +36,33 @@ export class TrechoDebug {
     /** No fluxo com reescrita (staging): qual das consultas trouxe o trecho. */
     @Prop({ type: String, default: null })
     consulta: string | null;
+
+    /** No fluxo com triagem (staging): de qual parte da pergunta é a busca, contando de 1. */
+    @Prop({ type: Number, default: null })
+    parte: number | null;
 }
 
 export const TrechoDebugSchema = SchemaFactory.createForClass(TrechoDebug);
+
+/**
+ * Uma parte da pergunta e o que a resposta cobriu nela. Só no fluxo com
+ * triagem, que separa a pergunta em partes e declara qual foi respondida.
+ */
+@Schema({ _id: false })
+export class ParteDaResposta {
+    /** A parte escrita por inteiro, entendível sem a conversa. */
+    @Prop({ type: String })
+    pergunta: string;
+
+    @Prop({ type: Boolean })
+    respondida: boolean;
+
+    /** As FAQs que a resposta usou nessa parte. */
+    @Prop({ type: [String], default: [] })
+    faqIds: string[];
+}
+
+export const ParteDaRespostaSchema = SchemaFactory.createForClass(ParteDaResposta);
 
 // Espelha 1:1 o que o protótipo PWA grava em pwa_prototipo.mensagens. O dono do
 // formato é o PWA (pwa/src/lib/tipos.ts); aqui é leitura.
@@ -94,7 +118,10 @@ export class Mensagem {
     @Prop({ type: String, default: null })
     modelo: string | null;
 
-    /** O agente respondeu o texto de "não encontrei": lacuna de conteúdo. */
+    /**
+     * Lacuna de conteúdo: o agente respondeu o texto de "não encontrei", ou,
+     * no fluxo com triagem, nenhuma parte da pergunta teve resposta.
+     */
     @Prop({ default: false })
     semResposta: boolean;
 
@@ -114,6 +141,21 @@ export class Mensagem {
     /** A reescrita não respondeu e a busca usou o texto original. */
     @Prop({ type: Boolean, default: undefined })
     reescritaFalhou?: boolean;
+
+    /**
+     * Fluxo com triagem: as partes da pergunta e o que foi respondido em cada
+     * uma. A resposta parcial deixa `semResposta` falso e manda para a
+     * curadoria só as partes que faltaram.
+     */
+    @Prop({ type: [ParteDaRespostaSchema], default: undefined })
+    partes?: ParteDaResposta[];
+
+    /** As partes que ficaram sem resposta, já escritas como pergunta completa. */
+    @Prop({ type: [String], default: undefined })
+    partesSemResposta?: string[];
+
+    @Prop({ type: Number, default: null })
+    analiseMs: number | null;
 
     /**
      * Onde esta lacuna está na fila de curadoria.

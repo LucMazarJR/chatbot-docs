@@ -8,6 +8,14 @@ import { Mensagem, MensagemDocument } from '../conversas/schemas/mensagem.schema
 import { FaqsService } from '../faqs/faqs.service';
 import { GeminiService } from '../gemini/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
+import {
+    ESQUEMA_DO_ENTENDIMENTO,
+    juntarAnteriores,
+    lerEntendimento,
+    montarPromptDeEntendimento,
+    PERGUNTAS_ANTERIORES,
+    precisaDaConversa,
+} from './continuacao';
 import { Rodada, RodadaDocument } from './schemas/rodada.schema';
 import { Sugestao, SugestaoDocument } from './schemas/sugestao.schema';
 
@@ -21,8 +29,30 @@ type Lacuna = {
     mensagemId: string;
     sessaoId: string;
     em: Date;
+    /** A pergunta como o cidadão escreveu, sem correção. */
     pergunta: string;
-    vizinhas: { faqId: string | null; question: string | null; score: number; previa: string | null }[];
+    /**
+     * Como a pergunta foi entendida: pela triagem do staging (a parte que
+     * ficou sem resposta, ou a pergunta inteira reescrita), ou pela própria
+     * curadoria, que reescreve a continuação com o assunto das perguntas
+     * anteriores. Nulo quando ninguém precisou reescrever a pergunta.
+     */
+    entendida: string | null;
+    /**
+     * As perguntas anteriores da mesma conversa (até duas, da mais antiga para
+     * a mais recente), só quando não há `entendida` e a pergunta não se
+     * sustenta sozinha.
+     *
+     * LÓGICA DO LUCIANO: sem ela, "como chego lá?" virou a sugestão "Como
+     * chegar a uma unidade de saúde?", e a conversa era sobre o aeroporto; "tem
+     * telefone?", depois dos endereços das UBS, virou "Como entrar em contato
+     * com os serviços de saúde?". A continuação só tem assunto junto da
+     * pergunta que veio antes.
+     */
+    anterior: string | null;
+    /** Qual parte da pergunta ficou sem resposta, contando de 1, na resposta parcial. */
+    parte: number | null;
+    vizinhas: { faqId: string | null; question: string | null; score: number; previa: string | null; parte: number | null }[];
 };
 
 /** O que se espera de volta do modelo. */
@@ -68,10 +98,15 @@ export class CuradoriaService {
      * Quantas lacunas esperam análise.
      *
      * `curadoria` ausente conta como pendente: as mensagens gravadas antes de o
-     * campo existir são lacunas legítimas e precisam entrar na fila.
+     * campo existir são lacunas legítimas e precisam entrar na fila. A resposta
+     * parcial também entra: ela respondeu uma parte, e a parte que faltou é
+     * lacuna como qualquer outra.
      */
     private get filtroPendentes() {
-        return { semResposta: true, curadoria: { $in: [null, 'pendente'] } };
+        return {
+            $or: [{ semResposta: true }, { 'partesSemResposta.0': { $exists: true } }],
+            curadoria: { $in: [null, 'pendente'] },
+        };
     }
 
     async contarPendentes(): Promise<{ pendentes: number; prontoParaRodar: boolean; tamanhoDaRodada: number }> {
@@ -109,29 +144,112 @@ export class CuradoriaService {
         const correlationIds = respostas.map((r) => r.correlationId).filter(Boolean);
         const perguntas = await this.mensagemModel
             .find({ papel: 'user', correlationId: { $in: correlationIds } })
-            .select('correlationId texto')
+            .select('correlationId texto em')
             .lean()
             .exec();
+        const perguntaPorCorrelation = new Map(perguntas.map((p) => [p.correlationId, p]));
+        const anteriores = await this.perguntasAnteriores(respostas, perguntaPorCorrelation);
 
-        const textoPorCorrelation = new Map(perguntas.map((p) => [p.correlationId, p.texto]));
-
-        return respostas
-            .map((resposta) => ({
-                mensagemId: String(resposta._id),
-                sessaoId: resposta.sessaoId,
-                em: resposta.em,
-                pergunta: textoPorCorrelation.get(resposta.correlationId) ?? '',
-                vizinhas: (resposta.trechosDebug ?? []).map((t) => ({
-                    faqId: t.faqId ?? null,
-                    question: t.question ?? null,
-                    score: t.score,
-                    previa: t.previa ?? null,
-                })),
-            }))
+        const lacunas: Lacuna[] = [];
+        for (const resposta of respostas) {
+            const propria = perguntaPorCorrelation.get(resposta.correlationId);
             // Sem a pergunta não há o que analisar. Acontece quando a mensagem
             // do usuário foi apagada, ou quando a troca é anterior ao
             // correlationId.
-            .filter((lacuna) => lacuna.pergunta.trim().length > 0);
+            if (!propria?.texto?.trim()) continue;
+
+            const vizinhas = (resposta.trechosDebug ?? []).map((t) => ({
+                faqId: t.faqId ?? null,
+                question: t.question ?? null,
+                score: t.score,
+                previa: t.previa ?? null,
+                parte: t.parte ?? null,
+            }));
+            const base = {
+                mensagemId: String(resposta._id),
+                sessaoId: resposta.sessaoId,
+                em: resposta.em,
+                pergunta: propria.texto,
+            };
+
+            // Uma lacuna por parte que ficou sem resposta, cada uma com as FAQs
+            // que a busca achou para ela.
+            const faltaram = (resposta.partes ?? [])
+                .map((p, indice) => ({ pergunta: p.pergunta, respondida: p.respondida, numero: indice + 1 }))
+                .filter((p) => !p.respondida && p.pergunta?.trim());
+            const daMensagem: Lacuna[] = faltaram.length
+                ? faltaram.map((p) => ({
+                      ...base,
+                      entendida: p.pergunta,
+                      anterior: null,
+                      parte: p.numero,
+                      vizinhas: vizinhas.filter((v) => v.parte === null || v.parte === p.numero),
+                  }))
+                : [
+                      {
+                          ...base,
+                          entendida:
+                              resposta.perguntaCompleta && resposta.perguntaCompleta !== propria.texto
+                                  ? resposta.perguntaCompleta
+                                  : null,
+                          anterior: anteriores.get(String(resposta._id)) ?? null,
+                          parte: null,
+                          vizinhas,
+                      },
+                  ];
+
+            // As partes de uma mensagem entram na mesma rodada: a mensagem é
+            // marcada como tratada de uma vez só.
+            if (lacunas.length > 0 && lacunas.length + daMensagem.length > limite) break;
+            lacunas.push(...daMensagem);
+        }
+        return lacunas;
+    }
+
+    /**
+     * As perguntas anteriores da mesma conversa, para as respostas que o fluxo
+     * não entendeu antes de buscar (as do `/`, que buscam com a frase da
+     * pessoa) e cuja pergunta não se sustenta sozinha. As do staging já chegam
+     * com a pergunta entendida e não precisam.
+     *
+     * Vão as duas últimas, e não só a última: em "aeroporto", "ata e como
+     * chego lá", "como chego lá?", a anterior da terceira também não diz o
+     * assunto.
+     */
+    private async perguntasAnteriores(
+        respostas: Mensagem[],
+        perguntaPorCorrelation: Map<string, { texto: string; em: Date }>,
+    ): Promise<Map<string, string>> {
+        const precisam = respostas.filter((r) => {
+            if (r.perguntaCompleta || (r.partes ?? []).length) return false;
+            const propria = perguntaPorCorrelation.get(r.correlationId);
+            return Boolean(propria?.texto && precisaDaConversa(propria.texto));
+        });
+        const sessoes = [...new Set(precisam.map((r) => r.sessaoId))];
+        const resultado = new Map<string, string>();
+        if (sessoes.length === 0) return resultado;
+
+        const doCidadao = await this.mensagemModel
+            .find({ papel: 'user', sessaoId: { $in: sessoes }, tipo: { $exists: false } })
+            .select('sessaoId texto em')
+            .sort({ em: 1 })
+            .lean()
+            .exec();
+
+        for (const resposta of precisam) {
+            const propria = perguntaPorCorrelation.get(resposta.correlationId);
+            if (!propria) continue;
+            const antes = doCidadao.filter(
+                (m) => m.sessaoId === resposta.sessaoId && new Date(m.em) < new Date(propria.em) && m.texto?.trim(),
+            );
+            if (antes.length) {
+                resultado.set(
+                    String(resposta._id),
+                    juntarAnteriores(antes.slice(-PERGUNTAS_ANTERIORES).map((m) => m.texto)),
+                );
+            }
+        }
+        return resultado;
     }
 
     async listarFila(limite = TAMANHO_DA_RODADA): Promise<Lacuna[]> {
@@ -180,6 +298,9 @@ export class CuradoriaService {
                     mensagemId: l.mensagemId,
                     sessaoId: l.sessaoId,
                     pergunta: l.pergunta,
+                    entendida: l.entendida,
+                    anterior: l.anterior,
+                    parte: l.parte,
                     vizinhas: l.vizinhas.slice(0, 5).map((v) => ({
                         faqId: v.faqId,
                         question: v.question,
@@ -187,6 +308,8 @@ export class CuradoriaService {
                     })),
                 })),
             }).save();
+
+            await this.entenderContinuacoes(lacunas, rodada);
 
             const grupos = await this.geminiService.gerarJson<{ grupos: GrupoSugerido[] }>(
                 this.montarPrompt(lacunas),
@@ -211,18 +334,22 @@ export class CuradoriaService {
 
             // As lacunas que o modelo classificou como fora de escopo saem da
             // fila sem virar sugestão.
-            const foraDeEscopo: string[] = [];
+            const lacunasFora = new Set<Lacuna>();
+            const lacunasEmGrupo = new Set<Lacuna>();
             const sugestoesCriadas: string[] = [];
 
             for (const grupo of lista) {
                 const daqui = (grupo.perguntas ?? [])
                     .map((indice) => lacunas[indice - 1])
                     .filter(Boolean);
+                for (const l of daqui) lacunasEmGrupo.add(l);
 
                 const origens = daqui.map((lacuna) => ({
                     sessaoId: lacuna.sessaoId,
                     mensagemId: lacuna.mensagemId,
                     pergunta: lacuna.pergunta,
+                    entendida: lacuna.entendida,
+                    anterior: lacuna.anterior,
                     em: lacuna.em,
                 }));
 
@@ -235,7 +362,7 @@ export class CuradoriaService {
                 }
 
                 if (grupo.tipo === 'fora_de_escopo') {
-                    foraDeEscopo.push(...daqui.map((l) => l.mensagemId));
+                    for (const l of daqui) lacunasFora.add(l);
                     this.jobsService.incrementar(jobId, 'fora_de_escopo', daqui.length);
                     continue;
                 }
@@ -268,10 +395,22 @@ export class CuradoriaService {
             // entrou em) uma sugestão. Marcar tudo igual perderia a única
             // medida de quanto do "não encontrou" é lacuna de verdade, que é o
             // indicador que decide se a base precisa crescer.
+            //
+            // Numa resposta parcial, a mensagem tem uma lacuna por parte que
+            // faltou. Ela só é descartada quando todas as partes eram de fora
+            // do escopo: basta uma parte virar sugestão para ela ter sido útil.
+            //
+            // A pergunta que o modelo esqueceu de pôr em algum grupo continua na
+            // fila. Marcada como tratada, ela sairia sem sugestão nenhuma e
+            // nunca mais seria analisada: aconteceu com várias numa rodada só.
+            const mensagens = [...new Set(lacunas.map((l) => l.mensagemId))].filter((id) =>
+                lacunas.filter((l) => l.mensagemId === id).every((l) => lacunasEmGrupo.has(l)),
+            );
+            const foraDeEscopo = mensagens.filter((id) =>
+                lacunas.filter((l) => l.mensagemId === id).every((l) => lacunasFora.has(l)),
+            );
             const descartadas = new Set(foraDeEscopo);
-            const processadas = lacunas
-                .map((l) => l.mensagemId)
-                .filter((id) => !descartadas.has(id));
+            const processadas = mensagens.filter((id) => !descartadas.has(id));
 
             if (processadas.length > 0) {
                 await this.mensagemModel
@@ -334,6 +473,46 @@ export class CuradoriaService {
     }
 
     /**
+     * Reescreve as continuações da rodada com o assunto da conversa, numa
+     * chamada só, antes do agrupamento. A pergunta reescrita vai para
+     * `entendida`, no prompt do agrupamento, no registro da rodada e na
+     * origem da sugestão, como a pergunta entendida pela triagem do staging.
+     *
+     * Falha aqui não para a rodada: a lacuna segue com as perguntas
+     * anteriores ao lado, como era antes deste passo. Só a cota esgotada
+     * sobe, porque o agrupamento logo em seguida falharia do mesmo jeito.
+     */
+    private async entenderContinuacoes(lacunas: Lacuna[], rodada: RodadaDocument): Promise<void> {
+        const continuacoes = lacunas.filter((l) => l.anterior && !l.entendida);
+        if (continuacoes.length === 0) return;
+
+        let lidas: (string | null)[];
+        try {
+            const resposta = await this.geminiService.gerarJson<unknown>(
+                montarPromptDeEntendimento(
+                    continuacoes.map((l) => ({ pergunta: l.pergunta, anterior: l.anterior ?? '' })),
+                ),
+                ESQUEMA_DO_ENTENDIMENTO,
+            );
+            lidas = lerEntendimento(resposta, continuacoes.length);
+        } catch (erro) {
+            if (GeminiService.ehErroDeCota(erro)) throw erro;
+            // Sem a mensagem do erro: a de JSON inválido traz o começo da
+            // resposta do modelo, que repete a pergunta do cidadão.
+            this.logger.warn('Curadoria: as continuacoes seguem sem reescrita, a chamada ao modelo falhou.');
+            return;
+        }
+
+        continuacoes.forEach((lacuna, i) => {
+            lacuna.entendida = lidas[i];
+        });
+        lacunas.forEach((lacuna, i) => {
+            if (lacuna.entendida) rodada.set(`lacunas.${i}.entendida`, lacuna.entendida);
+        });
+        await rodada.save();
+    }
+
+    /**
      * Fecha o registro da rodada.
      *
      * Nunca deixa a falha do registro derrubar a rodada: o histórico existe para
@@ -389,6 +568,9 @@ export class CuradoriaService {
                 mensagemId: l.mensagemId,
                 sessaoId: l.sessaoId,
                 pergunta: l.pergunta,
+                entendida: l.entendida ?? null,
+                anterior: l.anterior ?? null,
+                parte: l.parte ?? null,
             })),
             sugestoesCriadas: doc.sugestoesCriadas ?? [],
             foraDeEscopo: doc.foraDeEscopo ?? [],
@@ -414,6 +596,9 @@ export class CuradoriaService {
                 mensagemId: l.mensagemId,
                 sessaoId: l.sessaoId,
                 pergunta: l.pergunta,
+                entendida: l.entendida ?? null,
+                anterior: l.anterior ?? null,
+                parte: l.parte ?? null,
                 vizinhas: (l.vizinhas ?? []).map((v) => ({
                     faqId: v.faqId ?? null,
                     question: v.question ?? null,
@@ -488,10 +673,19 @@ export class CuradoriaService {
                 .join('\n');
 
             return [
-                `${i + 1}. Pergunta do cidadao: "${lacuna.pergunta}"`,
+                `${i + 1}. Pergunta do cidadao: "${lacuna.entendida ?? lacuna.pergunta}"`,
+                lacuna.entendida ? `   Escrita pela pessoa: "${lacuna.pergunta}"` : null,
+                // Com a continuação já reescrita, a anterior sai do prompt.
+                // Ao lado da pergunta, ela já fez o modelo juntar a pneumo-20
+                // com a herpes-zóster que a pessoa tinha perguntado antes.
+                lacuna.anterior && !lacuna.entendida
+                    ? `   Antes, na mesma conversa (da mais antiga para a mais recente): ${lacuna.anterior}`
+                    : null,
                 '   FAQs mais proximas que a busca encontrou (nenhuma foi boa o bastante):',
                 vizinhas || '    - nenhuma',
-            ].join('\n');
+            ]
+                .filter((linha) => linha !== null)
+                .join('\n');
         });
 
         return [
@@ -511,6 +705,14 @@ export class CuradoriaService {
             '   (assunto de fora, desabafo, teste, texto sem sentido), use tipo',
             '   "fora_de_escopo". Nao invente FAQ para ela: o chatbot acertou em nao',
             '   responder. Pode juntar varias assim num grupo so.',
+            '',
+            'Algumas perguntas dependem da conversa ("como chego la?", "tem telefone?", "e o',
+            'jejum?"), e vem com o que a pessoa perguntou antes. Use isso so para descobrir o',
+            'assunto: a pergunta canonica precisa dizer o assunto por inteiro. Exemplo: depois',
+            'de "aeroporto", "como chego la?" vira "Como chego ao aeroporto?", e nao',
+            '"Como chegar a uma unidade de saude?". Se a pergunta nova se entende sozinha ou',
+            'muda de assunto, ignore o que veio antes, e nunca junte duas perguntas num grupo',
+            'so porque uma apareceu antes da outra na conversa.',
             '',
             'REGRA MAIS IMPORTANTE: nao invente orientacao de saude. Preencha "resposta"',
             'APENAS com informacao que esteja literalmente nas FAQs fornecidas, adaptada a',
@@ -560,6 +762,8 @@ export class CuradoriaService {
                     sessaoId: o.sessaoId,
                     mensagemId: o.mensagemId,
                     pergunta: o.pergunta,
+                    entendida: o.entendida ?? null,
+                    anterior: o.anterior ?? null,
                     em: o.em,
                 })),
                 criadaEm: doc.criadaEm,

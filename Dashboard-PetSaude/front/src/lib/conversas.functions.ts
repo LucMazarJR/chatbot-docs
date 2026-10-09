@@ -40,6 +40,15 @@ export type TrechoUsado = {
   previa: string | null;
   /** No fluxo com reescrita (staging): qual das consultas trouxe o trecho. */
   consulta?: string | null;
+  /** No fluxo com triagem (staging): de qual parte da pergunta é a busca, contando de 1. */
+  parte?: number | null;
+};
+
+/** Uma parte da pergunta e o que a resposta cobriu nela (fluxo com triagem). */
+export type ParteDaResposta = {
+  pergunta: string;
+  respondida: boolean;
+  faqIds: string[];
 };
 
 export type MensagemConversa = {
@@ -59,11 +68,16 @@ export type MensagemConversa = {
   motivoErro?: string | null;
   feedback?: "up" | "down" | null;
   feedbackComentario?: string | null;
-  // Só no fluxo de staging, com reescrita da pergunta.
+  // Só no fluxo de staging, com a pergunta preparada antes da busca.
   perguntaCompleta?: string | null;
   consultas?: string[];
   reescritaMs?: number | null;
   reescritaFalhou?: boolean;
+  /** Fluxo com triagem: as partes da pergunta e o que foi respondido em cada uma. */
+  partes?: ParteDaResposta[];
+  /** As partes que ficaram sem resposta e foram para a curadoria. */
+  partesSemResposta?: string[];
+  analiseMs?: number | null;
 };
 
 export type ConversaResumida = {

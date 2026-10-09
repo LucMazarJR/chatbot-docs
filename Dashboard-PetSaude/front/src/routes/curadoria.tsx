@@ -45,6 +45,36 @@ import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { Selo } from "@/components/selo";
 import { dataEHora } from "@/lib/datas";
 
+/**
+ * A pergunta como chegou à curadoria. A frase solta de uma continuação ("como
+ * chego lá?") não diz o assunto: quem revisa precisa ver como ela foi entendida
+ * e a pergunta que veio antes, senão aprova uma FAQ genérica no lugar da que
+ * faltou.
+ */
+function PerguntaComContexto({
+  pergunta,
+  entendida,
+  anterior,
+  destaque = false,
+}: {
+  pergunta: string;
+  entendida: string | null;
+  anterior: string | null;
+  destaque?: boolean;
+}) {
+  return (
+    <span className="min-w-0 flex-1">
+      <span className={destaque ? "font-semibold" : undefined}>“{entendida ?? pergunta}”</span>
+      {entendida && (
+        <span className="block text-sm text-muted-foreground">Escreveu: “{pergunta}”</span>
+      )}
+      {anterior && (
+        <span className="block text-sm text-muted-foreground">Antes, na conversa: {anterior}</span>
+      )}
+    </span>
+  );
+}
+
 export const Route = createFileRoute("/curadoria")({
   beforeLoad: () => exigirAdmin(),
   head: () => ({
@@ -310,9 +340,13 @@ function DetalheDaRodada({ id }: { id: string }) {
     <div className="mt-3 space-y-3 border-t border-border pt-3">
       <ul className="space-y-2">
         {rodada.data.lacunas.map((lacuna) => (
-          <li key={lacuna.mensagemId} className="text-sm">
+          <li key={`${lacuna.mensagemId}:${lacuna.parte ?? 0}`} className="text-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <span className="min-w-0">“{lacuna.pergunta}”</span>
+              <PerguntaComContexto
+                pergunta={lacuna.pergunta}
+                entendida={lacuna.entendida ?? null}
+                anterior={lacuna.anterior ?? null}
+              />
               <Link
                 to="/conversas/$id"
                 params={{ id: lacuna.sessaoId }}
@@ -503,9 +537,13 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
           {sugestao.origens.length === 1 ? "pessoa perguntou" : "pessoas perguntaram"} isso:
         </p>
         <ul className="mt-1 space-y-1">
-          {sugestao.origens.map((origem) => (
-            <li key={origem.mensagemId} className="flex items-center gap-2 text-[15px]">
-              <span className="min-w-0 flex-1">“{origem.pergunta}”</span>
+          {sugestao.origens.map((origem, i) => (
+            <li key={`${origem.mensagemId}:${i}`} className="flex items-center gap-2 text-[15px]">
+              <PerguntaComContexto
+                pergunta={origem.pergunta}
+                entendida={origem.entendida ?? null}
+                anterior={origem.anterior ?? null}
+              />
               <Link
                 to="/conversas/$id"
                 params={{ id: origem.sessaoId }}
@@ -680,9 +718,14 @@ function FilaBruta() {
           ) : (
             <ul className="space-y-3">
               {(lacunas.data ?? []).map((lacuna) => (
-                <li key={lacuna.mensagemId} className="text-[15px]">
+                <li key={`${lacuna.mensagemId}:${lacuna.parte ?? 0}`} className="text-[15px]">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold">“{lacuna.pergunta}”</span>
+                    <PerguntaComContexto
+                      pergunta={lacuna.pergunta}
+                      entendida={lacuna.entendida ?? null}
+                      anterior={lacuna.anterior ?? null}
+                      destaque
+                    />
                     <Link
                       to="/conversas/$id"
                       params={{ id: lacuna.sessaoId }}
