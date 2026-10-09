@@ -12,9 +12,13 @@ export type FilaCuradoria = {
 
 /** O que a curadoria sabe da pergunta, além da frase que a pessoa escreveu. */
 type ContextoDaPergunta = {
-  /** Como a pergunta foi entendida pela triagem do staging (a parte que faltou, ou a pergunta reescrita). */
+  /**
+   * Como a pergunta foi entendida: pela triagem do staging (a parte que faltou,
+   * ou a pergunta reescrita), ou pela curadoria, que reescreve a continuação
+   * com o assunto das perguntas anteriores.
+   */
   entendida: string | null;
-  /** A pergunta anterior da mesma conversa, quando ela dá o assunto a uma continuação. */
+  /** As perguntas anteriores da mesma conversa (até duas), quando dão o assunto a uma continuação. */
   anterior: string | null;
 };
 

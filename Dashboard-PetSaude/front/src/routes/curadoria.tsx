@@ -69,7 +69,7 @@ function PerguntaComContexto({
         <span className="block text-sm text-muted-foreground">Escreveu: “{pergunta}”</span>
       )}
       {anterior && (
-        <span className="block text-sm text-muted-foreground">Pergunta anterior: “{anterior}”</span>
+        <span className="block text-sm text-muted-foreground">Antes, na conversa: {anterior}</span>
       )}
     </span>
   );
