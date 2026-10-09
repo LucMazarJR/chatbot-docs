@@ -151,7 +151,7 @@ Webhook → If → Dados → Switch → Buscar FAQs → Montar contexto → AI A
 | **Switch** | `TipoMensagem == "text"` segue para a busca; o resto vai para o aviso de somente texto, sem chegar ao agente |
 | **Buscar FAQs** | Vector Store em `mode: load`, `topK: 10`, `preFilter: {"isActive": true}` |
 | **Montar contexto** | Nó Code: agrega os documentos num item só, descarta trechos com `score < 0.82` e reanexa os campos que o Vector Store derruba |
-| **AI Agent** | `gemini-3.1-flash-lite` (cota gratuita de 500 por dia), com 3 tentativas contra sobrecarga e `gemini-2.5-flash-lite` de reserva quando as três falham. No fluxo do PWA, se as duas falharem, um segundo agente tenta o `gemini-3.5-flash-lite` antes da mensagem de indisponibilidade |
+| **AI Agent** | `gemini-3.1-flash-lite` (cota gratuita de 500 por dia), com 3 tentativas contra sobrecarga e `gemini-2.5-flash-lite` de reserva quando as três falham. No fluxo do PWA, se as duas falharem, um segundo agente tenta o `gemini-3.5-flash-lite` antes da mensagem de indisponibilidade. O staging, que usa chave de projeto Google novo, não tem os modelos 2.5: a reserva é o `gemini-3.5-flash-lite` e a última tentativa o `gemini-3.5-flash` |
 | **Redis Chat Memory** | db 0, janela de **4 mensagens** (2 turnos), TTL de 1h |
 | **Embeddings Google Gemini** | `gemini-embedding-2`, que precisa ser **o mesmo modelo da base**. Ver [base-de-faqs.md](base-de-faqs.md#a-regra-que-quebra-tudo-em-silêncio) |
 | **Enviar \*** | `POST /api/v1/messages` no gateway, com `idempotencyKey = EventId` |
@@ -247,6 +247,26 @@ Dados → Montar reescrita → Reescrever pergunta → Consultas → Precisa bus
 **Medição.** O [n8n/testar-conversas.mjs](../n8n/testar-conversas.mjs) roda conversas inteiras, turno a turno, nos dois fluxos e fora do n8n. Ele tira de cada arquivo de fluxo o prompt, os parâmetros da busca e o código dos nós, e confere cada resposta contra um gabarito de FAQs esperadas. Resposta dada não conta como acerto: um juiz compara a resposta com a FAQ certa de cada parte da pergunta, e o resumo separa a resposta certa, a parcial, a de FAQ errada, o "não encontrei" indevido e o "não encontrei" correto. O gabarito aponta para conversas reais e fica só na máquina de quem testa. Como usar: [prototipo-pwa.md](prototipo-pwa.md#testar-antes-de-mexer-no-staging). O teste dos nós de código fica em [n8n/testar-codigo-staging.mjs](../n8n/testar-codigo-staging.mjs).
 
 As regras do prompt da reescrita vêm das primeiras medições. Num dia de perguntas reais, as 9 que não traziam nenhum trecho passaram a trazer, sem perda nas respondidas de controle. Mas siglas viravam nomes inventados ("NGA" virou "Núcleo de Gestão Assistencial"), e uma consulta geral vaga ("unidades de saúde em Franca") trazia FAQ de outro assunto com 0,89, que é o caminho para o erro do "15 dias" descrito acima.
+
+No gabarito de conversas reais (continuações, perguntas com duas partes, siglas e um grupo de controle), o staging ganha do `/` em tudo que importa:
+
+| | `/` | staging |
+|---|---|---|
+| resposta certa | 67% | 77% |
+| "não encontrei" quando a base não tem | 15% | 18% |
+| inventou | 5% | 1% |
+| lacunas que chegam à curadoria | 12 de 18 | 14 de 18 |
+| resposta certa marcada como lacuna | 11 | 1 |
+
+Três mudanças foram medidas no staging e ficaram de fora, porque não melhoraram nada:
+
+- **Temperatura 0 no agente:** a resposta certa ficou nos mesmos 77%, e uma lacuna a menos chegou à curadoria.
+- **Uma vaga por pergunta repetida na busca** (as 551 FAQs de exame que repetem três perguntas, ver [armadilhas.md](armadilhas.md#n8n)), com 20 candidatos: o mesmo resultado da temperatura sozinha. Nos casos sintéticos de preparo de exame, a reescrita já põe o nome do exame na consulta, e a FAQ certa chega.
+- **Triagem por partes e análise sem o agente** (uma chamada com resposta estruturada, temperatura 0 e o histórico do PWA no lugar da memória do Redis): os mesmos 77%, mas inventou em 6% das respostas e só 11 de 18 lacunas chegaram à curadoria, com mediana de 11,5 s por resposta.
+
+A rota de retorno do PWA aceita a resposta em partes (`partes`, cada uma com a pergunta, se foi respondida e as FAQs usadas). Com ela, a mensagem só conta como sem resposta quando nenhuma parte foi respondida, e só a parte que faltou vai para a curadoria. O fluxo do staging não manda `partes`: a versão que mandava é a terceira da lista acima.
+
+O staging usa uma chave para cada papel, nenhuma delas a do `/`: a triagem e os embeddings vão com a credencial **Gemini Reescrita** (`GEMINI_API_KEY_3`), e a resposta com a **Gemini Análise** (`GEMINI_API_KEY_4`). Assim, testar o staging não gasta a cota de quem conversa no `/`.
 
 ---
 
