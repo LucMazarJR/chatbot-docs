@@ -308,12 +308,14 @@ export class CuradoriaService {
             // As lacunas que o modelo classificou como fora de escopo saem da
             // fila sem virar sugestão.
             const lacunasFora = new Set<Lacuna>();
+            const lacunasEmGrupo = new Set<Lacuna>();
             const sugestoesCriadas: string[] = [];
 
             for (const grupo of lista) {
                 const daqui = (grupo.perguntas ?? [])
                     .map((indice) => lacunas[indice - 1])
                     .filter(Boolean);
+                for (const l of daqui) lacunasEmGrupo.add(l);
 
                 const origens = daqui.map((lacuna) => ({
                     sessaoId: lacuna.sessaoId,
@@ -370,7 +372,13 @@ export class CuradoriaService {
             // Numa resposta parcial, a mensagem tem uma lacuna por parte que
             // faltou. Ela só é descartada quando todas as partes eram de fora
             // do escopo: basta uma parte virar sugestão para ela ter sido útil.
-            const mensagens = [...new Set(lacunas.map((l) => l.mensagemId))];
+            //
+            // A pergunta que o modelo esqueceu de pôr em algum grupo continua na
+            // fila. Marcada como tratada, ela sairia sem sugestão nenhuma e
+            // nunca mais seria analisada: aconteceu com várias numa rodada só.
+            const mensagens = [...new Set(lacunas.map((l) => l.mensagemId))].filter((id) =>
+                lacunas.filter((l) => l.mensagemId === id).every((l) => lacunasEmGrupo.has(l)),
+            );
             const foraDeEscopo = mensagens.filter((id) =>
                 lacunas.filter((l) => l.mensagemId === id).every((l) => lacunasFora.has(l)),
             );

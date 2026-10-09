@@ -462,6 +462,21 @@ describe('CuradoriaService', () => {
       expect(updateMany).not.toHaveBeenCalledWith({ _id: { $in: ['b1'] } }, { $set: { curadoria: 'descartada' } });
     });
 
+    it('pergunta que o modelo deixou fora de todos os grupos continua na fila', async () => {
+      troca(1, 'Onde fica a UBS?');
+      troca(2, 'Qual o horario da farmacia?');
+      gerarJson.mockResolvedValue({
+        grupos: [{ perguntas: [1], pergunta: 'Onde fica a UBS?', tipo: 'nova' }],
+      });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(updateMany).toHaveBeenCalledWith({ _id: { $in: ['b1'] } }, { $set: { curadoria: 'processada' } });
+      const marcadas = updateMany.mock.calls.flatMap(([filtro]: any[]) => filtro._id.$in);
+      expect(marcadas).not.toContain('b2');
+    });
+
     it('NAO tira a lacuna da fila quando a analise falha', async () => {
       troca(1, 'Onde fica a UBS?');
       gerarJson.mockRejectedValue(new Error('modelo fora do ar'));
