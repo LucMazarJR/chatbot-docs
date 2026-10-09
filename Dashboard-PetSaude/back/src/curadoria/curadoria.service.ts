@@ -8,6 +8,14 @@ import { Mensagem, MensagemDocument } from '../conversas/schemas/mensagem.schema
 import { FaqsService } from '../faqs/faqs.service';
 import { GeminiService } from '../gemini/gemini.service';
 import { JobsService } from '../jobs/jobs.service';
+import {
+    ESQUEMA_DO_ENTENDIMENTO,
+    juntarAnteriores,
+    lerEntendimento,
+    montarPromptDeEntendimento,
+    PERGUNTAS_ANTERIORES,
+    precisaDaConversa,
+} from './continuacao';
 import { Rodada, RodadaDocument } from './schemas/rodada.schema';
 import { Sugestao, SugestaoDocument } from './schemas/sugestao.schema';
 
@@ -24,13 +32,16 @@ type Lacuna = {
     /** A pergunta como o cidadão escreveu, sem correção. */
     pergunta: string;
     /**
-     * Como a pergunta foi entendida pela triagem do staging: a parte que ficou
-     * sem resposta, ou a pergunta inteira reescrita. Nulo quando o fluxo não
-     * entendeu a pergunta antes de buscar.
+     * Como a pergunta foi entendida: pela triagem do staging (a parte que
+     * ficou sem resposta, ou a pergunta inteira reescrita), ou pela própria
+     * curadoria, que reescreve a continuação com o assunto das perguntas
+     * anteriores. Nulo quando ninguém precisou reescrever a pergunta.
      */
     entendida: string | null;
     /**
-     * A pergunta anterior da mesma conversa, só quando não há `entendida`.
+     * As perguntas anteriores da mesma conversa (até duas, da mais antiga para
+     * a mais recente), só quando não há `entendida` e a pergunta não se
+     * sustenta sozinha.
      *
      * LÓGICA DO LUCIANO: sem ela, "como chego lá?" virou a sugestão "Como
      * chegar a uma unidade de saúde?", e a conversa era sobre o aeroporto; "tem
@@ -196,15 +207,24 @@ export class CuradoriaService {
     }
 
     /**
-     * A pergunta anterior da mesma conversa, para as respostas que o fluxo não
-     * entendeu antes de buscar: as do `/`, que buscam com a frase da pessoa.
-     * As do staging já chegam com a pergunta entendida e não precisam.
+     * As perguntas anteriores da mesma conversa, para as respostas que o fluxo
+     * não entendeu antes de buscar (as do `/`, que buscam com a frase da
+     * pessoa) e cuja pergunta não se sustenta sozinha. As do staging já chegam
+     * com a pergunta entendida e não precisam.
+     *
+     * Vão as duas últimas, e não só a última: em "aeroporto", "ata e como
+     * chego lá", "como chego lá?", a anterior da terceira também não diz o
+     * assunto.
      */
     private async perguntasAnteriores(
         respostas: Mensagem[],
         perguntaPorCorrelation: Map<string, { texto: string; em: Date }>,
     ): Promise<Map<string, string>> {
-        const precisam = respostas.filter((r) => !r.perguntaCompleta && !(r.partes ?? []).length);
+        const precisam = respostas.filter((r) => {
+            if (r.perguntaCompleta || (r.partes ?? []).length) return false;
+            const propria = perguntaPorCorrelation.get(r.correlationId);
+            return Boolean(propria?.texto && precisaDaConversa(propria.texto));
+        });
         const sessoes = [...new Set(precisam.map((r) => r.sessaoId))];
         const resultado = new Map<string, string>();
         if (sessoes.length === 0) return resultado;
@@ -222,7 +242,12 @@ export class CuradoriaService {
             const antes = doCidadao.filter(
                 (m) => m.sessaoId === resposta.sessaoId && new Date(m.em) < new Date(propria.em) && m.texto?.trim(),
             );
-            if (antes.length) resultado.set(String(resposta._id), antes[antes.length - 1].texto);
+            if (antes.length) {
+                resultado.set(
+                    String(resposta._id),
+                    juntarAnteriores(antes.slice(-PERGUNTAS_ANTERIORES).map((m) => m.texto)),
+                );
+            }
         }
         return resultado;
     }
@@ -283,6 +308,8 @@ export class CuradoriaService {
                     })),
                 })),
             }).save();
+
+            await this.entenderContinuacoes(lacunas, rodada);
 
             const grupos = await this.geminiService.gerarJson<{ grupos: GrupoSugerido[] }>(
                 this.montarPrompt(lacunas),
@@ -443,6 +470,46 @@ export class CuradoriaService {
             await this.encerrarRodada(rodada, 'erro', mensagem);
             this.jobsService.finalizar(jobId, 'erro', mensagem);
         }
+    }
+
+    /**
+     * Reescreve as continuações da rodada com o assunto da conversa, numa
+     * chamada só, antes do agrupamento. A pergunta reescrita vai para
+     * `entendida`, no prompt do agrupamento, no registro da rodada e na
+     * origem da sugestão, como a pergunta entendida pela triagem do staging.
+     *
+     * Falha aqui não para a rodada: a lacuna segue com as perguntas
+     * anteriores ao lado, como era antes deste passo. Só a cota esgotada
+     * sobe, porque o agrupamento logo em seguida falharia do mesmo jeito.
+     */
+    private async entenderContinuacoes(lacunas: Lacuna[], rodada: RodadaDocument): Promise<void> {
+        const continuacoes = lacunas.filter((l) => l.anterior && !l.entendida);
+        if (continuacoes.length === 0) return;
+
+        let lidas: (string | null)[];
+        try {
+            const resposta = await this.geminiService.gerarJson<unknown>(
+                montarPromptDeEntendimento(
+                    continuacoes.map((l) => ({ pergunta: l.pergunta, anterior: l.anterior ?? '' })),
+                ),
+                ESQUEMA_DO_ENTENDIMENTO,
+            );
+            lidas = lerEntendimento(resposta, continuacoes.length);
+        } catch (erro) {
+            if (GeminiService.ehErroDeCota(erro)) throw erro;
+            // Sem a mensagem do erro: a de JSON inválido traz o começo da
+            // resposta do modelo, que repete a pergunta do cidadão.
+            this.logger.warn('Curadoria: as continuacoes seguem sem reescrita, a chamada ao modelo falhou.');
+            return;
+        }
+
+        continuacoes.forEach((lacuna, i) => {
+            lacuna.entendida = lidas[i];
+        });
+        lacunas.forEach((lacuna, i) => {
+            if (lacuna.entendida) rodada.set(`lacunas.${i}.entendida`, lacuna.entendida);
+        });
+        await rodada.save();
     }
 
     /**
@@ -608,7 +675,12 @@ export class CuradoriaService {
             return [
                 `${i + 1}. Pergunta do cidadao: "${lacuna.entendida ?? lacuna.pergunta}"`,
                 lacuna.entendida ? `   Escrita pela pessoa: "${lacuna.pergunta}"` : null,
-                lacuna.anterior ? `   Pergunta anterior na mesma conversa: "${lacuna.anterior}"` : null,
+                // Com a continuação já reescrita, a anterior sai do prompt.
+                // Ao lado da pergunta, ela já fez o modelo juntar a pneumo-20
+                // com a herpes-zóster que a pessoa tinha perguntado antes.
+                lacuna.anterior && !lacuna.entendida
+                    ? `   Antes, na mesma conversa (da mais antiga para a mais recente): ${lacuna.anterior}`
+                    : null,
                 '   FAQs mais proximas que a busca encontrou (nenhuma foi boa o bastante):',
                 vizinhas || '    - nenhuma',
             ]
@@ -635,10 +707,12 @@ export class CuradoriaService {
             '   responder. Pode juntar varias assim num grupo so.',
             '',
             'Algumas perguntas dependem da conversa ("como chego la?", "tem telefone?", "e o',
-            'jejum?"). Quando vier a pergunta anterior, use-a so para entender o assunto: a',
-            'pergunta canonica precisa dizer o assunto por inteiro ("Como chego ao aeroporto?",',
-            'e nao "Como chegar a uma unidade de saude?"). Se a pergunta nova muda de assunto,',
-            'ignore a anterior.',
+            'jejum?"), e vem com o que a pessoa perguntou antes. Use isso so para descobrir o',
+            'assunto: a pergunta canonica precisa dizer o assunto por inteiro. Exemplo: depois',
+            'de "aeroporto", "como chego la?" vira "Como chego ao aeroporto?", e nao',
+            '"Como chegar a uma unidade de saude?". Se a pergunta nova se entende sozinha ou',
+            'muda de assunto, ignore o que veio antes, e nunca junte duas perguntas num grupo',
+            'so porque uma apareceu antes da outra na conversa.',
             '',
             'REGRA MAIS IMPORTANTE: nao invente orientacao de saude. Preencha "resposta"',
             'APENAS com informacao que esteja literalmente nas FAQs fornecidas, adaptada a',

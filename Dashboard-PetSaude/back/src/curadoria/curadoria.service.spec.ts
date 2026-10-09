@@ -92,6 +92,11 @@ describe('CuradoriaService', () => {
     const rodadaModel: any = function (this: any, dados: any) {
       Object.assign(this, dados);
       this._id = `rodada-${rodadas.length + 1}`;
+      // Só o caminho que o service usa: `lacunas.<i>.<campo>`.
+      this.set = (caminho: string, valor: any) => {
+        const [, indice, campo] = caminho.split('.');
+        this.lacunas[Number(indice)][campo] = valor;
+      };
       this.save = jest.fn(async () => {
         if (!rodadas.includes(this)) rodadas.push(this);
         return this;
@@ -263,6 +268,30 @@ describe('CuradoriaService', () => {
       ]);
     });
 
+    // Em "aeroporto", "ata e como chego la", "como chego la?", a anterior da
+    // terceira tambem nao diz o assunto: vao as duas ultimas.
+    it('leva as duas ultimas perguntas, da mais antiga para a mais recente', async () => {
+      troca(1, 'oi', { sessaoId: 's1', semResposta: false });
+      troca(2, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(3, 'ata e como chego la', { sessaoId: 's1', semResposta: false });
+      troca(4, 'como chego la?', { sessaoId: 's1' });
+
+      const [lacuna] = await service.listarFila();
+
+      expect(lacuna.anterior).toBe('aeroporto → ata e como chego la');
+    });
+
+    // Mandada para toda pergunta, a anterior fez o modelo juntar a pneumo-20
+    // com a herpes-zoster da pergunta de antes.
+    it('pergunta que se entende sozinha nao leva a anterior', async () => {
+      troca(1, 'Vacina de herpes zoster e do SUS?', { sessaoId: 's1', semResposta: false });
+      troca(2, 'quem pode tomar a vacina especifica pneumo-20?', { sessaoId: 's1' });
+
+      const [lacuna] = await service.listarFila();
+
+      expect(lacuna.anterior).toBeNull();
+    });
+
     it('as partes de uma mensagem ficam na mesma rodada', async () => {
       for (let n = 1; n <= 9; n++) troca(n, `Pergunta ${n}?`);
       troca(10, 'X? Y?', partes(['X?', false], ['Y?', false]));
@@ -421,29 +450,71 @@ describe('CuradoriaService', () => {
       ]);
     });
 
-    it('o prompt e o registro levam a frase da pessoa, a pergunta entendida e a anterior', async () => {
+    it('reescreve a continuacao com a anterior antes de agrupar', async () => {
       troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
       troca(2, 'como chego la?', { sessaoId: 's1' });
       troca(3, 'e o jejum?', { perguntaCompleta: 'Precisa de jejum para o exame de glicose?' });
-      gerarJson.mockResolvedValue({
-        grupos: [
-          { perguntas: [1], pergunta: 'Como chego ao aeroporto?', tipo: 'nova' },
-          { perguntas: [2], pergunta: 'Precisa de jejum para o exame de glicose?', tipo: 'nova' },
-        ],
-      });
+      gerarJson
+        .mockResolvedValueOnce({ perguntas: [{ item: 1, pergunta: 'Como chego ao aeroporto?' }] })
+        .mockResolvedValueOnce({
+          grupos: [
+            { perguntas: [1], pergunta: 'Como chego ao aeroporto?', tipo: 'nova' },
+            { perguntas: [2], pergunta: 'Precisa de jejum para o exame de glicose?', tipo: 'nova' },
+          ],
+        });
 
       service.iniciarRodada({ name: 'Ana' });
       await new Promise((r) => setImmediate(r));
 
-      const prompt = gerarJson.mock.calls[0][0];
-      expect(prompt).toContain('1. Pergunta do cidadao: "como chego la?"');
-      expect(prompt).toContain('Pergunta anterior na mesma conversa: "aeroporto"');
+      // Só a continuacao vai para a reescrita: a do staging ja chega entendida.
+      const entendimento = gerarJson.mock.calls[0][0];
+      expect(entendimento).toContain('1. Antes: aeroporto\n   Pergunta: "como chego la?"');
+      expect(entendimento).not.toContain('Pergunta: "e o jejum?"');
+
+      const prompt = gerarJson.mock.calls[1][0];
+      expect(prompt).toContain('1. Pergunta do cidadao: "Como chego ao aeroporto?"');
+      expect(prompt).toContain('Escrita pela pessoa: "como chego la?"');
+      expect(prompt).not.toContain('Antes, na mesma conversa');
       expect(prompt).toContain('2. Pergunta do cidadao: "Precisa de jejum para o exame de glicose?"');
       expect(prompt).toContain('Escrita pela pessoa: "e o jejum?"');
       // A rodada guarda tudo que o modelo leu, e a sugestao, de onde veio.
-      expect(rodadas[0].lacunas[0].anterior).toBe('aeroporto');
+      expect(rodadas[0].lacunas[0]).toMatchObject({ anterior: 'aeroporto', entendida: 'Como chego ao aeroporto?' });
       expect(rodadas[0].lacunas[1].entendida).toBe('Precisa de jejum para o exame de glicose?');
-      expect(salvas[0].origens[0]).toMatchObject({ pergunta: 'como chego la?', anterior: 'aeroporto' });
+      expect(salvas[0].origens[0]).toMatchObject({
+        pergunta: 'como chego la?',
+        entendida: 'Como chego ao aeroporto?',
+        anterior: 'aeroporto',
+      });
+    });
+
+    it('sem a reescrita, a continuacao vai ao agrupamento com a anterior ao lado', async () => {
+      troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(2, 'como chego la?', { sessaoId: 's1' });
+      gerarJson
+        .mockRejectedValueOnce(new Error('modelo fora do ar'))
+        .mockResolvedValueOnce({ grupos: [{ perguntas: [1], pergunta: 'Como chego ao aeroporto?', tipo: 'nova' }] });
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      const prompt = gerarJson.mock.calls[1][0];
+      expect(prompt).toContain('1. Pergunta do cidadao: "como chego la?"');
+      expect(prompt).toContain('Antes, na mesma conversa (da mais antiga para a mais recente): aeroporto');
+      expect(rodadas[0].lacunas[0].entendida).toBeNull();
+      expect(rodadas[0].estado).toBe('concluida');
+    });
+
+    it('cota esgotada na reescrita encerra a rodada sem tirar nada da fila', async () => {
+      troca(1, 'aeroporto', { sessaoId: 's1', semResposta: false });
+      troca(2, 'como chego la?', { sessaoId: 's1' });
+      gerarJson.mockRejectedValueOnce(new Error('429 RESOURCE_EXHAUSTED'));
+
+      service.iniciarRodada({ name: 'Ana' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(gerarJson).toHaveBeenCalledTimes(1);
+      expect(rodadas[0].estado).toBe('cota_esgotada');
+      expect(updateMany).not.toHaveBeenCalled();
     });
 
     it('mensagem com uma parte fora de escopo e outra util fica processada', async () => {
