@@ -475,6 +475,8 @@ describe('CuradoriaService', () => {
       expect(prompt).toContain('1. Pergunta do cidadao: "Como chego ao aeroporto?"');
       expect(prompt).toContain('Escrita pela pessoa: "como chego la?"');
       expect(prompt).not.toContain('Antes, na mesma conversa');
+      // O nome que nenhuma FAQ vizinha conhece e a lacuna: nao pode sumir.
+      expect(prompt).toContain('Mantenha os nomes que a pessoa usou');
       expect(prompt).toContain('2. Pergunta do cidadao: "Precisa de jejum para o exame de glicose?"');
       expect(prompt).toContain('Escrita pela pessoa: "e o jejum?"');
       // A rodada guarda tudo que o modelo leu, e a sugestao, de onde veio.
