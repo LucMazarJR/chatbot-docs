@@ -17,7 +17,7 @@
 import { ObjectIdDe } from './busca.mjs';
 import { CotaEsgotada, textoDaResposta } from './gemini.mjs';
 
-// A mesma regex do PWA (pwa/src/app/api/n8n/resposta/route.ts), que decide o
+// A mesma regex do PWA (pwa/src/lib/partes-da-resposta.ts), que decide o
 // que vai para a curadoria quando o fluxo não manda as partes. O travessão é o
 // do texto fixo do agente.
 export const RE_NAO_ENCONTREI = /^\s*desculpe\s*[—–-]\s*n[ãa]o encontrei/i;
@@ -174,15 +174,29 @@ export function criarJuiz({ cliente, modelo, cache, faqs }) {
       if (p.faqs.length) {
         return { certa: 'certa', errada: 'faq_errada', nao_encontrou: 'nao_encontrei_indevido', omitida: 'omitida' }[j.resultado];
       }
-      // "certa" numa parte sem FAQ quer dizer que o chat respondeu com algo
-      // da base: ou o gabarito errou, ou ele usou uma FAQ de outro assunto.
-      if (j.resultado === 'certa') notas.push(`parte ${i + 1}: o gabarito diz que a base não tem; conferir`);
+      // "certa" numa parte sem FAQ é ambíguo: o juiz às vezes chama de certa
+      // a recusa correta. Quando o próprio fluxo declarou que não respondeu,
+      // vale a declaração; senão, o chat respondeu com algo da base, e ou o
+      // gabarito errou ou ele usou uma FAQ de outro assunto.
+      if (j.resultado === 'certa') {
+        if (declarouSemResposta(resultado)) return 'nao_encontrei_correto';
+        notas.push(`parte ${i + 1}: o gabarito diz que a base não tem; conferir`);
+      }
       return { certa: 'inventou', errada: 'inventou', nao_encontrou: 'nao_encontrei_correto', omitida: 'omitida' }[j.resultado];
     });
     return { veredito: vereditoDoTurno(porParte), partes: porParte, notas, lacuna: lacunaDoTurno(partes, resultado) };
   }
 
   return { avaliar };
+}
+
+/**
+ * O fluxo disse que não respondeu: todas as partes declaradas sem resposta,
+ * ou, sem partes, o texto fixo do "não encontrei".
+ */
+function declarouSemResposta(resultado) {
+  if (Array.isArray(resultado.partes) && resultado.partes.length) return resultado.partes.every((p) => !p.respondida);
+  return RE_NAO_ENCONTREI.test(resultado.resposta ?? '');
 }
 
 /**

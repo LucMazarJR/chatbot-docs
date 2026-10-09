@@ -260,8 +260,12 @@ O chat do staging tem ainda três coisas que o `/` não tem. Todas entram pelo c
 
 #### Ligar a reescrita no staging
 
-1. **Credencial no n8n:** `Gemini Reescrita`, do tipo Google Gemini(PaLM) API, com a `GEMINI_API_KEY_3`. Pelo mesmo motivo da `_2`, ela precisa ser de **outro projeto Google**: a reescrita é uma chamada a mais por pergunta, e no mesmo projeto ela dividiria a cota com as respostas.
-2. **Importar e ativar** [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), como no [passo 3](#3-importar-e-ativar-o-fluxo). Ele usa o mesmo token (`PWA Webhook Token`) e a mesma credencial `Gemini PWA` para as respostas.
+1. **Credenciais no n8n**, as duas do tipo Google Gemini(PaLM) API:
+   * `Gemini Reescrita`, com a `GEMINI_API_KEY_3`, para a reescrita e os embeddings;
+   * `Gemini Análise`, com a `GEMINI_API_KEY_4`, para a resposta.
+
+   Pelo mesmo motivo da `_2`, cada uma precisa ser de **outro projeto Google**: no projeto da `_2`, os testes da equipe no staging gastariam a cota de quem conversa no `/`.
+2. **Importar e ativar** [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), como no [passo 3](#3-importar-e-ativar-o-fluxo). Ele usa o mesmo token do `/` (`PWA Webhook Token`). Depois de importar, abrir os nós do Gemini e conferir que nenhum ficou com a `Gemini PWA`.
 3. **Testar a rota** como no [passo 5](#5-testar-a-rota-isolada-sem-navegador), trocando `/webhook/pwa-chat` por `/webhook/pwa-chat-staging`.
 4. **Apontar o PWA:** `N8N_PWA_STAGING_WEBHOOK_URL=http://n8n:5678/webhook/pwa-chat-staging` no `.env` (e `docker compose up -d --build pwa`), e `https://petbot.lucianomjr.dev/webhook/pwa-chat-staging` na Vercel, seguido de um novo deploy.
 
@@ -297,6 +301,8 @@ O registro das conversas não é descartável como o protótipo: é dele que sai
 - **`/curadoria`** junta até 10 dessas perguntas e manda **um** prompt ao Gemini, pedindo que agrupe as que pedem a mesma coisa e proponha a FAQ. As FAQs vizinhas não são buscadas de novo: já estão em `trechosDebug` da própria resposta, com os scores daquele momento, e a rodada não gasta embedding nenhum.
 - O modelo **não escreve orientação de saúde**. A resposta sai vazia quando as FAQs fornecidas não continham a informação; aprovar exige que alguém escreva o texto, e a FAQ é criada pelo mesmo caminho do formulário manual, com quem aprovou como autor.
 - Toda rodada fica registrada com as perguntas que entraram e a resposta crua do modelo, visível em "Histórico das análises".
+- **A pergunta chega com o assunto.** Da resposta parcial, entra só a parte que ficou sem resposta. Do staging, entra a pergunta como a triagem entendeu, com a frase da pessoa ao lado. Uma continuação do `/` ("como chego lá?", "e fralda geriátrica?", "tem telefone?") leva as duas perguntas anteriores da conversa, e uma chamada antes do agrupamento a reescreve por inteiro ("Como chego ao aeroporto?"). A pergunta que se entende sozinha não leva nada da conversa: com a anterior ao lado, o modelo juntava assuntos diferentes só porque um veio depois do outro.
+- Pergunta que o modelo deixa fora de todos os grupos continua na fila para a rodada seguinte.
 
 > Do primeiro lote real: 17 lacunas, das quais **3 não eram lacuna nenhuma** ("qual o melhor time de futebol do brasil?", "Hoje fiz muita coisa"): o chatbot acertou em não responder, e elas são encerradas sem virar sugestão. Das outras, duas eram a mesma pergunta ("ata e como chego la" e "como chego la ?") e foram agrupadas.
 
