@@ -15,7 +15,7 @@ export class MessagesController {
    *
    * A requisição só responde depois que a mensagem foi entregue ao WhatsApp:
    * como o envio passa pela fila anti-ban (atraso aleatório + "digitando"),
-   * espere alguns segundos de latência. É proposital — o n8n recebe o id real
+   * espere alguns segundos de latência. É proposital: o n8n recebe o id real
    * da mensagem e o erro real, em vez de um "ok" que não significa nada.
    */
   @Post()
@@ -23,7 +23,7 @@ export class MessagesController {
   @ApiOperation({ summary: 'Envia uma mensagem de texto pelo WhatsApp.' })
   @ApiResponse({ status: 202, type: SendMessageResponseDto })
   @ApiResponse({ status: 401, description: 'X-Api-Key ausente ou inválida.' })
-  @ApiResponse({ status: 503, description: 'Sessão não conectada — tente de novo mais tarde.' })
+  @ApiResponse({ status: 503, description: 'Sessão não conectada: tente de novo mais tarde.' })
   send(@Body() dto: SendMessageDto): Promise<SendMessageResponseDto> {
     return this.outbound.sendText(dto);
   }

@@ -10,7 +10,7 @@ import { CorrelationService } from '@/shared/correlation/correlation.service';
  * Segredos que nunca podem chegar ao log.
  *
  * O corpo das mensagens também é sensível (é dado de saúde de um cidadão), mas
- * não é tratado aqui por redaction: o código simplesmente nunca loga o texto —
+ * não é tratado aqui por redaction: o código nunca loga o texto,
  * loga `textLength`. Redaction é a última linha de defesa, não a primeira.
  */
 const REDACTED_PATHS = [

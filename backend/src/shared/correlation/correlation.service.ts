@@ -11,8 +11,8 @@ export interface CorrelationStore {
  * Propaga o `correlationId` por todo o caminho de uma mensagem sem ter que
  * passá-lo de parâmetro em parâmetro.
  *
- * Existe porque metade do trabalho do gateway não nasce de uma requisição HTTP
- * — nasce de um evento do socket do WhatsApp. Um interceptor HTTP sozinho não
+ * Existe porque metade do trabalho do gateway não nasce de uma requisição HTTP:
+ * nasce de um evento do socket do WhatsApp. Um interceptor HTTP sozinho não
  * cobriria esse caminho.
  */
 @Injectable()

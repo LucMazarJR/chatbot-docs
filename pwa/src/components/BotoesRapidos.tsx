@@ -7,7 +7,7 @@ export type BotaoRapido = { rotulo: string; valor: string };
  *
  * Vieram do desenho da versão B, e resolvem duas coisas de uma vez: o aceite
  * dos termos vira um toque em vez de digitação, e quem abre o chat sem saber o
- * que perguntar tem por onde começar — no primeiro teste, 8 das 28 conversas
+ * que perguntar tem por onde começar: no primeiro teste, 8 das 28 conversas
  * marcadas como "não encontrou" eram só "oi", gente sem saber o que pedir.
  *
  * Somem depois de escolhido, e a escolha fica aparente no balão: sem isso, uma

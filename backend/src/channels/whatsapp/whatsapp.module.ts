@@ -6,7 +6,7 @@ import { BaileysProvider } from './adapters/baileys/baileys.provider';
 import { FileAuthStateRepository } from './adapters/baileys/file-auth-state.repository';
 
 /**
- * Aqui — e só aqui — se escolhe qual implementação do canal está em uso.
+ * Aqui, e só aqui, se escolhe qual implementação do canal está em uso.
  *
  * Trocar para a WhatsApp Cloud API oficial da Meta no futuro é substituir
  * `BaileysProvider` por `CloudApiProvider` nestas duas linhas. Nenhum outro

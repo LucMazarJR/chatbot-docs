@@ -7,7 +7,7 @@ para ~4000/dia e a operação cabe numa sessão.
 
 Quando uma chave devolve 429, ela é marcada como esgotada e a próxima assume.
 Quando todas esgotam, `CotaEsgotadaError` é levantada para o chamador parar
-limpo — os scripts que usam este módulo são retomáveis, então basta rodar de
+limpo: os scripts que usam este módulo são retomáveis, então basta rodar de
 novo no dia seguinte ou com chaves novas.
 
 Configuração no `.env`:
@@ -19,7 +19,7 @@ Configuração no `.env`:
     GEMINI_EMBEDDING_MODEL=...    # padrão: gemini-embedding-2
     GEMINI_TASK_TYPE=...          # padrão: SEMANTIC_SIMILARITY
 
-Chaves do mesmo projeto dividem o mesmo balde de cota — rotacionar entre elas
+Chaves do mesmo projeto dividem o mesmo balde de cota: rotacionar entre elas
 não adianta nada.
 """
 import os
@@ -161,7 +161,7 @@ def chaves_disponiveis() -> int:
 def gerarEmbedding(question: str, model: Optional[str] = None, task_type: Optional[str] = None):
     """Gera o embedding de um texto, trocando de chave quando a cota estoura.
 
-    Devolve o objeto de resposta da API — o vetor está em
+    Devolve o objeto de resposta da API: o vetor está em
     `resultado.embeddings[0].values`. O formato foi mantido para não quebrar os
     scripts que já chamam esta função.
     """

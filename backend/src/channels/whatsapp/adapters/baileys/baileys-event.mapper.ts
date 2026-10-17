@@ -5,7 +5,7 @@ import type { InboundMessage, MessageType } from '@/channels/whatsapp/domain/mes
  *
  * Este é o único arquivo do projeto que sabe o que é `extendedTextMessage`,
  * `stanzaId` ou `@lid`. Tudo isso vazava para o workflow do n8n antes (que lia
- * `body.payload._data.key.remoteJidAlt` direto) — e era por isso que trocar o
+ * `body.payload._data.key.remoteJidAlt` direto), e era por isso que trocar o
  * motor do WhatsApp quebrava o bot.
  *
  * É de propósito uma função pura, sem `import` de runtime do Baileys: o pacote
@@ -91,7 +91,7 @@ export function toInboundMessage(sessionId: string, raw: RawBaileysMessage): Inb
     return null;
   }
 
-  // Eco das nossas próprias respostas — processá-las criaria um laço.
+  // Eco das nossas próprias respostas: processá-las criaria um laço.
   if (key.fromMe) {
     return null;
   }
@@ -201,7 +201,7 @@ function extractQuotedId(content: RawMessageContent): string | null {
  * Remove o sufixo de dispositivo/agente do JID (`:12@` → `@`).
  *
  * Sem isso, a mesma pessoa falando de dois aparelhos vira dois chats
- * diferentes — e a memória da conversa no n8n se parte ao meio.
+ * diferentes, e a memória da conversa no n8n se parte ao meio.
  */
 export function normalizeJid(jid: string): string {
   const [user = '', domain] = jid.split('@');

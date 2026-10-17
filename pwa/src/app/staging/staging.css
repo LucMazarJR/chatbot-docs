@@ -1,0 +1,502 @@
+/*
+ * Telas do ambiente de testes.
+ *
+ * Tudo com prefixo `st-`, carregado só pela moldura de /staging: nada daqui
+ * pode vazar para o `/`, que está em teste de campo. As cores vêm das mesmas
+ * variáveis do chat, então tema escuro e tamanho de texto valem aqui também.
+ */
+
+/*
+ * Altura fixa, e quem rola é o conteúdo.
+ *
+ * O chat foi desenhado para ocupar a tela inteira (`#app` com 100dvh), e aqui
+ * ele divide a altura com a faixa de testes. Com `min-height` o chat passaria da
+ * tela pela altura da faixa, e a barra de digitação ficaria escondida abaixo da
+ * dobra no celular.
+ */
+.st {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--fundo-chat);
+  color: var(--texto);
+}
+
+.st a {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+/* Amarelo de aviso de sistema: diz, sem assustar, que isto não é o app final.
+   Leva também quem está logado e a saída, porque é a única barra que aparece em
+   toda tela do staging, inclusive no chat, que ocupa a altura inteira. */
+.st-faixa {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 12px;
+  padding-top: env(safe-area-inset-top);
+  background: var(--aviso);
+  color: var(--aviso-texto);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.st-faixa-texto {
+  padding: 7px 0;
+  line-height: 1.3;
+}
+
+.st-faixa-conta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.st-faixa-email {
+  overflow: hidden;
+  max-width: 12rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Alvo de toque inteiro, sem engordar a faixa: o botão ocupa a altura dela e
+   avança sobre o respiro lateral. */
+.st-faixa-conta button {
+  min-height: 40px;
+  padding: 0 10px;
+  margin-right: -6px;
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.st-faixa-conta button:disabled {
+  opacity: 0.6;
+}
+
+/* Tela estreita: entre saber de quem é a sessão e conseguir sair dela, sair
+   importa mais. */
+@media (max-width: 420px) {
+  .st-faixa-email {
+    display: none;
+  }
+}
+
+.st-conteudo {
+  display: flex;
+  position: relative;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* O chat dentro do staging: ocupa o que sobra abaixo da faixa. */
+.st-conteudo > #app {
+  height: 100%;
+}
+
+/* A faixa já reservou o espaço do notch; o cabeçalho do chat reservaria de
+   novo, e sobraria um vão no topo dos iPhones. */
+.st-conteudo .topo {
+  padding-top: 10px;
+}
+
+/* O menu ⋮ se posiciona pelo topo da área de conteúdo (ver `position: relative`
+   acima), e não mais da tela, senão abriria por cima do cabeçalho. */
+.st-conteudo .menu {
+  top: 52px;
+}
+
+.st-pagina {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 24px 16px calc(32px + env(safe-area-inset-bottom));
+}
+
+.st-marca {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.st-marca img {
+  border-radius: 50%;
+}
+
+.st-marca h1 {
+  margin: 10px 0 4px;
+  font-size: 1.4em;
+  font-weight: 600;
+}
+
+.st-marca p {
+  margin: 0;
+  color: var(--texto-fraco);
+  line-height: 1.5;
+}
+
+.st-cartao {
+  margin-bottom: 16px;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--painel);
+  box-shadow: var(--sombra);
+}
+
+.st-cartao h2 {
+  margin: 0 0 8px;
+  font-size: 1.05em;
+}
+
+.st-cartao p {
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.st-abas {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--barra);
+}
+
+.st-abas button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 9px;
+  color: var(--texto-fraco);
+  font-weight: 600;
+}
+
+.st-abas button[aria-selected='true'] {
+  background: var(--painel);
+  box-shadow: var(--sombra);
+  color: var(--texto);
+}
+
+.st-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.st-campo label {
+  font-weight: 600;
+}
+
+.st-campo input {
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--campo);
+  color: var(--texto);
+  font: inherit;
+}
+
+.st-dica {
+  color: var(--texto-fraco);
+  font-size: 0.88em;
+  font-weight: 400;
+}
+
+.st-marcar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+
+/* Quando o cadastro esbarrou no aceite: a caixa fica marcada como o que falta,
+   e não só a frase de erro lá em cima. */
+.st-marcar-falta {
+  margin: 0 -8px 14px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--aviso);
+  color: var(--aviso-texto);
+}
+
+.st-marcar input {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--acento);
+}
+
+.st-botao {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 24px;
+  background: var(--acento);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* #00a884 com texto branco dá 3:1: abaixo do mínimo. O botão de enviar do
+   chat escuro já resolve assim. */
+:root[data-tema='escuro'] .st-botao {
+  color: #111b21;
+}
+
+.st-botao:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.st-botao-secundario,
+:root[data-tema='escuro'] .st-botao-secundario {
+  border: 1px solid var(--acento);
+  background: transparent;
+  color: var(--acento);
+}
+
+.st-perigo {
+  background: var(--perigo);
+  color: #fff;
+}
+
+:root[data-tema='escuro'] .st-perigo {
+  color: #3a0906;
+}
+
+.st-erro {
+  margin: 0 0 14px;
+  color: var(--perigo);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.st-aviso-ok {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--aviso);
+  color: var(--aviso-texto);
+  font-weight: 600;
+}
+
+.st-separador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--texto-fraco);
+  font-size: 0.9em;
+}
+
+.st-separador::before,
+.st-separador::after {
+  flex: 1;
+  height: 1px;
+  background: var(--borda);
+  content: '';
+}
+
+.st a.st-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 1px solid var(--borda);
+  border-radius: 24px;
+  background: var(--painel);
+  color: var(--texto);
+  text-decoration: none;
+}
+
+/* O aceite dos termos que vale para o botão do Google, logo abaixo dele. */
+.st-termos-google {
+  display: block;
+  margin: 10px 0 0;
+  line-height: 1.45;
+}
+
+.st-dados {
+  margin: 0 0 18px;
+}
+
+.st-dados div {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.st-dados dt {
+  color: var(--texto-fraco);
+  font-size: 0.88em;
+}
+
+.st-dados dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.st-acoes {
+  display: flex;
+  gap: 10px;
+}
+
+.st-lista-conversas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.st-lista-conversas li + li {
+  border-top: 1px solid var(--borda);
+}
+
+.st .st-lista-conversas a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 56px;
+  padding: 10px 0;
+  color: var(--texto);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.st-conversa-pergunta {
+  overflow-wrap: anywhere;
+}
+
+/* Conversa anterior: o mesmo visual do chat, sem barra de digitação. */
+.st-transcricao {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.st-transcricao-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--topo);
+  color: var(--topo-texto);
+}
+
+.st .st-transcricao-topo a {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  color: inherit;
+  font-size: 1.4em;
+  text-decoration: none;
+}
+
+.st-transcricao-topo strong {
+  display: block;
+  font-weight: 500;
+}
+
+.st-transcricao-topo span {
+  font-size: 0.85em;
+}
+
+/* Diagnóstico do aparelho: cada linha é um limite do push na web. */
+.st-diagnostico {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.st-diagnostico li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+}
+
+/* O estado não depende só da cor: o símbolo diz a mesma coisa para quem não
+   distingue verde de vermelho. */
+.st-diagnostico li::before {
+  display: grid;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.8em;
+  font-weight: 700;
+  place-items: center;
+}
+
+.st-diagnostico .st-ok::before {
+  background: var(--acento);
+  color: #fff;
+  content: '✓';
+}
+
+.st-diagnostico .st-falta::before {
+  background: var(--barra);
+  color: var(--texto-fraco);
+  content: '–';
+}
+
+.st-orientacao {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--aviso);
+  color: var(--aviso-texto);
+  line-height: 1.5;
+}
+
+.st-detalhe-aviso {
+  font-size: 1.1em;
+  white-space: pre-line;
+}
+
+.st-voltar {
+  margin: 0 0 12px;
+}
+
+.st-voltar a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.st-zona-perigo h2 {
+  color: var(--perigo);
+}
+
+/* Ação secundária com cara de link: o teste local é para quando o principal
+   falhou, e não deve competir com ele. Altura de toque inteira, mesmo assim. */
+.st-link-acao {
+  display: block;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0;
+  color: var(--acento);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.st-link-acao:disabled {
+  opacity: 0.55;
+}

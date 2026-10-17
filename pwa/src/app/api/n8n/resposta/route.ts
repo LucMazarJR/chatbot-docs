@@ -1,15 +1,9 @@
 import { mensagens } from '@/lib/db';
 import { TEXTO_INDISPONIVEL } from '@/lib/mensagens-fixas';
+import { classificarResposta, lerPartes } from '@/lib/partes-da-resposta';
 import type { TrechoDebug } from '@/lib/tipos';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * O texto exato que o prompt manda o agente responder quando nenhum trecho
- * serve. Reconhecê-lo é o que permite medir a taxa de "a base não sabia" sem
- * depender de o participante marcar nada.
- */
-const RE_NAO_ENCONTREI = /^\s*desculpe\s*[—–-]\s*n[ãa]o encontrei/i;
 
 type Corpo = {
   mensagemId?: string;
@@ -20,7 +14,36 @@ type Corpo = {
   trechosDebug?: TrechoDebug[];
   limiarScore?: number | null;
   modelo?: string | null;
+  // Só no fluxo de staging, com a pergunta preparada antes da busca.
+  perguntaCompleta?: string | null;
+  consultas?: unknown;
+  reescritaMs?: number | null;
+  reescritaFalhou?: boolean;
+  /** As partes da pergunta, com o que foi respondido em cada uma. */
+  partes?: unknown;
+  analiseMs?: number | null;
 };
+
+/**
+ * Os campos da preparação da pergunta, quando o fluxo mandou.
+ *
+ * Validados aqui porque vão para o banco e para o painel: lista que não é de
+ * texto vira lista vazia, e texto grande é cortado. O fluxo do `/` não manda
+ * nada disso, e a mensagem dele fica exatamente como era.
+ */
+function camposDaReescrita(corpo: Corpo): Record<string, unknown> {
+  if (corpo.perguntaCompleta === undefined && corpo.consultas === undefined) return {};
+  const consultas = Array.isArray(corpo.consultas)
+    ? corpo.consultas.filter((c): c is string => typeof c === 'string').map((c) => c.slice(0, 300)).slice(0, 5)
+    : [];
+  return {
+    perguntaCompleta: typeof corpo.perguntaCompleta === 'string' ? corpo.perguntaCompleta.slice(0, 400) : null,
+    consultas,
+    reescritaMs: typeof corpo.reescritaMs === 'number' ? corpo.reescritaMs : null,
+    reescritaFalhou: Boolean(corpo.reescritaFalhou),
+    ...(typeof corpo.analiseMs === 'number' ? { analiseMs: corpo.analiseMs } : {}),
+  };
+}
 
 /**
  * Retorno do n8n: a resposta ficou pronta.
@@ -31,7 +54,7 @@ type Corpo = {
  *
  * Autenticado pelo mesmo segredo que protege o webhook do n8n: sem isso,
  * qualquer um que descobrisse a URL poderia injetar respostas na conversa de um
- * participante — inclusive orientação de saúde falsa.
+ * participante, inclusive orientação de saúde falsa.
  */
 export async function POST(requisicao: Request) {
   const token = process.env.N8N_PWA_WEBHOOK_TOKEN;
@@ -45,8 +68,8 @@ export async function POST(requisicao: Request) {
 
   const col = await mensagens();
 
-  // Só preenche o que ainda está pendente. Se o n8n repetir a chamada — ele tem
-  // retry — a segunda passa direto em vez de sobrescrever a resposta e
+  // Só preenche o que ainda está pendente. Se o n8n repetir a chamada (ele tem
+  // retry), a segunda passa direto em vez de sobrescrever a resposta e
   // recalcular a latência a partir de um relógio já parado.
   const pendente = await col.findOne({ _id: mensagemId, pendente: true });
   if (!pendente) return Response.json({ ok: true, jaRegistrada: true });
@@ -54,15 +77,15 @@ export async function POST(requisicao: Request) {
   const houveFalha = corpo.ok === false;
   const resposta = corpo.resposta || TEXTO_INDISPONIVEL;
 
-  // Vale o TEXTO da resposta, e não a ausência de trechos.
+  // Vale o que a resposta declara, e não a ausência de trechos.
   //
-  // Antes, `temContexto === false` sozinho já marcava a mensagem como lacuna da
-  // base. Mas o prompt manda o agente saudar sem depender de trecho nenhum:
-  // "oi", "olá" e "bom dia" chegavam aqui sem contexto, eram respondidos
-  // corretamente, e mesmo assim entravam na conta. Na primeira rodada de testes
-  // isso foi 8 das 28 marcações — 29% do indicador era ruído, e o indicador é
-  // justamente o que diz se a base precisa crescer.
-  const semResposta = RE_NAO_ENCONTREI.test(resposta);
+  // Com `temContexto === false` sozinho, toda saudação contaria como lacuna da
+  // base: o prompt manda responder "oi", "olá" e "bom dia" sem trecho nenhum,
+  // e a resposta está certa. Numa rodada de testes isso deu 8 de 28
+  // marcações, ou 29% de ruído no indicador que diz se a base precisa crescer.
+  // O fluxo com triagem declara as partes; o do `/`, só o texto.
+  const partes = houveFalha ? null : lerPartes(corpo.partes);
+  const { semResposta, partesSemResposta } = classificarResposta(resposta, partes);
 
   await col.updateOne(
     { _id: mensagemId },
@@ -81,6 +104,8 @@ export async function POST(requisicao: Request) {
         semResposta,
         erro: houveFalha,
         motivoErro: houveFalha ? 'o agente não concluiu' : null,
+        ...camposDaReescrita(corpo),
+        ...(partes ? { partes, partesSemResposta } : {}),
       },
     },
   );

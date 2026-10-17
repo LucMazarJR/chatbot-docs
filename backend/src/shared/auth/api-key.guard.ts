@@ -18,7 +18,7 @@ export const API_KEY_HEADER = 'x-api-key';
 /**
  * Guard global de API key.
  *
- * Substitui o `X-Api-Key` que o WAHA exigia, mantendo o mesmo header — o n8n
+ * Substitui o `X-Api-Key` que o WAHA exigia, mantendo o mesmo header: o n8n
  * já enviava esse cabeçalho, então a mudança para ele é só o valor.
  */
 @Injectable()
@@ -50,7 +50,7 @@ export class ApiKeyGuard implements CanActivate {
   }
 }
 
-/** Comparação em tempo constante — evita distinguir chaves por tempo de resposta. */
+/** Comparação em tempo constante: evita distinguir chaves por tempo de resposta. */
 function safeCompare(a: string, b: string): boolean {
   const bufferA = Buffer.from(a);
   const bufferB = Buffer.from(b);

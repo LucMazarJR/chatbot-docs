@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
  * Depois de quanto tempo uma pendência é dada como perdida.
  *
  * Cobre o pior caso observado (perto de 3 minutos) com folga. Passado isso, o
- * n8n caiu, o retorno não chegou ou o fluxo travou — e continuar mostrando
+ * n8n caiu, o retorno não chegou ou o fluxo travou, e continuar mostrando
  * "digitando" seria enganar quem espera.
  */
 const MS_ATE_DESISTIR = 4 * 60 * 1000;
@@ -27,7 +27,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
 
   // Esta rota entrega o TEXTO da resposta. Sem a conferência, seria a
   // transcrição servida por outra porta: bastaria o id da mensagem, que também
-  // não é segredo — ele volta no corpo do POST e vai para o n8n.
+  // não é segredo: ele volta no corpo do POST e vai para o n8n.
   const autenticada = await autenticarPelaMensagem(requisicao, id);
   if ('erro' in autenticada) return autenticada.erro;
 

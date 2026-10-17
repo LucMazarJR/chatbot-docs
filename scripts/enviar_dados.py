@@ -65,7 +65,7 @@ def converter_para_markdown(p) -> str:
     """Preserva a formatação de listas do Word para o Chatbot.
 
     `p.style` é `None` quando o parágrafo aponta para um estilo que não está
-    definido no documento — comum em `.docx` gerado por ferramenta em vez de
+    definido no documento: comum em `.docx` gerado por ferramenta em vez de
     digitado no Word. Sem a guarda, um único parágrafo assim derrubava o
     arquivo inteiro com `'NoneType' object has no attribute 'name'`, e todas as
     FAQs dele ficavam de fora sem que ninguém percebesse.
@@ -285,7 +285,7 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                             embeddings_reutilizados += 1
                             logger.info(f"   📌 [{total_ate_agora}] Reutilizando embedding...")
                         elif embedding_desativado:
-                            # Limite atingido ou erro de API — envia sem embedding
+                            # Limite atingido ou erro de API: envia sem embedding
                             logger.info(f"   ⏭️  [{total_ate_agora}] Sem embedding (limite atingido).")
                             embedding_vector = None
                         else:
@@ -324,7 +324,7 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                             "answer": resposta,
                             # Campo lido pelo nó Vector Store do n8n para montar o
                             # `pageContent`. Sem ele o nó encontra o documento e
-                            # devolve texto vazio — a busca "funciona" e o agente
+                            # devolve texto vazio: a busca "funciona" e o agente
                             # responde "não encontrei", sem erro em lugar nenhum.
                             # O assunto entra no texto porque muitas perguntas são
                             # idênticas entre exames ("Como me preparar para o

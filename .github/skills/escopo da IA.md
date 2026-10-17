@@ -3,7 +3,7 @@
 ## Deve cobrir
 
 - Execução alinhada a `AGENTS.md` e às skills ativas
-- Estado do plano (`docs/progresso/`, `docs/handoff-notebook.md`)
+- Estado do plano (`docs/progresso/`, `docs/instalacao.md`, `docs/armadilhas.md`)
 - Compose, gateway, n8n, PWA, scripts de FAQ
 - Portas e deploy no host `172.21.31.167`
 - Checagem de divergência Git (`origin` + `gitness`)

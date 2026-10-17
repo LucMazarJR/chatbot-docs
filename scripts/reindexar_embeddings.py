@@ -3,7 +3,7 @@
 Por que existe: os vetores atuais foram gerados a partir de `pergunta + resposta`
 apenas, **sem a categoria**. Como muitas FAQs compartilham a mesma pergunta
 ("Como me preparar para o Exame?") e a mesma resposta, exames diferentes
-acabaram com vetores idênticos — numa busca real, zinco e paratormônio deram
+acabaram com vetores idênticos: numa busca real, zinco e paratormônio deram
 score igual até a última casa decimal, e o ranqueamento virou sorteio.
 
 O que muda aqui: o texto embedado passa a ser o campo `text`
@@ -97,7 +97,7 @@ def main() -> int:
     print(f"  Chaves disponíveis: {chaves_disponiveis():>6}  (~1000 embeddings/dia cada)")
     if not args.aplicar:
         print()
-        print("  MODO SIMULAÇÃO — nada será gravado. Use --aplicar para valer.")
+        print("  MODO SIMULAÇÃO: nada será gravado. Use --aplicar para valer.")
     print("=" * 60)
 
     if pendentes == 0:
@@ -147,7 +147,7 @@ def main() -> int:
                 vetor = resultado.embeddings[0].values
 
                 # O índice do Atlas é fixo em 3072 dimensões. Gravar vetor de
-                # outro tamanho não dá erro no Mongo — só faz a busca parar de
+                # outro tamanho não dá erro no Mongo, só faz a busca parar de
                 # achar o documento, em silêncio.
                 if len(vetor) != DIMENSOES_INDICE:
                     print()
@@ -176,7 +176,7 @@ def main() -> int:
                     time.sleep(args.pausa)
 
                 if processados % 50 == 0:
-                    print(f"   {processados}/{pendentes} — {chaves_disponiveis()} chave(s) com saldo", flush=True)
+                    print(f"   {processados}/{pendentes}: {chaves_disponiveis()} chave(s) com saldo", flush=True)
 
             except CotaEsgotadaError as erro:
                 print()
@@ -190,7 +190,7 @@ def main() -> int:
                 # Só desiste quando as falhas são SEGUIDAS: erros de rede
                 # espalhados ao longo de horas não deveriam parar a execução.
                 if falhas_seguidas >= LIMITE_FALHAS_SEGUIDAS:
-                    print(f"   {LIMITE_FALHAS_SEGUIDAS} falhas seguidas — algo está errado, interrompendo.")
+                    print(f"   {LIMITE_FALHAS_SEGUIDAS} falhas seguidas: algo está errado, interrompendo.")
                     interrompido = True
                     break
 

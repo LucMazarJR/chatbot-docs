@@ -11,7 +11,7 @@ import { IdempotencyService } from './idempotency.service';
 import { SendQueueService } from './send-queue.service';
 import { TextFormatterService } from './text-formatter.service';
 
-/** Ritmo de digitação simulado — aproxima uma pessoa digitando de verdade. */
+/** Ritmo de digitação simulado: aproxima uma pessoa digitando de verdade. */
 const TYPING_MS_PER_CHAR = 25;
 
 @Injectable()
@@ -73,7 +73,7 @@ export class OutboundService {
    * Recusa envio para número que não existe no WhatsApp.
    *
    * Sem isto, um número malformado recebia `messageId` normalmente e a mensagem
-   * simplesmente sumia — sem erro para quem chamou, sem entrega para ninguém.
+   * simplesmente sumia, sem erro para quem chamou, sem entrega para ninguém.
    *
    * Só verifica quando o destinatário chegou como NÚMERO SOLTO, que é o caminho
    * de teste manual e de digitação errada. Respostas do fluxo chegam como JID
@@ -135,7 +135,7 @@ export class OutboundService {
  * Aceita tanto JID quanto número solto.
  *
  * O n8n devolve o `chatId` que recebeu no webhook (já um JID), mas testes
- * manuais com `curl` costumam mandar só o número — suportar os dois evita uma
+ * manuais com `curl` costumam mandar só o número: suportar os dois evita uma
  * classe inteira de erro de digitação.
  */
 export function normalizeRecipient(to: string): string {

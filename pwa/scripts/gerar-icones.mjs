@@ -1,7 +1,7 @@
 /**
  * Gera os ícones PNG do PWA.
  *
- * Roda uma vez e commita o resultado — não faz parte do build. Escreve o PNG na
+ * Roda uma vez e commita o resultado. Não faz parte do build. Escreve o PNG na
  * mão (cabeçalho + IDAT desinflado com o `zlib` do próprio Node) em vez de usar
  * `sharp` ou `canvas`: as duas trazem binários nativos de dezenas de megabytes
  * para um projeto que precisa de quatro imagens estáticas.

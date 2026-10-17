@@ -1,0 +1,30 @@
+{
+  "sobre": "Casos escritos para o teste de conversas, sem frase de cidadão. Cobrem o que as conversas reais não cobrem: o exame citado pelo nome, quando a base tem a mesma pergunta para 184 exames e só o assunto diz qual é. O preparo muda de um exame para outro (glicose pede 8 a 12 horas de jejum, colesterol total não pede), então trocar o exame é resposta errada. Os ids são das FAQs de cada exame.",
+  "conversas": [
+    {
+      "id": "sintetico-glicose-jejum",
+      "turnos": [
+        { "texto": "preciso de jejum pro exame de glicose?", "grupo": "exame", "partes": [{ "faqs": ["69eaba12169fc63361043914"] }] }
+      ]
+    },
+    {
+      "id": "sintetico-colesterol-preparo",
+      "turnos": [
+        { "texto": "como me preparo para o exame de colesterol total?", "grupo": "exame", "partes": [{ "faqs": ["69eaba12169fc6336104391a"] }] }
+      ]
+    },
+    {
+      "id": "sintetico-ferritina-continuacao",
+      "turnos": [
+        { "texto": "pra que serve o exame de ferritina?", "grupo": "exame", "partes": [{ "faqs": ["69eaba12169fc633610438fa"] }] },
+        { "texto": "e precisa de jejum?", "grupo": "continuacao", "partes": [{ "faqs": ["69eaba12169fc633610438fc"] }] }
+      ]
+    },
+    {
+      "id": "sintetico-glicose-coleta",
+      "turnos": [
+        { "texto": "onde eu faço a coleta do exame de glicose?", "grupo": "exame", "partes": [{ "faqs": ["69eaba12169fc63361043913"] }] }
+      ]
+    }
+  ]
+}

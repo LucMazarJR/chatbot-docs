@@ -18,7 +18,7 @@ Dashboard de FAQs vive em repositório próprio (`Dashboard-PetSaude`). Sem essa
 ## Antes de agir
 
 1. Ler o skill certo em `.github/skills/<nome>/SKILL.md` (ver o guia).
-2. Situação do projeto: `docs/handoff-notebook.md` e `docs/progresso/PLANO_IMPLEMENTACAO.md`.
+2. Situação do projeto: `docs/progresso/PLANO_IMPLEMENTACAO.md`, `docs/instalacao.md` e `docs/armadilhas.md`.
 3. Portas neste host municipal: `docs/mapa-portas-172-21-31-167.md`.
 4. Não reinterpretar decisões de `docs/depende-de-voce.md`.
 

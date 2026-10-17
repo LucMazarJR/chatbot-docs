@@ -36,7 +36,7 @@ export class N8nDispatcherService {
    * Entrega com retry e backoff exponencial.
    *
    * Não lança: uma falha de entrega ao n8n não pode propagar para o socket do
-   * WhatsApp. O evento perdido fica registrado no log com o `eventId` — a
+   * WhatsApp. O evento perdido fica registrado no log com o `eventId`: a
    * garantia de entrega de verdade (outbox transacional) é da Fase 2, e isso
    * está documentado como limitação conhecida.
    */
@@ -101,7 +101,7 @@ export class N8nDispatcherService {
 }
 
 /**
- * 4xx (exceto 429) não adianta repetir — é contrato ou credencial errada, e
+ * 4xx (exceto 429) não adianta repetir: é contrato ou credencial errada, e
  * insistir só multiplica o erro.
  */
 function isRetryable(error: unknown): boolean {
@@ -117,7 +117,7 @@ function isRetryable(error: unknown): boolean {
 /**
  * Resumo do erro seguro para log.
  *
- * O objeto de erro do axios carrega `config.headers` — ou seja, o
+ * O objeto de erro do axios carrega `config.headers`, ou seja, o
  * `X-Webhook-Token` e a assinatura HMAC em texto claro. Serializado inteiro
  * pelo pino, cada falha de entrega imprimia o segredo do webhook no log, que
  * costuma ser exatamente o artefato que se compartilha ao pedir ajuda.

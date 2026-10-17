@@ -1,6 +1,6 @@
 # Credenciais e segredos
 .env
-# Pega variações como .env.local e .env.bak.waha — só o exemplo é versionado.
+# Pega variações como .env.local e .env.bak.waha. Só o exemplo é versionado.
 .env.*
 !.env.example
 credentials.json
@@ -21,7 +21,7 @@ backend/.sessions/
 backend/.sessions-test/
 *.tsbuildinfo
 
-# Credenciais de sessão do WhatsApp — nunca versionar
+# Credenciais de sessão do WhatsApp: nunca versionar
 .sessions/
 
 # Python
@@ -35,8 +35,12 @@ scripts/.venv/
 *.docx
 ~$*.docx
 
-# Backups das FAQs — podem conter a base inteira, incluindo embeddings
+# Backups das FAQs: podem conter a base inteira, incluindo embeddings
 scripts/backups/
+
+# Gabarito, cache e relatórios do teste de conversas: têm frases de cidadão
+# ou texto derivado delas, e só existem na máquina de quem testa.
+n8n/.local/
 
 # Repositorio proprio, versionado em separado:
 #   https://github.com/LucMazarJR/Dashboard-PetSaude

@@ -108,7 +108,7 @@ describe('N8nDispatcherService', () => {
     expect(post).toHaveBeenCalledTimes(2);
   });
 
-  it('não repete em 401 — credencial errada não melhora com insistência', async () => {
+  it('não repete em 401: credencial errada não melhora com insistência', async () => {
     const post = jest.fn().mockReturnValue(throwError(() => httpError(401)));
     const { service } = buildService(post);
 
@@ -127,7 +127,7 @@ describe('N8nDispatcherService', () => {
     expect(post).toHaveBeenCalledTimes(2);
   });
 
-  it('nunca lança — o WhatsApp não pode cair porque o n8n caiu', async () => {
+  it('nunca lança: o WhatsApp não pode cair porque o n8n caiu', async () => {
     const post = jest.fn().mockReturnValue(throwError(() => new Error('ECONNREFUSED')));
     const { service } = buildService(post, 0);
 

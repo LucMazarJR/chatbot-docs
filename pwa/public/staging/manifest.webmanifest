@@ -1,0 +1,25 @@
+{
+  "id": "/staging/",
+  "name": "Assistente de Saúde (testes)",
+  "short_name": "Saúde teste",
+  "description": "Ambiente de testes do assistente de saúde do PET-SAÚDE: contas e avisos.",
+  "start_url": "/staging/",
+  "scope": "/staging/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#efeae2",
+  "theme_color": "#008069",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["health", "medical"],
+  "icons": [
+    { "src": "/icons/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/icons/icone-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

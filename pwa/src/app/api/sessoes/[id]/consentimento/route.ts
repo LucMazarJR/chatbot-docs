@@ -10,7 +10,7 @@ type Contexto = { params: Promise<{ id: string }> };
  *
  * O aviso de privacidade era passivo: um recado no meio da conversa, que dava
  * para ignorar e seguir perguntando. Como o protótipo grava relato de saúde, o
- * consentimento precisa ser um ato — a pessoa clica em "Aceitar", e fica
+ * consentimento precisa ser um ato: a pessoa clica em "Aceitar", e fica
  * registrado QUANDO. Sem aceite, o campo de mensagem não envia.
  *
  * Guardar a data é o que transforma o aviso em evidência: numa auditoria de

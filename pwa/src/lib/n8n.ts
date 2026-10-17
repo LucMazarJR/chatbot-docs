@@ -8,7 +8,7 @@ import type { CausaErro } from './tipos';
  * resposta ao cidadão leve três minutos para ficar pronta.
  *
  * Foi assim que o teto de tempo deixou de existir. Antes o fluxo só respondia no
- * fim, e a requisição ficava aberta o tempo todo — na Vercel a plataforma matava
+ * fim, e a requisição ficava aberta o tempo todo: na Vercel a plataforma matava
  * a função aos 60s e a resposta se perdia mesmo tendo sido gerada. Agora o n8n
  * trabalha sozinho e devolve o resultado pelo retorno em
  * `/api/n8n/resposta`, que grava na mensagem pendente.
@@ -32,7 +32,28 @@ type Entrega = {
   correlationId: string;
   /** Para onde o n8n deve devolver a resposta quando terminar. */
   urlDeRetorno: string;
+  /**
+   * A conversa é do staging (tem conta). Vai para o fluxo de staging quando
+   * `N8N_PWA_STAGING_WEBHOOK_URL` existe; sem ela, para o mesmo fluxo do `/`.
+   */
+  staging?: boolean;
+  /** As últimas mensagens da conversa, que a reescrita usa para entender "e lá?". */
+  historico?: { papel: 'user' | 'bot'; texto: string }[];
 };
+
+/**
+ * Para onde vai a pergunta.
+ *
+ * LÓGICA DO LUCIANO: o `/` está em teste de campo e não pode mudar de
+ * comportamento, então a reescrita da pergunta mora num fluxo separado do n8n,
+ * e só a conversa do staging vai para ele. A variável nasce vazia: sem ela,
+ * o staging usa o fluxo de sempre, e nada quebra por falta de configuração.
+ */
+export function enderecoDoFluxo(staging: boolean): string | undefined {
+  const deStaging = process.env.N8N_PWA_STAGING_WEBHOOK_URL?.trim();
+  if (staging && deStaging) return deStaging;
+  return process.env.N8N_PWA_WEBHOOK_URL;
+}
 
 export type ResultadoDaEntrega =
   | { aceito: true }
@@ -45,8 +66,10 @@ export async function despachar({
   nome,
   correlationId,
   urlDeRetorno,
+  staging = false,
+  historico,
 }: Entrega): Promise<ResultadoDaEntrega> {
-  const url = process.env.N8N_PWA_WEBHOOK_URL;
+  const url = enderecoDoFluxo(staging);
   const token = process.env.N8N_PWA_WEBHOOK_TOKEN;
 
   if (!url || !token) {
@@ -63,7 +86,16 @@ export async function despachar({
         'X-Webhook-Token': token,
         'X-Correlation-Id': correlationId,
       },
-      body: JSON.stringify({ sessionId: sessaoId, mensagemId, texto, nome, urlDeRetorno }),
+      // O histórico só vai quando existe: o fluxo do `/` não o usa, e o corpo
+      // dele fica exatamente como sempre foi.
+      body: JSON.stringify({
+        sessionId: sessaoId,
+        mensagemId,
+        texto,
+        nome,
+        urlDeRetorno,
+        ...(historico ? { historico } : {}),
+      }),
       signal: AbortSignal.timeout(TEMPO_LIMITE_ENTREGA),
       cache: 'no-store',
     });

@@ -14,7 +14,7 @@ const MAXIMO_SEGUNDOS = 120;
 /**
  * Gravação de áudio pelo microfone.
  *
- * LÓGICA DO LUCIANO: o áudio é gravado e NÃO é enviado. Isso não é preguiça — o
+ * LÓGICA DO LUCIANO: o áudio é gravado e NÃO é enviado. Isso não é preguiça: o
  * fluxo não tem transcrição, então o arquivo não teria para onde ir, e guardar
  * voz de gente relatando problema de saúde seria acumular dado sensível sem
  * nenhum uso. O que sai daqui é a duração, e o que a validação aprende é quanta
@@ -55,7 +55,7 @@ export function useGravador({ aoTerminar, aoFalhar }: Opcoes) {
   }, [soltarMicrofone]);
 
   const iniciar = useCallback(async () => {
-    // Em HTTP sem ser localhost o navegador nem expõe a API — e é o caso de
+    // Em HTTP sem ser localhost o navegador nem expõe a API, e é o caso de
     // quem abrir o protótipo pelo IP da máquina na rede do posto de saúde.
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       aoFalhar('Seu navegador não permite gravar áudio por aqui. Pode escrever a sua dúvida?');
@@ -99,7 +99,7 @@ export function useGravador({ aoTerminar, aoFalhar }: Opcoes) {
   return { gravando, segundos, iniciar, parar };
 }
 
-/** 0:07, 1:23 — como o WhatsApp mostra durante a gravação. */
+/** 0:07, 1:23, como o WhatsApp mostra durante a gravação. */
 export function formatarDuracao(segundos: number): string {
   return `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, '0')}`;
 }

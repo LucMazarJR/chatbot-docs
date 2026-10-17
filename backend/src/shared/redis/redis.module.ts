@@ -21,14 +21,14 @@ import { REDIS_CLIENT } from './redis.tokens';
           password: config.get('REDIS_PASSWORD'),
           db: config.get('REDIS_DB'),
           // Falhar rápido em vez de enfileirar comandos indefinidamente com o
-          // Redis fora do ar — quem chama decide o que fazer com o erro.
+          // Redis fora do ar: quem chama decide o que fazer com o erro.
           maxRetriesPerRequest: 3,
           enableOfflineQueue: false,
           retryStrategy: (times) => Math.min(times * 200, 5_000),
         });
 
         // Sem este listener o ioredis despeja "Unhandled error event" em texto
-        // cru no stderr, fora do log estruturado — invisível para qualquer
+        // cru no stderr, fora do log estruturado: invisível para qualquer
         // coletor. O logger é criado aqui, e não injetado, porque o cliente
         // precisa do listener já no primeiro erro de conexão.
         const logger = pino({ level: config.get('LOG_LEVEL') }).child({

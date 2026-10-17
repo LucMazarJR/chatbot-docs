@@ -1,0 +1,1258 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+
+import { aguardarResposta } from '@/lib/aguardar-resposta';
+import { Balao, Digitando } from '@/components/Balao';
+import { BotoesRapidos, type BotaoRapido } from '@/components/BotoesRapidos';
+import { Feedback } from '@/components/Feedback';
+import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
+import { FolhaApagar } from '@/components/FolhaApagar';
+import { PainelAjustes } from '@/components/PainelAjustes';
+import { RegistrarSW } from '@/components/RegistrarSW';
+import {
+  AVISOS_DE_DEMORA,
+  MS_PARA_CONSIDERAR_DEMORA,
+  TEXTO_DEMOROU_DEMAIS,
+  TEXTO_FORA_DO_AR,
+} from '@/lib/mensagens-fixas';
+import {
+  cabecalhosDaSessao,
+  esquecerSessao,
+  guardarSessao,
+  lerSessao,
+} from '@/lib/sessao-local';
+import { formatarDuracao, useGravador } from '@/lib/usar-gravador';
+import type { Papel, TipoAnexo } from '@/lib/tipos';
+import { Carregando } from '@/components/Carregando';
+import { decidirAvaliacao, INATIVIDADE_MS } from '@/lib/avaliacao-automatica';
+import { Tutorial, type PassoDoTutorial } from '@/components/Tutorial';
+import { OuvirResposta } from '@/components/OuvirResposta';
+import { falar, lerAutomatica } from '@/lib/leitura-em-voz';
+import { useDitado } from '@/lib/usar-ditado';
+import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
+import { hora, rotuloDoDia } from '@/lib/datas';
+
+/**
+ * A sessão fica em `localStorage`, e não em `sessionStorage`.
+ *
+ * No celular, sair do navegador e voltar depois costuma descartar a aba, com
+ * `sessionStorage` a conversa se perderia nesse ir e vir, que é o uso normal de
+ * quem está testando o protótipo enquanto conversa com alguém.
+ *
+ * A leitura e a escrita passam por `lib/sessao-local.ts`, que também guarda a
+ * chave da sessão e monta o cabeçalho das chamadas autenticadas.
+ */
+
+type Item = {
+  chave: string;
+  papel: Papel;
+  texto: string;
+  hora: string;
+  /** Id no banco, só nas respostas do bot, é o alvo do polegar. */
+  mensagemId?: string;
+  comFeedback?: boolean;
+  /** Nas mensagens do participante: dois tiques azuis quando a resposta chegou. */
+  lida?: boolean;
+  /** Respostas rápidas sob o balão, no lugar de digitar. */
+  botoes?: BotaoRapido[];
+  /** O que já foi escolhido: some com os outros e marca este. */
+  escolhido?: string;
+};
+
+/**
+ * Pedido de aceite, antes de qualquer pergunta.
+ *
+ * O aviso era passivo: um recado no meio da conversa, que dava para ignorar e
+ * seguir perguntando. Como o protótipo grava relato de saúde, o consentimento
+ * precisa ser um ato: sem tocar em "Aceitar", o campo não envia. E a data fica
+ * registrada, o que transforma o aviso em evidência: numa auditoria de LGPD,
+ * "avisamos na tela" vale menos que "aceite às 14h31".
+ */
+const PEDIDO_DE_ACEITE = [
+  'Antes de começarmos, preciso do seu aceite. 📋',
+  '',
+  'Este é um *protótipo em teste*. As mensagens desta conversa ficam registradas para que a equipe avalie a qualidade das respostas.',
+  '',
+  'Por favor, *não informe dados pessoais* como CPF, cartão do SUS, endereço ou informações de saúde que identifiquem você ou outra pessoa.',
+  '',
+  'Você aceita continuar nessas condições?',
+].join('\n');
+
+const ACEITE_RECUSADO = [
+  'Tudo bem, e obrigado por avisar. 🙂',
+  '',
+  'Sem o aceite eu não posso registrar a conversa, e sem registro não consigo responder. Se mudar de ideia, é só tocar em *Aceitar* aqui embaixo.',
+].join('\n');
+
+const BOTOES_DE_ACEITE: BotaoRapido[] = [
+  { rotulo: 'Aceitar', valor: 'aceitar' },
+  { rotulo: 'Agora não', valor: 'recusar' },
+];
+
+/**
+ * O caminho de volta, junto da mensagem de recusa.
+ *
+ * LÓGICA DO LUCIANO: escolher um botão some com os outros, senão uma conversa
+ * retomada convidaria ao clique duplo. Só que isso levava embora o *Aceitar*
+ * que a mensagem de recusa manda tocar: a frase apontava para um botão que já
+ * não existia. Quem disse "agora não" e mudou de ideia tem onde tocar, sem
+ * precisar recarregar a página.
+ */
+const BOTAO_DE_ACEITE_DEPOIS: BotaoRapido[] = [{ rotulo: 'Aceitar', valor: 'aceitar' }];
+
+/** A chave do pedido inicial e a da mensagem de recusa, que também aceita. */
+const CHAVES_DE_ACEITE = ['aceite', 'aceite-depois'];
+
+/**
+ * O retorno depois do aceite.
+ *
+ * LÓGICA DO LUCIANO: tocar em "Aceitar" só liberava o campo, em silêncio. No
+ * teste de campo, quatro de oito pessoas levaram de 3 a 18 minutos entre o
+ * aceite e a primeira pergunta, e duas nunca perguntaram: não sabiam que já
+ * podiam começar. A frase aponta para o campo pelo nome que está escrito nele,
+ * e não por "aqui embaixo": com o teclado aberto, o campo muda de lugar.
+ */
+const ACEITE_CONFIRMADO = [
+  'Pronto, já pode perguntar!',
+  '',
+  'Escreva sua dúvida no campo *Escreva sua pergunta* e toque no botão de enviar, ao lado dele.',
+].join('\n');
+
+function confirmacaoDoAceite(quando?: Date): Item {
+  return { chave: 'aceite-pronto', papel: 'bot', texto: ACEITE_CONFIRMADO, hora: horaAgora(quando) };
+}
+
+/**
+ * A oferta do tutorial, dentro da conversa.
+ *
+ * LÓGICA DO LUCIANO: um convite, e não um tutorial que abre sozinho. Quem já
+ * sabe usar WhatsApp perderia tempo com cinco passos, e a maioria sabe. Quem
+ * não sabe toca em "Ver como usar". E quem ignora e já escreve a pergunta não
+ * é interrompido: a oferta fica lá, e o menu tem "Como usar".
+ */
+const OFERTA_DO_TUTORIAL = 'Quer ver em poucos passos como usar este chat? Se já sabe, é só perguntar.';
+
+const BOTOES_DO_TUTORIAL: BotaoRapido[] = [
+  { rotulo: 'Ver como usar', valor: 'ver' },
+  { rotulo: 'Já sei usar', valor: 'recusar' },
+];
+
+const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
+  {
+    alvo: '.barra-envio .campo',
+    titulo: 'Onde escrever',
+    texto:
+      'Toque aqui e escreva sua dúvida do seu jeito, como numa conversa de WhatsApp. Não precisa escrever certinho.',
+  },
+  {
+    alvo: '.barra-envio .enviar',
+    titulo: 'Como enviar',
+    texto:
+      'Depois de escrever, toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone.',
+  },
+  {
+    alvo: null,
+    titulo: 'Diga se a resposta ajudou',
+    texto:
+      'Embaixo de cada resposta aparecem dois botões. Toque no polegar para cima se ajudou, ou para baixo se não ajudou. É assim que a equipe descobre o que melhorar.',
+    exemplo: (
+      <>
+        <div className="amostra-balao">Para marcar consulta, procure a UBS mais perto de casa.</div>
+        <div className="avaliar-msg">
+          <button type="button" tabIndex={-1}>
+            👍
+          </button>
+          <button type="button" tabIndex={-1}>
+            👎
+          </button>
+        </div>
+      </>
+    ),
+  },
+  {
+    alvo: 'button[aria-label="Mais opções"]',
+    titulo: 'Letra maior e outras opções',
+    texto: 'Neste menu você aumenta a letra, liga o contraste alto e encerra a conversa.',
+  },
+  {
+    alvo: null,
+    titulo: 'Pronto!',
+    texto: 'Pode perguntar. Se quiser ver este passo a passo de novo, ele fica no menu, em Como usar.',
+  },
+];
+
+function horaAgora(quando: Date = new Date()) {
+  return hora(quando);
+}
+
+function pedidoDeAceite(quando?: Date): Item {
+  return {
+    chave: 'aceite',
+    papel: 'bot',
+    texto: PEDIDO_DE_ACEITE,
+    hora: horaAgora(quando),
+    botoes: BOTOES_DE_ACEITE,
+  };
+}
+
+/**
+ * O texto a mostrar quando a resposta falhou, ou `null` se não falhou.
+ *
+ * Cada causa muda o que a pessoa deve fazer em seguida: demora pede outra
+ * tentativa, serviço fora do ar pede avisar alguém. Dizer "tente novamente em
+ * alguns minutos" quando o servidor está desligado seria mentira.
+ */
+function textoDaFalha(causa: string | null): string | null {
+  if (causa === 'demora') return TEXTO_DEMOROU_DEMAIS;
+  if (causa === 'fora-do-ar') return TEXTO_FORA_DO_AR;
+  return null;
+}
+
+export type PropsConversa = {
+  /**
+   * De quem é a conversa.
+   *
+   * `anonimo` é o chat do `/`, exatamente como sempre foi: a sessão vive no
+   * `localStorage` do aparelho e se autentica pela chave.
+   *
+   * `conta` é o chat do staging: a sessão pertence à conta logada, é retomada do
+   * servidor em qualquer aparelho e se autentica pelo cookie. O aceite foi dado
+   * no cadastro, então o pedido de aceite não aparece.
+   */
+  modo?: 'anonimo' | 'conta';
+  /** Destinos extras no menu ⋮, entre Privacidade e Encerrar. */
+  itensDeMenu?: { rotulo: string; href: string }[];
+  /** Staging: oferece o passo a passo de como usar, e põe "Como usar" no menu. */
+  comTutorial?: boolean;
+  /**
+   * Staging: o microfone vira ditado (a fala vira texto no campo) e cada
+   * resposta ganha "Ouvir". Sem esta prop, o microfone continua medindo
+   * quanta gente tenta mandar áudio, como no `/`.
+   */
+  comVoz?: boolean;
+};
+
+/**
+ * O chat.
+ *
+ * LÓGICA DO LUCIANO: saiu de `app/page.tsx` para servir às duas rotas, e não foi
+ * copiado. Com duas cópias, cada correção (e este arquivo já teve dezenas)
+ * precisaria ser feita duas vezes, e a segunda seria esquecida. Toda diferença
+ * entre os modos passa pela prop `modo`; sem ela, o comportamento é o de antes
+ * da extração, linha por linha.
+ */
+export function Conversa({
+  modo = 'anonimo',
+  itensDeMenu = [],
+  comTutorial = false,
+  comVoz = false,
+}: PropsConversa) {
+  const comConta = modo === 'conta';
+  const [sessaoId, setSessaoId] = useState<string | null>(null);
+  const [falhaAoAbrir, setFalhaAoAbrir] = useState(false);
+  // Quando a conversa começou, para o divisor dizer o dia certo numa conversa retomada.
+  const [iniciadaEm, setIniciadaEm] = useState<Date | null>(null);
+  const [itens, setItens] = useState<Item[]>([]);
+  const [digitando, setDigitando] = useState(false);
+  const [avaliando, setAvaliando] = useState(false);
+  /** A folha abriu sozinha, e não pelo menu: ela se apresenta como opcional. */
+  const [avaliacaoAutomatica, setAvaliacaoAutomatica] = useState(false);
+  const [ajustando, setAjustando] = useState(false);
+  const [apagandoConversa, setApagandoConversa] = useState(false);
+  const [encerrada, setEncerrada] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [texto, setTexto] = useState('');
+  const [aceitou, setAceitou] = useState(false);
+  /** Logo depois do aceite: o campo pisca em destaque para mostrar onde escrever. */
+  const [destacarCampo, setDestacarCampo] = useState(false);
+  const [tutorialAberto, setTutorialAberto] = useState(false);
+  const ofertaFeitaRef = useRef(false);
+  /** O texto do campo veio, ao menos em parte, do ditado. Vai junto da mensagem, para medir. */
+  const veioDaVozRef = useRef(false);
+  /** Recado passageiro acima do campo: microfone recusado, envio falhou. */
+  const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
+
+  const listaRef = useRef<HTMLElement>(null);
+  const campoRef = useRef<HTMLTextAreaElement>(null);
+  const botaoMenuRef = useRef<HTMLButtonElement>(null);
+  const primeiroItemRef = useRef<HTMLButtonElement>(null);
+  const arquivoRef = useRef<HTMLInputElement>(null);
+  const relogioRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const perguntasRef = useRef(0);
+  const abrindoRef = useRef(false);
+  const ofereceuRef = useRef(false);
+  /**
+   * O que o relógio da avaliação precisa saber quando dispara.
+   *
+   * Em ref, e não lido do estado: o setTimeout guarda a função da renderização
+   * em que foi criado, e leria um "digitando" de dois minutos atrás.
+   */
+  const momentoRef = useRef({
+    esperando: false,
+    gravando: false,
+    texto: '',
+    outroPainel: false,
+    encerrada: false,
+  });
+
+  // --- Rolagem -------------------------------------------------------------
+
+  useEffect(() => {
+    const lista = listaRef.current;
+    if (lista) lista.scrollTop = lista.scrollHeight;
+  }, [itens, digitando]);
+
+  // --- Menu do cabeçalho ---------------------------------------------------
+
+  /**
+   * Abrir o menu leva o foco para dentro dele; Esc fecha e devolve o foco.
+   *
+   * LÓGICA DO LUCIANO: o menu só fechava por clique fora, num onClick do
+   * container; quem navega por teclado abria e ficava preso: Tab passeava pela
+   * conversa inteira por baixo do menu aberto, e não havia como desistir.
+   */
+  useEffect(() => {
+    if (!menuAberto) return;
+
+    primeiroItemRef.current?.focus();
+
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key !== 'Escape') return;
+      setMenuAberto(false);
+      botaoMenuRef.current?.focus();
+    };
+
+    document.addEventListener('keydown', aoTeclar);
+    return () => document.removeEventListener('keydown', aoTeclar);
+  }, [menuAberto]);
+
+  // --- Inatividade ---------------------------------------------------------
+
+  /**
+   * Depois de um tempo parado, oferece a avaliação sozinho.
+   *
+   * Sem isso, a maioria das sessões terminaria com a aba fechada, e o
+   * protótipo perderia justamente o dado que ele existe para coletar.
+   *
+   * "Parado" é parado de verdade: o relógio para quando a pergunta sai e só
+   * volta quando a resposta chega, e qualquer toque, tecla ou rolagem o
+   * reinicia. Quando ele dispara, `decidirAvaliacao` ainda confere se a pessoa
+   * não está no meio de alguma coisa; se estiver, espera outro intervalo.
+   */
+  const pararInatividade = useCallback(() => {
+    if (relogioRef.current) clearTimeout(relogioRef.current);
+    relogioRef.current = null;
+  }, []);
+
+  const reiniciarInatividade = useCallback(() => {
+    pararInatividade();
+    if (ofereceuRef.current || momentoRef.current.encerrada) return;
+
+    relogioRef.current = setTimeout(() => {
+      const agora = momentoRef.current;
+      const decisao = decidirAvaliacao({
+        perguntas: perguntasRef.current,
+        encerrada: agora.encerrada,
+        jaOfereceu: ofereceuRef.current,
+        esperandoResposta: agora.esperando,
+        gravando: agora.gravando,
+        textoNoCampo: agora.texto.trim().length > 0,
+        outroPainelAberto: agora.outroPainel,
+        abaVisivel: document.visibilityState === 'visible',
+      });
+      if (decisao === 'oferecer') {
+        ofereceuRef.current = true;
+        setAvaliacaoAutomatica(true);
+        setAvaliando(true);
+      } else if (decisao === 'adiar') {
+        reiniciarInatividade();
+      }
+    }, INATIVIDADE_MS);
+  }, [pararInatividade]);
+
+  useEffect(() => () => void (relogioRef.current && clearTimeout(relogioRef.current)), []);
+
+  // --- Abertura: retoma a sessão guardada, ou cria uma nova ----------------
+
+  useEffect(() => {
+    // Em desenvolvimento o React monta o componente duas vezes; sem esta trava
+    // a primeira visita criaria duas sessões e a segunda ficaria órfã.
+    if (abrindoRef.current) return;
+    abrindoRef.current = true;
+
+    void (async () => {
+      // Com conta, quem sabe qual é a conversa aberta é o servidor, e não o
+      // aparelho: é o que faz ela aparecer igual no celular e no computador.
+      if (comConta) {
+        await abrirConversaDaConta();
+        return;
+      }
+      const guardada = lerSessao();
+      if (guardada && (await retomar(guardada.id))) return;
+      await criarSessao();
+    })();
+  }, []);
+
+  /**
+   * Pega a conversa aberta da conta, ou começa uma.
+   *
+   * A sessão perdida (cookie vencido, conta apagada noutro aparelho) volta para
+   * a tela de entrar: ficar aqui mostraria um chat que não consegue enviar nada.
+   */
+  async function abrirConversaDaConta() {
+    try {
+      const resposta = await fetch('/api/sessoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ versao: 'a', comConta: true }),
+      });
+      if (resposta.status === 401) {
+        window.location.assign('/staging/entrar');
+        return;
+      }
+      if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+
+      const dados = (await resposta.json()) as { sessaoId: string };
+      if (!(await retomar(dados.sessaoId))) setFalhaAoAbrir(true);
+    } catch {
+      setFalhaAoAbrir(true);
+    }
+  }
+
+  async function retomar(id: string): Promise<boolean> {
+    try {
+      const resposta = await fetch(`/api/sessoes/${id}/mensagens`, {
+        headers: cabecalhosDaSessao(),
+      });
+      if (!resposta.ok) throw new Error('sessão inválida');
+
+      const dados = (await resposta.json()) as {
+        iniciadaEm: string;
+        encerrada: boolean;
+        consentimento: boolean;
+        mensagens: { _id: string; papel: Papel; texto: string; em: string; erro?: boolean }[];
+      };
+
+      // Sessão já avaliada não volta: o participante encerrou de propósito.
+      if (dados.encerrada) {
+        if (!comConta) esquecerSessao();
+        return false;
+      }
+
+      setSessaoId(id);
+      setAceitou(dados.consentimento);
+      perguntasRef.current = dados.mensagens.filter((m) => m.papel === 'user').length;
+
+      const inicio = new Date(dados.iniciadaEm);
+      setIniciadaEm(inicio);
+      setItens([
+        // O aceite é local e nunca foi para o banco, então é remontado aqui,
+        // com a hora em que a conversa começou, não a do refresh. Quem já
+        // aceitou vê o pedido já respondido, e não recebe outro. Com conta, o
+        // aceite foi no cadastro, e repeti-lo em cada conversa seria ruído.
+        ...(comConta
+          ? []
+          : dados.consentimento
+            ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, confirmacaoDoAceite(inicio)]
+            : [pedidoDeAceite(inicio)]),
+        ...dados.mensagens.map((m) => ({
+          chave: m._id,
+          papel: m.papel,
+          texto: m.texto,
+          hora: horaAgora(new Date(m.em)),
+          mensagemId: m.papel === 'bot' ? m._id : undefined,
+          comFeedback: m.papel === 'bot' && !m.erro,
+          lida: m.papel === 'user',
+        })),
+      ]);
+      reiniciarInatividade();
+      return true;
+    } catch {
+      if (!comConta) esquecerSessao();
+      return false;
+    }
+  }
+
+  async function criarSessao() {
+    try {
+      const resposta = await fetch('/api/sessoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ versao: 'a' }),
+      });
+      if (!resposta.ok) throw new Error('falha ao criar a sessão');
+
+      // A chave vem só nesta resposta, e não há rota que a devolva depois.
+      const dados = (await resposta.json()) as { sessaoId: string; chave?: string };
+      guardarSessao({ id: dados.sessaoId, chave: dados.chave });
+      setSessaoId(dados.sessaoId);
+      setItens([pedidoDeAceite()]);
+    } catch {
+      setFalhaAoAbrir(true);
+    }
+  }
+
+  // A oferta do tutorial entra uma vez, quando a conversa abre, e só no
+  // primeiro uso do aparelho.
+  useEffect(() => {
+    if (!comTutorial || !sessaoId || ofertaFeitaRef.current || tutorialJaOferecido()) return;
+    ofertaFeitaRef.current = true;
+    setItens((atuais) => [
+      ...atuais,
+      { chave: 'tutorial-oferta', papel: 'bot', texto: OFERTA_DO_TUTORIAL, hora: horaAgora(), botoes: BOTOES_DO_TUTORIAL },
+    ]);
+  }, [comTutorial, sessaoId]);
+
+  /** Lembra no aparelho e grava na sessão o que a pessoa fez com o tutorial. */
+  function registrarTutorial(escolha: EscolhaDoTutorial) {
+    lembrarTutorial(escolha);
+    if (!sessaoId) return;
+    // Sem esperar e sem avisar se falhar: é dado de medição, não pode
+    // atrapalhar quem está começando a conversa.
+    void fetch(`/api/sessoes/${sessaoId}/tutorial`, {
+      method: 'POST',
+      headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ escolha }),
+    }).catch(() => {});
+  }
+
+  useEffect(() => {
+    if (!aceitou || !destacarCampo) return;
+    campoRef.current?.focus();
+    const apagar = setTimeout(() => setDestacarCampo(false), 2400);
+    return () => clearTimeout(apagar);
+  }, [aceitou, destacarCampo]);
+
+  // --- Botões de resposta rápida -------------------------------------------
+
+  /**
+   * Marca o botão escolhido e some com os outros.
+   *
+   * Sem isso, uma conversa retomada mostraria botões já usados, convidando ao
+   * clique duplo, e no caso do aceite, a um segundo registro de consentimento.
+   */
+  function marcarEscolha(chave: string, valor: string) {
+    setItens((atuais) =>
+      atuais.map((item) => (item.chave === chave ? { ...item, escolhido: valor } : item)),
+    );
+  }
+
+  async function escolherBotao(item: Item, botao: BotaoRapido) {
+    marcarEscolha(item.chave, botao.valor);
+
+    if (item.chave === 'tutorial-oferta') {
+      if (botao.valor === 'ver') setTutorialAberto(true);
+      else {
+        registrarTutorial('recusado');
+        campoRef.current?.focus();
+      }
+      return;
+    }
+
+    if (!CHAVES_DE_ACEITE.includes(item.chave)) {
+      // Sugestão de assunto: vale como pergunta digitada.
+      void enviarTexto(botao.valor);
+      return;
+    }
+
+    const aceitando = botao.valor === 'aceitar';
+    setAceitou(aceitando);
+
+    // Sem await e sem tratar erro na tela: perder o registro não pode
+    // interromper a conversa, e a data serve à equipe, não ao participante.
+    if (sessaoId) {
+      void fetch(`/api/sessoes/${sessaoId}/consentimento`, {
+        method: 'POST',
+        headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ aceito: aceitando }),
+      }).catch(() => {});
+    }
+
+    // Aceitou: a frase diz que já pode perguntar, e o campo ganha foco e um
+    // destaque breve. O foco sai no efeito abaixo, e não aqui: neste instante
+    // o campo ainda está desativado, e focar um campo desativado não faz nada.
+    if (aceitando) {
+      setItens((atuais) =>
+        atuais.some((item) => item.chave === 'aceite-pronto')
+          ? atuais
+          : [...atuais, confirmacaoDoAceite()],
+      );
+      setDestacarCampo(true);
+    } else
+      setItens((atuais) => [
+        ...atuais,
+        {
+          chave: 'aceite-depois',
+          papel: 'bot',
+          texto: ACEITE_RECUSADO,
+          hora: horaAgora(),
+          botoes: BOTAO_DE_ACEITE_DEPOIS,
+        },
+      ]);
+  }
+
+  // --- Envio ---------------------------------------------------------------
+
+  function enviar() {
+    const pergunta = texto.trim();
+    if (!pergunta) return;
+
+    setTexto('');
+    // Vazio, e não 'auto': devolve a altura ao CSS, que a prende em uma linha.
+    if (campoRef.current) campoRef.current.style.height = '';
+    void enviarTexto(pergunta);
+  }
+
+  async function enviarTexto(pergunta: string) {
+    // O aceite é a única porta: sem ele nada é enviado, nem por digitação nem
+    // por botão.
+    if (!sessaoId || !aceitou || digitando || encerrada) return;
+
+    // Esperar resposta não é estar parado. O relógio volta no `finally`,
+    // quando a resposta chega.
+    pararInatividade();
+
+    // Perguntou sem responder à oferta do tutorial: não precisa dele, e a
+    // oferta não volta nas próximas conversas.
+    const ofertaSemResposta = itens.find((item) => item.chave === 'tutorial-oferta' && !item.escolhido);
+    if (ofertaSemResposta) {
+      marcarEscolha('tutorial-oferta', 'ignorado');
+      registrarTutorial('ignorado');
+    }
+
+    const chaveUsuario = crypto.randomUUID();
+    setItens((atuais) => [
+      ...atuais,
+      { chave: chaveUsuario, papel: 'user', texto: pergunta, hora: horaAgora(), lida: false },
+    ]);
+    perguntasRef.current += 1;
+    setDigitando(true);
+
+    // Passado um tempo sem resposta, avisa que ainda está trabalhando. Ficar
+    // olhando três pontinhos por minutos sem explicação é o que faz alguém
+    // fechar a aba, e aí a conversa e a avaliação se perdem junto.
+    const iniciouEm = Date.now();
+    const avisos = AVISOS_DE_DEMORA.map(({ ms, texto }) =>
+      setTimeout(() => adicionarBot(texto, null), ms),
+    );
+
+    const porVoz = veioDaVozRef.current;
+    veioDaVozRef.current = false;
+
+    try {
+      const resposta = await fetch(`/api/sessoes/${sessaoId}/mensagens`, {
+        method: 'POST',
+        headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ texto: pergunta, ...(porVoz ? { origem: 'voz' } : {}) }),
+      });
+
+      if (resposta.status === 429) {
+        adicionarBot('Você enviou muitas mensagens seguidas. Aguarde alguns minutos.', null);
+        return;
+      }
+      if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+
+      // O servidor só ACEITA a pergunta e devolve na hora; a resposta fica
+      // pronta depois. Um tique cinza vira dois tiques azuis já aqui: a
+      // mensagem chegou, é isso que os tiques significam.
+      const aceite = (await resposta.json()) as {
+        mensagemId: string;
+        pendente: boolean;
+        erro?: boolean;
+        causa?: 'demora' | 'fora-do-ar' | 'indisponivel' | null;
+      };
+
+      setItens((atuais) =>
+        atuais.map((item) => (item.chave === chaveUsuario ? { ...item, lida: true } : item)),
+      );
+
+      // Recusa imediata (n8n fora do ar) nem chega a virar pendência.
+      if (!aceite.pendente) {
+        adicionarBot(textoDaFalha(aceite.causa ?? null) ?? TEXTO_FORA_DO_AR, null);
+        return;
+      }
+
+      const pronta = await aguardarResposta(aceite.mensagemId);
+      adicionarBot(
+        textoDaFalha(pronta.causa) ?? pronta.resposta,
+        pronta.erro ? null : aceite.mensagemId,
+      );
+      // Quem ligou "ler as respostas sozinho" ouve a resposta assim que ela chega.
+      if (comVoz && !pronta.erro && lerAutomatica()) void falar(pronta.resposta);
+    } catch {
+      // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
+      // provável é a plataforma ter cortado a função no teto dela: isso é
+      // demora. Falhando rápido, o servidor do protótipo é que não respondeu.
+      const demorou = Date.now() - iniciouEm >= MS_PARA_CONSIDERAR_DEMORA;
+      adicionarBot(demorou ? TEXTO_DEMOROU_DEMAIS : TEXTO_FORA_DO_AR, null);
+    } finally {
+      avisos.forEach(clearTimeout);
+      setDigitando(false);
+      reiniciarInatividade();
+    }
+  }
+
+  // --- Arquivo e áudio -----------------------------------------------------
+
+  /**
+   * Registra a tentativa e mostra a recusa do canal.
+   *
+   * LÓGICA DO LUCIANO: o conteúdo não sai do aparelho: vão só tipo, tamanho e
+   * duração. Os botões existem para medir quanta gente tenta mandar foto do
+   * exame ou áudio em vez de digitar, e essa resposta só aparece se houver o
+   * botão para tentar; guardar a gravação seria acumular voz de pessoas
+   * relatando problema de saúde, sem nenhum uso, já que o fluxo não transcreve.
+   *
+   * Não passa pelo n8n: a recusa é imediata, não gasta cota e é exatamente a
+   * que o canal real daria.
+   */
+  async function enviarAnexo(
+    tipo: TipoAnexo,
+    dados: { mime?: string; tamanhoBytes?: number; duracaoSegundos?: number },
+  ) {
+    if (!sessaoId || !aceitou || digitando || encerrada) return;
+    setAvisoComposer(null);
+
+    try {
+      const resposta = await fetch(`/api/sessoes/${sessaoId}/anexos`, {
+        method: 'POST',
+        headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ tipo, ...dados }),
+      });
+      if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+
+      const pronta = (await resposta.json()) as { texto: string; resposta: string };
+
+      setItens((atuais) => [
+        ...atuais,
+        {
+          chave: crypto.randomUUID(),
+          papel: 'user',
+          texto: pronta.texto,
+          hora: horaAgora(),
+          lida: true,
+        },
+      ]);
+      adicionarBot(pronta.resposta, null);
+      reiniciarInatividade();
+    } catch {
+      setAvisoComposer('Não consegui registrar o envio. Tente de novo em instantes.');
+    }
+  }
+
+  const gravador = useGravador({
+    aoTerminar: (duracaoSegundos, mime) =>
+      void enviarAnexo('audio', { duracaoSegundos, mime }),
+    aoFalhar: setAvisoComposer,
+  });
+
+  const ditado = useDitado({
+    aoOuvir: (ouvido) => {
+      veioDaVozRef.current = true;
+      setTexto(ouvido);
+    },
+    aoFalhar: setAvisoComposer,
+  });
+
+  // Terminou de ouvir: o texto fica no campo, com o foco, para a pessoa
+  // conferir antes de enviar.
+  const ouvindoAntes = useRef(false);
+  useEffect(() => {
+    if (ouvindoAntes.current && !ditado.ouvindo) campoRef.current?.focus();
+    ouvindoAntes.current = ditado.ouvindo;
+  }, [ditado.ouvindo]);
+
+  function tocarMicrofone() {
+    if (!comVoz) {
+      void gravador.iniciar();
+      return;
+    }
+    if (ditado.ouvindo) {
+      ditado.parar();
+      return;
+    }
+    setAvisoComposer(null);
+    if (!ditado.suportado || !ditado.iniciar()) {
+      setAvisoComposer(
+        'Este navegador não transforma voz em texto. Use o microfone do teclado do celular, ou escreva a sua dúvida.',
+      );
+    }
+  }
+
+  momentoRef.current = {
+    esperando: digitando,
+    gravando: gravador.gravando || ditado.ouvindo,
+    texto,
+    outroPainel: menuAberto || ajustando || apagandoConversa || avaliando || tutorialAberto,
+    encerrada,
+  };
+
+  function adicionarBot(conteudo: string, mensagemId: string | null) {
+    setItens((atuais) => [
+      ...atuais,
+      {
+        chave: mensagemId ?? crypto.randomUUID(),
+        papel: 'bot',
+        texto: conteudo,
+        hora: horaAgora(),
+        mensagemId: mensagemId ?? undefined,
+        comFeedback: Boolean(mensagemId),
+      },
+    ]);
+  }
+
+  // --- Avaliação -----------------------------------------------------------
+
+  async function enviarAvaliacao(avaliacao: {
+    estrelas: number | null;
+    nps: number | null;
+    comentario: string;
+  }) {
+    try {
+      await fetch(`/api/sessoes/${sessaoId}/avaliacao`, {
+        method: 'POST',
+        headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(avaliacao),
+      });
+    } catch {
+      // Segue para o agradecimento mesmo assim: cobrar o participante por uma
+      // falha de rede nossa seria o pior fim possível para o teste.
+    }
+
+    // A sessão foi encerrada no servidor; novas mensagens seriam recusadas.
+    // Com conta não há o que esquecer no aparelho: a próxima abertura já não
+    // encontra conversa aberta e começa outra.
+    setEncerrada(true);
+    if (!comConta) esquecerSessao();
+    if (relogioRef.current) clearTimeout(relogioRef.current);
+  }
+
+  // --- Tela ----------------------------------------------------------------
+
+  // Mesma porta do texto: sem aceite não sai nada, e enquanto uma resposta está
+  // sendo esperada não entra mais nada.
+  const podeEnviarAnexo = Boolean(sessaoId) && aceitou && !digitando && !encerrada;
+
+  return (
+    <div
+      id="app"
+      onClick={() => setMenuAberto(false)}
+      // Qualquer toque ou tecla é sinal de que a pessoa está aqui: o relógio
+      // da avaliação começa de novo.
+      onPointerDown={reiniciarInatividade}
+      onKeyDown={reiniciarInatividade}
+    >
+      {/* O service worker do `/` tem escopo no site inteiro e guarda páginas
+          em cache: registrado daqui, passaria a controlar o staging, que tem o
+          seu próprio. */}
+      {!comConta && <RegistrarSW />}
+
+      {/* Os polegares sob cada resposta são focáveis: numa conversa de vinte
+          respostas, chegar ao campo de mensagem pelo teclado custa quarenta
+          paradas de Tab. Este atalho é a saída, e só aparece ao receber foco. */}
+      <a className="pular" href="#campo-mensagem">
+        Ir direto para o campo de mensagem
+      </a>
+
+      <section className="tela">
+        <header className="topo">
+          {/* Foto no lugar do ícone genérico: o WhatsApp mostra o retrato do
+              contato, e um chat de saúde sem rosto parece formulário. */}
+          <div className="avatar">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/avatar.png" alt="" width={40} height={40} />
+          </div>
+
+          <div className="topo-nome">
+            <strong>Assistente de Saúde</strong>
+            {/* `role="status"` porque este texto é o único lugar onde a espera
+                aparece em palavras. Os três pontinhos do balão são desenho, e
+                quem não enxerga a tela ficaria sem saber que a resposta está
+                sendo preparada, que é justamente o momento em que a pessoa
+                precisa saber, porque aqui ela dura dezenas de segundos. */}
+            <span role="status">
+              {digitando
+                ? 'digitando…'
+                : encerrada
+                  ? 'conversa encerrada'
+                  : 'online'}
+            </span>
+          </div>
+
+          <button
+            ref={botaoMenuRef}
+            aria-label="Mais opções"
+            aria-haspopup="menu"
+            aria-expanded={menuAberto}
+            onClick={(evento) => {
+              evento.stopPropagation();
+              setMenuAberto((aberto) => !aberto);
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="12" cy="19" r="2" />
+            </svg>
+          </button>
+        </header>
+
+        {/* LÓGICA DO LUCIANO: eram três itens ("Enviar feedback", "Relatar um
+            problema" e "Encerrar e avaliar"), e os três chamavam exatamente a
+            mesma folha de avaliação, que encerra a conversa. Três nomes para uma
+            ação só, e dois deles mentindo: quem tocava em "Relatar um problema"
+            no meio da conversa a encerrava sem querer.
+
+            Sobrou o nome verdadeiro. Relatar problema PONTUAL continua tendo
+            caminho, e melhor: o 👎 sob cada resposta, que diz QUAL resposta
+            falhou em vez de "a conversa foi ruim". */}
+        {menuAberto && (
+          <div className="menu" role="menu" aria-label="Opções da conversa">
+            <button
+              type="button"
+              role="menuitem"
+              ref={primeiroItemRef}
+              onClick={() => {
+                setMenuAberto(false);
+                setAjustando(true);
+              }}
+            >
+              Acessibilidade
+            </button>
+            {comTutorial && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuAberto(false);
+                  setTutorialAberto(true);
+                }}
+              >
+                Como usar
+              </button>
+            )}
+            <Link href="/privacidade" role="menuitem" onClick={() => setMenuAberto(false)}>
+              Privacidade
+            </Link>
+            {itensDeMenu.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                role="menuitem"
+                onClick={() => setMenuAberto(false)}
+              >
+                {item.rotulo}
+              </Link>
+            ))}
+            {/* Sair fica aqui, e não só dentro de "Minha conta": quem está num
+                aparelho emprestado precisa achar a saída de onde está, sem
+                atravessar outra tela. */}
+            {comConta && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuAberto(false);
+                  void fetch('/api/conta/sair', { method: 'POST' }).finally(() =>
+                    window.location.assign('/staging/entrar'),
+                  );
+                }}
+              >
+                Sair da conta
+              </button>
+            )}
+            <div className="menu-divisor" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuAberto(false);
+                setAvaliacaoAutomatica(false);
+                setAvaliando(true);
+              }}
+            >
+              Encerrar e avaliar
+            </button>
+            {/* Por último, e em vermelho: é a única opção do menu que não tem
+                volta. Some com a conversa encerrada porque, ao avaliar, a chave
+                da sessão já saiu do aparelho: o pedido passaria a falhar, e o
+                caminho certo é o contato da página de privacidade. */}
+            {!encerrada && sessaoId && (
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-perigo"
+                onClick={() => {
+                  setMenuAberto(false);
+                  setApagandoConversa(true);
+                }}
+              >
+                Apagar minha conversa
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* `role="log"` no lugar de `aria-live="polite"`: é o papel próprio de
+            conversa, e traz de graça o "anuncie só o que foi acrescentado". Com
+            aria-live solto num container que o React repinta, o leitor de tela
+            relia trechos antigos a cada renderização. */}
+        <main
+          className="mensagens"
+          ref={listaRef}
+          role="log"
+          aria-label="Conversa"
+          // Quem está relendo a resposta está usando o chat.
+          onScroll={reiniciarInatividade}
+        >
+          <div className="divisor">
+            <span>{rotuloDoDia(iniciadaEm ?? new Date())}</span>
+          </div>
+
+          {/* No lugar da antiga tela de entrada: o consentimento aparece dentro
+              da conversa, como o aviso de criptografia do WhatsApp. Informa sem
+              cobrar um formulário de quem só quer fazer uma pergunta. */}
+          <div className="aviso-chat">
+            Este é um <b>protótipo em teste</b>. As mensagens são registradas para avaliarmos a
+            qualidade das respostas. Por favor, <b>não informe dados pessoais</b> como CPF, cartão
+            do SUS ou endereço. <Link href="/privacidade">Como tratamos seus dados</Link>
+          </div>
+
+          {/* Enquanto a conversa abre, a área ficava em branco: sem o pedido
+              de aceite, sem as mensagens anteriores, sem nada que dissesse que
+              algo estava vindo. */}
+          {!sessaoId && !falhaAoAbrir && <Carregando texto="Abrindo a conversa…" variante="balao" />}
+
+          {/* Com conta não há pedido de aceite, então a conversa nova abria
+              vazia, sem dizer por onde começar. */}
+          {comConta && sessaoId && itens.length === 0 && (
+            <p className="carregando carregando-balao">Faça sua pergunta aqui embaixo.</p>
+          )}
+
+          {itens.map((item, indice) => (
+            <div key={item.chave}>
+              <Balao
+                papel={item.papel}
+                texto={item.texto}
+                hora={item.hora}
+                lida={item.lida}
+                // O rabinho só aparece no primeiro balão de uma sequência.
+                primeira={indice === 0 || itens[indice - 1].papel !== item.papel}
+              />
+              {item.botoes && (
+                <BotoesRapidos
+                  botoes={item.botoes}
+                  escolhido={item.escolhido}
+                  onEscolher={(botao) => void escolherBotao(item, botao)}
+                />
+              )}
+              {item.comFeedback && item.mensagemId && <Feedback mensagemId={item.mensagemId} />}
+              {comVoz && item.papel === 'bot' && item.mensagemId && (
+                <OuvirResposta texto={item.texto} aoFalhar={setAvisoComposer} />
+              )}
+            </div>
+          ))}
+
+          {digitando && <Digitando />}
+
+          {/* `alert` e não `log`: o serviço fora do ar interrompe o que a pessoa
+              veio fazer, e precisa ser dito na hora, não na vez dela. */}
+          {falhaAoAbrir && (
+            <div className="aviso-chat erro" role="alert">
+              {TEXTO_FORA_DO_AR}
+            </div>
+          )}
+        </main>
+
+        {avisoComposer && (
+          <p className="aviso-composer" role="alert">
+            {avisoComposer}
+          </p>
+        )}
+
+        {ditado.ouvindo && (
+          <p className="aviso-composer ouvindo" role="status">
+            <span className="ponto-gravacao" aria-hidden="true" />
+            Ouvindo. Fale a sua pergunta; quando terminar, confira o texto e envie.
+          </p>
+        )}
+
+        <footer className="barra-envio">
+          {/* O canal real só lê texto, e estes dois botões existem para medir
+              quanta gente tenta outra coisa: pergunta que não tem resposta sem
+              o botão para tentar. O conteúdo nunca sai do aparelho. */}
+          <input
+            ref={arquivoRef}
+            type="file"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(evento) => {
+              const arquivo = evento.target.files?.[0];
+              // Zera antes de qualquer coisa: sem isto, escolher o MESMO
+              // arquivo duas vezes seguidas não dispara o segundo `change`.
+              evento.target.value = '';
+              if (arquivo) {
+                void enviarAnexo('arquivo', {
+                  mime: arquivo.type,
+                  tamanhoBytes: arquivo.size,
+                });
+              }
+            }}
+          />
+
+          {gravador.gravando ? (
+            <div className="gravando" role="status">
+              <span className="ponto-gravacao" aria-hidden="true" />
+              <span>Gravando áudio</span>
+              {/* Fora da leitura: o cronômetro muda a cada segundo, e num
+                  role="status" isso seria o leitor de tela falando sem parar. */}
+              <span className="cronometro" aria-hidden="true">
+                {formatarDuracao(gravador.segundos)}
+              </span>
+              <button
+                type="button"
+                className="cancelar-gravacao"
+                aria-label="Cancelar gravação"
+                onClick={() => gravador.parar(true)}
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className={destacarCampo ? 'campo destaque' : 'campo'}>
+            <textarea
+              id="campo-mensagem"
+              ref={campoRef}
+              rows={1}
+              placeholder={
+                encerrada
+                  ? 'Conversa encerrada'
+                  : aceitou
+                    ? 'Escreva sua pergunta'
+                    : 'Aceite para começar'
+              }
+              enterKeyHint="send"
+              maxLength={1000}
+              aria-label="Escreva sua mensagem"
+              // O placeholder não é anunciado de forma confiável, e é onde
+              // estava a explicação de por que o campo está desligado.
+              aria-describedby="dica-campo"
+              disabled={encerrada || !sessaoId || !aceitou}
+              value={texto}
+              onChange={(evento) => {
+                setTexto(evento.target.value);
+                // Cresce com o conteúdo, até o teto definido no CSS.
+                const campo = evento.target;
+                // Some com a altura inline para o CSS voltar a mandar quando o
+                // campo esvazia: sem isto, apagar tudo deixava a caixa parada
+                // na altura de tres linhas.
+                campo.style.height = '';
+                if (campo.value) campo.style.height = `${campo.scrollHeight}px`;
+              }}
+              onKeyDown={(evento) => {
+                // Enter envia, Shift+Enter quebra linha, como no WhatsApp Web.
+                if (evento.key === 'Enter' && !evento.shiftKey) {
+                  evento.preventDefault();
+                  void enviar();
+                }
+              }}
+            />
+                <button
+                  type="button"
+                  className="acessorio"
+                  aria-label="Anexar arquivo"
+                  disabled={!podeEnviarAnexo}
+                  onClick={() => arquivoRef.current?.click()}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M16.5 6v11.5a4 4 0 1 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 1 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 1 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5Z" />
+                  </svg>
+                </button>
+              </div>
+
+          <p id="dica-campo" className="sr-only">
+            {encerrada
+              ? 'A conversa foi encerrada. Não é possível enviar novas mensagens.'
+              : !aceitou
+                ? 'Para começar, aceite os termos na primeira mensagem da conversa.'
+                : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
+          </p>
+
+              {/* Microfone enquanto não há texto, avião quando há: a troca do
+                  WhatsApp. Os dois ao mesmo tempo deixariam três botões
+                  redondos lado a lado numa tela de 360px. */}
+              {texto.trim() && !ditado.ouvindo ? (
+                <button
+                  className="enviar"
+                  aria-label="Enviar"
+                  disabled={digitando || encerrada || !sessaoId || !aceitou}
+                  onClick={() => void enviar()}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  className="enviar"
+                  aria-label={
+                    comVoz ? (ditado.ouvindo ? 'Parar de ouvir' : 'Falar a pergunta') : 'Gravar áudio'
+                  }
+                  disabled={!podeEnviarAnexo}
+                  onClick={tocarMicrofone}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    {ditado.ouvindo ? (
+                      <path d="M7 7h10v10H7z" />
+                    ) : (
+                      <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+                    )}
+                  </svg>
+                </button>
+              )}
+            </>
+          )}
+        </footer>
+      </section>
+
+      {ajustando && <PainelAjustes comVoz={comVoz} aoFechar={() => setAjustando(false)} />}
+
+      {tutorialAberto && (
+        <Tutorial
+          passos={PASSOS_DO_TUTORIAL}
+          aoTerminar={(motivo) => {
+            setTutorialAberto(false);
+            registrarTutorial(motivo);
+            campoRef.current?.focus();
+          }}
+        />
+      )}
+
+      {apagandoConversa && sessaoId && (
+        <FolhaApagar
+          sessaoId={sessaoId}
+          aoVoltar={() => setApagandoConversa(false)}
+          // Com conta, a sessão não mora no aparelho, e o que mora lá é a
+          // conversa anônima que a pessoa pode ter no `/`, que não é desta.
+          esquecerNoAparelho={!comConta}
+        />
+      )}
+
+      {avaliando && (
+        <FolhaAvaliacao
+          automatica={avaliacaoAutomatica}
+          onEnviar={enviarAvaliacao}
+          onVoltar={() => {
+            setAvaliando(false);
+            // Recusada uma vez, não volta sozinha: continua no menu.
+            reiniciarInatividade();
+          }}
+        />
+      )}
+    </div>
+  );
+}

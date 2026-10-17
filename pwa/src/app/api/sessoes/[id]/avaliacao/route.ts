@@ -11,7 +11,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
 
   // Sem isto, quem tivesse o id podia encerrar a conversa de outra pessoa e
-  // ainda deixar uma nota no lugar dela — a avaliação é o dado que sustenta a
+  // ainda deixar uma nota no lugar dela: a avaliação é o dado que sustenta a
   // conclusão do protótipo inteiro.
   const autenticada = await autenticarSessao(requisicao, id);
   if ('erro' in autenticada) return autenticada.erro;
@@ -47,7 +47,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
  *
  * A checagem de ausência vem ANTES da conversão, e não é decoração:
  * `Number(null)` é `0`, e `Number('')` também. Sem esta guarda, um campo não
- * respondido virava a nota 0 — que no NPS é o pior detrator possível. A versão
+ * respondido virava a nota 0, que no NPS é o pior detrator possível. A versão
  * B não pergunta NPS e mandava `null` em toda avaliação, então cada conversa
  * dela entrava na média como um zero. O número saía errado sem nenhum erro à
  * vista.

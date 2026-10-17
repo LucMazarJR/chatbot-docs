@@ -4,7 +4,7 @@ Backend NestJS que faz a ponte entre o WhatsApp e o n8n. Substitui o WAHA.
 
 ## Por que existe
 
-O WAHA era uma caixa-preta: não dava para deduplicar mensagens, controlar o ritmo de envio, fazer retry, auditar nada — e o fluxo do n8n precisava cavar dentro de `payload._data.key.remoteJidAlt`, um campo interno do motor Baileys, para descobrir quem havia falado. Trocar o motor quebrava o bot.
+O WAHA era uma caixa-preta: não dava para deduplicar mensagens, controlar o ritmo de envio, fazer retry, auditar nada, e o fluxo do n8n precisava cavar dentro de `payload._data.key.remoteJidAlt`, um campo interno do motor Baileys, para descobrir quem havia falado. Trocar o motor quebrava o bot.
 
 ## Arquitetura
 
@@ -68,14 +68,14 @@ Tudo sob `/api/v1` exige `X-Api-Key`. Os health checks são públicos.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/api/v1/messages` | Envia texto — substitui o `sendText` do WAHA |
+| `POST` | `/api/v1/messages` | Envia texto. Substitui o `sendText` do WAHA |
 | `POST` | `/api/v1/sessions/:id/start` | Conecta a sessão (idempotente) |
 | `POST` | `/api/v1/sessions/:id/stop` | Encerra o socket sem desvincular |
 | `DELETE` | `/api/v1/sessions/:id` | Desvincula e apaga credenciais |
 | `GET` | `/api/v1/sessions/:id` | Estado da sessão |
 | `GET` | `/api/v1/sessions/:id/qr` | QR pendente (`?format=png` para imagem) |
-| `GET` | `/health/live` | Liveness — só confirma que o processo responde |
-| `GET` | `/health/ready` | Readiness — sessão conectada e Redis acessível |
+| `GET` | `/health/live` | Liveness: só confirma que o processo responde |
+| `GET` | `/health/ready` | Readiness: sessão conectada e Redis acessível |
 
 `live` não olha WhatsApp nem Redis de propósito: se olhasse, o Docker reiniciaria o container justamente durante uma reconexão.
 
@@ -89,17 +89,17 @@ As de ajuste mais frequente são as anti-ban: `WA_SEND_MIN_DELAY_MS`, `WA_SEND_M
 
 63 testes. A cobertura foi direcionada ao que quebra em produção:
 
-- **`baileys-event.mapper.spec.ts`** — payloads reais do Baileys: grupo, LID com `remoteJidAlt`, mensagem efêmera, ver-uma-vez aninhada, legenda de mídia, eco das próprias mensagens, ruído de protocolo, timestamp em `Long`
-- **`text-formatter.service.spec.ts`** — o bug que chegava ao cidadão: HTML do Telegram virando `*negrito*` do WhatsApp
-- **`dedupe.service.spec.ts`** — inclusive o comportamento com Redis fora do ar
-- **`send-queue.service.spec.ts`** — serialização, ordem, atraso e isolamento entre sessões
-- **`n8n-dispatcher.service.spec.ts`** — assinatura HMAC e política de retry
-- **`test/gateway.e2e-spec.ts`** — API completa com o `AppModule` real
+- **`baileys-event.mapper.spec.ts`**: payloads reais do Baileys: grupo, LID com `remoteJidAlt`, mensagem efêmera, ver-uma-vez aninhada, legenda de mídia, eco das próprias mensagens, ruído de protocolo, timestamp em `Long`
+- **`text-formatter.service.spec.ts`**: o bug que chegava ao cidadão: HTML do Telegram virando `*negrito*` do WhatsApp
+- **`dedupe.service.spec.ts`**: inclusive o comportamento com Redis fora do ar
+- **`send-queue.service.spec.ts`**: serialização, ordem, atraso e isolamento entre sessões
+- **`n8n-dispatcher.service.spec.ts`**: assinatura HMAC e política de retry
+- **`test/gateway.e2e-spec.ts`**: API completa com o `AppModule` real
 
 ## Segurança
 
 - API key comparada em tempo constante; rotas nascem protegidas e abrir exige `@Public()`
 - Segredos mascarados no log
-- **O conteúdo das mensagens nunca é registrado** — só `textLength`. É dado de saúde de cidadão identificável
+- **O conteúdo das mensagens nunca é registrado**, só `textLength`. É dado de saúde de cidadão identificável
 - Container roda como usuário não-root, com `dumb-init` como PID 1 para desligamento gracioso
 - `sessionId` sanitizado contra path traversal

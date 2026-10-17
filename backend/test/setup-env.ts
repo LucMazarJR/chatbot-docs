@@ -2,7 +2,7 @@
  * Ambiente mínimo para o teste e2e.
  *
  * Roda como `setupFiles` do Jest, ou seja, antes de qualquer import do
- * `AppModule` — o `AppConfigModule` valida o ambiente no momento em que é
+ * `AppModule`: o `AppConfigModule` valida o ambiente no momento em que é
  * carregado e o processo morreria antes do primeiro teste.
  */
 process.env.NODE_ENV = 'test';

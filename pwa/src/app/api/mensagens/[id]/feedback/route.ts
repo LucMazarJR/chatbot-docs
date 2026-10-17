@@ -25,7 +25,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   }
 
   // A versão B abre um campo de texto junto do polegar. É o retorno mais rico
-  // que o protótipo coleta — diz POR QUE a resposta falhou, não só que falhou.
+  // que o protótipo coleta: diz POR QUE a resposta falhou, não só que falhou.
   const comentario = String(corpo.comentario ?? '')
     .trim()
     .slice(0, 2000);

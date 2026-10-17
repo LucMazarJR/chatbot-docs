@@ -18,7 +18,7 @@ export class SessionsService implements OnApplicationBootstrap {
    *
    * Falhar aqui não pode derrubar a aplicação: se o WhatsApp estiver fora do
    * ar, o gateway ainda precisa subir para servir `/health` e o endpoint de QR
-   * — do contrário o container entra em laço de restart e ninguém consegue
+   * Do contrário, o container entra em laço de restart e ninguém consegue
    * nem diagnosticar o problema.
    */
   onApplicationBootstrap(): void {
@@ -61,7 +61,7 @@ export class SessionsService implements OnApplicationBootstrap {
   }
 
   /**
-   * QR code pendente. Ausência de QR não é erro de servidor — significa que a
+   * QR code pendente. Ausência de QR não é erro de servidor: significa que a
    * sessão já está conectada ou ainda nem começou a parear.
    */
   getQrCode(sessionId: string): string {

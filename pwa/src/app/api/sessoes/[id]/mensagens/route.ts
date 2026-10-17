@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import { mensagens } from '@/lib/db';
-import { dentroDoLimite, identificar } from '@/lib/limite';
+import { mensagens, ORDEM_DA_CONVERSA } from '@/lib/db';
+import { LIMITE_POR_CONVERSA, dentroDoLimite, identificar } from '@/lib/limite';
 import { despachar, urlDeRetorno } from '@/lib/n8n';
 import { autenticarSessao } from '@/lib/sessao-autenticada';
 import type { Mensagem } from '@/lib/tipos';
@@ -15,7 +15,7 @@ type Contexto = { params: Promise<{ id: string }> };
 /**
  * Transcrição da própria sessão, para o PWA se recompor depois de um refresh.
  *
- * No celular isso acontece o tempo todo — trocar de aplicativo e voltar, puxar
+ * No celular isso acontece o tempo todo: trocar de aplicativo e voltar, puxar
  * a tela para baixo sem querer. Sem esta rota, o participante voltaria para um
  * chat visualmente vazio embora a sessão continuasse viva no banco e na memória
  * do Redis, e concluiria que o protótipo se perdeu.
@@ -35,13 +35,13 @@ export async function GET(requisicao: Request, { params }: Contexto) {
       { sessaoId: id },
       { projection: { papel: 1, texto: 1, em: 1, erro: 1, feedback: 1, pendente: 1 } },
     )
-    .sort({ em: 1 })
+    .sort(ORDEM_DA_CONVERSA)
     .toArray();
 
   return Response.json({
     nome: sessao.nome,
     // A saudação é remontada no cliente e não existe no banco. Sem a hora de
-    // início, ela apareceria carimbada com a hora do refresh — acima de
+    // início, ela apareceria carimbada com a hora do refresh: acima de
     // mensagens mais antigas, e com o relógio andando para trás na tela.
     iniciadaEm: sessao.iniciadaEm,
     encerrada: Boolean(sessao.encerradaEm),
@@ -62,13 +62,15 @@ export async function GET(requisicao: Request, { params }: Contexto) {
  *
  * É esse desenho que permite o fluxo demorar três minutos. Antes a requisição
  * ficava aberta o tempo todo esperando, e na Vercel a plataforma matava a função
- * aos 60s — a resposta era gerada e se perdia no caminho.
+ * aos 60s: a resposta era gerada e se perdia no caminho.
  */
 export async function POST(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
 
-  const corpo = (await requisicao.json().catch(() => ({}))) as { texto?: string };
+  const corpo = (await requisicao.json().catch(() => ({}))) as { texto?: string; origem?: string };
   const texto = String(corpo.texto ?? '').trim();
+  // Só o rótulo: o áudio do ditado nunca chega aqui, só o texto que ele virou.
+  const porVoz = corpo.origem === 'voz';
 
   if (!texto) return Response.json({ erro: 'texto vazio' }, { status: 400 });
   if (texto.length > LIMITE_TEXTO) {
@@ -85,11 +87,40 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   if ('erro' in autenticada) return autenticada.erro;
   const { sessao } = autenticada;
 
+  // Depois da autenticação, e não antes: o id da conversa não é segredo, e
+  // contar antes deixaria qualquer um esgotar o limite da conversa de outra pessoa.
+  if (!(await dentroDoLimite(`conversa:${sessao._id}`, LIMITE_POR_CONVERSA))) {
+    return Response.json(
+      { erro: 'muitas mensagens em pouco tempo, aguarde alguns minutos' },
+      { status: 429 },
+    );
+  }
+
   const colMensagens = await mensagens();
 
   if (sessao.encerradaEm) return Response.json({ erro: 'sessão já encerrada' }, { status: 409 });
 
   const correlationId = randomUUID();
+
+  // Só a conversa do staging manda o histórico: é ela que vai para o fluxo
+  // com reescrita, que usa as últimas mensagens para entender "e lá?". Lido
+  // antes de gravar a pergunta nova, para ela não entrar duas vezes.
+  const staging = Boolean(sessao.usuarioId);
+  const historico = staging
+    ? (
+        await colMensagens
+          .find(
+            { sessaoId: sessao._id, pendente: { $ne: true }, tipo: { $exists: false } },
+            { projection: { papel: 1, texto: 1 } },
+          )
+          .sort({ em: -1, papel: 1 })
+          .limit(4)
+          .toArray()
+      )
+        .reverse()
+        .filter((m) => m.texto)
+        .map((m) => ({ papel: m.papel, texto: m.texto }))
+    : undefined;
 
   const pergunta: Mensagem = {
     _id: randomUUID(),
@@ -98,6 +129,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     texto,
     em: new Date(),
     correlationId,
+    ...(porVoz ? { origem: 'voz' as const } : {}),
   };
 
   const respostaBot: Mensagem = {
@@ -120,6 +152,8 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     nome: sessao.nome,
     correlationId,
     urlDeRetorno: urlDeRetorno(requisicao),
+    staging,
+    historico,
   });
 
   if (!entrega.aceito) {

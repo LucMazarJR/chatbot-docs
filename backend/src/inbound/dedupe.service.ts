@@ -10,7 +10,7 @@ import { REDIS_CLIENT } from '@/shared/redis/redis.tokens';
  *
  * O WhatsApp reentrega mensagens quando a conexão oscila, e o Baileys reemite
  * eventos ao reconectar. Sem isto, uma queda de rede faz o cidadão receber a
- * mesma resposta duas ou três vezes — e cada repetição custa uma chamada ao
+ * mesma resposta duas ou três vezes, e cada repetição custa uma chamada ao
  * Gemini.
  */
 @Injectable()

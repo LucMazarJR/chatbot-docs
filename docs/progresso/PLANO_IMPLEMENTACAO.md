@@ -1,6 +1,6 @@
 # Plano — chatbot PET-SAÚDE
 
-Ponteiro para o agente (`oncoto-oncovo`). Detalhe operacional: [handoff-notebook.md](../handoff-notebook.md). Decisões externas: [depende-de-voce.md](../depende-de-voce.md). Portas no host municipal: [mapa-portas-172-21-31-167.md](../mapa-portas-172-21-31-167.md).
+Ponteiro para o agente (`oncoto-oncovo`). Instalação: [instalacao.md](../instalacao.md). Armadilhas: [armadilhas.md](../armadilhas.md). Produção: [caminho-para-producao.md](../caminho-para-producao.md). Portas no host municipal: [mapa-portas-172-21-31-167.md](../mapa-portas-172-21-31-167.md).
 
 **Fase atual:** teste interno. Conduta/skills no repo. Espelho municipal no Gitness (destino padrão do `exporte`). Compose no host `172.21.31.167` ainda não é o dia a dia.
 

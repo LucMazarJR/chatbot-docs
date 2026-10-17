@@ -1,7 +1,7 @@
 /*
  * Aparência do WhatsApp, recriada em CSS.
  *
- * Nenhum arquivo de imagem da Meta é usado — cores, formas e o padrão de fundo
+ * Nenhum arquivo de imagem da Meta é usado: cores, formas e o padrão de fundo
  * são reproduzidos aqui. A fidelidade visual é o ponto: o participante precisa
  * julgar a experiência do canal real, não a de um chat genérico.
  */
@@ -13,7 +13,7 @@
    * Multiplicador do tamanho do texto, ajustável no painel de acessibilidade.
    *
    * LÓGICA DO LUCIANO: multiplicador em cima do `font-size` do body, e não
-   * `html { font-size: N% }` como se costuma fazer — este CSS mede em px, e
+   * `html { font-size: N% }` como se costuma fazer: este CSS mede em px, e
    * mudar a raiz não moveria nada. Quem precisa acompanhar a escala usa `em`,
    * e é por isso que os tamanhos do balão, dos avisos e da folha de avaliação
    * estão em `em` e os do cabeçalho não: o cabeçalho tem altura fixa e cresceria
@@ -37,6 +37,11 @@
   --painel: #ffffff;
   --borda: rgba(17, 27, 33, 0.1);
   --acento: #008069;
+  /* Texto sobre fundo de destaque (botão escolhido, enviar avaliação). Só o
+     contraste alto escuro troca, porque lá o destaque é claro. */
+  --acento-texto: #ffffff;
+  /* Só na opção sem volta. 6.5:1 sobre o painel claro. */
+  --perigo: #b3261e;
   /* Amarelo do aviso de sistema do WhatsApp. */
   --aviso: #fff3c4;
   --aviso-texto: #5b4a1f;
@@ -46,7 +51,7 @@
  * Paleta escura, por ATRIBUTO e não por media query.
  *
  * LÓGICA DO LUCIANO: com `@media (prefers-color-scheme: dark)` não havia como
- * alguém escolher o tema — quem usa o celular no escuro o dia inteiro ficava
+ * alguém escolher o tema: quem usa o celular no escuro o dia inteiro ficava
  * sem o modo claro, e vice-versa. Quem resolve "automático" agora é o script no
  * <head>, que lê a preferência guardada, consulta o matchMedia e carimba
  * `data-tema` antes da primeira pintura. Assim existe UMA fonte da verdade, e
@@ -70,8 +75,82 @@
   --painel: #111b21;
   --borda: rgba(233, 237, 239, 0.12);
   --acento: #00a884;
+  /* No escuro o vermelho some; o rosado dá 9:1. */
+  --perigo: #ffb4ab;
   --aviso: #1e2a30;
   --aviso-texto: #ffd279;
+}
+
+/*
+ * Contraste alto, para tela ruim, luz forte ou vista cansada.
+ *
+ * LÓGICA DO LUCIANO: no primeiro teste de campo, num monitor de posto, não dava
+ * para distinguir o balão do fundo: branco (#fff) sobre bege (#efeae2) é uma
+ * diferença de 1,1:1, que a tela barata simplesmente apaga. O tema escuro não
+ * resolve, porque o problema é o contorno, e não a cor. Aqui cada balão, botão
+ * e campo ganha um contorno escuro (3:1 ou mais contra o fundo), o fundo perde
+ * o desenho, e o texto secundário escurece até 7:1.
+ *
+ * O contorno é uma sombra sólida, e não uma borda: borda muda o tamanho da
+ * caixa, e o chat pularia de lugar ao trocar a opção.
+ *
+ * É um eixo separado do tema: claro ou escuro, cada um com contraste normal ou
+ * alto. Quem resolve a escolha é o script do <head>, que carimba
+ * `data-contraste` antes da primeira pintura.
+ */
+:root[data-contraste='alto'] {
+  --contorno: #3b4a54;
+  --fundo-chat: #e4dfd6;
+  --texto: #000000;
+  --texto-fraco: #3b4a54;
+  --tick: #3b4a54;
+  --tick-lido: #0b6fa4;
+  --barra: #e6e9ec;
+  --borda: rgba(17, 27, 33, 0.55);
+  --acento: #006b58;
+  --aviso-texto: #3d3014;
+}
+
+:root[data-tema='escuro'][data-contraste='alto'] {
+  --contorno: #c7d0d5;
+  --topo: #0b141a;
+  --fundo-chat: #000000;
+  --balao-entrada: #1b262c;
+  --balao-saida: #004d40;
+  --texto: #ffffff;
+  --texto-fraco: #d1d7db;
+  --tick: #d1d7db;
+  --tick-lido: #7cd3ff;
+  --barra: #111b21;
+  --campo: #1b262c;
+  --divisor: #1b262c;
+  --borda: rgba(233, 237, 239, 0.6);
+  --acento: #38e5b8;
+  --acento-texto: #000000;
+  --aviso: #1b262c;
+  --aviso-texto: #ffe08a;
+}
+
+/* `main` a mais no seletor para vencer o desenho do tema escuro, que tem a
+   mesma força e vem depois no arquivo. */
+:root[data-contraste='alto'] main.mensagens {
+  background-image: none;
+}
+
+:root[data-contraste='alto'] .balao,
+:root[data-contraste='alto'] .amostra-balao,
+:root[data-contraste='alto'] .divisor span,
+:root[data-contraste='alto'] .aviso-chat,
+:root[data-contraste='alto'] .botoes-rapidos button,
+:root[data-contraste='alto'] .barra-envio .campo {
+  box-shadow: 0 0 0 1.5px var(--contorno);
+}
+
+/* Os polegares ficavam meio apagados de propósito, para não competir com a
+   resposta. No contraste alto, apagado é invisível. */
+:root[data-contraste='alto'] .avaliar-msg button {
+  border-color: var(--contorno);
+  opacity: 1;
 }
 
 * {
@@ -83,7 +162,7 @@
  *
  * Usado onde a informação existe visualmente mas não em palavras: os tiques de
  * entrega, o aviso de que o assistente está digitando, o atalho para pular a
- * conversa. Não é `display: none` nem `visibility: hidden` — os dois escondem
+ * conversa. Não é `display: none` nem `visibility: hidden`: os dois escondem
  * do leitor de tela também, que é o oposto do que se quer aqui.
  */
 .sr-only {
@@ -101,7 +180,7 @@
 /*
  * Anel de foco visível, em tudo que recebe foco.
  *
- * LÓGICA DO LUCIANO: `:focus-visible`, e não `:focus` — o navegador só mostra o
+ * LÓGICA DO LUCIANO: `:focus-visible`, e não `:focus`: o navegador só mostra o
  * anel para quem está navegando por teclado, então o toque e o clique continuam
  * limpos. Sem isto, quem usa só o teclado não tinha como saber onde estava:
  * botões e balões não mudavam de aparência nenhuma ao receber foco.
@@ -116,7 +195,7 @@
  *
  * Os polegares 👍/👎 sob cada resposta são focáveis. Numa conversa de vinte
  * respostas, isso são quarenta paradas de Tab entre o topo da página e o campo
- * de mensagem — na prática, o teclado deixa de servir para conversar. O atalho
+ * de mensagem: na prática, o teclado deixa de servir para conversar. O atalho
  * aparece ao receber foco, como manda o padrão: some para quem usa o mouse.
  */
 .pular {
@@ -183,7 +262,7 @@ button {
 
 /*
  * O consentimento entra como um recado no meio da conversa, no lugar da antiga
- * tela de entrada — o mesmo padrão do aviso de criptografia do WhatsApp.
+ * tela de entrada: o mesmo padrão do aviso de criptografia do WhatsApp.
  * Informa sem cobrar um formulário de quem só quer fazer uma pergunta.
  */
 .aviso-chat {
@@ -241,7 +320,7 @@ button {
    pode mostrar botão já usado, que convida ao clique duplo. */
 .botoes-rapidos button.escolhido {
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-texto);
   cursor: default;
 }
 
@@ -294,7 +373,7 @@ button {
 }
 
 /* Estava em opacity 0.85, o que dava 3.99:1 de contraste contra o verde do
-   cabeçalho — abaixo dos 4.5:1 que a WCAG pede para texto deste tamanho. A
+   cabeçalho: abaixo dos 4.5:1 que a WCAG pede para texto deste tamanho. A
    opacidade cheia leva para 4.89:1. A hierarquia continua pelo tamanho. */
 .topo-nome span {
   font-size: 12.5px;
@@ -341,6 +420,14 @@ button {
   background: var(--barra);
 }
 
+/* Separa o item que apaga a conversa dos demais. A classe era usada no menu e
+   não existia aqui, então o separador não aparecia. */
+.menu-divisor {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--borda);
+}
+
 /* --- Área das mensagens -------------------------------------------------- */
 
 .mensagens {
@@ -349,10 +436,10 @@ button {
   padding: 12px 5% 8px;
   overflow-y: auto;
   background-color: var(--fundo-chat);
-  /* Padrão abstrato próprio, em SVG embutido — nenhum arquivo da Meta.
+  /* Padrão abstrato próprio, em SVG embutido: nenhum arquivo da Meta.
      A cor do traço fica FIXA dentro do SVG: um `data:` URI é renderizado em
      contexto isolado e não enxerga as variáveis CSS desta página, então
-     `var(--x)` aqui dentro sairia inválido e o padrão simplesmente não
+     `var(--x)` aqui dentro sairia inválido e o padrão não
      apareceria. Por isso o tema escuro troca a imagem inteira, mais abaixo. */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23111b21' stroke-width='1.6' stroke-linecap='round' opacity='0.06'%3E%3Ccircle cx='34' cy='30' r='9'/%3E%3Cpath d='M92 22h26v18h-9l-5 7-4-7h-8z'/%3E%3Cpath d='M168 18l7 13 14 2-10 10 2 14-13-7-13 7 2-14-10-10 14-2z'/%3E%3Cpath d='M226 34c0-6 9-8 11-2 2-6 11-4 11 2 0 7-11 14-11 14s-11-7-11-14z'/%3E%3Cpath d='M20 96h22M20 104h14'/%3E%3Ccircle cx='104' cy='100' r='11'/%3E%3Cpath d='M104 93v14M97 100h14'/%3E%3Cpath d='M164 92l10 10-10 10-10-10z'/%3E%3Cpath d='M214 90h24v20h-24z'/%3E%3Cpath d='M214 98h24'/%3E%3Cpath d='M26 168c8-10 20-10 28 0'/%3E%3Ccircle cx='40' cy='178' r='3'/%3E%3Cpath d='M88 162h28l-6 22H94z'/%3E%3Cpath d='M160 160v24M152 172h16'/%3E%3Ccircle cx='226' cy='172' r='10'/%3E%3Cpath d='M222 172l3 4 6-7'/%3E%3Cpath d='M24 226h20l-4 14H28z'/%3E%3Cpath d='M96 232c0-5 7-7 9-2 2-5 9-3 9 2 0 6-9 12-9 12s-9-6-9-12z'/%3E%3Cpath d='M158 224h24v16h-24z'/%3E%3Cpath d='M164 224v-6h12v6'/%3E%3Ccircle cx='228' cy='232' r='9'/%3E%3C/g%3E%3C/svg%3E");
   background-attachment: local;
@@ -414,7 +501,7 @@ button {
 /*
  * Rabinho: triângulo recortado, só no primeiro balão da sequência.
  *
- * Os dois lados precisam de recortes ESPELHADOS, e não do mesmo polígono — a
+ * Os dois lados precisam de recortes ESPELHADOS, e não do mesmo polígono: a
  * ordem dos vértices não muda a forma, então declarar
  * `polygon(0 0, 100% 0, 100% 100%)` e `polygon(100% 0, 0 0, 100% 100%)` produz
  * exatamente o mesmo triângulo, e um dos lados fica com o rabo virado ao
@@ -592,7 +679,7 @@ button {
  *
  * LÓGICA DO LUCIANO: o clipe estava FORA dela, solto à esquerda, e era isso que
  * deixava a barra estranha mesmo depois de alinhada. No WhatsApp a cápsula é o
- * campo inteiro — os ícones de anexo moram dentro dela, e só o botão redondo
+ * campo inteiro: os ícones de anexo moram dentro dela, e só o botão redondo
  * verde fica de fora. Com o clipe solto, a barra virava três blocos de peso
  * parecido em vez de um campo largo com um botão ao lado.
  *
@@ -618,7 +705,7 @@ button {
  *
  * LÓGICA DO LUCIANO: `padding: 0` aqui NÃO é enfeite. O `box-sizing: border-box`
  * global faz o `height` incluir o padding, então `height: 1.4em` com `padding:
- * 5px 0` deixava menos de 10px para uma linha que precisa de 20 — o texto não
+ * 5px 0` deixava menos de 10px para uma linha que precisa de 20: o texto não
  * cabia na própria caixa e nascia com barra de rolagem, tanto o placeholder
  * quanto o que a pessoa digitava. O respiro em volta do texto passou a ser o
  * padding da cápsula, que é onde ele deveria estar desde o começo.
@@ -659,9 +746,35 @@ button {
 }
 
 /*
+ * Destaque de logo depois do aceite: o anel do campo pulsa duas vezes.
+ *
+ * Mostra onde escrever sem depender de "aqui embaixo", que mente quando o
+ * teclado do celular abre e o campo muda de lugar.
+ */
+.barra-envio .campo.destaque {
+  animation: destaque-campo 1.2s ease-out 2;
+}
+
+@keyframes destaque-campo {
+  0% {
+    box-shadow: 0 0 0 0 var(--acento);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barra-envio .campo.destaque {
+    animation: none;
+    box-shadow: 0 0 0 4px var(--acento);
+  }
+}
+
+/*
  * O placeholder não quebra linha.
  *
- * Diferente do texto digitado, ele não tem como crescer a caixa — quando
+ * Diferente do texto digitado, ele não tem como crescer a caixa, quando
  * quebrava, a segunda linha ficava fora da área visível e o campo nascia com
  * barra de rolagem, sem nada escrito nele. Cortar com reticências é o que o
  * WhatsApp faz, e mantém o campo de uma linha em qualquer tamanho de fonte.
@@ -686,7 +799,7 @@ button {
 }
 
 :root[data-tema='escuro'] .enviar {
-  background: #00a884;
+  background: var(--acento);
   color: #111b21;
 }
 
@@ -698,12 +811,12 @@ button {
 /* --- Anexo e áudio ------------------------------------------------------- */
 
 /*
- * O clipe, dentro da cápsula e à direita do texto — a posição do WhatsApp.
+ * O clipe, dentro da cápsula e à direita do texto: a posição do WhatsApp.
  *
  * O canal real só lê texto: o botão existe para medir quanta gente tenta mandar
  * foto do exame, e essa resposta só aparece se houver o botão para tentar.
  *
- * 40px de alvo dentro de uma cápsula de 46 — cheio o bastante para o dedo e
+ * 40px de alvo dentro de uma cápsula de 46: cheio o bastante para o dedo e
  * pequeno o bastante para não empurrar o campo. Fora dela eram 44, e isso dava
  * a ele o mesmo peso visual do botão de enviar, que é a ação principal.
  */
@@ -784,7 +897,7 @@ button {
 }
 
 /* Recado passageiro acima do campo: microfone recusado, envio que não foi.
-   Fica FORA da conversa de propósito — é assunto entre a pessoa e o aparelho,
+   Fica FORA da conversa de propósito: é assunto entre a pessoa e o aparelho,
    não uma fala do assistente, e não tem por que entrar na transcrição. */
 .aviso-composer {
   flex: 0 0 auto;
@@ -794,6 +907,40 @@ button {
   color: var(--aviso-texto);
   font-size: 0.92em;
   text-align: center;
+}
+
+/* Ditado em andamento (staging): o ponto vermelho da gravação, ao lado da frase. */
+.aviso-composer.ouvindo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--barra);
+  color: var(--texto);
+}
+
+/* "Ouvir", embaixo da resposta, no mesmo desenho dos polegares. */
+.ouvir {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  margin: -4px 0 8px 2px;
+  padding: 3px 11px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--balao-entrada);
+  color: var(--texto);
+  font-size: 0.88em;
+}
+
+.ouvir.falando {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+:root[data-contraste='alto'] .ouvir {
+  border-color: var(--contorno);
 }
 
 /* --- Folha de avaliação -------------------------------------------------- */
@@ -904,7 +1051,7 @@ button {
 .nps button.ativa {
   border-color: var(--acento);
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-texto);
 }
 
 .nps-legenda {
@@ -939,9 +1086,10 @@ button {
   font-weight: 600;
 }
 
-.folha .acoes .enviar-avaliacao {
+.folha .acoes .enviar-avaliacao,
+.folha .acoes .botao-folha {
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-texto);
 }
 
 .folha .acoes .depois {
@@ -961,7 +1109,7 @@ button {
   margin: 0 auto 14px;
   border-radius: 50%;
   background: var(--acento);
-  color: #fff;
+  color: var(--acento-texto);
   font-size: 30px;
   place-items: center;
 }
@@ -971,8 +1119,8 @@ button {
 /*
  * Veio do painel de configurações da versão B, e é a peça que faltava: este
  * chat mede tudo em px para imitar o WhatsApp, então ignorava a fonte do
- * sistema. Quem usa o telefone com a fonte no máximo — boa parte de quem vai
- * testar no posto — não conseguiria ler as respostas que veio avaliar.
+ * sistema. Quem usa o telefone com a fonte no máximo (boa parte de quem vai
+ * testar no posto) não conseguiria ler as respostas que veio avaliar.
  *
  * Entra deslizando pela direita, como uma tela de configuração de aplicativo,
  * e não como caixa no meio: a conversa continua visível atrás, e a pessoa vê
@@ -1054,7 +1202,7 @@ button {
   text-transform: uppercase;
 }
 
-/* Passo a passo, e não um controle contínuo: um slider exige mira fina —
+/* Passo a passo, e não um controle contínuo: um slider exige mira fina,
    justamente o que falta a quem tem tremor, que é parte do público. */
 .escala-passo {
   display: flex;
@@ -1085,7 +1233,7 @@ button {
 }
 
 /* A amostra repete as medidas do balão da conversa, então o efeito aparece
-   aqui exatamente como vai aparecer lá — sem fechar o painel para descobrir. */
+   aqui exatamente como vai aparecer lá, sem fechar o painel para descobrir. */
 .amostra {
   margin-top: 14px;
   padding: 12px;
@@ -1164,4 +1312,309 @@ button {
 
 .painel-sobre:last-child {
   margin-bottom: 0;
+}
+
+/* --- Privacidade e exclusão ---------------------------------------------- */
+
+.aviso-chat a,
+.painel-sobre a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* O menu tinha só botões; o link de privacidade precisa da mesma forma, senão
+   vira a única linha sublinhada e azul no meio de itens de menu. */
+.menu a {
+  display: block;
+  padding: 12px 20px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.menu a:hover {
+  background: var(--barra);
+}
+
+/* Vermelho só na única opção sem volta. #b3261e dá 6.5:1 sobre o painel claro;
+   no escuro o mesmo tom some, e o rosado dá 9:1. */
+.menu .menu-perigo,
+.aviso-erro {
+  color: var(--perigo);
+}
+
+.folha .enviar-avaliacao.perigo,
+.folha .botao-folha.perigo {
+  /* Fixo nos dois temas: o rosado do escuro não segura texto branco. */
+  background: #b3261e;
+  color: #fff;
+}
+
+.aviso-erro {
+  margin: 0 0 14px;
+  font-size: 0.92em;
+  line-height: 1.5;
+}
+
+/*
+ * Página de privacidade.
+ *
+ * Mesma cara do painel de acessibilidade (cabeçalho verde com seta de voltar)
+ * para ler como uma tela do mesmo aplicativo, e não como um documento jurídico
+ * que abriu por engano. Largura limitada porque linha de texto longa demais
+ * cansa, e quem lê isto está justamente decidindo se confia no chat.
+ */
+.privacidade {
+  min-height: 100dvh;
+  background: var(--painel);
+  color: var(--texto);
+}
+
+.privacidade-topo {
+  display: flex;
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  background: var(--topo);
+  color: var(--topo-texto);
+}
+
+.privacidade-topo a {
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: inherit;
+  place-items: center;
+}
+
+.privacidade-topo h1 {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 500;
+}
+
+.privacidade-corpo {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 8px 20px calc(32px + env(safe-area-inset-bottom));
+  line-height: 1.6;
+}
+
+.privacidade-corpo section {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.privacidade-corpo h2 {
+  margin: 0 0 10px;
+  color: var(--acento);
+  font-size: 0.92em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.privacidade-corpo p {
+  margin: 0 0 10px;
+}
+
+.privacidade-corpo ul {
+  margin: 0 0 10px;
+  padding-left: 1.2em;
+}
+
+.privacidade-corpo li {
+  margin-bottom: 8px;
+}
+
+.privacidade-corpo a {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+.privacidade-voltar {
+  padding-top: 20px;
+  text-align: center;
+}
+
+/* --- Carregando ---------------------------------------------------------- */
+
+/* O sinal de que algo está chegando (componente Carregando). Existe para a tela
+   nunca mostrar "nenhum" ou ficar em branco enquanto a resposta ainda vem. */
+.carregando {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--texto-fraco);
+  line-height: 1.4;
+}
+
+.carregando-bloco {
+  justify-content: center;
+  padding: 20px 12px;
+}
+
+.carregando-linha {
+  padding: 6px 0;
+}
+
+/* No fundo desenhado do chat, texto solto some: vai numa pílula, como o
+   divisor de data. */
+.carregando-balao {
+  width: fit-content;
+  margin: 8px auto;
+  padding: 8px 14px;
+  border-radius: 7.5px;
+  background: var(--divisor);
+  box-shadow: var(--sombra);
+  font-size: 0.9em;
+}
+
+.carregando-giro {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--acento);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: carregando-giro 0.8s linear infinite;
+}
+
+@keyframes carregando-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mais devagar, e não parado: um círculo parado não diz que algo está
+   acontecendo. */
+@media (prefers-reduced-motion: reduce) {
+  .carregando-giro {
+    animation-duration: 2.4s;
+  }
+}
+
+/* --- Tutorial (staging) ---------------------------------------------------- */
+
+/*
+ * O destaque é um recorte: a sombra enorme escurece a tela inteira, menos a
+ * caixa do elemento. Assim o elemento de verdade aparece aceso, e não uma
+ * cópia desenhada dele.
+ */
+.tutorial {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  font-size: calc(15px * var(--escala));
+}
+
+.tutorial-fundo {
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 20, 26, 0.62);
+}
+
+.tutorial-destaque {
+  position: absolute;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 3px var(--acento),
+    0 0 0 9999px rgba(11, 20, 26, 0.62);
+  pointer-events: none;
+}
+
+.tutorial-balao {
+  position: absolute;
+  left: 50%;
+  width: min(92vw, 22em);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 1em 1.1em;
+  border-radius: 12px;
+  background: var(--painel);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  color: var(--texto);
+  translate: -50% 0;
+}
+
+:root[data-contraste='alto'] .tutorial-balao {
+  box-shadow: 0 0 0 2px var(--contorno);
+}
+
+.tutorial-passo {
+  margin: 0 0 0.3em;
+  color: var(--texto-fraco);
+  font-size: 0.85em;
+}
+
+.tutorial-balao h2 {
+  margin: 0 0 0.4em;
+  font-size: 1.15em;
+  line-height: 1.3;
+}
+
+.tutorial-balao h2:focus {
+  outline: none;
+}
+
+.tutorial-balao h2:focus-visible {
+  outline: 3px solid var(--acento);
+}
+
+.tutorial-balao p {
+  margin: 0 0 0.6em;
+  line-height: 1.45;
+}
+
+.tutorial-exemplo {
+  margin: 0.4em 0 0.8em;
+  padding: 0.7em;
+  border-radius: 8px;
+  background: var(--fundo-chat);
+}
+
+.tutorial-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  margin-top: 0.4em;
+}
+
+.tutorial-navegar {
+  display: flex;
+  gap: 0.5em;
+}
+
+/* 44px de altura: é o passo a passo de quem tem mais dificuldade de acertar
+   o toque. */
+.tutorial-acoes button {
+  min-height: 44px;
+  padding: 0 1em;
+  border: 1px solid var(--borda);
+  border-radius: 22px;
+  background: transparent;
+  color: var(--texto);
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.tutorial-acoes .tutorial-pular {
+  border-color: transparent;
+  color: var(--texto-fraco);
+  text-decoration: underline;
+}
+
+.tutorial-acoes .tutorial-proximo {
+  border-color: var(--acento);
+  background: var(--acento);
+  color: var(--acento-texto);
 }

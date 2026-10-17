@@ -30,7 +30,7 @@ import { WebhooksModule } from '@/webhooks/webhooks.module';
   ],
   providers: [
     // Autenticação por padrão: uma rota nova nasce protegida, e abrir exige o
-    // decorador `@Public()` explícito. O contrário — proteger caso a caso — é
+    // decorador `@Public()` explícito. O contrário, proteger caso a caso, é
     // como se esquece de proteger.
     { provide: APP_GUARD, useClass: ApiKeyGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

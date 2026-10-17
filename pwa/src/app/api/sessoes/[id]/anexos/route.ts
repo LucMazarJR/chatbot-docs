@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { mensagens } from '@/lib/db';
-import { dentroDoLimite, identificar } from '@/lib/limite';
+import { LIMITE_POR_CONVERSA, dentroDoLimite, identificar } from '@/lib/limite';
 import { TEXTO_SOMENTE_TEXTO } from '@/lib/mensagens-fixas';
 import { autenticarSessao } from '@/lib/sessao-autenticada';
 import type { Mensagem, TipoAnexo } from '@/lib/tipos';
@@ -13,7 +13,7 @@ type Contexto = { params: Promise<{ id: string }> };
 /**
  * Registra que alguém tentou mandar arquivo ou áudio, e responde que não dá.
  *
- * LÓGICA DO LUCIANO: o canal real só processa texto — nem o WhatsApp nem o
+ * LÓGICA DO LUCIANO: o canal real só processa texto: nem o WhatsApp nem o
  * fluxo do n8n têm caminho para áudio ou imagem. Os botões existem no protótipo
  * justamente por isso: a pergunta que a validação precisa responder é "quanta
  * gente tenta mandar foto do exame ou áudio em vez de digitar?", e essa resposta
@@ -22,7 +22,7 @@ type Contexto = { params: Promise<{ id: string }> };
  *
  * O CONTEÚDO NÃO SOBE. Nada do arquivo ou do áudio sai do aparelho: vão só o
  * tipo, o tamanho e a duração. Guardar a gravação seria acumular voz de pessoas
- * relatando problema de saúde — dado sensível, sem nenhum uso possível, já que
+ * relatando problema de saúde: dado sensível, sem nenhum uso possível, já que
  * não existe transcrição no fluxo. E o nome do arquivo fica de fora de
  * propósito: "exame_maria_silva.pdf" é exatamente o tipo de dado pessoal que o
  * aviso de consentimento pede para ninguém mandar.
@@ -53,6 +53,15 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   const autenticada = await autenticarSessao(requisicao, id);
   if ('erro' in autenticada) return autenticada.erro;
   const { sessao } = autenticada;
+
+  // Depois da autenticação, e não antes: o id da conversa não é segredo, e
+  // contar antes deixaria qualquer um esgotar o limite da conversa de outra pessoa.
+  if (!(await dentroDoLimite(`conversa:${sessao._id}`, LIMITE_POR_CONVERSA))) {
+    return Response.json(
+      { erro: 'muitas mensagens em pouco tempo, aguarde alguns minutos' },
+      { status: 429 },
+    );
+  }
 
   if (sessao.encerradaEm) return Response.json({ erro: 'sessão já encerrada' }, { status: 409 });
 

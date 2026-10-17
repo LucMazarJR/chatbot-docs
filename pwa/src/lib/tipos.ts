@@ -1,7 +1,7 @@
 /**
  * Formato dos dados do protótipo, num lugar só.
  *
- * `Sessao` e `Mensagem` são exatamente o que vai para o MongoDB — não há
+ * `Sessao` e `Mensagem` são exatamente o que vai para o MongoDB, não há
  * camada de mapeamento entre banco e aplicação, de propósito: é um protótipo de
  * validação, e uma indireção a mais só atrapalharia quem for ler isto depois.
  *
@@ -10,6 +10,7 @@
  * em `back/src/conversas/schemas/`. Este arquivo continua sendo o dono do
  * formato: mudar um campo aqui exige mudar lá na mesma alteração.
  */
+import type { ParteDaResposta } from './partes-da-resposta';
 
 /** Um trecho recuperado da busca vetorial, com o veredito do filtro de score. */
 export type TrechoDebug = {
@@ -21,7 +22,7 @@ export type TrechoDebug = {
    *
    * É o que liga a conversa ao conteúdo: a revisão usa este id para levar de
    * uma resposta ruim direto ao documento que precisa ser corrigido. Buscar
-   * pelo texto não serviria — há 180 FAQs com a pergunta "Como me preparar
+   * pelo texto não serviria: há 180 FAQs com a pergunta "Como me preparar
    * para o Exame?", distinguidas só pelo assunto.
    *
    * Pode vir nulo: o nó do vector store não documenta sob qual chave devolve o
@@ -31,6 +32,8 @@ export type TrechoDebug = {
   category: string | null;
   question: string | null;
   previa: string | null;
+  /** No fluxo com reescrita: qual das consultas trouxe este trecho. */
+  consulta?: string | null;
 };
 
 /**
@@ -69,6 +72,18 @@ export type Sessao = {
    */
   consentimentoEm?: Date | null;
   consentimentoRecusadoEm?: Date | null;
+
+  /**
+   * A conta dona desta conversa, quando houver.
+   *
+   * Ausente em toda conversa anônima, que é o caso do `/`. É este campo que
+   * decide como a sessão se autentica: com conta, pelo cookie dela; sem conta,
+   * pela chave, exatamente como antes (ver `sessao-autenticada.ts`).
+   */
+  usuarioId?: string;
+
+  /** Staging: o que a pessoa fez com o tutorial. Ausente quando ele não foi oferecido. */
+  tutorial?: { escolha: 'visto' | 'pulado' | 'recusado' | 'ignorado'; em: Date };
 };
 
 export type Avaliacao = {
@@ -84,7 +99,7 @@ export type Papel = 'user' | 'bot';
  * O que a pessoa tentou mandar, quando não foi texto.
  *
  * O canal real só processa texto. Estes tipos existem para medir quanta gente
- * tenta mandar foto do exame ou áudio em vez de digitar — pergunta que só tem
+ * tenta mandar foto do exame ou áudio em vez de digitar: pergunta que só tem
  * resposta se houver o botão para tentar. O conteúdo em si nunca sobe.
  */
 export type TipoAnexo = 'arquivo' | 'audio';
@@ -111,7 +126,13 @@ export type Mensagem = {
   tipo?: TipoAnexo;
 
   /**
-   * Só metadado — nunca o conteúdo.
+   * Staging: a pergunta foi ditada, e não digitada. Mede quanta gente prefere
+   * falar. O áudio não existe aqui: o navegador o transformou em texto.
+   */
+  origem?: 'voz';
+
+  /**
+   * Só metadado, nunca o conteúdo.
    *
    * Guardar a gravação seria acumular voz de gente relatando problema de saúde,
    * sem uso possível: não existe transcrição no fluxo. E o nome do arquivo fica
@@ -131,8 +152,28 @@ export type Mensagem = {
   trechosDebug?: TrechoDebug[];
   limiarScore?: number | null;
   modelo?: string | null;
-  /** O agente respondeu o texto de "não encontrei" — lacuna de conteúdo. */
+  /** O agente respondeu o texto de "não encontrei": lacuna de conteúdo. */
   semResposta?: boolean;
+
+  // Só no fluxo de staging, com reescrita da pergunta. É o registro do
+  // acionamento da IA que prepara a busca: o que entrou está na conversa, e
+  // o que ela devolveu fica aqui.
+  /** A pergunta reescrita por inteiro, entendível sem a conversa. */
+  perguntaCompleta?: string | null;
+  /** As buscas que a reescrita gerou, na ordem. */
+  consultas?: string[];
+  reescritaMs?: number | null;
+  /** A reescrita não respondeu e a busca foi feita com o texto original. */
+  reescritaFalhou?: boolean;
+  /**
+   * As partes da pergunta, com o que a resposta cobriu em cada uma. Só no
+   * fluxo com triagem, que declara isso; é o que manda para a curadoria só a
+   * parte que faltou.
+   */
+  partes?: ParteDaResposta[];
+  /** As partes que ficaram sem resposta, já escritas como pergunta completa. */
+  partesSemResposta?: string[];
+  analiseMs?: number | null;
   erro?: boolean;
   /** Por que falhou: timeout, HTTP 404 do n8n, variável ausente. Só quando `erro`. */
   motivoErro?: string | null;
@@ -145,7 +186,7 @@ export type Mensagem = {
 /**
  * Por que a resposta falhou, em categoria grossa.
  *
- * Existe para a tela poder dizer algo útil — "demorei demais" é uma informação
+ * Existe para a tela poder dizer algo útil: "demorei demais" é uma informação
  * que o participante entende e que muda o que ele faz em seguida (tentar de
  * novo). O `motivo` detalhado fica no banco, para a equipe; esta categoria é o
  * único pedaço que chega ao navegador.
@@ -154,7 +195,7 @@ export type CausaErro =
   /** O fluxo não terminou a tempo. Tentar de novo costuma resolver. */
   | 'demora'
   /** Não deu para falar com o n8n: serviço parado, rota errada, token errado.
-   *  Tentar de novo não adianta — alguém precisa religar ou consertar. */
+   *  Tentar de novo não adianta: alguém precisa religar ou consertar. */
   | 'fora-do-ar'
   /** Falhou por outro motivo. */
   | 'indisponivel';

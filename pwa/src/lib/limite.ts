@@ -5,20 +5,32 @@ import { limites } from './db';
  *
  * O acesso é aberto de propósito (o link circula entre participantes), mas a
  * cota gratuita é de 500 conversas/dia. Sem nenhum limite, uma aba deixada
- * segurando F5 — ou alguém curioso com o link — derruba o teste do dia inteiro.
+ * segurando F5, ou alguém curioso com o link, derruba o teste do dia inteiro.
  *
  * A contagem vive no MongoDB, e não em memória, por causa do Vercel: lá cada
  * requisição pode cair numa instância diferente, e instâncias frias começam com
  * a memória zerada. Um limite em memória contaria "1 de 40" indefinidamente e
- * não seguraria nada. No Docker, onde há um processo só, o resultado é o mesmo
- * — mas o custo de uma escrita por mensagem é irrelevante e vale a garantia.
+ * não seguraria nada. No Docker, onde há um processo só, o resultado é o mesmo,
+ * mas o custo de uma escrita por mensagem é irrelevante e vale a garantia.
  *
  * Isto é proteção contra acidente, não contra ataque: quem quiser burlar troca
  * de IP.
+ *
+ * LÓGICA DO LUCIANO: são dois tetos, e cada um segura uma coisa. O acidente
+ * (aba presa, dedo no Enter) acontece dentro de UMA conversa, e é o teto por
+ * conversa que o segura. O teto por IP ficou alto porque num teste presencial
+ * a turma inteira usa o mesmo Wi-Fi e sai pelo mesmo IP: com 40 por IP, como
+ * era, 20 pessoas mandavam 2 perguntas cada e o chat travava para todas.
  */
 
 const JANELA_MS = 10 * 60 * 1000;
-const MAX_POR_JANELA = 40;
+const MAX_POR_JANELA = 300;
+
+/**
+ * Uma pergunta a cada 20 segundos, por 10 minutos seguidos. A resposta leva
+ * perto de 10 segundos, então quem conversa de verdade não chega aqui.
+ */
+export const LIMITE_POR_CONVERSA = { janelaMs: JANELA_MS, maximo: 30 };
 
 type Registro = {
   _id: string;
@@ -26,9 +38,20 @@ type Registro = {
   expiraEm: Date;
 };
 
-export async function dentroDoLimite(chave: string): Promise<boolean> {
+/**
+ * @param opcoes Janela e teto próprios. Sem eles, vale o limite das mensagens.
+ *
+ * Login pede um teto bem mais baixo que conversa: 40 tentativas de senha em 10
+ * minutos já é adivinhação, não esquecimento.
+ */
+export async function dentroDoLimite(
+  chave: string,
+  opcoes: { janelaMs?: number; maximo?: number } = {},
+): Promise<boolean> {
+  const JANELA_MS_EFETIVA = opcoes.janelaMs ?? JANELA_MS;
+  const MAX_EFETIVO = opcoes.maximo ?? MAX_POR_JANELA;
   const agora = new Date();
-  const corte = new Date(agora.getTime() - JANELA_MS);
+  const corte = new Date(agora.getTime() - JANELA_MS_EFETIVA);
 
   try {
     const col = await limites();
@@ -38,14 +61,14 @@ export async function dentroDoLimite(chave: string): Promise<boolean> {
       {
         // `$slice` negativo mantém só as últimas marcas: sem ele o documento
         // cresceria sem teto enquanto o IP continuasse ativo.
-        $push: { marcas: { $each: [agora], $slice: -(MAX_POR_JANELA + 1) } },
-        $set: { expiraEm: new Date(agora.getTime() + JANELA_MS) },
+        $push: { marcas: { $each: [agora], $slice: -(MAX_EFETIVO + 1) } },
+        $set: { expiraEm: new Date(agora.getTime() + JANELA_MS_EFETIVA) },
       },
       { upsert: true, returnDocument: 'after' },
     );
 
     const recentes = (registro?.marcas ?? []).filter((marca) => new Date(marca) > corte);
-    return recentes.length <= MAX_POR_JANELA;
+    return recentes.length <= MAX_EFETIVO;
   } catch {
     // Falha ao contar não pode impedir alguém de conversar: o limite existe
     // para proteger a cota, não para ser um portão. Deixa passar e segue.

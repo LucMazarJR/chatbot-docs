@@ -5,7 +5,7 @@ embeddings, limpeza de banco, migração de schema.
 
 O que justifica existir: as FAQs criadas pelo dashboard têm
 `file_id: "dashboard_manual"` e **não existem no Google Drive**. Reingestão não
-as recupera — se forem apagadas, some. Este backup é a única forma de trazê-las
+as recupera: se forem apagadas, somem. Este backup é a única forma de trazê-las
 de volta.
 
 Saída: `scripts/backups/faq_medicamentos_AAAAMMDD-HHMMSS.jsonl.gz` (um documento

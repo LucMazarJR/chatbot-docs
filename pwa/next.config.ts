@@ -4,7 +4,7 @@ import type { NextConfig } from 'next';
  * Cabeçalhos de segurança.
  *
  * O protótipo guarda conversa sobre saúde de pessoas identificáveis pelo que
- * escrevem, e até aqui não mandava nenhum destes — qualquer site podia embutir
+ * escrevem, e até aqui não mandava nenhum destes: qualquer site podia embutir
  * o chat num iframe e ler o que o participante digitava.
  *
  * A CSP permite `unsafe-inline` em script e estilo porque o Next injeta o
@@ -40,7 +40,7 @@ const CABECALHOS_DE_SEGURANCA = [
 const config: NextConfig = {
   // `standalone` gera .next/standalone com um servidor Node autocontido e só as
   // dependências realmente usadas. É o que permite a imagem Docker não carregar
-  // node_modules inteiro — sem isto, o container do protótipo passa de 1 GB.
+  // node_modules inteiro: sem isto, o container do protótipo passa de 1 GB.
   //
   // Mas NÃO pode valer na Vercel. Lá o build termina com um passo próprio
   // (`onBuildComplete`) que procura os arquivos de rastreio no formato padrão,
@@ -60,6 +60,12 @@ const config: NextConfig = {
       // segura uma versão antiga e a atualização nunca chega ao participante.
       {
         source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
+      // O do staging também: é ele que trata os avisos, e uma versão presa em
+      // cache continuaria mostrando notificação do jeito antigo.
+      {
+        source: '/staging/sw.js',
         headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
       },
       {

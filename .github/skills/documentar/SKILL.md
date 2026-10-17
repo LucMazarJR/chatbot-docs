@@ -9,12 +9,13 @@ Atualizar o que já existe. Não criar plano S/P aqui (`documente-o-plano`).
 
 | Documento | Quando |
 |---|---|
-| `docs/handoff-notebook.md` | Estado operacional, armadilhas |
-| `docs/chatbot.md` | Arquitetura / instalação |
+| `docs/instalacao.md` | Subir do zero |
+| `docs/armadilhas.md` | O que quebra em silêncio |
+| `docs/arquitetura.md` | Peças e contratos |
 | `docs/prototipo-pwa.md` | PWA |
-| `docs/depende-de-voce.md` | Decisões externas |
+| `docs/caminho-para-producao.md` | Decisões antes de atender cidadão |
 | `docs/mapa-portas-172-21-31-167.md` | Portas no host municipal |
 | `docs/progresso/PLANO_IMPLEMENTACAO.md` | Checklist da fase |
-| `docs/faq-scripts.md` / `docs/proposta-rag.md` | Ingestão / RAG |
+| `docs/base-de-faqs.md` | Ingestão / índice |
 
 Não reinterpretar decisões já registradas. Não commitar `.env`.

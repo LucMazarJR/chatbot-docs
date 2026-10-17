@@ -29,10 +29,11 @@ Um passo executável. No máximo 2 extras alinhados ao plano.
 ## Fontes
 
 1. `docs/progresso/PLANO_IMPLEMENTACAO.md`
-2. `docs/handoff-notebook.md`
-3. `docs/depende-de-voce.md`
-4. `docs/mapa-portas-172-21-31-167.md`
-5. `git log -5 --oneline` e `git status -sb`
+2. `docs/instalacao.md`
+3. `docs/armadilhas.md`
+4. `docs/caminho-para-producao.md`
+5. `docs/mapa-portas-172-21-31-167.md`
+6. `git log -5 --oneline` e `git status -sb`
 
 ## Deploy
 
