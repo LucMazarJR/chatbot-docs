@@ -1,0 +1,11 @@
+{
+  "versao": "4.0",
+  "data_geracao": "2026-05-03T18:41:18.797829",
+  "modelo": "all-mpnet-base-v2",
+  "device": "cuda",
+  "dimensao": 768,
+  "total": 2022,
+  "tempo_encoding_s": 13.11,
+  "tecnica": "Prefixos de categoria + 22 novas perguntas específicas de EXAMES",
+  "dataset": "dataset_final_saude_franca_v4.0.json"
+}

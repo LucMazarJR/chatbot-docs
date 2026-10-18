@@ -1,0 +1,10 @@
+{
+  "versao": "3.1",
+  "data_geracao": "2026-05-03T18:14:04.559866",
+  "modelo": "all-mpnet-base-v2",
+  "device": "cuda",
+  "dimensao": 768,
+  "total": 2000,
+  "tempo_encoding_s": 12.93,
+  "dataset": "dataset_final_saude_franca_v3.1.json"
+}

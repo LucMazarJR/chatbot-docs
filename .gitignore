@@ -9,6 +9,12 @@ scripts/credentials.json
 # ADS do Windows (NTFS) — não versionar
 *:Zone.Identifier
 **/*:Zone.Identifier
+*Zone.Identifier
+**/*Zone.Identifier
+
+# Sidecars do Cursor
+*.code.python
+*.code.json
 
 # Logs
 *.log

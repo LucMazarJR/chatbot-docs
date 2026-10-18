@@ -1,0 +1,13 @@
+{
+  "versao": "3.2",
+  "data_geracao": "2026-05-03T18:25:58.313311",
+  "modelo_embedding": "all-mpnet-base-v2",
+  "dimensao": 768,
+  "total_registros": 2000,
+  "device_usado": "cuda",
+  "tempo_encoding_s": 13.29,
+  "tecnica_usada": "Prefixos de categoria no texto de embedding ([EXAME], [MEDICAMENTO], etc.)",
+  "melhoria_esperada": "Principalmente em EXAMES e UNIDADES com perguntas genéricas",
+  "dataset_origem": "dataset_final_saude_franca_v3.1.json",
+  "observacao": "v3.2 - Embeddings com prefixos categóricos fortes. Estratégia mais eficaz para reduzir ambiguidade entre categorias."
+}

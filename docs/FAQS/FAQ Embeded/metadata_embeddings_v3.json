@@ -1,0 +1,14 @@
+{
+  "versao": "3.0",
+  "data_geracao": "2026-05-03T17:27:56.114849",
+  "modelo_embedding": "all-mpnet-base-v2",
+  "dimensao": 768,
+  "total_registros": 1995,
+  "batch_size": 128,
+  "normalizacao": true,
+  "texto_usado": "Pergunta + Resposta + Tags + Categoria",
+  "dataset_origem": "dataset_final_saude_franca_v3.json",
+  "device_usado": "cuda",
+  "tempo_encoding_s": 12.91,
+  "observacao": "Embeddings otimizados para RAG + sistema MEV v3. Índice FAISS pronto para busca."
+}
