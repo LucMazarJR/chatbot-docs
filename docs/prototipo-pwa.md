@@ -260,7 +260,28 @@ O chat do staging tem ainda três coisas que o `/` não tem. Todas entram pelo c
 
 A caixa de explicação tem a cara de um balão da conversa. Ela fica ao lado do elemento aceso, no lado com mais espaço, com uma seta apontando para ele, e nunca o cobre. Só o texto rola, e os botões Voltar, Próximo e Pular continuam à vista com a letra no máximo. O cálculo está em [posicao-do-balao.ts](../pwa/src/lib/posicao-do-balao.ts), com teste. O foco fica preso no passo, e o leitor de tela lê cada um. Depois de visto ou pulado, ele não abre de novo no aparelho e fica no menu, em **Como usar**. A sessão guarda o que a pessoa fez (viu ou pulou; recusou e ignorou são do tempo do convite), e o relatório do dia conta.
 
-**Voz.** O microfone vira ditado: a fala aparece no campo enquanto a pessoa fala, e o texto fica lá para revisar antes de enviar, porque o ditado erra nome de remédio. A transcrição é do próprio navegador (Web Speech API), sem custo e sem chave; o áudio não passa pelo nosso servidor, e a mensagem só ganha a marca `origem: 'voz'`, para medir o uso. Onde o navegador não transcreve (Firefox, alguns apps instalados no iPhone), a tela sugere o microfone do teclado do celular. Cada resposta tem **Ouvir**, que lê o texto com a voz do aparelho e para no segundo toque; a formatação (`*`, `_`, `•`) e os links ficam de fora da leitura. Em Acessibilidade entram a velocidade (normal ou devagar) e **ler as respostas sozinho**, desligado por padrão, que lê cada resposta assim que ela chega. Sem voz em português no aparelho, a tela diz isso em vez de ler com a voz em inglês, que sai incompreensível.
+**Voz.** A voz segue o fluxo do WhatsApp, com dois modos que a pessoa troca em Acessibilidade, em **Voz por IA (em teste)**:
+
+- **Ligada** (o padrão, quando o servidor tem a chave):
+  - O microfone grava, e a barra de gravação tem Cancelar e o botão verde de enviar, com um minuto no máximo.
+  - O áudio vira na hora um balão com a gravação para ouvir, é transcrito pelo Gemini e segue como pergunta, com a transcrição embaixo do tocador.
+  - Quem pergunta em áudio recebe a resposta em áudio: o balão traz um tocador com voz natural do Gemini, já preparado quando a resposta chega, e o texto embaixo.
+  - A resposta a texto ganha um **Ouvir** pequeno dentro do balão.
+  - Em Acessibilidade, a pessoa escolhe entre seis vozes. Cada uma tem uma amostra fixa, em `pwa/public/vozes`, que não gasta cota. A escolha vale na próxima resposta tocada.
+- **Desligada:**
+  - O microfone vira ditado do próprio navegador (Web Speech API): a fala aparece no campo para revisar antes de enviar.
+  - As respostas são lidas pela voz do celular, que soa mais robótica e não custa nada.
+
+Todo controle de áudio fica dentro do balão, e não solto embaixo da mensagem. Depois de recarregar, o áudio da pessoa mostra só a duração e a transcrição: a gravação existia só no aparelho.
+
+**A cota da voz natural é pequena.** No plano gratuito, a fala tem 10 chamadas por dia por modelo e por projeto, e a transcrição tem 500.
+- A rota tenta o `gemini-3.8-flash-lite-tts` e o `gemini-3.8-flash-tts` em cada chave de `GEMINI_VOZ_API_KEY`. Com a `_3` e a `_4`, são até 40 respostas faladas por dia.
+- A combinação que recebe a recusa do dia fica marcada até a virada da cota, à meia-noite do Pacífico (4h ou 5h em Brasília).
+- `VOZ_IA_LIMITE_DIA` é um teto próprio, com 120 chamadas de padrão.
+- Sem cota de fala, o fluxo de áudio continua e a resposta é lida pela voz do celular, com um aviso.
+- Sem cota de transcrição, o microfone volta ao ditado.
+
+Em Acessibilidade ficam também a velocidade (normal ou devagar, que vale para as duas vozes) e **ler as respostas sozinho**, desligado por padrão. Com ele ligado, a resposta a um áudio toca com a voz natural, e a resposta a texto com a voz do celular, para não gastar as falas naturais de quem preferiu escrever. A formatação (`*`, `_`, `•`) e os links ficam de fora da leitura.
 
 **Reescrita da pergunta.** Com `N8N_PWA_STAGING_WEBHOOK_URL` preenchida, a conversa do staging vai para o fluxo [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), que reescreve a pergunta antes de buscar e faz até três buscas por pergunta. O PWA manda junto as últimas 4 mensagens, para a reescrita entender "e lá?". Vazia, o staging usa o fluxo do `/`. Como funciona e o que a medição mostrou: [arquitetura.md](arquitetura.md#a-reescrita-em-validação-no-staging). Para ligar, ver [Ligar a reescrita](#ligar-a-reescrita-no-staging).
 
