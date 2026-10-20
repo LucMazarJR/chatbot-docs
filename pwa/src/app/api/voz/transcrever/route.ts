@@ -1,6 +1,6 @@
 import { contaDaRequisicao, origemConfiavel } from '@/lib/conta/sessao';
 import { dentroDoLimite } from '@/lib/limite';
-import { avisoDaTranscricao, transcrever } from '@/lib/voz-ia';
+import { avisoDaTranscricao, JANELA_POR_PESSOA_MS, transcrever, voltaEmDaRecusa } from '@/lib/voz-ia';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -27,8 +27,11 @@ export async function POST(requisicao: Request) {
   const conta = await contaDaRequisicao(requisicao);
   if (!conta) return Response.json({ erro: 'Entre na sua conta para mandar áudio.' }, { status: 401 });
 
-  if (!(await dentroDoLimite(`voz:transcrever:${conta._id}`, { janelaMs: 10 * 60 * 1000, maximo: 20 }))) {
-    return Response.json({ erro: 'Você mandou muitos áudios seguidos. Aguarde alguns minutos.' }, { status: 429 });
+  if (!(await dentroDoLimite(`voz:transcrever:${conta._id}`, { janelaMs: JANELA_POR_PESSOA_MS, maximo: 20 }))) {
+    return Response.json(
+      { erro: avisoDaTranscricao('pessoa'), falha: 'pessoa', voltaEm: voltaEmDaRecusa('pessoa')?.toISOString() },
+      { status: 429 },
+    );
   }
 
   const formulario = await requisicao.formData().catch(() => null);
@@ -48,8 +51,10 @@ export async function POST(requisicao: Request) {
   if (!resultado.ok) {
     // Só o motivo, nunca o conteúdo.
     if (resultado.falha !== 'vazia') console.error('transcrição do staging falhou', { falha: resultado.falha });
+    // `voltaEm` só nas recusas do dia: com ele, a tela bloqueia a opção e diz
+    // a hora em que volta, em vez de tentar de novo a cada áudio.
     return Response.json(
-      { erro: avisoDaTranscricao(resultado.falha), falha: resultado.falha },
+      { erro: avisoDaTranscricao(resultado.falha), falha: resultado.falha, voltaEm: voltaEmDaRecusa(resultado.falha)?.toISOString() },
       { status: resultado.falha === 'vazia' ? 422 : 503 },
     );
   }

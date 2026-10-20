@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { falar, pararDeFalar, taxaDeReproducao, vozSuportada } from '@/lib/leitura-em-voz';
 import { aindaEAVez, soltarAVez, tomarAVez } from '@/lib/som-unico';
 import { formatarDuracao } from '@/lib/usar-gravador';
+import type { RecusaDaVoz } from '@/lib/usar-voz-ia';
 
 /**
  * O que o tocador toca.
@@ -26,7 +27,7 @@ type Estado = 'parado' | 'preparando' | 'tocando' | 'pausado' | 'aparelho';
  * que chega, e o toque em play que vem logo depois espera a mesma chamada em
  * vez de abrir outra. Cada chamada gasta uma das poucas falas gratuitas do dia.
  */
-const preparados = new Map<string, Promise<{ url: string } | { erro: string; falha: string }>>();
+const preparados = new Map<string, Promise<{ url: string } | ({ erro: string } & RecusaDaVoz)>>();
 
 function prepararResposta(mensagemId: string, voz: string) {
   const chave = `${mensagemId}:${voz}`;
@@ -35,8 +36,12 @@ function prepararResposta(mensagemId: string, voz: string) {
     pronto = fetch(`/api/mensagens/${mensagemId}/voz?voz=${encodeURIComponent(voz)}`)
       .then(async (resposta) => {
         if (resposta.ok) return { url: URL.createObjectURL(await resposta.blob()) };
-        const dados = (await resposta.json().catch(() => ({}))) as { erro?: string; falha?: string };
-        return { erro: dados.erro ?? 'Não consegui gerar a voz natural agora. Uso a voz do celular.', falha: dados.falha ?? 'falha' };
+        const dados = (await resposta.json().catch(() => ({}))) as { erro?: string } & RecusaDaVoz;
+        return {
+          erro: dados.erro ?? 'Não consegui gerar a voz natural agora. Uso a voz do celular.',
+          falha: dados.falha ?? 'falha',
+          voltaEm: dados.voltaEm,
+        };
       })
       .catch(() => ({ erro: 'Sem conexão para a voz natural. Uso a voz do celular.', falha: 'falha' }));
     pronto.then((r) => 'erro' in r && preparados.delete(chave));
@@ -47,27 +52,39 @@ function prepararResposta(mensagemId: string, voz: string) {
 
 const ICONE_PLAY = <path d="M8 5v14l11-7z" />;
 const ICONE_PAUSA = <path d="M6 5h4v14H6zM14 5h4v14h-4z" />;
+const ICONE_ALTO_FALANTE = (
+  <path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05A4.5 4.5 0 0 0 16.5 12ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77Z" />
+);
 
 export function TocadorDeAudio({
   fonte,
   duracao,
-  compacto = false,
+  canto = false,
   preparar = false,
   tocarAgora = false,
   aoAvisar,
-  aoCotaAcabar,
+  aoRecusa,
+  aoOuvirNoCelular,
 }: {
   fonte: FonteDoAudio;
   /** Duração já conhecida, em segundos (a da gravação). A da voz natural vem do próprio áudio. */
   duracao?: number;
-  /** O "Ouvir" pequeno das respostas a texto, em vez do tocador do balão de áudio. */
-  compacto?: boolean;
+  /**
+   * O alto-falante no canto da resposta escrita, ao lado da hora, em vez do
+   * tocador do balão de áudio. O botão "Ouvir" de antes, com borda, embaixo do
+   * texto, não se parecia com nada do WhatsApp; ali só cabem a hora e os
+   * tiques, e o alto-falante entra discreto como eles.
+   */
+  canto?: boolean;
   /** Já prepara a voz natural ao aparecer: a resposta a um áudio é áudio, e a pessoa não espera no play. */
   preparar?: boolean;
   /** Toca assim que estiver pronto: "ler as respostas sozinho". */
   tocarAgora?: boolean;
   aoAvisar: (aviso: string) => void;
-  aoCotaAcabar?: () => void;
+  /** O servidor recusou a voz natural: quem chama decide se bloqueia (ver `usar-voz-ia.ts`). */
+  aoRecusa?: (recusa: RecusaDaVoz) => void;
+  /** A resposta tocou na voz do celular: registro para comparar com a natural. */
+  aoOuvirNoCelular?: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [estado, setEstado] = useState<Estado>('parado');
@@ -141,7 +158,9 @@ export function TocadorDeAudio({
     if (!conseguiu) {
       setEstado('parado');
       aoAvisar('Este aparelho não tem voz em português instalada. Dá para instalar nas configurações de voz do celular.');
+      return;
     }
+    aoOuvirNoCelular?.();
   }
 
   /** O endereço do MP3 da voz natural, ou nulo para usar a voz do celular. */
@@ -155,7 +174,7 @@ export function TocadorDeAudio({
       elemento(resultado.url);
       return resultado.url;
     }
-    if (resultado.falha === 'esgotada' || resultado.falha === 'cota' || resultado.falha === 'sem-chave') aoCotaAcabar?.();
+    aoRecusa?.(resultado);
     if (avisar) aoAvisar(resultado.erro);
     return null;
   }
@@ -219,11 +238,11 @@ export function TocadorDeAudio({
           ? 'Ouvir o seu áudio'
           : 'Ouvir a resposta';
 
-  if (compacto) {
+  if (canto) {
     return (
       <button
         type="button"
-        className={'ouvir-compacto' + (tocando ? ' tocando' : '')}
+        className={'ouvir-canto' + (tocando ? ' tocando' : '')}
         aria-label={rotulo}
         aria-pressed={tocando}
         disabled={estado === 'preparando'}
@@ -232,11 +251,17 @@ export function TocadorDeAudio({
         {estado === 'preparando' ? (
           <span className="giro-pequeno" aria-hidden="true" />
         ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            {tocando ? ICONE_PAUSA : ICONE_PLAY}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            {tocando ? ICONE_PAUSA : ICONE_ALTO_FALANTE}
           </svg>
         )}
-        {estado === 'preparando' ? 'Preparando…' : tocando ? 'Pausar' : 'Ouvir'}
+        {/* O tempo corrido, como no áudio do WhatsApp. A voz do celular não
+            diz quanto falta, então ali fica só a pausa. */}
+        {estado === 'tocando' && (
+          <span className="ouvir-canto-tempo" aria-hidden="true">
+            {formatarDuracao(Math.round(tempo))}
+          </span>
+        )}
       </button>
     );
   }

@@ -268,26 +268,26 @@ O chat do staging tem ainda várias coisas que o `/` não tem. Todas entram pelo
 
 A caixa de explicação tem a cara de um balão da conversa. Ela fica ao lado do elemento aceso, no lado com mais espaço, com uma seta apontando para ele, e nunca o cobre. Só o texto rola, e os botões Voltar, Próximo e Pular continuam à vista com a letra no máximo. O cálculo está em [posicao-do-balao.ts](../pwa/src/lib/posicao-do-balao.ts), com teste. O foco fica preso no passo, e o leitor de tela lê cada um. Depois de visto ou pulado, ele não abre de novo no aparelho e fica no menu, em **Como usar**. A sessão guarda o que a pessoa fez (viu ou pulou; recusou e ignorou são do tempo do convite), e o relatório do dia conta.
 
-**Voz.** A voz segue o fluxo do WhatsApp, com dois modos que a pessoa troca em Acessibilidade, em **Voz por IA (em teste)**:
+**Voz.** A voz segue o fluxo do WhatsApp. Em **Letra e voz**, a pessoa faz duas escolhas separadas, para o grupo comparar cada parte da IA com a do aparelho e decidir se o custo vale:
 
-- **Ligada** (o padrão, quando o servidor tem a chave):
-  - O microfone grava, e a barra de gravação tem Cancelar e o botão verde de enviar, com um minuto no máximo.
-  - O áudio vira na hora um balão com a gravação para ouvir, é transcrito pelo Gemini e segue como pergunta, com a transcrição embaixo do tocador.
-  - Quem pergunta em áudio recebe a resposta em áudio: o balão traz um tocador com voz natural do Gemini, já preparado quando a resposta chega, e o texto embaixo.
-  - A resposta a texto ganha um **Ouvir** pequeno dentro do balão.
-  - Em Acessibilidade, a pessoa escolhe entre seis vozes. Cada uma tem uma amostra fixa, em `pwa/public/vozes`, que não gasta cota. A escolha vale na próxima resposta tocada.
-- **Desligada:**
-  - O microfone vira ditado do próprio navegador (Web Speech API): a fala aparece no campo para revisar antes de enviar.
-  - As respostas são lidas pela voz do celular, que soa mais robótica e não custa nada.
+- **Quando você fala:**
+  - **A IA entende o seu áudio** (o padrão): o microfone grava, com Cancelar e o botão verde de enviar, e um minuto no máximo. O áudio vira na hora um balão com a gravação para ouvir, é transcrito pelo Gemini e segue como pergunta, com a transcrição embaixo do tocador. Quem pergunta em áudio recebe a resposta em áudio, com o texto embaixo.
+  - **O celular escreve:** o microfone vira ditado do próprio navegador (Web Speech API), e a fala aparece no campo para revisar antes de enviar.
+- **Voz das respostas:** uma linha que abre a lista, como o toque do celular. São seis vozes naturais do Gemini, com o nome que o Google dá a cada uma (Calorosa, Suave, Macia, Amigável, Firme, Informativa), e a **Do celular**, robótica, sem custo e sem limite. Tocar numa voz escolhe e toca a amostra. As amostras naturais são arquivos fixos, em `pwa/public/vozes`, e não gastam cota. A escolha vale na próxima resposta tocada.
 
-Todo controle de áudio fica dentro do balão, e não solto embaixo da mensagem. Depois de recarregar, o áudio da pessoa mostra só a duração e a transcrição: a gravação existia só no aparelho.
+A resposta a um áudio traz o tocador no topo do balão, já preparado quando chega. A resposta escrita ganha um **alto-falante no canto**, ao lado da hora, discreto como os tiques, com 44 px de toque. Todo controle de áudio fica dentro do balão. Depois de recarregar, o áudio da pessoa mostra só a duração e a transcrição: a gravação existia só no aparelho.
+
+**Comparar as vozes.** A pergunta registra quem entendeu (`audio.transcritoPor: 'ia'`, ou `origem: 'voz'` sem `audio` no ditado). A resposta registra a voz que tocou: `vozGerada` para a natural e `ouvidaNoCelularEm` para a do celular. O painel mostra os três na transcrição.
 
 **A cota da voz natural é pequena.** No plano gratuito, a fala tem 10 chamadas por dia por modelo e por projeto, e a transcrição tem 500.
 - A rota tenta o `gemini-3.8-flash-lite-tts` e o `gemini-3.8-flash-tts` em cada chave de `GEMINI_VOZ_API_KEY`. Com a `_3` e a `_4`, são até 40 respostas faladas por dia.
 - A combinação que recebe a recusa do dia fica marcada até a virada da cota, à meia-noite do Pacífico (4h ou 5h em Brasília).
 - `VOZ_IA_LIMITE_DIA` é um teto próprio, com 120 chamadas de padrão.
-- Sem cota de fala, o fluxo de áudio continua e a resposta é lida pela voz do celular, com um aviso.
-- Sem cota de transcrição, o microfone volta ao ditado.
+- Toda recusa por limite traz `voltaEm`: a virada da cota, ou o fim da janela de 10 minutos do limite de cada pessoa. A recusa do minuto não traz, e não bloqueia.
+- Com `voltaEm`, a parte fica **bloqueada** no aparelho até essa hora (guardada em `pwa:voz-bloqueios`), e a tela não tenta o servidor de novo. Em Letra e voz, a opção aparece apagada, com um relógio e a hora em que volta escrita embaixo, e não num tooltip, que não existe no celular. A escolha da pessoa fica guardada e volta sozinha.
+- Sem cota de fala, a voz do celular assume, e o assistente avisa uma vez, na conversa.
+- Sem cota de transcrição, o microfone volta ao ditado, e o assistente avisa.
+- A regra pura está em [bloqueio-da-voz.ts](../pwa/src/lib/bloqueio-da-voz.ts), com teste.
 
 Em Acessibilidade ficam também a velocidade (normal ou devagar, que vale para as duas vozes) e **ler as respostas sozinho**, desligado por padrão. Com ele ligado, a resposta a um áudio toca com a voz natural, e a resposta a texto com a voz do celular, para não gastar as falas naturais de quem preferiu escrever. A formatação (`*`, `_`, `•`) e os links ficam de fora da leitura.
 

@@ -1009,30 +1009,56 @@ button {
   font-size: 0.9em;
 }
 
-/* "Ouvir" no pé da resposta a texto: dentro do balão, discreto, numa linha
-   só dele, com a hora à direita. Grudado no fim do texto, ele parecia solto
-   no meio da frase. */
-.ouvir-compacto {
-  display: flex;
-  width: fit-content;
+/* O alto-falante das respostas escritas (staging): no canto do balão, antes
+   da hora, discreto como os tiques. O desenho tem 18 px; a área de toque, com
+   o ::before, passa de 44. */
+.ouvir-canto {
+  display: inline-flex;
+  position: relative;
   align-items: center;
-  gap: 5px;
-  min-height: 32px;
-  margin: 4px 0 2px;
-  padding: 3px 11px;
-  border: 1px solid var(--borda);
-  border-radius: 16px;
-  color: var(--texto);
-  font-size: 0.85em;
+  gap: 3px;
+  height: 18px;
+  margin-right: 5px;
+  color: var(--texto-fraco);
+  font-size: inherit;
 }
 
-.ouvir-compacto.tocando {
-  border-color: var(--acento);
+.ouvir-canto::before {
+  position: absolute;
+  inset: -13px -9px;
+  content: '';
+}
+
+.meta .ouvir-canto svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.ouvir-canto.tocando {
   color: var(--acento);
 }
 
-:root[data-contraste='alto'] .ouvir-compacto {
-  border-color: var(--contorno);
+.ouvir-canto .giro-pequeno {
+  width: 14px;
+  height: 14px;
+}
+
+.ouvir-canto-tempo {
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-contraste='alto'] .ouvir-canto {
+  color: var(--texto);
+}
+
+.balao .espaco-meta.com-canto {
+  width: 88px;
+}
+
+/* Tocando, o tempo entra ao lado do ícone, e a reserva cresce junto. */
+.balao:has(.ouvir-canto.tocando) .espaco-meta.com-canto {
+  width: 122px;
 }
 
 .giro-pequeno {
@@ -1056,44 +1082,91 @@ button {
   }
 }
 
-/* Escolha da voz natural, em Acessibilidade: a opção e a amostra lado a lado. */
-.voz-linha {
+/* Escolhas de voz, em Letra e voz (staging). */
+
+/* A linha que abre a lista das vozes: o valor atual e a seta, como o "toque
+   do celular" nas configurações do Android. */
+.linha-escolha {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  text-align: left;
 }
 
-.voz-linha > button[role='radio'] {
+.linha-escolha:hover {
+  background: var(--barra);
+}
+
+.linha-escolha .opcao-texto {
   flex: 1;
   min-width: 0;
 }
 
-/* Com `.opcoes-tema` no seletor: a regra dos botões da lista (largura toda,
-   56 px de altura) pegaria a amostra também. */
-.opcoes-tema .ouvir-amostra {
-  display: inline-flex;
+.linha-escolha svg {
   flex: 0 0 auto;
-  align-self: center;
+  color: var(--texto-fraco);
+}
+
+/* Bloqueada: apagada, com o motivo à vista. A opacidade fica no rótulo e no
+   marcador, e não no motivo, que precisa ser lido. */
+.opcoes-tema button.bloqueada {
+  cursor: default;
+}
+
+.opcoes-tema button.bloqueada .marcador,
+.opcoes-tema button.bloqueada .opcao-texto strong,
+.opcoes-tema button.bloqueada .opcao-texto small:not(.motivo-bloqueio) {
+  opacity: 0.55;
+}
+
+.opcao-texto .motivo-bloqueio {
+  display: flex;
   align-items: center;
   gap: 5px;
-  width: auto;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--borda);
-  border-radius: 22px;
+  margin-top: 3px;
   color: var(--texto);
-  font-size: 0.9em;
   font-weight: 600;
 }
 
-.opcoes-tema .ouvir-amostra[aria-pressed='true'] {
-  border-color: var(--acento);
-  color: var(--acento);
+.opcao-texto .motivo-bloqueio svg {
+  flex: 0 0 auto;
 }
 
-.aviso-voz {
-  padding: 0 4px;
+/* O motivo comum a um grupo inteiro (as vozes naturais), uma vez só, acima
+   dele, no lugar de repetido em cada opção. */
+.motivo-do-grupo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--barra);
+  color: var(--texto);
+  font-size: 0.92em;
+  line-height: 1.45;
+}
+
+.motivo-do-grupo svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.opcoes-voz .opcao-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Tocando a amostra: o alto-falante à direita da opção, na cor de destaque. */
+.opcao-tocando {
+  display: grid;
+  flex: 0 0 auto;
+  color: var(--acento);
+  place-items: center;
 }
 
 /* --- Folha de avaliação -------------------------------------------------- */
@@ -1401,6 +1474,22 @@ button {
   background: var(--balao-entrada);
   box-shadow: var(--sombra);
   line-height: 1.45;
+}
+
+/* No exemplo do tutorial: o alto-falante e a hora no canto, como no balão. */
+.amostra-canto {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  color: var(--texto-fraco);
+  font-size: 0.78em;
+}
+
+.amostra-canto svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 .opcoes-tema {

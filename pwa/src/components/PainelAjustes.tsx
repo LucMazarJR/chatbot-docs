@@ -22,25 +22,10 @@ import {
   guardarVelocidade,
   lerAutomatica,
   lerVelocidade,
-  taxaDeReproducao,
   type Velocidade,
 } from '@/lib/leitura-em-voz';
-import type { useVozIa } from '@/lib/usar-voz-ia';
-import { VOZES } from '@/lib/vozes';
-import { soltarAVez, tomarAVez } from '@/lib/som-unico';
-
-const VOZ_IA: { id: 'ligada' | 'desligada'; rotulo: string; descricao: string }[] = [
-  {
-    id: 'ligada',
-    rotulo: 'Ligada',
-    descricao: 'Você manda áudio, como no WhatsApp, e ouve as respostas numa voz natural',
-  },
-  {
-    id: 'desligada',
-    rotulo: 'Desligada',
-    descricao: 'O microfone escreve a pergunta no campo, e as respostas usam a voz do celular',
-  },
-];
+import type { VozIa } from '@/lib/usar-voz-ia';
+import { SecaoDeVoz, TelaDaVozDasRespostas } from '@/components/EscolhasDeVoz';
 
 const TEMAS: { id: Tema; rotulo: string; descricao: string }[] = [
   { id: 'claro', rotulo: 'Claro', descricao: 'Fundo branco, melhor sob luz forte' },
@@ -63,7 +48,7 @@ const VELOCIDADES: { id: Velocidade; rotulo: string; descricao: string }[] = [
 ];
 
 const LEITURA_AUTOMATICA: { id: 'sim' | 'nao'; rotulo: string; descricao: string }[] = [
-  { id: 'nao', rotulo: 'Não', descricao: 'Toque em Ouvir, dentro da resposta, quando quiser' },
+  { id: 'nao', rotulo: 'Não', descricao: 'Toque no alto-falante, no canto da resposta, quando quiser' },
   { id: 'sim', rotulo: 'Sim', descricao: 'Cada resposta é lida assim que chega' },
 ];
 
@@ -112,113 +97,6 @@ function GrupoDeOpcoes<T extends string>({
 }
 
 /**
- * Ligar e desligar a voz por IA, e escolher a voz natural.
- *
- * A amostra de cada voz é um arquivo fixo (public/vozes): ouvir as seis antes
- * de escolher gastaria seis das dez falas gratuitas do dia. A voz escolhida
- * vale na próxima resposta tocada, sem fechar o painel.
- */
-function EscolhaDaVozIa({ vozIa }: { vozIa: ReturnType<typeof useVozIa> }) {
-  const amostraRef = useRef<{ audio: HTMLAudioElement; vez: number } | null>(null);
-  const [tocando, setTocando] = useState<string | null>(null);
-
-  function pararAmostra() {
-    const amostra = amostraRef.current;
-    amostraRef.current = null;
-    if (!amostra) return;
-    amostra.audio.pause();
-    soltarAVez(amostra.vez);
-    setTocando(null);
-  }
-
-  // Fechar o painel cala a amostra: ela não tem mais botão para parar.
-  useEffect(() => pararAmostra, []);
-
-  function ouvirAmostra(nome: string) {
-    const repetiu = tocando === nome;
-    pararAmostra();
-    if (repetiu) return;
-    const audio = new Audio(`/vozes/${nome}.mp3`);
-    audio.playbackRate = taxaDeReproducao();
-    // A amostra para a resposta que estiver tocando na conversa, e o
-    // contrário também: duas vozes juntas não deixam comparar nenhuma.
-    const vez = tomarAVez(() => {
-      audio.pause();
-      if (amostraRef.current?.audio === audio) amostraRef.current = null;
-      setTocando(null);
-    });
-    audio.addEventListener('ended', () => {
-      soltarAVez(vez);
-      if (amostraRef.current?.audio === audio) amostraRef.current = null;
-      setTocando(null);
-    });
-    amostraRef.current = { audio, vez };
-    setTocando(nome);
-    void audio.play().catch(() => pararAmostra());
-  }
-
-  const { estado } = vozIa;
-  const aviso =
-    estado.motivo === 'sem-chave'
-      ? 'A voz por IA não está ligada neste ambiente. O microfone dita a pergunta, e as respostas usam a voz do celular.'
-      : !estado.carregando && !estado.audio
-        ? 'A voz por IA acabou por hoje e volta amanhã cedo. Até lá, o microfone dita a pergunta e as respostas usam a voz do celular.'
-        : !estado.carregando && !estado.vozNatural
-          ? 'A voz natural acabou por hoje e volta amanhã cedo. Você ainda pode mandar áudio; as respostas usam a voz do celular.'
-          : null;
-
-  return (
-    <>
-      <GrupoDeOpcoes
-        id="voz-ia"
-        titulo="Voz por IA (em teste)"
-        opcoes={VOZ_IA}
-        valor={vozIa.ligada ? 'ligada' : 'desligada'}
-        aoMudar={(nova) => vozIa.mudarLigada(nova === 'ligada')}
-      />
-      {vozIa.ligada && aviso && <p className="painel-sobre aviso-voz">{aviso}</p>}
-
-      {vozIa.ligada && estado.motivo !== 'sem-chave' && (
-        <section className="painel-secao">
-          <h3 id="rotulo-voz-natural">Voz das respostas</h3>
-          <div role="radiogroup" aria-labelledby="rotulo-voz-natural" className="opcoes-tema">
-            {VOZES.map((voz) => (
-              <div key={voz.nome} className="voz-linha">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={vozIa.voz === voz.nome}
-                  className={vozIa.voz === voz.nome ? 'escolhido' : ''}
-                  onClick={() => vozIa.mudarVoz(voz.nome)}
-                >
-                  <span className="marcador" aria-hidden="true" />
-                  <span className="opcao-texto">
-                    <strong>{voz.nome}</strong>
-                    <small>{voz.descricao}</small>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="ouvir-amostra"
-                  aria-label={tocando === voz.nome ? `Parar a amostra da voz ${voz.nome}` : `Ouvir a voz ${voz.nome}`}
-                  aria-pressed={tocando === voz.nome}
-                  onClick={() => ouvirAmostra(voz.nome)}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    {tocando === voz.nome ? <path d="M6 5h4v14H6zM14 5h4v14h-4z" /> : <path d="M8 5v14l11-7z" />}
-                  </svg>
-                  {tocando === voz.nome ? 'Parar' : 'Ouvir'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-    </>
-  );
-}
-
-/**
  * Ajustes de leitura: tamanho do texto e tema.
  *
  * LÓGICA DO LUCIANO: veio do painel de configurações da versão B, e é a peça de
@@ -246,8 +124,8 @@ export function PainelAjustes({
   hrefPrivacidade?: string;
   /** Staging: mostra a velocidade da voz e a leitura automática das respostas. */
   comVoz?: boolean;
-  /** Staging: a voz por IA (ligar, desligar e escolher a voz), do gancho da conversa. */
-  vozIa?: ReturnType<typeof useVozIa>;
+  /** Staging: as escolhas de voz (quem entende a fala e quem fala as respostas), do gancho da conversa. */
+  vozIa?: VozIa;
 }) {
   const [tema, setTema] = useState<Tema>(() => lerTema());
   const [escala, setEscala] = useState<Escala>(() => lerEscala());
@@ -259,6 +137,21 @@ export function PainelAjustes({
   const fechar = aoFechar;
   useFocoPreso(painelRef, fechar);
   const camada = useVoltarFecha(true, fechar, comVoltar);
+
+  // A lista das vozes abre por cima do painel, como uma tela própria, e o
+  // voltar do celular volta ao painel, e não à conversa.
+  const [escolhendoVoz, setEscolhendoVoz] = useState(false);
+  useVoltarFecha(escolhendoVoz, () => setEscolhendoVoz(false), comVoltar);
+  const voltouDaVozRef = useRef(false);
+  useEffect(() => {
+    if (escolhendoVoz) {
+      voltouDaVozRef.current = true;
+      return;
+    }
+    // De volta da lista, o foco vai para a linha que a abriu, e não para o
+    // começo do painel.
+    if (voltouDaVozRef.current) painelRef.current?.querySelector<HTMLElement>('.linha-escolha')?.focus();
+  }, [escolhendoVoz]);
 
   const indice = ESCALAS.findIndex((e) => e.id === escala.id);
 
@@ -288,6 +181,10 @@ export function PainelAjustes({
         aria-modal="true"
         aria-labelledby="titulo-ajustes"
       >
+        {escolhendoVoz && vozIa ? (
+          <TelaDaVozDasRespostas vozIa={vozIa} aoVoltar={() => setEscolhendoVoz(false)} />
+        ) : (
+        <>
         <header className="painel-topo">
           <button type="button" aria-label="Voltar para a conversa" onClick={fechar}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -353,7 +250,7 @@ export function PainelAjustes({
             aoMudar={mudarContraste}
           />
 
-          {comVoz && vozIa && <EscolhaDaVozIa vozIa={vozIa} />}
+          {comVoz && vozIa && <SecaoDeVoz vozIa={vozIa} aoEscolherVoz={() => setEscolhendoVoz(true)} />}
 
           {comVoz && (
             <>
@@ -399,6 +296,8 @@ export function PainelAjustes({
             </p>
           </section>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

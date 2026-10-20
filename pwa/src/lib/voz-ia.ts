@@ -55,6 +55,11 @@ export const MAXIMO_DE_CARACTERES = 1800;
 
 export type Indisponivel = 'sem-chave' | 'esgotada';
 export type Falha = 'cota' | 'minuto' | 'falha' | 'vazia';
+/** Qualquer recusa que chega à tela. `pessoa`: o limite de cada conta ou conversa. */
+export type Recusa = Falha | Indisponivel | 'longa' | 'pessoa';
+
+/** A janela do limite de cada pessoa (transcrições por conta, falas por conversa). */
+export const JANELA_POR_PESSOA_MS = 10 * 60 * 1000;
 
 function limiteDoDia(): number {
   const valor = Number(process.env.VOZ_IA_LIMITE_DIA);
@@ -68,6 +73,36 @@ function limiteDoDia(): number {
  */
 export function diaDaCota(agora: Date = new Date()): string {
   return agora.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+}
+
+/**
+ * Quando a cota do Google volta: a próxima meia-noite do Pacífico.
+ *
+ * Ela cai às 7h ou às 8h UTC, conforme o horário de verão de lá, e por isso é
+ * procurada hora a hora, e não somada a um fuso fixo, que erraria por uma hora
+ * metade do ano.
+ */
+export function proximaViradaDaCota(agora: Date = new Date()): Date {
+  const hoje = diaDaCota(agora);
+  const [ano, mes, dia] = hoje.split('-').map(Number);
+  for (let hora = 0; hora < 36; hora++) {
+    const candidato = new Date(Date.UTC(ano, mes - 1, dia + 1, hora));
+    if (diaDaCota(candidato) !== hoje) return candidato;
+  }
+  return new Date(agora.getTime() + 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Até quando a recusa vale, para a tela bloquear a opção e dizer quando volta.
+ *
+ * Só a cota do dia (a do Google ou o nosso teto) e o limite de cada pessoa
+ * bloqueiam. A recusa do minuto passa em segundos: bloquear por ela tiraria a
+ * voz natural de todo mundo por causa de um pico.
+ */
+export function voltaEmDaRecusa(recusa: Recusa, agora: Date = new Date()): Date | null {
+  if (recusa === 'esgotada' || recusa === 'cota') return proximaViradaDaCota(agora);
+  if (recusa === 'pessoa') return new Date(agora.getTime() + JANELA_POR_PESSOA_MS);
+  return null;
 }
 
 /** Um apelido da chave para a marca no banco: a chave em si nunca é gravada. */
@@ -122,15 +157,22 @@ async function tetoAtingido(): Promise<boolean> {
  * `vozNatural`: ouvir a resposta com voz natural. Sem ela, o áudio continua, e
  * a resposta é lida pela voz do celular.
  */
-export async function situacaoDaVozIa(): Promise<{ audio: boolean; vozNatural: boolean; motivo?: Indisponivel }> {
+export async function situacaoDaVozIa(): Promise<{
+  audio: boolean;
+  vozNatural: boolean;
+  motivo?: Indisponivel;
+  /** Quando a parte esgotada volta, para a tela dizer a hora. */
+  voltaEm?: string;
+}> {
   if (!chavesDaVozIa().length) return { audio: false, vozNatural: false, motivo: 'sem-chave' };
-  if (await tetoAtingido()) return { audio: false, vozNatural: false, motivo: 'esgotada' };
+  const voltaEm = proximaViradaDaCota().toISOString();
+  if (await tetoAtingido()) return { audio: false, vozNatural: false, motivo: 'esgotada', voltaEm };
   const [paraOuvir, paraFalar] = await Promise.all([
     combinacoes(MODELOS_DE_TRANSCRICAO()),
     combinacoes(MODELOS_DE_FALA()),
   ]);
   const situacao = { audio: paraOuvir.length > 0, vozNatural: paraFalar.length > 0 };
-  return situacao.audio && situacao.vozNatural ? situacao : { ...situacao, motivo: 'esgotada' };
+  return situacao.audio && situacao.vozNatural ? situacao : { ...situacao, motivo: 'esgotada', voltaEm };
 }
 
 /** Conta uma chamada no teto próprio do dia. */
@@ -304,21 +346,27 @@ export async function falarComVozNatural(texto: string, voz: NomeDaVoz): Promise
 }
 
 /** A frase que a tela mostra quando a transcrição do áudio não deu certo. */
-export function avisoDaTranscricao(falha: Falha | Indisponivel): string {
+export function avisoDaTranscricao(falha: Recusa): string {
   if (falha === 'vazia') return 'Não ouvi nenhuma fala no áudio. Toque no microfone e fale de novo, ou escreva a sua dúvida.';
   if (falha === 'esgotada' || falha === 'cota') {
-    return 'A voz por IA acabou por hoje. Toque no microfone de novo para ditar a pergunta, ou escreva.';
+    return 'A IA que entende áudio acabou por hoje. Até ela voltar, toque no microfone e fale: o celular escreve a pergunta no campo.';
   }
-  if (falha === 'sem-chave') return 'A voz por IA não está ligada neste ambiente. Toque no microfone para ditar a pergunta, ou escreva.';
+  if (falha === 'pessoa') {
+    return 'Você mandou muitos áudios seguidos. Por alguns minutos, toque no microfone e fale: o celular escreve a pergunta no campo.';
+  }
+  if (falha === 'sem-chave') {
+    return 'A IA que entende áudio não está ligada neste ambiente. Toque no microfone e fale: o celular escreve a pergunta no campo.';
+  }
   if (falha === 'minuto') return 'Muita gente usando a voz agora. Grave de novo daqui a um minuto, ou escreva a sua dúvida.';
   return 'Não consegui entender o áudio agora. Tente de novo, ou escreva a sua dúvida.';
 }
 
 /** A frase que a tela mostra quando a voz natural não pôde falar a resposta. */
-export function avisoDaFalha(falha: Falha | Indisponivel | 'longa'): string {
+export function avisoDaFalha(falha: Recusa): string {
   if (falha === 'esgotada' || falha === 'cota') {
-    return 'A voz natural acabou por hoje. Volta amanhã cedo; até lá, uso a voz do celular.';
+    return 'As vozes naturais acabaram por hoje. Até elas voltarem, leio as respostas com a voz do celular.';
   }
+  if (falha === 'pessoa') return 'Você ouviu muitas respostas seguidas. Por alguns minutos, leio com a voz do celular.';
   if (falha === 'sem-chave') return 'A voz natural não está ligada neste ambiente. Uso a voz do celular.';
   if (falha === 'longa') return 'Esta resposta é longa para a voz natural. Uso a voz do celular.';
   if (falha === 'minuto') return 'Muita gente usando a voz natural agora. Desta vez, uso a voz do celular.';

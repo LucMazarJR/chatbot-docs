@@ -28,13 +28,13 @@ type Props = {
    * no WhatsApp: controle solto embaixo da mensagem não parece parte dela.
    */
   acima?: ReactNode;
-  /** Um controle pequeno no pé do balão, antes da hora (o "Ouvir" das respostas a texto). */
-  abaixo?: ReactNode;
+  /** Um controle pequeno no canto do balão, antes da hora: o alto-falante das respostas escritas. */
+  canto?: ReactNode;
   /** O texto é a transcrição de um áudio: menor, abaixo do tocador. */
   transcricao?: boolean;
 };
 
-export function Balao({ papel, texto, hora, primeira, lida = false, acima, abaixo, transcricao = false }: Props) {
+export function Balao({ papel, texto, hora, primeira, lida = false, acima, canto, transcricao = false }: Props) {
   const ehSaida = papel === 'user';
 
   return (
@@ -50,11 +50,15 @@ export function Balao({ papel, texto, hora, primeira, lida = false, acima, abaix
           // `renderizar` escapa o HTML antes de qualquer coisa, e as únicas tags
           // no resultado são as que ela mesma introduz. Nada que venha do modelo
           // (ou do participante) chega cru até aqui.
-          dangerouslySetInnerHTML={{ __html: renderizar(texto) + '<span class="espaco-meta"></span>' }}
+          // O espaço reservado no fim do texto cresce com o alto-falante, senão
+          // a última linha passaria por baixo da hora.
+          dangerouslySetInnerHTML={{
+            __html: renderizar(texto) + `<span class="espaco-meta${canto ? ' com-canto' : ''}"></span>`,
+          }}
         />
-        {abaixo}
 
         <span className={'meta' + (lida ? ' lido' : '')}>
+          {canto}
           <span>{hora}</span>
           {/* Os tiques são a única indicação de que a mensagem chegou, e são
               desenho puro: para quem usa leitor de tela, um tique e dois tiques
