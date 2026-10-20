@@ -32,7 +32,7 @@ import { AudioSemGravacao, TocadorDeAudio } from '@/components/TocadorDeAudio';
 import { falar, lerAutomatica, pararDeFalar } from '@/lib/leitura-em-voz';
 import { pararTodoSom, soltarAVez, tomarAVez } from '@/lib/som-unico';
 import { useDitado } from '@/lib/usar-ditado';
-import { useVozIa } from '@/lib/usar-voz-ia';
+import { useVozIa, type RecusaDaVoz } from '@/lib/usar-voz-ia';
 import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
 import { marcarChatNaHistoria } from '@/lib/navegacao';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
@@ -164,11 +164,20 @@ const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
   },
   {
     alvo: null,
-    titulo: 'Diga se a resposta ajudou',
-    texto: 'Embaixo de cada resposta, toque no polegar para cima se ajudou, ou para baixo se não ajudou.',
+    titulo: 'Ouvir e avaliar a resposta',
+    texto:
+      'Toque no alto-falante, no canto da resposta, para ouvir. Embaixo, toque no polegar para cima se ajudou, ou para baixo se não ajudou.',
     exemplo: (
       <>
-        <div className="amostra-balao">Para marcar consulta, procure a UBS mais perto de casa.</div>
+        <div className="amostra-balao amostra-com-canto">
+          Para marcar consulta, procure a UBS mais perto de casa.
+          <span className="amostra-canto">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05A4.5 4.5 0 0 0 16.5 12ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77Z" />
+            </svg>
+            10:32
+          </span>
+        </div>
         <div className="avaliar-msg">
           <button type="button" tabIndex={-1}>
             👍
@@ -318,6 +327,19 @@ export function Conversa({
   const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
   /** Recados que já viraram mensagem nesta visita: a falta da voz natural se diz uma vez só. */
   const avisosDadosRef = useRef(new Set<string>());
+  /** Respostas já registradas como ouvidas na voz do celular nesta visita: uma vez cada. */
+  const ouvidasRef = useRef(new Set<string>());
+
+  /**
+   * Staging: a resposta tocou na voz do celular. Com o `vozGerada` da voz
+   * natural, é o que deixa o grupo comparar as duas pelo uso de verdade.
+   * Sem esperar e sem avisar se falhar: é medição.
+   */
+  function registrarOuvida(mensagemId: string) {
+    if (!comVoz || ouvidasRef.current.has(mensagemId)) return;
+    ouvidasRef.current.add(mensagemId);
+    void fetch(`/api/mensagens/${mensagemId}/ouvida`, { method: 'POST' }).catch(() => {});
+  }
   /** Staging: voz por IA (áudio no fluxo do WhatsApp e voz natural). */
   const vozIa = useVozIa(comVoz);
   /** Um áudio está sendo transcrito: nada mais sai até ele virar pergunta. */
@@ -751,7 +773,7 @@ export function Conversa({
       // poucas falas naturais do dia com quem preferiu escrever.
       if (comVoz && !pronta.erro && !opcoes.audio && lerAutomatica()) {
         const vez = tomarAVez(pararDeFalar);
-        void falar(pronta.resposta, () => soltarAVez(vez));
+        void falar(pronta.resposta, () => soltarAVez(vez)).then((falou) => falou && registrarOuvida(aceite.mensagemId));
       }
     } catch {
       // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
@@ -854,8 +876,9 @@ export function Conversa({
       };
       if (!resposta.ok || !dados.texto) {
         naoEntendeu(dados.erro ?? 'Não consegui entender o áudio agora. Tente de novo, ou escreva a sua dúvida.');
-        // Acabou a cota ou a voz não está ligada: o microfone volta ao ditado.
-        if (dados.falha === 'esgotada' || dados.falha === 'cota' || dados.falha === 'sem-chave') void vozIa.consultar();
+        // Acabou a cota, ou a pessoa passou do limite dela: a IA fica
+        // bloqueada até a hora que o servidor mandou, e o microfone dita.
+        vozIa.registrarRecusa('audio', dados);
         return;
       }
       const transcricao = dados.texto;
@@ -1191,17 +1214,21 @@ export function Conversa({
           {itens.map((item, indice) => {
             // Staging: a resposta pode ser ouvida. A resposta a um áudio vem
             // como áudio (o tocador no topo do balão); a resposta a texto ganha
-            // um "Ouvir" pequeno no pé do balão. Os dois ficam DENTRO dele.
+            // o alto-falante no canto, ao lado da hora. Os dois ficam DENTRO
+            // do balão.
+            const mensagemId = item.mensagemId;
             const fonteDaResposta =
-              comVoz && item.papel === 'bot' && item.mensagemId
+              comVoz && item.papel === 'bot' && mensagemId
                 ? {
                     tipo: 'resposta' as const,
-                    mensagemId: item.mensagemId,
+                    mensagemId,
                     texto: item.texto,
                     natural: vozIa.falaNatural,
-                    voz: vozIa.voz,
+                    voz: vozIa.vozNatural,
                   }
                 : null;
+            const aoRecusa = (recusa: RecusaDaVoz) => vozIa.registrarRecusa('vozNatural', recusa);
+            const aoOuvirNoCelular = () => mensagemId && registrarOuvida(mensagemId);
             const acima = item.audio ? (
               item.audio.url ? (
                 <TocadorDeAudio
@@ -1218,16 +1245,18 @@ export function Conversa({
                 preparar={item.recemChegada}
                 tocarAgora={item.recemChegada && lerAutomatica()}
                 aoAvisar={(aviso) => avisar(aviso, { umaVez: true })}
-                aoCotaAcabar={() => void vozIa.consultar()}
+                aoRecusa={aoRecusa}
+                aoOuvirNoCelular={aoOuvirNoCelular}
               />
             ) : undefined;
-            const abaixo =
+            const canto =
               fonteDaResposta && !item.respostaEmAudio ? (
                 <TocadorDeAudio
-                  compacto
+                  canto
                   fonte={fonteDaResposta}
                   aoAvisar={(aviso) => avisar(aviso, { umaVez: true })}
-                  aoCotaAcabar={() => void vozIa.consultar()}
+                  aoRecusa={aoRecusa}
+                  aoOuvirNoCelular={aoOuvirNoCelular}
                 />
               ) : undefined;
             return (
@@ -1240,7 +1269,7 @@ export function Conversa({
                   // O rabinho só aparece no primeiro balão de uma sequência.
                   primeira={indice === 0 || itens[indice - 1].papel !== item.papel}
                   acima={acima}
-                  abaixo={abaixo}
+                  canto={canto}
                   transcricao={Boolean(item.audio)}
                 />
                 {item.botoes && (

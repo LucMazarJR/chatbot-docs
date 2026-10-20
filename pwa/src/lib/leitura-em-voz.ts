@@ -16,6 +16,8 @@ const CHAVE_VELOCIDADE = 'pwa:voz-velocidade';
 const CHAVE_AUTOMATICA = 'pwa:voz-automatica';
 
 import { textoParaFala } from './texto-para-fala';
+import { CHAVE_ENTRADA, CHAVE_VOZ, lerEscolhasDeVoz, type Entrada } from './escolhas-de-voz';
+import type { EscolhaDeVoz } from './vozes';
 
 export { textoParaFala };
 
@@ -83,41 +85,26 @@ export function guardarAutomatica(ligada: boolean): void {
   }
 }
 
-const CHAVE_VOZ_IA = 'pwa:voz-ia';
-const CHAVE_VOZ_NATURAL = 'pwa:voz-natural';
-
-/**
- * A voz por IA do staging está ligada neste aparelho? Ligada por padrão: é o
- * que está em teste. Desligada, o microfone volta ao ditado e as respostas à
- * voz do celular, para comparar.
- */
-export function lerVozIaLigada(): boolean {
+/** As escolhas de voz do staging guardadas no aparelho (ver `escolhas-de-voz.ts`). */
+export function lerEscolhas() {
   try {
-    return localStorage.getItem(CHAVE_VOZ_IA) !== 'desligada';
+    return lerEscolhasDeVoz((chave) => localStorage.getItem(chave));
   } catch {
-    return true;
+    return lerEscolhasDeVoz(() => null);
   }
 }
 
-export function guardarVozIaLigada(ligada: boolean): void {
+export function guardarEntrada(entrada: Entrada): void {
   try {
-    localStorage.setItem(CHAVE_VOZ_IA, ligada ? 'ligada' : 'desligada');
+    localStorage.setItem(CHAVE_ENTRADA, entrada);
   } catch {
     // Vale para esta visita.
   }
 }
 
-export function lerVozNatural(): string | null {
+export function guardarVozEscolhida(voz: EscolhaDeVoz): void {
   try {
-    return localStorage.getItem(CHAVE_VOZ_NATURAL);
-  } catch {
-    return null;
-  }
-}
-
-export function guardarVozNatural(nome: string): void {
-  try {
-    localStorage.setItem(CHAVE_VOZ_NATURAL, nome);
+    localStorage.setItem(CHAVE_VOZ, voz);
   } catch {
     // Vale para esta visita.
   }
