@@ -700,6 +700,111 @@
         1296,
         760
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').first().json.UrlDeRetorno.replace(/\\/resposta$/, '/etapa') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Token",
+              "value": "={{ $env.PWA_CALLBACK_TOKEN }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $('Dados').first().json.CorrelationId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ mensagemId: $('Dados').first().json.EventId, etapa: 'entendendo' }) }}",
+        "options": {
+          "timeout": 3000
+        }
+      },
+      "id": "aadcf526-f5e5-413d-a2b9-66c533207280",
+      "name": "Avisar etapa: entendendo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -128,
+        -456
+      ],
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').first().json.UrlDeRetorno.replace(/\\/resposta$/, '/etapa') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Token",
+              "value": "={{ $env.PWA_CALLBACK_TOKEN }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $('Dados').first().json.CorrelationId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ mensagemId: $('Dados').first().json.EventId, etapa: 'buscando' }) }}",
+        "options": {
+          "timeout": 3000
+        }
+      },
+      "id": "ae825fb7-ee6f-4b38-a66a-8c9e767170f2",
+      "name": "Avisar etapa: buscando",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        172,
+        -456
+      ],
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dados').first().json.UrlDeRetorno.replace(/\\/resposta$/, '/etapa') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Token",
+              "value": "={{ $env.PWA_CALLBACK_TOKEN }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $('Dados').first().json.CorrelationId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ mensagemId: $('Dados').first().json.EventId, etapa: 'escrevendo' }) }}",
+        "options": {
+          "timeout": 3000
+        }
+      },
+      "id": "4c06cec6-bf3d-4a4c-ad71-03684d1bf979",
+      "name": "Avisar etapa: escrevendo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        560
+      ],
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -718,6 +823,11 @@
     "Dados": {
       "main": [
         [
+          {
+            "node": "Avisar etapa: entendendo",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Montar reescrita",
             "type": "main",
@@ -899,6 +1009,11 @@
       "main": [
         [
           {
+            "node": "Avisar etapa: buscando",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Buscar FAQs",
             "type": "main",
             "index": 0
@@ -927,6 +1042,11 @@
     "A busca funcionou?": {
       "main": [
         [
+          {
+            "node": "Avisar etapa: escrevendo",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Com limite de tempo?",
             "type": "main",
