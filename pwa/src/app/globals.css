@@ -919,28 +919,169 @@ button {
   color: var(--texto);
 }
 
-/* "Ouvir", embaixo da resposta, no mesmo desenho dos polegares. */
-.ouvir {
-  display: inline-flex;
+/*
+ * O balão de áudio (staging): play, barra e tempo DENTRO do balão, como no
+ * WhatsApp. O texto embaixo é a transcrição, ou a resposta escrita.
+ */
+.balao.com-audio {
+  min-width: min(78%, 17rem);
+}
+
+.tocador {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 4px;
+}
+
+.tocador-play {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--topo);
+  color: #fff;
+  place-items: center;
+}
+
+:root[data-tema='escuro'] .tocador-play {
+  background: var(--acento);
+  color: #111b21;
+}
+
+.tocador-play:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.tocador.sem-gravacao .tocador-play {
+  background: transparent;
+  color: var(--texto-fraco);
+}
+
+.tocador-meio {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* A barra é um controle de verdade: arrastar leva o áudio até ali. */
+.tocador-barra {
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--acento);
+  cursor: pointer;
+}
+
+.tocador-onda {
+  display: block;
+  height: 4px;
+  margin: 10px 0;
+  border-radius: 2px;
+  background: var(--borda);
+}
+
+.tocador-tempo {
+  color: var(--texto-fraco);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+
+.texto.transcricao {
+  display: block;
+  color: var(--texto-fraco);
+  font-size: 0.9em;
+}
+
+/* "Ouvir" no pé da resposta a texto: dentro do balão, discreto, numa linha
+   só dele, com a hora à direita. Grudado no fim do texto, ele parecia solto
+   no meio da frase. */
+.ouvir-compacto {
+  display: flex;
+  width: fit-content;
   align-items: center;
   gap: 5px;
   min-height: 32px;
-  margin: -4px 0 8px 2px;
+  margin: 4px 0 2px;
   padding: 3px 11px;
   border: 1px solid var(--borda);
-  border-radius: 12px;
-  background: var(--balao-entrada);
+  border-radius: 16px;
   color: var(--texto);
-  font-size: 0.88em;
+  font-size: 0.85em;
 }
 
-.ouvir.falando {
+.ouvir-compacto.tocando {
   border-color: var(--acento);
   color: var(--acento);
 }
 
-:root[data-contraste='alto'] .ouvir {
+:root[data-contraste='alto'] .ouvir-compacto {
   border-color: var(--contorno);
+}
+
+.giro-pequeno {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: girar 0.9s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .giro-pequeno {
+    animation-duration: 2.4s;
+  }
+}
+
+/* Escolha da voz natural, em Acessibilidade: a opção e a amostra lado a lado. */
+.voz-linha {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.voz-linha > button[role='radio'] {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Com `.opcoes-tema` no seletor: a regra dos botões da lista (largura toda,
+   56 px de altura) pegaria a amostra também. */
+.opcoes-tema .ouvir-amostra {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-self: center;
+  align-items: center;
+  gap: 5px;
+  width: auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--borda);
+  border-radius: 22px;
+  color: var(--texto);
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.opcoes-tema .ouvir-amostra[aria-pressed='true'] {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+.aviso-voz {
+  padding: 0 4px;
 }
 
 /* --- Folha de avaliação -------------------------------------------------- */
