@@ -98,10 +98,27 @@ export function criarExecutor({ fluxo, triagem, analise, banco, cache }) {
       ms = r.ms;
       chamadas = r.chamou ? 1 : 0;
     } catch (erro) {
-      // O nó segue pela saída normal com o erro, e o "Consultas" usa o texto original.
       if (erro instanceof CotaEsgotada) throw erro;
-      resposta = { error: { message: erro.message } };
-      falhou = erro.message;
+      // Como no fluxo: a falha do principal vai para o nó de reserva, quando
+      // ele existe. Sem resposta dos dois, o "Consultas" usa o texto original.
+      const reserva = `${nos.chamar} (reserva)`;
+      let motivo = erro.message;
+      if (fluxo.tem(reserva)) {
+        try {
+          const r = await chamarNoHttp(reserva, montado.json.corpo, `${nos.etapa}-reserva`, triagem);
+          resposta = r.dados;
+          ms = r.ms;
+          chamadas = r.chamou ? 1 : 0;
+          motivo = null;
+        } catch (erroDaReserva) {
+          if (erroDaReserva instanceof CotaEsgotada) throw erroDaReserva;
+          motivo = `${erro.message}; reserva: ${erroDaReserva.message}`;
+        }
+      }
+      if (motivo) {
+        resposta = { error: { message: motivo } };
+        falhou = motivo;
+      }
     }
     const itens = fluxo.rodarCodigo('Consultas', { nos: { [nos.montar]: montado.json }, entrada: [{ json: resposta }] });
     return { itens, ms, falhou, chamadas };
