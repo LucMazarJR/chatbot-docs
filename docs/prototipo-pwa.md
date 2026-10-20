@@ -294,8 +294,8 @@ A resposta a um áudio traz o tocador no topo do balão, já preparado quando ch
 Em Acessibilidade ficam também a velocidade (normal ou devagar, que vale para as duas vozes) e **ler as respostas sozinho**, desligado por padrão. Com ele ligado, a resposta a um áudio toca com a voz natural, e a resposta a texto com a voz do celular, para não gastar as falas naturais de quem preferiu escrever. A formatação (`*`, `_`, `•`) e os links ficam de fora da leitura.
 
 **Tempo de resposta (em teste).** Em **Minha conta**, a pessoa escolhe como o assistente espera quando o Gemini está lento:
-- **Com limite de tempo** (o padrão): cada modelo tem um prazo, e passado o último o assistente avisa para perguntar de novo, por volta de 1 minuto e meio no pior caso.
-- **Sem limite de tempo:** o agente de sempre, que espera o quanto o Gemini precisar, até o teto de 4 minutos.
+- **Sem limite de tempo** (o padrão, enquanto o grupo valida a reescrita e mede o tempo real de cada etapa): o agente de sempre, que espera o quanto o Gemini precisar, até o teto de 4 minutos. A reescrita tem 30 s em cada modelo.
+- **Com limite de tempo:** cada modelo tem um prazo, e passado o último o assistente avisa para perguntar de novo, por volta de 1 minuto e meio no pior caso. A reescrita tem 12 s em cada modelo.
 
 A escolha fica no aparelho e vale na próxima pergunta. Cada resposta guarda o modo (`comLimiteDeTempo`), e com a `latenciaMs` é o que compara os dois. Como cada modo funciona: [arquitetura.md](arquitetura.md#a-reescrita-em-validação-no-staging).
 

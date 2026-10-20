@@ -11,14 +11,14 @@ import { guardarLimiteDeTempo, lerLimiteDeTempo } from '@/lib/limite-de-tempo';
 
 const MODOS_DE_TEMPO = [
   {
-    com: true,
-    rotulo: 'Com limite de tempo',
-    descricao: 'Se o assistente não conseguir responder em cerca de 1 minuto e meio, ele avisa para perguntar de novo.',
-  },
-  {
     com: false,
     rotulo: 'Sem limite de tempo',
     descricao: 'O assistente espera o quanto precisar para responder, até 4 minutos.',
+  },
+  {
+    com: true,
+    rotulo: 'Com limite de tempo',
+    descricao: 'Se o assistente não conseguir responder em cerca de 1 minuto e meio, ele avisa para perguntar de novo.',
   },
 ];
 
@@ -30,7 +30,7 @@ const MODOS_DE_TEMPO = [
  * aparelho, sem recarregar a conversa.
  */
 function TempoDeResposta() {
-  const [comLimite, setComLimite] = useState(true);
+  const [comLimite, setComLimite] = useState(false);
   // Lido depois de montar: no servidor não há `localStorage`.
   useEffect(() => setComLimite(lerLimiteDeTempo()), []);
 

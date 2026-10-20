@@ -235,17 +235,18 @@ O fluxo de staging faz a condensação, e aproveita a chamada para atacar mais d
 ```
 Dados → Montar reescrita → Reescrever pergunta → Consultas → Precisa buscar? → Buscar FAQs → Montar contexto → AI Agent
          (Code: prompt       (HTTP ao Gemini,      (Code: 1 item                      (uma busca
-          + 4 mensagens)      9 s de prazo)         por consulta)                      por consulta)
+          + 4 mensagens)      prazo pelo modo)      por consulta)                      por consulta)
                                     │ falhou            ▲
                                     └→ Reescrever pergunta (reserva) ┘
-                                       (outro modelo, 9 s de prazo)
+                                       (outro modelo, mesmo prazo)
 ```
 
 - Um modelo pequeno (`gemini-3.1-flash-lite`, credencial **Gemini Reescrita**, chave própria) recebe a pergunta e as últimas 4 mensagens, que o PWA manda junto, e devolve a **pergunta completa** e de 1 a 3 **consultas**: a específica e uma geral do mesmo assunto ("onde tomo a BCG" gera também "Onde tomo as vacinas de rotina?").
 - Cada consulta é uma busca. Os trechos entram por **rodízio** (o melhor de cada consulta primeiro), sem FAQ repetida, até 10, e cada consulta extra entra com no máximo 3. O corte continua 0,82.
 - **Saudação pula a busca** e economiza o embedding. Fora de escopo ainda busca: um modelo pequeno pode confundir pergunta de profissional com assunto de fora.
 - **Se o modelo principal falhar**, a falha sai pela saída de erro do nó para a reserva, `gemini-3.5-flash-lite`, pela mesma chave. Tentar de novo o mesmo modelo não adiantava: a falha é quase sempre sobrecarga dele ("high demand", 503), que não passa em um segundo.
-- **Se a reserva também falhar** (prazo, cota, JSON quebrado), a busca usa o texto original, que é o comportamento sem reescrita. O pior caso é de 18 s antes da busca.
+- **Se a reserva também falhar** (prazo, cota, JSON quebrado), a busca usa o texto original, que é o comportamento sem reescrita.
+- **O prazo depende do modo de espera** que a pessoa escolheu: 30 s em cada modelo sem limite de tempo (até 60 s antes da busca), para a reescrita terminar e o tempo real dela aparecer no `reescritaMs`; 12 s com limite (até 24 s).
 - O agente recebe a pergunta original e a entendida. A mensagem guarda a pergunta entendida, as consultas e o tempo da reescrita, e o painel mostra isso nos bastidores da resposta.
 
 **A busca nunca é pulada, e a resposta nunca sai sem ela.** A busca tenta duas vezes. Se falhar em todas as consultas, o fluxo manda na hora a mensagem de indisponível, com o motivo "a busca na base falhou", em vez de deixar o modelo responder sem trechos. Antes, a falha parava a execução, e a pessoa esperava os 4 minutos do teto do PWA. A única pergunta que não busca é a saudação, de propósito.
@@ -269,7 +270,7 @@ Montar contexto → A busca funcionou? ─ não → Responder com indisponibilid
 
 - **Sem limite** é o agente de sempre. Ele não tem prazo: o nó de modelo de chat do n8n não aceita, e a biblioteca por baixo dele refaz a chamada sozinha a cada recusa do Gemini, esperando mais a cada vez. Com o Gemini congestionado, uma resposta levou 91 s só na reserva.
 - **Com limite** faz o mesmo pedido em chamadas diretas, com prazo em cada modelo. As instruções são lidas do próprio nó do agente (`$('AI Agent').params`), para não existir uma segunda cópia. A pergunta com os trechos é a mesma que o agente recebe, e o [testar-codigo-staging.mjs](../n8n/testar-codigo-staging.mjs) confere as duas. A conversa vem do histórico que o PWA manda (8 mensagens, as 4 trocas que a memória do agente guarda), e não do Redis, que só o agente usa.
-- O pior caso com limite é de uns 90 s: 18 s da reescrita, a busca e 65 s dos três modelos. Com o Gemini normal, a resposta chega em 15 a 25 s nos dois modos.
+- O pior caso com limite é de uns 95 s: 24 s da reescrita, a busca e 65 s dos três modelos. Com o Gemini normal, a resposta chega em 15 a 25 s nos dois modos.
 - A mensagem registra o modelo que respondeu e, na falha, o motivo (`motivoErro`), e o painel mostra o modo em cada resposta.
 
 **Avisos de etapa.** Antes da reescrita, da busca e da escrita da resposta, um nó HTTP (`Avisar etapa: …`) avisa o PWA, que mostra a etapa a quem espera. Cada aviso é uma folha ligada em paralelo à etapa, roda uma vez só (`executeOnce`), tem 3 s de prazo e segue em frente se falhar: a tela perde a etapa, e a resposta não perde nada.
