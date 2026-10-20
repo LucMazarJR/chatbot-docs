@@ -25,9 +25,9 @@ O gateway também **mascara segredos no log**: falha de entrega ao n8n registra 
 
 - **Base legal: consentimento** (Art. 7º, I, e Art. 11, I). A conversa só começa depois de tocar em *Aceitar*, e a data do aceite, ou da recusa, fica gravada na sessão. Um aviso na tela vale menos, numa auditoria, que "esta conversa começou às 14h32, com aceite às 14h31".
 - **Política publicada** em `/privacidade`, escrita para quem está no posto com o celular na mão: o que fica registrado, para que, quem mais recebe (Gemini do Google para gerar a resposta, MongoDB Atlas para guardar), por quanto tempo e como exercer os direitos. O prazo que ela mostra é lido do ambiente, então a página não promete número diferente do que o banco aplica.
-- **Aviso antes da primeira pergunta**, com link para a política no topo da conversa, no menu e no painel de acessibilidade.
+- **Aviso antes da primeira pergunta**, com link para a política no topo da conversa, no menu e no painel de acessibilidade (no staging, em *Minha conta*, no lugar do menu).
 - **Prazo de retenção aplicado pelo banco.** As conversas se apagam sozinhas em `PWA_RETENCAO_DIAS` (180 por padrão), por índice TTL do Mongo. Prazo que depende de alguém lembrar de rodar um script não é prazo.
-- **Exclusão a pedido, por duas portas.** A própria pessoa, no menu do chat (*Apagar minha conversa*), ou a equipe, pela transcrição em `/conversas`, para quem não tem mais a conversa no aparelho. A exclusão pela equipe fica registrada no histórico: quem apagou, quando e quantos registros, sem nenhum conteúdo.
+- **Exclusão a pedido, por duas portas.** A própria pessoa, no menu do chat (*Apagar minha conversa*; no staging, em *Minha conta*, conversa por conversa), ou a equipe, pela transcrição em `/conversas`, para quem não tem mais a conversa no aparelho. A exclusão pela equipe fica registrada no histórico: quem apagou, quando e quantos registros, sem nenhum conteúdo.
 - **Minimização no que não é texto.** Arquivo e áudio nunca saem do aparelho: fica registrado só o tipo, o tamanho e a duração da tentativa. O nome do arquivo não é guardado, porque "exame_maria_silva.pdf" é exatamente o dado que o aviso pede para ninguém mandar.
 - **Acesso restrito.** As conversas só abrem para quem tem papel `admin` no dashboard, com login individual.
 
