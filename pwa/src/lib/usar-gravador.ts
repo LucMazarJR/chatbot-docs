@@ -3,9 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Opcoes = {
-  /** Chamado ao parar, com a duração do que foi gravado. */
-  aoTerminar: (duracaoSegundos: number, mime: string) => void;
+  /** Chamado ao parar, com a duração do que foi gravado, e o áudio quando `guardarAudio`. */
+  aoTerminar: (duracaoSegundos: number, mime: string, audio?: Blob) => void;
   aoFalhar: (aviso: string) => void;
+  /**
+   * Staging, voz por IA: o áudio vai para a transcrição. No `/` ele continua
+   * descartado, como explicado abaixo.
+   */
+  guardarAudio?: boolean;
+  maximoSegundos?: number;
 };
 
 /** Teto de segurança: ninguém grava 20 minutos de propósito. */
@@ -25,7 +31,7 @@ const MAXIMO_SEGUNDOS = 120;
  * escutando. Roda também no desmonte, para o caso de a pessoa fechar a aba no
  * meio.
  */
-export function useGravador({ aoTerminar, aoFalhar }: Opcoes) {
+export function useGravador({ aoTerminar, aoFalhar, guardarAudio = false, maximoSegundos = MAXIMO_SEGUNDOS }: Opcoes) {
   const [gravando, setGravando] = useState(false);
   const [segundos, setSegundos] = useState(0);
 
@@ -69,6 +75,8 @@ export function useGravador({ aoTerminar, aoFalhar }: Opcoes) {
 
       const gravador = new MediaRecorder(stream);
       gravadorRef.current = gravador;
+      const pedacos: Blob[] = [];
+      if (guardarAudio) gravador.ondataavailable = (evento) => pedacos.push(evento.data);
 
       gravador.onstop = () => {
         const duracao = segundosRef.current;
@@ -77,7 +85,9 @@ export function useGravador({ aoTerminar, aoFalhar }: Opcoes) {
         soltarMicrofone();
         // Gravação de menos de um segundo é toque sem querer no botão, não
         // mensagem. Descartar evita encher a transcrição de áudios de 0:00.
-        if (!cancelado && duracao >= 1) aoTerminar(duracao, mime);
+        if (!cancelado && duracao >= 1) {
+          aoTerminar(duracao, mime, guardarAudio ? new Blob(pedacos, { type: mime }) : undefined);
+        }
       };
 
       gravador.start();
@@ -86,7 +96,7 @@ export function useGravador({ aoTerminar, aoFalhar }: Opcoes) {
       relogioRef.current = setInterval(() => {
         segundosRef.current += 1;
         setSegundos(segundosRef.current);
-        if (segundosRef.current >= MAXIMO_SEGUNDOS) parar(false);
+        if (segundosRef.current >= maximoSegundos) parar(false);
       }, 1000);
     } catch {
       // Recusar o microfone é uma escolha legítima, e a mensagem não pode
@@ -94,7 +104,7 @@ export function useGravador({ aoTerminar, aoFalhar }: Opcoes) {
       aoFalhar('Não consegui acessar o microfone. Pode escrever a sua dúvida?');
       soltarMicrofone();
     }
-  }, [aoFalhar, aoTerminar, parar, soltarMicrofone]);
+  }, [aoFalhar, aoTerminar, guardarAudio, maximoSegundos, parar, soltarMicrofone]);
 
   return { gravando, segundos, iniciar, parar };
 }

@@ -131,6 +131,14 @@ Ele não menciona `output` nem `standalone`, e leva a procurar no lugar errado. 
 
 **O service worker do `/` enxerga o `/staging` inteiro.** Enquanto o do staging não foi registrado, é o do `/` que atende as páginas de lá, com conta e histórico. Por isso ele não guarda nada do `/staging`, e o nome do cache muda (`prototipo-pwa-v2`, e assim por diante) sempre que for preciso apagar o que uma versão anterior guardou.
 
+**O modelo de fala lê a instrução de estilo em voz alta.** "Leia com voz calma: ..." sai falado junto com a resposta, em português ou em inglês, nos dois modelos de fala testados, e o lite recusa o `systemInstruction`. Para a voz natural vai só o texto. A calma vem da voz escolhida e da velocidade, aplicada pelo navegador (`playbackRate`). Ao trocar de modelo, transcrever uma amostra com o Gemini mostra se ele voltou a ler a instrução.
+
+**A cota gratuita da fala é de 10 por dia, e o 429 também vem do minuto.** O id da violação diz qual é (`...PerDay...` ou `...PerMinute...`). Tratar todo 429 como "acabou por hoje" desligaria a voz natural o dia inteiro depois de um pico. O [voz-ia.ts](../pwa/src/lib/voz-ia.ts) só marca o dia como esgotado quando a violação é diária, e marca a combinação de chave e modelo, e não a chave inteira. Testar a voz gasta essa cota: as amostras de Acessibilidade são arquivos fixos por isso.
+
+**Sem `media-src blob:` na CSP, o áudio não toca e nada avisa.** A gravação e a voz natural tocam de um endereço `blob:` criado pela página. Com a política sem essa linha, o tocador fica em 0:00 e o play não faz nada; o motivo só aparece no console do navegador ([next.config.ts](../pwa/next.config.ts)).
+
+**A voz natural em PCM não cabe na resposta da Vercel.** O Gemini devolve PCM de 24 kHz, e a resposta mais longa da base daria mais de 7 MB, acima do limite de 4,5 MB de corpo das funções. A rota converte para MP3 de 48 kbps (cerca de 300 KB numa resposta típica), o que também ajuda quem está no 4G.
+
 ---
 
 ## Contas e avisos push

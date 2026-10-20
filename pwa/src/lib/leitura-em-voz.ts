@@ -15,26 +15,9 @@ export type Velocidade = 'normal' | 'devagar';
 const CHAVE_VELOCIDADE = 'pwa:voz-velocidade';
 const CHAVE_AUTOMATICA = 'pwa:voz-automatica';
 
-/**
- * O texto como deve ser falado.
- *
- * A resposta vem com a formatação do WhatsApp. Lidos em voz alta, os
- * asteriscos, sublinhados e marcadores viram "asterisco", e um link vira uma
- * sequência de letras. Os links saem com "(link)", para a pessoa saber que há
- * um endereço na tela.
- */
-export function textoParaFala(texto: string): string {
-  return texto
-    .replace(/https?:\/\/\S+/g, 'link')
-    .replace(/[*_~]/g, '')
-    .replace(/^[\s]*[•·\-]\s*/gm, '')
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-    .replace(/\n{2,}/g, '. ')
-    .replace(/\n/g, ', ')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/([.,!?:])\s*[.,]\s*/g, '$1 ')
-    .trim();
-}
+import { textoParaFala } from './texto-para-fala';
+
+export { textoParaFala };
 
 export function vozSuportada(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -98,6 +81,51 @@ export function guardarAutomatica(ligada: boolean): void {
   } catch {
     // Vale para esta visita.
   }
+}
+
+const CHAVE_VOZ_IA = 'pwa:voz-ia';
+const CHAVE_VOZ_NATURAL = 'pwa:voz-natural';
+
+/**
+ * A voz por IA do staging está ligada neste aparelho? Ligada por padrão: é o
+ * que está em teste. Desligada, o microfone volta ao ditado e as respostas à
+ * voz do celular, para comparar.
+ */
+export function lerVozIaLigada(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_VOZ_IA) !== 'desligada';
+  } catch {
+    return true;
+  }
+}
+
+export function guardarVozIaLigada(ligada: boolean): void {
+  try {
+    localStorage.setItem(CHAVE_VOZ_IA, ligada ? 'ligada' : 'desligada');
+  } catch {
+    // Vale para esta visita.
+  }
+}
+
+export function lerVozNatural(): string | null {
+  try {
+    return localStorage.getItem(CHAVE_VOZ_NATURAL);
+  } catch {
+    return null;
+  }
+}
+
+export function guardarVozNatural(nome: string): void {
+  try {
+    localStorage.setItem(CHAVE_VOZ_NATURAL, nome);
+  } catch {
+    // Vale para esta visita.
+  }
+}
+
+/** A velocidade de reprodução do áudio da voz natural: "devagar" pausa sem engrossar a voz. */
+export function taxaDeReproducao(): number {
+  return lerVelocidade() === 'devagar' ? 0.85 : 1;
 }
 
 /**

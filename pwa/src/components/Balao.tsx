@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { renderizar } from '@/lib/wa-format';
 import type { Papel } from '@/lib/tipos';
 
@@ -21,9 +23,18 @@ type Props = {
   primeira: boolean;
   /** Só nas mensagens do participante: dois tiques azuis quando a resposta chegou. */
   lida?: boolean;
+  /**
+   * O tocador do balão de áudio, acima do texto. Fica DENTRO do balão, como
+   * no WhatsApp: controle solto embaixo da mensagem não parece parte dela.
+   */
+  acima?: ReactNode;
+  /** Um controle pequeno no pé do balão, antes da hora (o "Ouvir" das respostas a texto). */
+  abaixo?: ReactNode;
+  /** O texto é a transcrição de um áudio: menor, abaixo do tocador. */
+  transcricao?: boolean;
 };
 
-export function Balao({ papel, texto, hora, primeira, lida = false }: Props) {
+export function Balao({ papel, texto, hora, primeira, lida = false, acima, abaixo, transcricao = false }: Props) {
   const ehSaida = papel === 'user';
 
   return (
@@ -32,14 +43,16 @@ export function Balao({ papel, texto, hora, primeira, lida = false }: Props) {
         .filter(Boolean)
         .join(' ')}
     >
-      <div className="balao">
+      <div className={acima ? 'balao com-audio' : 'balao'}>
+        {acima}
         <span
-          className="texto"
+          className={transcricao ? 'texto transcricao' : 'texto'}
           // `renderizar` escapa o HTML antes de qualquer coisa, e as únicas tags
           // no resultado são as que ela mesma introduz. Nada que venha do modelo
           // (ou do participante) chega cru até aqui.
           dangerouslySetInnerHTML={{ __html: renderizar(texto) + '<span class="espaco-meta"></span>' }}
         />
+        {abaixo}
 
         <span className={'meta' + (lida ? ' lido' : '')}>
           <span>{hora}</span>
