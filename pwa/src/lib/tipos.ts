@@ -158,6 +158,13 @@ export type Mensagem = {
   };
 
   /**
+   * Staging: a última vez que a resposta tocou na voz do celular, por escolha
+   * da pessoa ou porque a natural estava bloqueada. Com `vozGerada`, é o que
+   * compara as duas vozes pelo uso.
+   */
+  ouvidaNoCelularEm?: Date;
+
+  /**
    * Só metadado, nunca o conteúdo.
    *
    * Guardar a gravação seria acumular voz de gente relatando problema de saúde,
