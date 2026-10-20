@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
+import { posicionarBalao, type Caixa } from '@/lib/posicao-do-balao';
 import { useFocoPreso } from '@/lib/usar-foco-preso';
 
 export type PassoDoTutorial = {
@@ -12,8 +13,6 @@ export type PassoDoTutorial = {
   /** Um desenho de exemplo dentro do balão, para o que ainda não existe na tela. */
   exemplo?: ReactNode;
 };
-
-type Caixa = { top: number; left: number; width: number; height: number };
 
 /** Folga em volta do destaque, para ele não colar no elemento. */
 const FOLGA = 6;
@@ -40,6 +39,8 @@ export function Tutorial({
 }) {
   const [indice, setIndice] = useState(0);
   const [caixa, setCaixa] = useState<Caixa | null>(null);
+  const [tela, setTela] = useState({ largura: 390, altura: 800 });
+  const [larguraDoBalao, setLarguraDoBalao] = useState(320);
   const balaoRef = useRef<HTMLDivElement>(null);
   const passo = passos[indice];
   const ultimo = indice === passos.length - 1;
@@ -54,6 +55,10 @@ export function Tutorial({
   }, []);
 
   const medir = useCallback(() => {
+    setTela({ largura: window.innerWidth, altura: window.innerHeight });
+    // A largura vem do CSS (em, que segue o tamanho do texto escolhido em
+    // Acessibilidade), e só a caixa já desenhada sabe quanto deu.
+    if (balaoRef.current) setLarguraDoBalao(balaoRef.current.offsetWidth);
     if (!passo.alvo) {
       setCaixa(null);
       return;
@@ -88,15 +93,24 @@ export function Tutorial({
     balaoRef.current?.querySelector<HTMLElement>('h2')?.focus();
   }, [indice]);
 
-  // O balão fica do lado que tem mais espaço: em cima do campo de mensagem,
-  // embaixo do menu do topo.
-  const alturaDaTela = typeof window === 'undefined' ? 800 : window.innerHeight;
-  const acima = caixa ? caixa.top > alturaDaTela / 2 : false;
-  const posicao: React.CSSProperties = caixa
-    ? acima
-      ? { bottom: alturaDaTela - caixa.top + 12 }
-      : { top: caixa.top + caixa.height + 12 }
-    : { top: '50%', transform: 'translateY(-50%)' };
+  // A caixa fica do lado do elemento que tem mais espaço, alinhada a ele, e a
+  // seta aponta para o centro dele (lib/posicao-do-balao.ts).
+  const pos = posicionarBalao({
+    alvo: caixa,
+    larguraDaTela: tela.largura,
+    alturaDaTela: tela.altura,
+    larguraDoBalao,
+  });
+  const posicao = {
+    left: pos.left,
+    maxHeight: pos.maxHeight,
+    ...(pos.lado === 'centro'
+      ? { top: '50%', translate: '0 -50%' }
+      : pos.lado === 'acima'
+        ? { bottom: pos.bottom }
+        : { top: pos.top }),
+    ...(pos.setaX !== null ? { '--seta-x': `${pos.setaX}px` } : {}),
+  } as React.CSSProperties;
 
   return (
     <div className="tutorial" role="presentation">
@@ -112,7 +126,7 @@ export function Tutorial({
 
       <div
         ref={balaoRef}
-        className="tutorial-balao"
+        className={`tutorial-balao ${pos.lado}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tutorial-titulo"
@@ -122,18 +136,22 @@ export function Tutorial({
           if (evento.key === 'Escape') pular();
         }}
       >
-        <p className="tutorial-passo">
-          Passo {indice + 1} de {passos.length}
-        </p>
-        <h2 id="tutorial-titulo" tabIndex={-1}>
-          {passo.titulo}
-        </h2>
-        <p id="tutorial-texto">{passo.texto}</p>
-        {passo.exemplo && (
-          <div className="tutorial-exemplo" aria-hidden="true">
-            {passo.exemplo}
-          </div>
-        )}
+        {/* Só o texto rola. Os botões ficam fora da rolagem, para Pular e
+            Próximo estarem sempre à vista mesmo com a letra no máximo. */}
+        <div className="tutorial-conteudo">
+          <p className="tutorial-passo">
+            Passo {indice + 1} de {passos.length}
+          </p>
+          <h2 id="tutorial-titulo" tabIndex={-1}>
+            {passo.titulo}
+          </h2>
+          <p id="tutorial-texto">{passo.texto}</p>
+          {passo.exemplo && (
+            <div className="tutorial-exemplo" aria-hidden="true">
+              {passo.exemplo}
+            </div>
+          )}
+        </div>
 
         <div className="tutorial-acoes">
           <button type="button" className="tutorial-pular" onClick={pular}>

@@ -1530,18 +1530,48 @@ button {
   pointer-events: none;
 }
 
+/*
+ * A caixa de explicação tem a cara de um balão da conversa (a mesma cor e o
+ * mesmo canto), e não de um painel do sistema: é o que a pessoa já conhece do
+ * WhatsApp. A posição e a seta vêm de lib/posicao-do-balao.ts.
+ *
+ * A rolagem fica só no conteúdo, e não na caixa: com `overflow` na caixa, a
+ * seta, desenhada fora dela, seria cortada.
+ */
 .tutorial-balao {
   position: absolute;
-  left: 50%;
-  width: min(92vw, 22em);
-  max-height: 70vh;
-  overflow-y: auto;
-  padding: 1em 1.1em;
-  border-radius: 12px;
-  background: var(--painel);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  width: min(calc(100vw - 24px), 21em);
+  padding: 0.9em 1em 0.8em;
+  border-radius: 10px;
+  background: var(--balao-entrada);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
   color: var(--texto);
+}
+
+.tutorial-conteudo {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tutorial-balao.acima::after,
+.tutorial-balao.abaixo::after {
+  content: '';
+  position: absolute;
+  left: var(--seta-x);
+  border: 10px solid transparent;
   translate: -50% 0;
+}
+
+.tutorial-balao.acima::after {
+  top: 100%;
+  border-top-color: var(--balao-entrada);
+}
+
+.tutorial-balao.abaixo::after {
+  bottom: 100%;
+  border-bottom-color: var(--balao-entrada);
 }
 
 :root[data-contraste='alto'] .tutorial-balao {
