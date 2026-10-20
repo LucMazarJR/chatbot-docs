@@ -23,6 +23,12 @@ type Props = {
   automatica?: boolean;
   /** Staging: o voltar do celular fecha a folha, e não o app. */
   comVoltar?: boolean;
+  /**
+   * Staging: o "Obrigado!" oferece outra conversa. Sem isso ele não tinha
+   * botão nenhum, e mandar "fechar esta janela" não faz sentido no app
+   * instalado, que não tem janela para fechar.
+   */
+  aoRecomecar?: () => void;
 };
 
 /**
@@ -32,7 +38,7 @@ type Props = {
  * opcionais: cobrar resposta de quem só queria encerrar a conversa é a melhor
  * forma de não receber nenhuma.
  */
-export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false, comVoltar = false }: Props) {
+export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false, comVoltar = false, aoRecomecar }: Props) {
   const [estrelas, setEstrelas] = useState<number | null>(null);
   const [nps, setNps] = useState<number | null>(null);
   const [comentario, setComentario] = useState('');
@@ -64,7 +70,18 @@ export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false, comVolt
               ✓
             </div>
             <h2 id="titulo-avaliacao">Obrigado!</h2>
-            <p className="sub">Sua avaliação foi registrada. Pode fechar esta janela.</p>
+            {aoRecomecar ? (
+              <>
+                <p className="sub">Sua avaliação foi registrada. Quando tiver outra dúvida, é só começar outra conversa.</p>
+                <div className="acoes">
+                  <button className="enviar-avaliacao" type="button" onClick={aoRecomecar}>
+                    Começar outra conversa
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="sub">Sua avaliação foi registrada. Pode fechar esta janela.</p>
+            )}
           </div>
         ) : (
           <>

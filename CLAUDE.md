@@ -46,6 +46,7 @@ O público inclui gente idosa e com pouca prática no celular. Toda tela e todo 
 
 * **Copiar o que a pessoa já conhece antes de inventar.** O chat imita o WhatsApp de propósito: quem sabe usar um sabe usar o outro. Controle que não existe no WhatsApp precisa de um motivo forte, e controle ligado a uma mensagem fica dentro do balão dela, ou colado nele e no mesmo estilo, nunca solto embaixo.
 * **Voz segue o fluxo do WhatsApp.** Quem manda áudio vê o próprio balão de áudio, com a transcrição, e recebe a resposta em áudio, com o texto junto. Quem escreve recebe texto.
+* **Recado à pessoa é mensagem do assistente na conversa,** onde ela já está olhando: microfone recusado, áudio que não deu para entender, voz que acabou. Faixa no canto da tela parece erro do aparelho e passa despercebida.
 * **Um som por vez.** Tocar um áudio para o que estiver tocando, e gravar ou ditar cala tudo. Todo som novo (tocador, amostra, leitura em voz alta) toma a vez em [pwa/src/lib/som-unico.ts](pwa/src/lib/som-unico.ts).
 * **Ajuda que depende de a pessoa achar um convite não chega a quem mais precisa dela.** A demonstração de como usar abre sozinha na primeira vez, com Pular sempre à vista, e continua disponível no menu. A caixa de explicação fica ao lado do que explica, aponta para ele sem cobri-lo, tem o visual do próprio app, frase curta e botões de 44 px.
 

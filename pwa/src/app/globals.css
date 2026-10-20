@@ -896,6 +896,18 @@ button {
   font-weight: 600;
 }
 
+/* Staging, conversa encerrada: no lugar do campo desligado, o caminho para
+   começar outra. */
+.recomecar {
+  flex: 1;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 23px;
+  background: var(--acento);
+  color: var(--acento-texto);
+  font-weight: 600;
+}
+
 /* Recado passageiro acima do campo: microfone recusado, envio que não foi.
    Fica FORA da conversa de propósito: é assunto entre a pessoa e o aparelho,
    não uma fala do assistente, e não tem por que entrar na transcrição. */
