@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, Mic } from "lucide-react";
 import { Fragment, useState, type ReactNode } from "react";
 
 import { GateShell } from "@/components/gate";
@@ -177,8 +177,24 @@ function Balao({
   aoEscolher: () => void;
 }) {
   const doBot = mensagem.papel === "bot";
+  // Quem revisa precisa saber que o texto é a transcrição de uma fala: um erro
+  // de grafia ali pode ser da transcrição, e não da pessoa.
+  const segundos = mensagem.audio?.duracaoSegundos ?? 0;
+  const fala = doBot
+    ? null
+    : mensagem.audio
+      ? `Áudio de ${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}, transcrito pela IA`
+      : mensagem.origem === "voz"
+        ? "Ditada no microfone"
+        : null;
   const conteudo = (
     <>
+      {fala && (
+        <span className="mb-0.5 flex items-center gap-1 text-xs text-chat-fraco">
+          <Mic className="size-3.5" aria-hidden="true" />
+          {fala}
+        </span>
+      )}
       <span className="whitespace-pre-wrap break-words">{formatarComoNoChat(mensagem.texto)}</span>
       <span className="mt-0.5 block text-right text-xs text-chat-fraco">{hora(mensagem.em)}</span>
     </>
@@ -231,6 +247,14 @@ function MarcasDaResposta({ mensagem }: { mensagem: MensagemConversa }) {
   if (lenta)
     marcas.push(
       <Selo tom="atencao">{((mensagem.latenciaMs ?? 0) / 1000).toFixed(0)} s para responder</Selo>,
+    );
+  // A resposta a um áudio vai como áudio; a voz natural, quando foi usada, é
+  // o registro do acionamento da IA que falou.
+  if (mensagem.respostaEmAudio)
+    marcas.push(
+      <Selo>
+        Respondida em áudio{mensagem.vozGerada ? `, voz natural ${mensagem.vozGerada.voz}` : ""}
+      </Selo>,
     );
   if (mensagem.feedback === "up") marcas.push(<Selo tom="sucesso">Avaliada como boa</Selo>);
   if (mensagem.feedback === "down") marcas.push(<Selo tom="erro">Avaliada como ruim</Selo>);
