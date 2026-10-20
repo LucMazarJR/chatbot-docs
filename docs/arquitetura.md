@@ -248,6 +248,30 @@ Dados → Montar reescrita → Reescrever pergunta → Consultas → Precisa bus
 - **Se a reserva também falhar** (prazo, cota, JSON quebrado), a busca usa o texto original, que é o comportamento sem reescrita. O pior caso é de 18 s antes da busca.
 - O agente recebe a pergunta original e a entendida. A mensagem guarda a pergunta entendida, as consultas e o tempo da reescrita, e o painel mostra isso nos bastidores da resposta.
 
+**A busca nunca é pulada, e a resposta nunca sai sem ela.** A busca tenta duas vezes. Se falhar em todas as consultas, o fluxo manda na hora a mensagem de indisponível, com o motivo "a busca na base falhou", em vez de deixar o modelo responder sem trechos. Antes, a falha parava a execução, e a pessoa esperava os 4 minutos do teto do PWA. A única pergunta que não busca é a saudação, de propósito.
+
+**Dois modos de espera da resposta, escolhidos pela pessoa** em Minha conta (o PWA manda `limiteDeTempo`, e a mensagem guarda `comLimiteDeTempo`):
+
+```
+Montar contexto → A busca funcionou? ─ não → Responder com indisponibilidade
+                         │ sim
+                  Com limite de tempo? ─ não → AI Agent (o de sempre, sem prazo)
+                         │ sim
+   Montar resposta → Gerar resposta → Ler resposta → Respondeu? → Responder
+                      (3.1-flash-lite, 20 s)
+                         │ falhou
+                      Gerar resposta (reserva) (3.5-flash-lite, 20 s)
+                         │ falhou
+                      Gerar resposta (última reserva) (3.5-flash, 25 s)
+                         │ falhou
+                      Responder com indisponibilidade ("nenhum modelo respondeu no prazo")
+```
+
+- **Sem limite** é o agente de sempre. Ele não tem prazo: o nó de modelo de chat do n8n não aceita, e a biblioteca por baixo dele refaz a chamada sozinha a cada recusa do Gemini, esperando mais a cada vez. Com o Gemini congestionado, uma resposta levou 91 s só na reserva.
+- **Com limite** faz o mesmo pedido em chamadas diretas, com prazo em cada modelo. As instruções são lidas do próprio nó do agente (`$('AI Agent').params`), para não existir uma segunda cópia. A pergunta com os trechos é a mesma que o agente recebe, e o [testar-codigo-staging.mjs](../n8n/testar-codigo-staging.mjs) confere as duas. A conversa vem do histórico que o PWA manda (8 mensagens, as 4 trocas que a memória do agente guarda), e não do Redis, que só o agente usa.
+- O pior caso com limite é de uns 90 s: 18 s da reescrita, a busca e 65 s dos três modelos. Com o Gemini normal, a resposta chega em 15 a 25 s nos dois modos.
+- A mensagem registra o modelo que respondeu e, na falha, o motivo (`motivoErro`), e o painel mostra o modo em cada resposta.
+
 **Medição.** O [n8n/testar-conversas.mjs](../n8n/testar-conversas.mjs) roda conversas inteiras, turno a turno, nos dois fluxos e fora do n8n. Ele tira de cada arquivo de fluxo o prompt, os parâmetros da busca e o código dos nós, e confere cada resposta contra um gabarito de FAQs esperadas. Resposta dada não conta como acerto: um juiz compara a resposta com a FAQ certa de cada parte da pergunta, e o resumo separa a resposta certa, a parcial, a de FAQ errada, o "não encontrei" indevido e o "não encontrei" correto. O gabarito aponta para conversas reais e fica só na máquina de quem testa. Como usar: [prototipo-pwa.md](prototipo-pwa.md#testar-antes-de-mexer-no-staging). O teste dos nós de código fica em [n8n/testar-codigo-staging.mjs](../n8n/testar-codigo-staging.mjs).
 
 As regras do prompt da reescrita vêm das primeiras medições. Num dia de perguntas reais, as 9 que não traziam nenhum trecho passaram a trazer, sem perda nas respondidas de controle. Mas siglas viravam nomes inventados ("NGA" virou "Núcleo de Gestão Assistencial"), e uma consulta geral vaga ("unidades de saúde em Franca") trazia FAQ de outro assunto com 0,89, que é o caminho para o erro do "15 dias" descrito acima.
