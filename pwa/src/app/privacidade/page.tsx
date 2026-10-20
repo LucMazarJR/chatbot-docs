@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { VoltarParaConversa } from '@/components/VoltarParaConversa';
 import { diasDeRetencao } from '@/lib/db';
 
 // Dinâmica, e não gerada no build: o prazo e o contato vêm do ambiente em que o
@@ -25,18 +26,33 @@ export const metadata: Metadata = {
  * do órgão) não aparece aqui como se estivesse resolvido: está listado em
  * docs/privacidade-e-lgpd.md.
  */
-export default function Privacidade() {
+export default async function Privacidade({
+  searchParams,
+}: {
+  searchParams: Promise<{ de?: string }>;
+}) {
   const dias = diasDeRetencao();
   const contato = process.env.PWA_CONTATO_PRIVACIDADE?.trim();
+  // A página é a mesma para os dois chats. Aberta do staging, o voltar leva
+  // de volta a ele, e não ao chat do `/`, que pediria o aceite de novo.
+  const doStaging = (await searchParams).de === 'staging';
 
   return (
     <div className="privacidade">
       <header className="privacidade-topo">
-        <Link href="/" aria-label="Voltar para a conversa">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2Z" />
-          </svg>
-        </Link>
+        {doStaging ? (
+          <VoltarParaConversa rotulo="Voltar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2Z" />
+            </svg>
+          </VoltarParaConversa>
+        ) : (
+          <Link href="/" aria-label="Voltar para a conversa">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2Z" />
+            </svg>
+          </Link>
+        )}
         <h1>Como tratamos seus dados</h1>
       </header>
 
@@ -229,7 +245,11 @@ export default function Privacidade() {
         </section>
 
         <p className="privacidade-voltar">
-          <Link href="/">Voltar para a conversa</Link>
+          {doStaging ? (
+            <VoltarParaConversa>Voltar</VoltarParaConversa>
+          ) : (
+            <Link href="/">Voltar para a conversa</Link>
+          )}
         </p>
       </main>
     </div>
