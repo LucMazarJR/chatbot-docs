@@ -235,13 +235,17 @@ O fluxo de staging faz a condensação, e aproveita a chamada para atacar mais d
 ```
 Dados → Montar reescrita → Reescrever pergunta → Consultas → Precisa buscar? → Buscar FAQs → Montar contexto → AI Agent
          (Code: prompt       (HTTP ao Gemini,      (Code: 1 item                      (uma busca
-          + 4 mensagens)      8 s de prazo)         por consulta)                      por consulta)
+          + 4 mensagens)      9 s de prazo)         por consulta)                      por consulta)
+                                    │ falhou            ▲
+                                    └→ Reescrever pergunta (reserva) ┘
+                                       (outro modelo, 9 s de prazo)
 ```
 
 - Um modelo pequeno (`gemini-3.1-flash-lite`, credencial **Gemini Reescrita**, chave própria) recebe a pergunta e as últimas 4 mensagens, que o PWA manda junto, e devolve a **pergunta completa** e de 1 a 3 **consultas**: a específica e uma geral do mesmo assunto ("onde tomo a BCG" gera também "Onde tomo as vacinas de rotina?").
 - Cada consulta é uma busca. Os trechos entram por **rodízio** (o melhor de cada consulta primeiro), sem FAQ repetida, até 10, e cada consulta extra entra com no máximo 3. O corte continua 0,82.
 - **Saudação pula a busca** e economiza o embedding. Fora de escopo ainda busca: um modelo pequeno pode confundir pergunta de profissional com assunto de fora.
-- **Se a reescrita falhar** (prazo, cota, JSON quebrado), a busca usa o texto original, que é o comportamento sem reescrita.
+- **Se o modelo principal falhar**, a falha sai pela saída de erro do nó para a reserva, `gemini-3.5-flash-lite`, pela mesma chave. Tentar de novo o mesmo modelo não adiantava: a falha é quase sempre sobrecarga dele ("high demand", 503), que não passa em um segundo.
+- **Se a reserva também falhar** (prazo, cota, JSON quebrado), a busca usa o texto original, que é o comportamento sem reescrita. O pior caso é de 18 s antes da busca.
 - O agente recebe a pergunta original e a entendida. A mensagem guarda a pergunta entendida, as consultas e o tempo da reescrita, e o painel mostra isso nos bastidores da resposta.
 
 **Medição.** O [n8n/testar-conversas.mjs](../n8n/testar-conversas.mjs) roda conversas inteiras, turno a turno, nos dois fluxos e fora do n8n. Ele tira de cada arquivo de fluxo o prompt, os parâmetros da busca e o código dos nós, e confere cada resposta contra um gabarito de FAQs esperadas. Resposta dada não conta como acerto: um juiz compara a resposta com a FAQ certa de cada parte da pergunta, e o resumo separa a resposta certa, a parcial, a de FAQ errada, o "não encontrei" indevido e o "não encontrei" correto. O gabarito aponta para conversas reais e fica só na máquina de quem testa. Como usar: [prototipo-pwa.md](prototipo-pwa.md#testar-antes-de-mexer-no-staging). O teste dos nós de código fica em [n8n/testar-codigo-staging.mjs](../n8n/testar-codigo-staging.mjs).
