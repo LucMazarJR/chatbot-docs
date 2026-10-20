@@ -111,6 +111,8 @@ export async function POST(requisicao: Request) {
         ...camposDaReescrita(corpo),
         ...(partes ? { partes, partesSemResposta } : {}),
       },
+      // A etapa só serve à espera: com a resposta pronta, ela sai.
+      $unset: { etapa: '' },
     },
   );
 

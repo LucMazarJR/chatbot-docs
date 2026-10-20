@@ -10,6 +10,7 @@
  * em `back/src/conversas/schemas/`. Este arquivo continua sendo o dono do
  * formato: mudar um campo aqui exige mudar lá na mesma alteração.
  */
+import type { EtapaDaResposta } from './etapas-da-resposta';
 import type { ParteDaResposta } from './partes-da-resposta';
 
 /** Um trecho recuperado da busca vetorial, com o veredito do filtro de score. */
@@ -121,6 +122,12 @@ export type Mensagem = {
    * minutos sem nenhuma requisição ficar aberta esperando.
    */
   pendente?: boolean;
+
+  /**
+   * Staging: em que etapa a resposta pendente está, avisada pelo fluxo (lendo
+   * a pergunta, procurando na base, escrevendo). Sai quando a resposta chega.
+   */
+  etapa?: EtapaDaResposta;
 
   /** Ausente em mensagem de texto, que é o caso comum. */
   tipo?: TipoAnexo;

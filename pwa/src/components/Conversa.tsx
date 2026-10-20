@@ -36,6 +36,7 @@ import { useVozIa, type RecusaDaVoz } from '@/lib/usar-voz-ia';
 import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
 import { marcarChatNaHistoria } from '@/lib/navegacao';
 import { lerLimiteDeTempo } from '@/lib/limite-de-tempo';
+import { TEXTO_DA_ETAPA, type EtapaDaResposta } from '@/lib/etapas-da-resposta';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
@@ -345,6 +346,8 @@ export function Conversa({
   const vozIa = useVozIa(comVoz);
   /** Um áudio está sendo transcrito: nada mais sai até ele virar pergunta. */
   const [transcrevendo, setTranscrevendo] = useState(false);
+  /** Staging: em que etapa está a resposta que está sendo esperada. */
+  const [etapa, setEtapa] = useState<EtapaDaResposta | null>(null);
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
@@ -712,13 +715,17 @@ export function Conversa({
     }
     perguntasRef.current += 1;
     setDigitando(true);
+    // A primeira etapa começa assim que a pergunta sai; as próximas vêm do fluxo.
+    if (comConta) setEtapa('entendendo');
 
     // Passado um tempo sem resposta, avisa que ainda está trabalhando. Ficar
     // olhando três pontinhos por minutos sem explicação é o que faz alguém
     // fechar a aba, e aí a conversa e a avaliação se perdem junto.
     const iniciouEm = Date.now();
-    const avisos = AVISOS_DE_DEMORA.map(({ ms, texto }) =>
-      setTimeout(() => adicionarBot(texto, null), ms),
+    // Staging: o recado dos 20 s sai, porque o balão já diz a etapa ao vivo; o
+    // dos 60 s fica, para dizer que não precisa reenviar.
+    const avisos = (comConta ? AVISOS_DE_DEMORA.filter((aviso) => aviso.ms >= 60_000) : AVISOS_DE_DEMORA).map(
+      ({ ms, texto }) => setTimeout(() => adicionarBot(texto, null), ms),
     );
 
     const porVoz = veioDaVozRef.current;
@@ -764,7 +771,7 @@ export function Conversa({
         return;
       }
 
-      const pronta = await aguardarResposta(aceite.mensagemId);
+      const pronta = await aguardarResposta(aceite.mensagemId, comConta ? setEtapa : undefined);
       adicionarBot(
         textoDaFalha(pronta.causa) ?? pronta.resposta,
         pronta.erro ? null : aceite.mensagemId,
@@ -788,6 +795,7 @@ export function Conversa({
     } finally {
       avisos.forEach(clearTimeout);
       setDigitando(false);
+      setEtapa(null);
       reiniciarInatividade();
     }
   }
@@ -1069,10 +1077,14 @@ export function Conversa({
                 precisa saber, porque aqui ela dura dezenas de segundos. */}
             <span role="status">
               {digitando
-                ? 'digitando…'
-                : encerrada
-                  ? 'conversa encerrada'
-                  : 'online'}
+                ? comConta && etapa
+                  ? `${TEXTO_DA_ETAPA[etapa].toLowerCase()}…`
+                  : 'digitando…'
+                : comConta && transcrevendo
+                  ? 'ouvindo seu áudio…'
+                  : encerrada
+                    ? 'conversa encerrada'
+                    : 'online'}
             </span>
           </div>
 
@@ -1288,7 +1300,7 @@ export function Conversa({
             );
           })}
 
-          {digitando && <Digitando />}
+          {digitando && <Digitando etapa={comConta ? etapa : null} />}
 
           {/* `alert` e não `log`: o serviço fora do ar interrompe o que a pessoa
               veio fazer, e precisa ser dito na hora, não na vez dela. */}
