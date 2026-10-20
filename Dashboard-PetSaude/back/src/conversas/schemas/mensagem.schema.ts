@@ -125,6 +125,13 @@ export class Mensagem {
     @Prop({ type: Date, default: undefined })
     ouvidaNoCelularEm?: Date;
 
+    /**
+     * Staging: o modo de espera escolhido para esta resposta. Com limite, cada
+     * modelo tem prazo; sem, o agente espera o quanto o Gemini precisar.
+     */
+    @Prop({ type: Boolean, default: undefined })
+    comLimiteDeTempo?: boolean;
+
     // Daqui para baixo, só nas mensagens do bot.
 
     @Prop()
