@@ -34,7 +34,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
   const col = await mensagens();
   const mensagem = await col.findOne(
     { _id: id },
-    { projection: { texto: 1, em: 1, pendente: 1, erro: 1 } },
+    { projection: { texto: 1, em: 1, pendente: 1, erro: 1, etapa: 1 } },
   );
 
   if (!mensagem) return Response.json({ erro: 'mensagem não encontrada' }, { status: 404 });
@@ -43,7 +43,8 @@ export async function GET(requisicao: Request, { params }: Contexto) {
     const esperando = Date.now() - new Date(mensagem.em).getTime();
 
     if (esperando < MS_ATE_DESISTIR) {
-      return Response.json({ pendente: true, esperandoMs: esperando });
+      // A etapa só existe no staging, que tem o fluxo que avisa.
+      return Response.json({ pendente: true, esperandoMs: esperando, etapa: mensagem.etapa ?? null });
     }
 
     await col.updateOne(

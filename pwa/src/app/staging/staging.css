@@ -35,6 +35,16 @@
   font-weight: inherit;
 }
 
+/* A etapa da resposta no cabeçalho ("procurando a informação…") é mais longa
+   que "digitando…": com a letra no máximo, ela corta com reticências em vez de
+   empurrar o botão do menu para fora. */
+.st .topo-nome span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Amarelo de aviso de sistema: diz, sem assustar, que isto não é o app final.
    Leva também quem está logado e a saída, porque é a única barra que aparece em
    toda tela do staging, inclusive no chat, que ocupa a altura inteira. */
