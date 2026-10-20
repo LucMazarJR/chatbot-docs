@@ -107,7 +107,7 @@ Este arquivo guarda só regra de trabalho. O estado do momento (o que está publ
 ```powershell
 # PWA
 cd pwa; npm test; npx tsc --noEmit
-docker compose up -d --build pwa        # recriar, para variável nova valer
+docker compose up -d --no-deps --build pwa   # recriar, para variável nova valer; sem --no-deps, o n8n sobe junto
 
 # Dashboard (repositório próprio, dentro desta pasta)
 cd Dashboard-PetSaude/back;  npx jest; npx tsc --noEmit -p tsconfig.json
