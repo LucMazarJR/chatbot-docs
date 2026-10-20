@@ -8,12 +8,18 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import { avaliarExpressao } from './lib/fluxo.mjs';
+
 const fluxo = JSON.parse(fs.readFileSync(new URL('./pwa-chatbot-staging.json', import.meta.url), 'utf8'));
 const codigo = (nome) => fluxo.nodes.find((n) => n.name === nome).parameters.jsCode;
 
-/** Roda o jsCode de um nó com `$('Nó')` e `$input` simulados. */
+/** Roda o jsCode de um nó com `$('Nó')` e `$input` simulados. `params` são os parâmetros do nó no arquivo. */
 function rodar(nome, { nos = {}, entrada = [] }) {
-  const $ = (outro) => ({ first: () => ({ json: nos[outro] }), all: () => [{ json: nos[outro] }] });
+  const $ = (outro) => ({
+    first: () => ({ json: nos[outro] }),
+    all: () => [{ json: nos[outro] }],
+    params: fluxo.nodes.find((n) => n.name === outro)?.parameters,
+  });
   const $input = { first: () => entrada[0], all: () => entrada };
   return new Function('$', '$input', codigo(nome))($, $input);
 }
@@ -124,6 +130,72 @@ const trecho = (indiceConsulta, id, score) => ({
   assert.equal(saida.json.TemContexto, false);
   assert.equal(saida.json.TrechosDebug.length, 0);
   console.log('ok: sem busca, o agente recebe contexto vazio');
+}
+
+{
+  // A busca falhou em todas as consultas: o item de erro não vira trecho, e o
+  // fluxo sabe que precisa avisar a pessoa, e não responder sem a base.
+  // É a forma que o n8n entrega quando a busca falha: a própria consulta, sem
+  // trecho e sem campo de erro. Testar com `{ error }` deixou passar a falha.
+  const erro = (indice) => ({ json: { ...consultasDados, TextoBusca: 'x', PularBusca: false, IndiceConsulta: indice }, pairedItem: { item: indice } });
+  const [saida] = rodar('Montar contexto', { nos: { Consultas: consultasDados }, entrada: [erro(0), erro(1)] });
+  assert.equal(saida.json.BuscaFalhou, true);
+  assert.equal(saida.json.TemContexto, false);
+  assert.equal(saida.json.TrechosDebug.length, 0, 'o erro não entra nos bastidores como trecho');
+  console.log('ok: busca que falhou em todas as consultas é marcada');
+}
+{
+  const [saida] = rodar('Montar contexto', {
+    nos: { Consultas: consultasDados },
+    entrada: [{ json: { ...consultasDados, TextoBusca: 'x', PularBusca: false }, pairedItem: { item: 0 } }, trecho(1, 'geral', 0.9)],
+  });
+  assert.equal(saida.json.BuscaFalhou, false);
+  assert.deepEqual(saida.json.TrechosDebug.map((t) => t.faqId), ['geral']);
+  console.log('ok: uma consulta que falha não derruba as outras');
+}
+
+// --- Modo com limite de tempo ------------------------------------------------------
+const agente = fluxo.nodes.find((n) => n.name === 'AI Agent').parameters;
+const contextoPronto = {
+  ...consultasDados,
+  TextoMensagem: 'e lá?',
+  PerguntaCompleta: 'Qual o horário da UPA Aeroporto?',
+  TemContexto: true,
+  ContextoFaq: '[Trecho 1]\nAbre 24 horas.',
+};
+{
+  const historico = [
+    { papel: 'bot', texto: 'sobra do começo' },
+    { papel: 'user', texto: 'onde fica a UPA Aeroporto?' },
+    { papel: 'bot', texto: 'Na Avenida X.' },
+  ];
+  const [saida] = rodar('Montar resposta', {
+    entrada: [{ json: { ...contextoPronto, Historico: JSON.stringify(historico) } }],
+  });
+  const { systemInstruction, contents } = saida.json.corpo;
+  assert.equal(systemInstruction.parts[0].text, agente.options.systemMessage, 'as instruções são as do agente');
+  assert.deepEqual(contents.map((c) => c.role), ['user', 'model', 'user'], 'começa pela pessoa e alterna');
+  assert.equal(contents[2].parts[0].text, avaliarExpressao(agente.text, contextoPronto), 'a pergunta é a mesma que o agente recebe');
+  console.log('ok: o pedido com limite de tempo é o mesmo do agente');
+}
+{
+  // A pergunta anterior ficou sem resposta: as duas falas da pessoa viram uma.
+  const historico = [{ papel: 'user', texto: 'oi?' }];
+  const [saida] = rodar('Montar resposta', { entrada: [{ json: { ...contextoPronto, Historico: JSON.stringify(historico) } }] });
+  const { contents } = saida.json.corpo;
+  assert.equal(contents.length, 1);
+  assert.ok(contents[0].parts[0].text.startsWith('oi?\n\nPergunta do cidadão:'));
+  console.log('ok: falas seguidas da pessoa viram uma só');
+}
+{
+  const [saida] = rodar('Ler resposta', {
+    entrada: [{ json: { modelVersion: 'gemini-3.5-flash', candidates: [{ content: { parts: [{ text: 'pensando', thought: true }, { text: 'Abre 24 horas.' }] } }] } }],
+  });
+  assert.equal(saida.json.output, 'Abre 24 horas.');
+  assert.equal(saida.json.modelo, 'models/gemini-3.5-flash');
+  const [vazia] = rodar('Ler resposta', { entrada: [{ json: { candidates: [{ finishReason: 'SAFETY' }] } }] });
+  assert.equal(vazia.json.output, '', 'resposta bloqueada sai vazia, e o fluxo avisa a pessoa');
+  console.log('ok: a resposta lida é a do modelo, sem o raciocínio');
 }
 
 console.log('todos os testes passaram');
