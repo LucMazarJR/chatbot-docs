@@ -88,6 +88,8 @@ export type MensagemConversa = {
   vozGerada?: { modelo: string; voz: string; em: string };
   /** Staging: a última vez que a resposta tocou na voz do celular. */
   ouvidaNoCelularEm?: string;
+  /** Staging: o modo de espera da resposta (com prazo em cada modelo, ou sem). */
+  comLimiteDeTempo?: boolean;
 };
 
 export type ConversaResumida = {

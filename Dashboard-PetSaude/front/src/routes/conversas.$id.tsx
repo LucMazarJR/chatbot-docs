@@ -260,6 +260,9 @@ function MarcasDaResposta({ mensagem }: { mensagem: MensagemConversa }) {
   if (mensagem.respostaEmAudio)
     marcas.push(<Selo>Respondida em áudio{vozes ? `, ${vozes}` : ""}</Selo>);
   else if (vozes) marcas.push(<Selo>Ouvida com {vozes}</Selo>);
+  // O modo de espera, para comparar tempo e falha entre os dois.
+  if (mensagem.comLimiteDeTempo !== undefined)
+    marcas.push(<Selo>{mensagem.comLimiteDeTempo ? "Com limite de tempo" : "Sem limite de tempo"}</Selo>);
   if (mensagem.feedback === "up") marcas.push(<Selo tom="sucesso">Avaliada como boa</Selo>);
   if (mensagem.feedback === "down") marcas.push(<Selo tom="erro">Avaliada como ruim</Selo>);
   if (marcas.length === 0 && !mensagem.feedbackComentario) return null;
