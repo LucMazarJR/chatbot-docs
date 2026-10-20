@@ -10,16 +10,18 @@
  * teto de 4 minutos do servidor; com o Gemini congestionado, uma resposta
  * chegou a levar quase 2 minutos.
  *
- * Com limite é o padrão: é o modo que resolve a espera longa, e quem quiser
+ * Sem limite é o padrão enquanto o grupo valida a reescrita e mede quanto cada
+ * etapa demora de verdade: com limite, as etapas lentas seriam cortadas antes
+ * de terminar, e a medição mostraria o prazo, e não o tempo real. Quem quiser
  * comparar troca. Fica no aparelho, como as outras escolhas do staging.
  */
 const CHAVE = 'pwa:limite-de-tempo';
 
 export function lerLimiteDeTempo(): boolean {
   try {
-    return localStorage.getItem(CHAVE) !== 'sem';
+    return localStorage.getItem(CHAVE) === 'com';
   } catch {
-    return true;
+    return false;
   }
 }
 
