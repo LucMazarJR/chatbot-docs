@@ -250,7 +250,15 @@ O `/` não muda em nada: continua anônimo, com o mesmo service worker e o mesmo
 
 Como funciona cada parte, e como medir se o push chega em cada tipo de celular: [contas-de-usuario.md](contas-de-usuario.md) e [notificacoes-push.md](notificacoes-push.md).
 
-O chat do staging tem ainda três coisas que o `/` não tem. Todas entram pelo componente de conversa de sempre, ligadas por props que só a página do staging passa.
+O chat do staging tem ainda várias coisas que o `/` não tem. Todas entram pelo componente de conversa de sempre, ligadas por props que só a página do staging passa.
+
+**Recados, começo e fim.**
+- O que a tela precisa dizer à pessoa (microfone recusado, áudio que não deu para entender, voz natural que acabou) chega como mensagem do assistente, e não como faixa acima do campo. Essas mensagens não vão para o banco.
+- O áudio que não foi entendido fica na conversa, e o assistente responde o que fazer.
+- A conversa abre com boas-vindas, com o primeiro nome da conta.
+- Encerrada, ela oferece **Começar outra conversa** na folha de agradecimento e no lugar do campo.
+- O voltar do celular fecha a camada aberta (menu, painel, folha) em vez de sair do app, e as páginas da conta voltam ao chat pelo histórico.
+- Um som por vez: tocar um áudio para o anterior, e gravar cala tudo.
 
 **Tutorial.** Na primeira conversa do aparelho, o passo a passo abre sozinho. Ele começou como convite na conversa ("Quer ver como usar?"), mas o convite passava despercebido justamente por quem tinha dificuldade. Quem já sabe usar sai num toque em **Pular**, que fica sempre à vista, ou com o Esc. O passo a passo acende, um de cada vez:
 - o campo de mensagem;
