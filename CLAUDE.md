@@ -100,7 +100,7 @@ Este arquivo guarda só regra de trabalho. O estado do momento (o que está publ
 * **O painel é a ferramenta de trabalho da equipe.** Mexer nele pede verificação antes do push.
 * Variável de ambiente nova nasce com padrão vazio e o sistema funciona sem ela, como o login do Google, que fica oculto enquanto não houver credencial.
 * Segredo não entra no código nem no log, e `.env` não vai para o repositório.
-* **Orçamento zero.** Recurso pago não entra. IA só no plano gratuito, com um teto diário próprio abaixo da cota, e quando o teto ou a cota acabam o recurso volta ao equivalente gratuito do aparelho e diz isso na tela. Todo recurso com IA tem um jeito de ligar e desligar. Chave de API nova vem de projeto sem cobrança ativada.
+* **Orçamento zero.** Recurso pago não entra. IA só no plano gratuito, com um teto diário próprio abaixo da cota, e quando o teto ou a cota acabam o recurso volta ao equivalente gratuito do aparelho e diz isso na tela. Todo recurso com IA tem, à escolha da pessoa, o equivalente do aparelho: é o jeito de desligar a IA e o que deixa o grupo comparar se ela vale o custo. Quando a cota acaba, a opção da IA fica bloqueada e a tela diz a hora em que ela volta, escrita, e não num tooltip, que não existe no celular. Chave de API nova vem de projeto sem cobrança ativada.
 
 ## Comandos
 

@@ -197,17 +197,21 @@ export default async function Privacidade({
               resposta certa. O que ele devolve fica registrado junto da mensagem.
             </li>
             <li>
-              Com a <b>voz por IA</b> ligada (em Acessibilidade), o <b>áudio que você grava</b> passa
-              pelo nosso servidor até o <b>Gemini</b>, que o transforma em texto. Guardamos só o
-              texto e a duração do áudio: o áudio não é gravado em lugar nenhum e não vai para os
+              Com <b>A IA entende o seu áudio</b> (em Letra e voz), o <b>áudio que você grava</b>{' '}
+              passa pelo nosso servidor até o <b>Gemini</b>, que o transforma em texto. Guardamos só
+              o texto e a duração do áudio: o áudio não é gravado em lugar nenhum e não vai para os
               registros do sistema. A gravação fica no seu aparelho só até você fechar a página.
-              Para <b>ouvir a resposta</b> com voz natural, o texto da resposta é enviado ao Gemini,
-              que devolve a fala; ela também não é guardada.
             </li>
             <li>
-              Com a voz por IA desligada, quem transforma a sua voz em texto é o serviço de voz do
+              Com <b>O celular escreve</b>, quem transforma a sua voz em texto é o serviço de voz do
               seu navegador (do Google no Chrome, da Apple no Safari), e nós recebemos só o texto,
-              se você enviar. As respostas são lidas pela voz do próprio aparelho, sem enviar nada.
+              se você enviar.
+            </li>
+            <li>
+              Para <b>ouvir a resposta</b> com uma voz natural, o texto da resposta é enviado ao
+              Gemini, que devolve a fala; ela também não é guardada. Com a voz <b>Do celular</b>, a
+              resposta é lida pelo próprio aparelho, sem enviar nada. Registramos qual das duas
+              tocou cada resposta, para comparar as vozes.
             </li>
             <li>
               Podemos usar esses dados porque você deu seu consentimento ao criar a conta. A conta fica
