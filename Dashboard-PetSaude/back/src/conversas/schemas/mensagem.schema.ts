@@ -94,9 +94,29 @@ export class Mensagem {
     @Prop({ type: String, default: undefined })
     tipo?: 'arquivo' | 'audio';
 
-    /** Staging: a pergunta foi ditada, e não digitada. O áudio nunca chega ao banco. */
+    /** Staging: a pergunta foi falada, e não digitada. O áudio nunca chega ao banco. */
     @Prop({ type: String, default: undefined })
     origem?: 'voz';
+
+    /**
+     * Staging, voz por IA: a pergunta chegou como áudio e foi transcrita pelo
+     * Gemini. Só a duração e o registro da transcrição; o áudio não é guardado.
+     */
+    @Prop({ type: Object, default: undefined })
+    audio?: {
+        duracaoSegundos: number;
+        transcritoPor: 'ia';
+        modelo?: string | null;
+        transcricaoMs?: number | null;
+    };
+
+    /** Staging: resposta a uma pergunta em áudio, entregue como áudio. */
+    @Prop({ type: Boolean, default: undefined })
+    respostaEmAudio?: boolean;
+
+    /** Staging: a última vez que a resposta foi falada com voz natural. */
+    @Prop({ type: Object, default: undefined })
+    vozGerada?: { modelo: string; voz: string; em: Date; caracteres: number; ms: number };
 
     // Daqui para baixo, só nas mensagens do bot.
 
