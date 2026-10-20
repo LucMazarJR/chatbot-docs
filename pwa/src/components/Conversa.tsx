@@ -183,7 +183,7 @@ const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
   {
     alvo: 'button[aria-label="Mais opções"]',
     titulo: 'Letra maior e outras opções',
-    texto: 'Neste menu você aumenta a letra, liga o contraste alto e encerra a conversa.',
+    texto: 'Neste menu você aumenta a letra, escolhe a voz e encerra a conversa.',
   },
   {
     alvo: null,
@@ -1076,6 +1076,10 @@ export function Conversa({
             Sobrou o nome verdadeiro. Relatar problema PONTUAL continua tendo
             caminho, e melhor: o 👎 sob cada resposta, que diz QUAL resposta
             falhou em vez de "a conversa foi ruim". */}
+        {/* Staging: cinco itens. Eram oito, com o Sair em três lugares, e
+            quem tem pouca prática lia a lista inteira antes de achar a letra
+            maior. Privacidade e apagar a conversa moram em Minha conta, e o
+            Sair na faixa do topo, presente em toda tela. O `/` não muda. */}
         {menuAberto && (
           <div className="menu" role="menu" aria-label="Opções da conversa">
             <button
@@ -1087,7 +1091,7 @@ export function Conversa({
                 setAjustando(true);
               }}
             >
-              Acessibilidade
+              {comVoz ? 'Letra e voz' : 'Acessibilidade'}
             </button>
             {comTutorial && (
               <button
@@ -1101,19 +1105,13 @@ export function Conversa({
                 Como usar
               </button>
             )}
+            {!comConta && (
+              <Link href="/privacidade" role="menuitem" onClick={() => setMenuAberto(false)}>
+                Privacidade
+              </Link>
+            )}
             {/* Com `replace` no staging: a página nova ocupa a entrada do menu
                 no histórico, e o voltar de lá cai direto no chat. */}
-            <Link
-              href={hrefPrivacidade}
-              role="menuitem"
-              replace={comConta}
-              onClick={() => {
-                camadaDoMenu.sair();
-                setMenuAberto(false);
-              }}
-            >
-              Privacidade
-            </Link>
             {itensDeMenu.map((item) => (
               <Link
                 key={item.href}
@@ -1128,23 +1126,6 @@ export function Conversa({
                 {item.rotulo}
               </Link>
             ))}
-            {/* Sair fica aqui, e não só dentro de "Minha conta": quem está num
-                aparelho emprestado precisa achar a saída de onde está, sem
-                atravessar outra tela. */}
-            {comConta && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuAberto(false);
-                  void fetch('/api/conta/sair', { method: 'POST' }).finally(() =>
-                    window.location.assign('/staging/entrar'),
-                  );
-                }}
-              >
-                Sair da conta
-              </button>
-            )}
             <div className="menu-divisor" />
             <button
               type="button"
@@ -1161,7 +1142,7 @@ export function Conversa({
                 volta. Some com a conversa encerrada porque, ao avaliar, a chave
                 da sessão já saiu do aparelho: o pedido passaria a falhar, e o
                 caminho certo é o contato da página de privacidade. */}
-            {!encerrada && sessaoId && (
+            {!comConta && !encerrada && sessaoId && (
               <button
                 type="button"
                 role="menuitem"
