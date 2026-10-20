@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 import { VoltarParaConversa } from '@/components/VoltarParaConversa';
 import type { ConversaResumida } from '@/lib/conta/conversas';
@@ -24,6 +25,32 @@ export function PainelConta({
   const [confirmando, setConfirmando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [lista, setLista] = useState(conversas);
+  /** A conversa cuja exclusão está sendo confirmada. */
+  const [apagandoId, setApagandoId] = useState<string | null>(null);
+  const [ocupadoConversa, setOcupadoConversa] = useState(false);
+  const [erroConversa, setErroConversa] = useState<string | null>(null);
+
+  /**
+   * Apagar uma conversa, inclusive as cópias da curadoria.
+   *
+   * Morava no menu do chat, e saiu de lá para o menu caber em cinco itens.
+   * Aqui fica perto de onde a pessoa vê as conversas, uma a uma.
+   */
+  async function apagarConversa(id: string) {
+    setOcupadoConversa(true);
+    setErroConversa(null);
+    try {
+      const resposta = await fetch(`/api/sessoes/${id}`, { method: 'DELETE' });
+      if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+      setLista((atual) => atual.filter((conversa) => conversa.id !== id));
+      setApagandoId(null);
+    } catch {
+      setErroConversa('Não consegui apagar agora. A conversa continua como estava: tente de novo.');
+    } finally {
+      setOcupadoConversa(false);
+    }
+  }
 
   async function sair() {
     setOcupado(true);
@@ -86,12 +113,12 @@ export function PainelConta({
 
       <section className="st-cartao">
         <h2>Suas conversas</h2>
-        {conversas.length === 0 ? (
+        {lista.length === 0 ? (
           <p className="st-dica">Nenhuma conversa ainda. As perguntas que você fizer aparecem aqui.</p>
         ) : (
           <ul className="st-lista-conversas">
-            {conversas.map((conversa) => (
-              <li key={conversa.id}>
+            {lista.map((conversa) => (
+              <li key={conversa.id} className="st-conversa">
                 <a href={conversa.encerrada ? `/staging/conversas/${conversa.id}` : '/staging'}>
                   <span className="st-conversa-pergunta">{conversa.primeiraPergunta}</span>
                   <span className="st-dica">
@@ -100,10 +127,59 @@ export function PainelConta({
                     {conversa.encerrada ? '' : ' · em andamento'}
                   </span>
                 </a>
+                {apagandoId === conversa.id ? (
+                  <div className="st-confirmar-conversa">
+                    <p>
+                      Apagar esta conversa? Ela sai daqui e das cópias que a equipe guardou.{' '}
+                      <strong>Não dá para desfazer.</strong>
+                    </p>
+                    {erroConversa && (
+                      <p className="st-erro" role="alert">
+                        {erroConversa}
+                      </p>
+                    )}
+                    <div className="st-acoes">
+                      <button
+                        type="button"
+                        className="st-botao st-botao-secundario"
+                        onClick={() => setApagandoId(null)}
+                        disabled={ocupadoConversa}
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        type="button"
+                        className="st-botao st-perigo"
+                        onClick={() => void apagarConversa(conversa.id)}
+                        disabled={ocupadoConversa}
+                      >
+                        {ocupadoConversa ? 'Apagando…' : 'Sim, apagar'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="st-apagar-conversa"
+                    aria-label={`Apagar a conversa: ${conversa.primeiraPergunta ?? dataCurta(conversa.iniciadaEm)}`}
+                    onClick={() => {
+                      setErroConversa(null);
+                      setApagandoId(conversa.id);
+                    }}
+                  >
+                    Apagar
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="st-cartao">
+        <h2>Privacidade</h2>
+        <p>O que fica registrado, por quanto tempo, e como pedir para apagar.</p>
+        <Link href="/privacidade?de=staging">Como tratamos seus dados</Link>
       </section>
 
       <section className="st-cartao st-zona-perigo">
