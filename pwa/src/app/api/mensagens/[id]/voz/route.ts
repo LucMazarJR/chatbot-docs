@@ -1,7 +1,7 @@
 import { mensagens } from '@/lib/db';
 import { dentroDoLimite } from '@/lib/limite';
 import { autenticarSessao } from '@/lib/sessao-autenticada';
-import { avisoDaFalha, falarComVozNatural } from '@/lib/voz-ia';
+import { avisoDaFalha, falarComVozNatural, JANELA_POR_PESSOA_MS, voltaEmDaRecusa } from '@/lib/voz-ia';
 import { vozDaLista } from '@/lib/vozes';
 
 export const dynamic = 'force-dynamic';
@@ -37,8 +37,11 @@ export async function GET(requisicao: Request, { params }: Contexto) {
     return Response.json({ erro: 'Esta mensagem não tem resposta para ouvir.' }, { status: 409 });
   }
 
-  if (!(await dentroDoLimite(`voz:falar:${mensagem.sessaoId}`, { janelaMs: 10 * 60 * 1000, maximo: 30 }))) {
-    return Response.json({ erro: avisoDaFalha('falha'), falha: 'falha' }, { status: 429 });
+  if (!(await dentroDoLimite(`voz:falar:${mensagem.sessaoId}`, { janelaMs: JANELA_POR_PESSOA_MS, maximo: 30 }))) {
+    return Response.json(
+      { erro: avisoDaFalha('pessoa'), falha: 'pessoa', voltaEm: voltaEmDaRecusa('pessoa')?.toISOString() },
+      { status: 429 },
+    );
   }
 
   const voz = vozDaLista(new URL(requisicao.url).searchParams.get('voz'));
@@ -46,7 +49,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
   if (!resultado.ok) {
     if (resultado.falha !== 'longa') console.error('voz natural do staging falhou', { falha: resultado.falha });
     return Response.json(
-      { erro: avisoDaFalha(resultado.falha), falha: resultado.falha },
+      { erro: avisoDaFalha(resultado.falha), falha: resultado.falha, voltaEm: voltaEmDaRecusa(resultado.falha)?.toISOString() },
       { status: resultado.falha === 'longa' ? 413 : 503 },
     );
   }
