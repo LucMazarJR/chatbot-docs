@@ -78,6 +78,14 @@ export type MensagemConversa = {
   /** As partes que ficaram sem resposta e foram para a curadoria. */
   partesSemResposta?: string[];
   analiseMs?: number | null;
+  /** Staging: a pergunta foi falada (ditado do navegador, ou áudio transcrito pela IA). */
+  origem?: "voz";
+  /** Staging, voz por IA: a pergunta chegou como áudio; o áudio em si não é guardado. */
+  audio?: { duracaoSegundos: number; transcritoPor: "ia"; modelo?: string | null };
+  /** Staging: a resposta foi entregue como áudio. */
+  respostaEmAudio?: boolean;
+  /** Staging: a última vez que a resposta foi falada com voz natural. */
+  vozGerada?: { modelo: string; voz: string; em: string };
 };
 
 export type ConversaResumida = {
