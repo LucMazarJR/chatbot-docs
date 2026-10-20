@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 
 import { useFocoPreso } from '@/lib/usar-foco-preso';
+import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
 
 type Props = {
   onEnviar: (avaliacao: {
@@ -20,6 +21,8 @@ type Props = {
    * conversa, e a pessoa parou de perguntar.
    */
   automatica?: boolean;
+  /** Staging: o voltar do celular fecha a folha, e não o app. */
+  comVoltar?: boolean;
 };
 
 /**
@@ -29,7 +32,7 @@ type Props = {
  * opcionais: cobrar resposta de quem só queria encerrar a conversa é a melhor
  * forma de não receber nenhuma.
  */
-export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false }: Props) {
+export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false, comVoltar = false }: Props) {
   const [estrelas, setEstrelas] = useState<number | null>(null);
   const [nps, setNps] = useState<number | null>(null);
   const [comentario, setComentario] = useState('');
@@ -38,6 +41,7 @@ export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false }: Props
   const folhaRef = useRef<HTMLDivElement>(null);
 
   useFocoPreso(folhaRef, onVoltar);
+  useVoltarFecha(true, onVoltar, comVoltar);
 
   async function enviar() {
     setEnviando(true);

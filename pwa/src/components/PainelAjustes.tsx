@@ -16,6 +16,7 @@ import {
   type Tema,
 } from '@/lib/preferencias';
 import { useFocoPreso } from '@/lib/usar-foco-preso';
+import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
 import {
   guardarAutomatica,
   guardarVelocidade,
@@ -214,8 +215,13 @@ export function PainelAjustes({
   aoFechar,
   comVoz = false,
   vozIa,
+  comVoltar = false,
+  hrefPrivacidade = '/privacidade',
 }: {
   aoFechar: () => void;
+  /** Staging: o voltar do celular fecha o painel, e não o app. */
+  comVoltar?: boolean;
+  hrefPrivacidade?: string;
   /** Staging: mostra a velocidade da voz e a leitura automática das respostas. */
   comVoz?: boolean;
   /** Staging: a voz por IA (ligar, desligar e escolher a voz), do gancho da conversa. */
@@ -230,6 +236,7 @@ export function PainelAjustes({
 
   const fechar = aoFechar;
   useFocoPreso(painelRef, fechar);
+  const camada = useVoltarFecha(true, fechar, comVoltar);
 
   const indice = ESCALAS.findIndex((e) => e.id === escala.id);
 
@@ -364,7 +371,9 @@ export function PainelAjustes({
               outra pessoa.
             </p>
             <p className="painel-sobre">
-              <Link href="/privacidade">Como tratamos seus dados</Link>
+              <Link href={hrefPrivacidade} replace={comVoltar} onClick={camada.sair}>
+                Como tratamos seus dados
+              </Link>
             </p>
           </section>
         </div>

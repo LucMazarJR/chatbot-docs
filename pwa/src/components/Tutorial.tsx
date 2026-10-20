@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 
 import { posicionarBalao, type Caixa } from '@/lib/posicao-do-balao';
 import { useFocoPreso } from '@/lib/usar-foco-preso';
+import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
 
 export type PassoDoTutorial = {
   /** Seletor do elemento real da tela que o passo mostra. Sem alvo, o balão fica no meio. */
@@ -33,9 +34,12 @@ const FOLGA = 6;
 export function Tutorial({
   passos,
   aoTerminar,
+  comVoltar = false,
 }: {
   passos: PassoDoTutorial[];
   aoTerminar: (motivo: 'visto' | 'pulado') => void;
+  /** Staging: o voltar do celular vale como Pular, e não sai do app. */
+  comVoltar?: boolean;
 }) {
   const [indice, setIndice] = useState(0);
   const [caixa, setCaixa] = useState<Caixa | null>(null);
@@ -47,6 +51,7 @@ export function Tutorial({
 
   const pular = useCallback(() => aoTerminar('pulado'), [aoTerminar]);
   useFocoPreso(balaoRef, pular);
+  useVoltarFecha(true, pular, comVoltar);
 
   // O teclado do celular aberto empurra a tela e o destaque ficaria fora do
   // lugar: o passo a passo começa com ele fechado.

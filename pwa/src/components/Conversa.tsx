@@ -32,6 +32,8 @@ import { AudioSemGravacao, TocadorDeAudio } from '@/components/TocadorDeAudio';
 import { falar, lerAutomatica } from '@/lib/leitura-em-voz';
 import { useDitado } from '@/lib/usar-ditado';
 import { useVozIa } from '@/lib/usar-voz-ia';
+import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
+import { marcarChatNaHistoria } from '@/lib/navegacao';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
@@ -260,6 +262,9 @@ export function Conversa({
   comVoz = false,
 }: PropsConversa) {
   const comConta = modo === 'conta';
+  // A página de privacidade é a mesma do `/`, e o voltar dela precisa saber
+  // para qual chat voltar.
+  const hrefPrivacidade = comConta ? '/privacidade?de=staging' : '/privacidade';
   const [sessaoId, setSessaoId] = useState<string | null>(null);
   const [falhaAoAbrir, setFalhaAoAbrir] = useState(false);
   // Quando a conversa começou, para o divisor dizer o dia certo numa conversa retomada.
@@ -319,6 +324,15 @@ export function Conversa({
   }, [itens, digitando]);
 
   // --- Menu do cabeçalho ---------------------------------------------------
+
+  // Staging: o voltar do celular fecha o menu, em vez de sair do app.
+  const camadaDoMenu = useVoltarFecha(menuAberto, () => setMenuAberto(false), comConta);
+
+  // As páginas do staging (conta, avisos) voltam para cá pelo histórico, e
+  // não abrindo o chat de novo por cima delas.
+  useEffect(() => {
+    if (comConta) marcarChatNaHistoria();
+  }, [comConta]);
 
   /**
    * Abrir o menu leva o foco para dentro dele; Esc fecha e devolve o foco.
@@ -1030,7 +1044,17 @@ export function Conversa({
                 Como usar
               </button>
             )}
-            <Link href="/privacidade" role="menuitem" onClick={() => setMenuAberto(false)}>
+            {/* Com `replace` no staging: a página nova ocupa a entrada do menu
+                no histórico, e o voltar de lá cai direto no chat. */}
+            <Link
+              href={hrefPrivacidade}
+              role="menuitem"
+              replace={comConta}
+              onClick={() => {
+                camadaDoMenu.sair();
+                setMenuAberto(false);
+              }}
+            >
               Privacidade
             </Link>
             {itensDeMenu.map((item) => (
@@ -1038,7 +1062,11 @@ export function Conversa({
                 key={item.href}
                 href={item.href}
                 role="menuitem"
-                onClick={() => setMenuAberto(false)}
+                replace={comConta}
+                onClick={() => {
+                  camadaDoMenu.sair();
+                  setMenuAberto(false);
+                }}
               >
                 {item.rotulo}
               </Link>
@@ -1114,7 +1142,7 @@ export function Conversa({
           <div className="aviso-chat">
             Este é um <b>protótipo em teste</b>. As mensagens são registradas para avaliarmos a
             qualidade das respostas. Por favor, <b>não informe dados pessoais</b> como CPF, cartão
-            do SUS ou endereço. <Link href="/privacidade">Como tratamos seus dados</Link>
+            do SUS ou endereço. <Link href={hrefPrivacidade}>Como tratamos seus dados</Link>
           </div>
 
           {/* Enquanto a conversa abre, a área ficava em branco: sem o pedido
@@ -1375,7 +1403,15 @@ export function Conversa({
         </footer>
       </section>
 
-      {ajustando && <PainelAjustes comVoz={comVoz} vozIa={vozIa} aoFechar={() => setAjustando(false)} />}
+      {ajustando && (
+        <PainelAjustes
+          comVoz={comVoz}
+          vozIa={vozIa}
+          comVoltar={comConta}
+          hrefPrivacidade={hrefPrivacidade}
+          aoFechar={() => setAjustando(false)}
+        />
+      )}
 
       {tutorialAberto && (
         <Tutorial
@@ -1386,6 +1422,7 @@ export function Conversa({
                 )
               : PASSOS_DO_TUTORIAL
           }
+          comVoltar={comConta}
           aoTerminar={(motivo) => {
             setTutorialAberto(false);
             registrarTutorial(motivo);
@@ -1397,6 +1434,7 @@ export function Conversa({
       {apagandoConversa && sessaoId && (
         <FolhaApagar
           sessaoId={sessaoId}
+          comVoltar={comConta}
           aoVoltar={() => setApagandoConversa(false)}
           // Com conta, a sessão não mora no aparelho, e o que mora lá é a
           // conversa anônima que a pessoa pode ter no `/`, que não é desta.
@@ -1407,6 +1445,7 @@ export function Conversa({
       {avaliando && (
         <FolhaAvaliacao
           automatica={avaliacaoAutomatica}
+          comVoltar={comConta}
           onEnviar={enviarAvaliacao}
           onVoltar={() => {
             setAvaliando(false);
