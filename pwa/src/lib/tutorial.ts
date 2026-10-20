@@ -1,9 +1,13 @@
 /**
  * O que a pessoa fez com o tutorial, e a lembrança disso no aparelho.
  *
- * A oferta aparece só na primeira conversa do aparelho: quem já viu, pulou ou
- * recusou não é perguntado de novo. O passo a passo continua no menu, em
- * "Como usar", para quem quiser rever.
+ * O passo a passo abre sozinho só na primeira conversa do aparelho: quem já
+ * viu ou pulou não o vê abrir de novo. Ele continua no menu, em "Como usar",
+ * para quem quiser rever.
+ *
+ * `recusado` e `ignorado` são do tempo em que ele era um convite na conversa.
+ * Continuam aceitos porque estão gravados em sessões antigas e no aparelho de
+ * quem respondeu ao convite, e o relatório do painel ainda os conta.
  */
 
 export const ESCOLHAS_DO_TUTORIAL = ['visto', 'pulado', 'recusado', 'ignorado'] as const;

@@ -125,38 +125,33 @@ function confirmacaoDoAceite(quando?: Date): Item {
 }
 
 /**
- * A oferta do tutorial, dentro da conversa.
+ * O passo a passo de como usar, que abre sozinho na primeira conversa do
+ * aparelho.
  *
- * LÓGICA DO LUCIANO: um convite, e não um tutorial que abre sozinho. Quem já
- * sabe usar WhatsApp perderia tempo com cinco passos, e a maioria sabe. Quem
- * não sabe toca em "Ver como usar". E quem ignora e já escreve a pergunta não
- * é interrompido: a oferta fica lá, e o menu tem "Como usar".
+ * LÓGICA DO LUCIANO: ele começou como convite dentro da conversa ("Quer ver
+ * como usar?"), para não fazer quem já sabe usar WhatsApp perder tempo. No
+ * staging, o convite passou despercebido justamente por quem mais precisava
+ * dele: quem tem dificuldade não lê a mensagem e não sabe que existe ajuda.
+ * Agora ele abre sozinho, uma vez por aparelho, e quem já sabe sai num toque
+ * em Pular, que fica sempre à vista. Continua no menu, em "Como usar".
+ *
+ * Os textos têm uma ou duas frases: é a leitura de quem tem mais dificuldade.
  */
-const OFERTA_DO_TUTORIAL = 'Quer ver em poucos passos como usar este chat? Se já sabe, é só perguntar.';
-
-const BOTOES_DO_TUTORIAL: BotaoRapido[] = [
-  { rotulo: 'Ver como usar', valor: 'ver' },
-  { rotulo: 'Já sei usar', valor: 'recusar' },
-];
-
 const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
   {
     alvo: '.barra-envio .campo',
     titulo: 'Onde escrever',
-    texto:
-      'Toque aqui e escreva sua dúvida do seu jeito, como numa conversa de WhatsApp. Não precisa escrever certinho.',
+    texto: 'Toque aqui e escreva sua dúvida do seu jeito, como no WhatsApp.',
   },
   {
     alvo: '.barra-envio .enviar',
     titulo: 'Como enviar',
-    texto:
-      'Depois de escrever, toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone.',
+    texto: 'Toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone.',
   },
   {
     alvo: null,
     titulo: 'Diga se a resposta ajudou',
-    texto:
-      'Embaixo de cada resposta aparecem dois botões. Toque no polegar para cima se ajudou, ou para baixo se não ajudou. É assim que a equipe descobre o que melhorar.',
+    texto: 'Embaixo de cada resposta, toque no polegar para cima se ajudou, ou para baixo se não ajudou.',
     exemplo: (
       <>
         <div className="amostra-balao">Para marcar consulta, procure a UBS mais perto de casa.</div>
@@ -179,7 +174,7 @@ const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
   {
     alvo: null,
     titulo: 'Pronto!',
-    texto: 'Pode perguntar. Se quiser ver este passo a passo de novo, ele fica no menu, em Como usar.',
+    texto: 'Pode perguntar. Este passo a passo fica no menu, em Como usar.',
   },
 ];
 
@@ -268,7 +263,7 @@ export function Conversa({
   /** Logo depois do aceite: o campo pisca em destaque para mostrar onde escrever. */
   const [destacarCampo, setDestacarCampo] = useState(false);
   const [tutorialAberto, setTutorialAberto] = useState(false);
-  const ofertaFeitaRef = useRef(false);
+  const aberturaDoTutorialRef = useRef(false);
   /** O texto do campo veio, ao menos em parte, do ditado. Vai junto da mensagem, para medir. */
   const veioDaVozRef = useRef(false);
   /** Recado passageiro acima do campo: microfone recusado, envio falhou. */
@@ -494,16 +489,15 @@ export function Conversa({
     }
   }
 
-  // A oferta do tutorial entra uma vez, quando a conversa abre, e só no
-  // primeiro uso do aparelho.
+  // O passo a passo abre sozinho quando a conversa está pronta para a
+  // primeira pergunta, e só no primeiro uso do aparelho. A espera curta deixa
+  // a tela terminar de montar: o destaque mede o campo e o botão de verdade.
   useEffect(() => {
-    if (!comTutorial || !sessaoId || ofertaFeitaRef.current || tutorialJaOferecido()) return;
-    ofertaFeitaRef.current = true;
-    setItens((atuais) => [
-      ...atuais,
-      { chave: 'tutorial-oferta', papel: 'bot', texto: OFERTA_DO_TUTORIAL, hora: horaAgora(), botoes: BOTOES_DO_TUTORIAL },
-    ]);
-  }, [comTutorial, sessaoId]);
+    if (!comTutorial || !sessaoId || !aceitou || aberturaDoTutorialRef.current || tutorialJaOferecido()) return;
+    aberturaDoTutorialRef.current = true;
+    const abrir = setTimeout(() => setTutorialAberto(true), 700);
+    return () => clearTimeout(abrir);
+  }, [comTutorial, sessaoId, aceitou]);
 
   /** Lembra no aparelho e grava na sessão o que a pessoa fez com o tutorial. */
   function registrarTutorial(escolha: EscolhaDoTutorial) {
@@ -541,15 +535,6 @@ export function Conversa({
 
   async function escolherBotao(item: Item, botao: BotaoRapido) {
     marcarEscolha(item.chave, botao.valor);
-
-    if (item.chave === 'tutorial-oferta') {
-      if (botao.valor === 'ver') setTutorialAberto(true);
-      else {
-        registrarTutorial('recusado');
-        campoRef.current?.focus();
-      }
-      return;
-    }
 
     if (!CHAVES_DE_ACEITE.includes(item.chave)) {
       // Sugestão de assunto: vale como pergunta digitada.
@@ -613,14 +598,6 @@ export function Conversa({
     // Esperar resposta não é estar parado. O relógio volta no `finally`,
     // quando a resposta chega.
     pararInatividade();
-
-    // Perguntou sem responder à oferta do tutorial: não precisa dele, e a
-    // oferta não volta nas próximas conversas.
-    const ofertaSemResposta = itens.find((item) => item.chave === 'tutorial-oferta' && !item.escolhido);
-    if (ofertaSemResposta) {
-      marcarEscolha('tutorial-oferta', 'ignorado');
-      registrarTutorial('ignorado');
-    }
 
     const chaveUsuario = crypto.randomUUID();
     setItens((atuais) => [
