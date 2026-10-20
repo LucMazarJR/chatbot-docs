@@ -27,7 +27,9 @@ function lista(valor: string | undefined, padrao: string[]): string[] {
   return itens.length ? itens : padrao;
 }
 
-export const MODELO_DE_TRANSCRICAO = () => process.env.VOZ_IA_MODELO_TRANSCRICAO?.trim() || 'gemini-3.1-flash-lite';
+/** Na ordem de preferência; o segundo entra quando o primeiro está sobrecarregado ou sem cota. */
+export const MODELOS_DE_TRANSCRICAO = () =>
+  lista(process.env.VOZ_IA_MODELO_TRANSCRICAO, ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite']);
 
 /** Na ordem de preferência: o lite primeiro, por ser o mais rápido. */
 export const MODELOS_DE_FALA = () =>
@@ -124,7 +126,7 @@ export async function situacaoDaVozIa(): Promise<{ audio: boolean; vozNatural: b
   if (!chavesDaVozIa().length) return { audio: false, vozNatural: false, motivo: 'sem-chave' };
   if (await tetoAtingido()) return { audio: false, vozNatural: false, motivo: 'esgotada' };
   const [paraOuvir, paraFalar] = await Promise.all([
-    combinacoes([MODELO_DE_TRANSCRICAO()]),
+    combinacoes(MODELOS_DE_TRANSCRICAO()),
     combinacoes(MODELOS_DE_FALA()),
   ]);
   const situacao = { audio: paraOuvir.length > 0, vozNatural: paraFalar.length > 0 };
@@ -152,19 +154,31 @@ export function cotaDoDia(corpo: unknown): boolean {
 type Resultado = { ok: true; dados: unknown; modelo: string } | { ok: false; falha: Falha };
 
 /**
- * Tenta cada combinação de chave e modelo, na ordem. Recusa por cota passa
- * para a próxima (cada chave e cada modelo têm cota própria); outro erro para
- * aqui, porque tentar as outras só faria a pessoa esperar mais.
+ * Tenta cada combinação de chave e modelo, na ordem, dentro de um prazo total.
+ *
+ * Recusa por cota passa para a próxima combinação: cada chave e cada modelo
+ * têm cota própria. Sobrecarga (5xx) ou demora passa para o próximo MODELO:
+ * o mesmo modelo por outra chave estaria igualmente sobrecarregado. Erro de
+ * pedido (4xx) para na hora, porque nenhuma outra combinação o resolveria.
+ * O prazo é do conjunto, e não de cada tentativa, para a função não passar do
+ * tempo máximo da plataforma.
  */
-async function chamarGemini(lista: Combinacao[], corpo: unknown, prazoMs: number): Promise<Resultado> {
+async function chamarGemini(lista: Combinacao[], corpo: unknown, prazoTotalMs: number): Promise<Resultado> {
+  const fim = Date.now() + prazoTotalMs;
+  const sobrecarregados = new Set<string>();
   let viuMinuto = false;
+  let viuSobrecarga = false;
+
   for (const combinacao of lista) {
+    if (sobrecarregados.has(combinacao.modelo)) continue;
+    const restante = fim - Date.now();
+    if (restante < 3000) break;
     try {
       const resposta = await fetch(`${API}/${combinacao.modelo}:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': combinacao.chave },
         body: JSON.stringify(corpo),
-        signal: AbortSignal.timeout(prazoMs),
+        signal: AbortSignal.timeout(restante),
         cache: 'no-store',
       });
       if (resposta.status === 429) {
@@ -172,6 +186,12 @@ async function chamarGemini(lista: Combinacao[], corpo: unknown, prazoMs: number
         console.error('Gemini recusou a voz por IA por cota', { modelo: combinacao.modelo, doDia });
         if (doDia) await marcarEsgotada(combinacao);
         else viuMinuto = true;
+        continue;
+      }
+      if (resposta.status >= 500) {
+        console.error('Gemini sobrecarregado na voz por IA', { modelo: combinacao.modelo, status: resposta.status });
+        sobrecarregados.add(combinacao.modelo);
+        viuSobrecarga = true;
         continue;
       }
       if (!resposta.ok) {
@@ -186,10 +206,11 @@ async function chamarGemini(lista: Combinacao[], corpo: unknown, prazoMs: number
         modelo: combinacao.modelo,
         erro: erro instanceof Error ? erro.name : 'desconhecido',
       });
-      return { ok: false, falha: 'falha' };
+      sobrecarregados.add(combinacao.modelo);
+      viuSobrecarga = true;
     }
   }
-  return { ok: false, falha: viuMinuto ? 'minuto' : 'cota' };
+  return { ok: false, falha: viuSobrecarga ? 'falha' : viuMinuto ? 'minuto' : 'cota' };
 }
 
 type PartesDoGemini = { candidates?: { content?: { parts?: { text?: string; inlineData?: { mimeType: string; data: string } }[] } }[] };
@@ -206,7 +227,7 @@ export type Transcricao =
 /** O texto falado no áudio. O áudio não é guardado nem registrado. */
 export async function transcrever(audio: Uint8Array, mime: string): Promise<Transcricao> {
   if (!chavesDaVozIa().length) return { ok: false, falha: 'sem-chave' };
-  const lista = await combinacoes([MODELO_DE_TRANSCRICAO()]);
+  const lista = await combinacoes(MODELOS_DE_TRANSCRICAO());
   if (!lista.length || !(await reservarChamada())) return { ok: false, falha: 'esgotada' };
 
   const inicio = Date.now();
@@ -223,9 +244,10 @@ export async function transcrever(audio: Uint8Array, mime: string): Promise<Tran
       ],
       generationConfig: { temperature: 0 },
     },
-    // A transcrição varia muito no plano gratuito: o mesmo áudio levou 2 s e,
-    // minutos depois, 16 s.
-    40_000,
+    // Prazo do conjunto de tentativas. A transcrição varia muito no plano
+    // gratuito (o mesmo áudio levou 2 s e, minutos depois, 16 s), e a rota tem
+    // 60 s no total.
+    50_000,
   );
   if (!resultado.ok) return { ok: false, falha: resultado.falha };
 
