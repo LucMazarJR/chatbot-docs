@@ -86,6 +86,8 @@ export type MensagemConversa = {
   respostaEmAudio?: boolean;
   /** Staging: a última vez que a resposta foi falada com voz natural. */
   vozGerada?: { modelo: string; voz: string; em: string };
+  /** Staging: a última vez que a resposta tocou na voz do celular. */
+  ouvidaNoCelularEm?: string;
 };
 
 export type ConversaResumida = {
