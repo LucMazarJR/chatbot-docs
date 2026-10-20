@@ -73,7 +73,14 @@ export function criarExecutor({ fluxo, triagem, analise, banco, cache }) {
   async function chamarNoHttp(nomeDoNo, corpo, etapa, cliente) {
     const no = fluxo.no(nomeDoNo);
     const modelo = /models\/([^:/]+):/.exec(no.parameters.url)[1];
-    const prazoMs = Number(no.parameters.options?.timeout) || 300_000;
+    // O prazo pode depender do modo de espera (uma expressão sobre o
+    // `LimiteDeTempo`). A medição roda o modo sem limite, o do agente.
+    const bruto = no.parameters.options?.timeout;
+    const semLimite = () => ({ first: () => ({ json: { LimiteDeTempo: false } }) });
+    const prazoMs =
+      typeof bruto === 'string' && bruto.startsWith('={{')
+        ? Number(new Function('$', `return (${bruto.slice(3, -2)});`)(semLimite))
+        : Number(bruto) || 300_000;
     const tentativasPorPrazo = no.retryOnFail ? Number(no.maxTries) || 3 : 1;
     const esperaPorPrazoMs = Number(no.waitBetweenTries) || 1000;
     let chamou = false;

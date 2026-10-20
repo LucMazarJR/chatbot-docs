@@ -389,7 +389,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.corpo) }}",
         "options": {
-          "timeout": 9000
+          "timeout": "={{ $('Dados').first().json.LimiteDeTempo ? 12000 : 30000 }}"
         }
       },
       "id": "d83f81df-f533-44a3-8f8c-1ebe80501181",
@@ -419,7 +419,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($('Montar reescrita').first().json.corpo) }}",
         "options": {
-          "timeout": 9000
+          "timeout": "={{ $('Dados').first().json.LimiteDeTempo ? 12000 : 30000 }}"
         }
       },
       "id": "eb111a3e-08c8-4432-bc63-f6ec2868e9f9",
@@ -441,7 +441,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Lê a reescrita e transforma cada consulta num item da busca.\n//\n// A entrada vem do modelo principal ou, quando ele falha, do de reserva. Se\n// os dois falharam (prazo de 9 s cada, cota, sobrecarga, JSON quebrado), a\n// busca segue com o texto original, que é o comportamento do fluxo sem\n// reescrita: uma etapa que existe para melhorar a busca não pode deixar o\n// cidadão sem resposta.\n//\n// Só a saudação pula a busca, e economiza o embedding. \"Fora de escopo\" ainda\n// busca: um modelo pequeno pode confundir pergunta de profissional de saúde com\n// assunto de fora, e aí a busca é a última chance de achar alguma coisa.\nconst dados = $('Montar reescrita').first().json;\nconst resposta = $input.first().json || {};\n\nlet lido = null;\ntry {\n  const partes = (resposta.candidates && resposta.candidates[0] && resposta.candidates[0].content && resposta.candidates[0].content.parts) || [];\n  lido = JSON.parse(partes.map((p) => p.text || '').join(''));\n} catch (erro) {\n  lido = null;\n}\n\nconst original = String(dados.TextoMensagem || '').trim();\nconst tipo = lido && ['pergunta', 'saudacao', 'fora_de_escopo'].includes(lido.tipo) ? lido.tipo : 'pergunta';\nconst perguntaCompleta =\n  lido && typeof lido.perguntaCompleta === 'string' && lido.perguntaCompleta.trim()\n    ? lido.perguntaCompleta.trim().slice(0, 400)\n    : original;\nlet consultas = lido && Array.isArray(lido.consultas)\n  ? lido.consultas.filter((c) => typeof c === 'string' && c.trim()).map((c) => c.trim().slice(0, 300))\n  : [];\nconsultas = [...new Set(consultas)].slice(0, 3);\nif (consultas.length === 0) consultas = [perguntaCompleta || original];\n\nconst { corpo, ...resto } = dados;\nconst base = {\n  ...resto,\n  Tipo: tipo,\n  PerguntaCompleta: perguntaCompleta,\n  Consultas: consultas,\n  ReescritaFalhou: !lido,\n  ReescritaMs: Date.now() - Number(dados.InicioReescrita || Date.now()),\n};\n\nif (tipo === 'saudacao') {\n  return [{ json: { ...base, PularBusca: true, TextoBusca: original, IndiceConsulta: 0 } }];\n}\nreturn consultas.map((consulta, indice) => ({\n  json: { ...base, PularBusca: false, TextoBusca: consulta, IndiceConsulta: indice },\n}));\n"
+        "jsCode": "// Lê a reescrita e transforma cada consulta num item da busca.\n//\n// A entrada vem do modelo principal ou, quando ele falha, do de reserva. Se\n// os dois falharam (prazo de 12 s cada com limite de tempo, 30 s sem, cota, sobrecarga, JSON quebrado), a\n// busca segue com o texto original, que é o comportamento do fluxo sem\n// reescrita: uma etapa que existe para melhorar a busca não pode deixar o\n// cidadão sem resposta.\n//\n// Só a saudação pula a busca, e economiza o embedding. \"Fora de escopo\" ainda\n// busca: um modelo pequeno pode confundir pergunta de profissional de saúde com\n// assunto de fora, e aí a busca é a última chance de achar alguma coisa.\nconst dados = $('Montar reescrita').first().json;\nconst resposta = $input.first().json || {};\n\nlet lido = null;\ntry {\n  const partes = (resposta.candidates && resposta.candidates[0] && resposta.candidates[0].content && resposta.candidates[0].content.parts) || [];\n  lido = JSON.parse(partes.map((p) => p.text || '').join(''));\n} catch (erro) {\n  lido = null;\n}\n\nconst original = String(dados.TextoMensagem || '').trim();\nconst tipo = lido && ['pergunta', 'saudacao', 'fora_de_escopo'].includes(lido.tipo) ? lido.tipo : 'pergunta';\nconst perguntaCompleta =\n  lido && typeof lido.perguntaCompleta === 'string' && lido.perguntaCompleta.trim()\n    ? lido.perguntaCompleta.trim().slice(0, 400)\n    : original;\nlet consultas = lido && Array.isArray(lido.consultas)\n  ? lido.consultas.filter((c) => typeof c === 'string' && c.trim()).map((c) => c.trim().slice(0, 300))\n  : [];\nconsultas = [...new Set(consultas)].slice(0, 3);\nif (consultas.length === 0) consultas = [perguntaCompleta || original];\n\nconst { corpo, ...resto } = dados;\nconst base = {\n  ...resto,\n  Tipo: tipo,\n  PerguntaCompleta: perguntaCompleta,\n  Consultas: consultas,\n  ReescritaFalhou: !lido,\n  ReescritaMs: Date.now() - Number(dados.InicioReescrita || Date.now()),\n};\n\nif (tipo === 'saudacao') {\n  return [{ json: { ...base, PularBusca: true, TextoBusca: original, IndiceConsulta: 0 } }];\n}\nreturn consultas.map((consulta, indice) => ({\n  json: { ...base, PularBusca: false, TextoBusca: consulta, IndiceConsulta: indice },\n}));\n"
       },
       "id": "fa139eac-010e-4810-9687-31b0b1e2fce3",
       "name": "Consultas",
