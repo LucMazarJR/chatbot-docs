@@ -260,6 +260,8 @@ O chat do staging tem ainda várias coisas que o `/` não tem. Todas entram pelo
 - O voltar do celular fecha a camada aberta (menu, painel, folha) em vez de sair do app, e as páginas da conta voltam ao chat pelo histórico.
 - Um som por vez: tocar um áudio para o anterior, e gravar cala tudo.
 
+**Etapas da resposta.** Enquanto a resposta não chega, o balão de "digitando" mostra em que etapa ela está, com um ícone que se mexe e uma frase curta: "Lendo sua pergunta", "Procurando a informação" e "Escrevendo a resposta". O cabeçalho acompanha, no lugar do "digitando…", e o áudio sendo transcrito aparece como "ouvindo seu áudio…". O fluxo avisa ao entrar em cada etapa (`POST /api/n8n/etapa`), a mensagem pendente guarda a etapa, e a consulta de 2 s da tela a devolve. Com isso, o recado dos 20 s sai do staging, e fica só o dos 60 s, que diz que não precisa reenviar.
+
 **Tutorial.** Na primeira conversa do aparelho, o passo a passo abre sozinho. Ele começou como convite na conversa ("Quer ver como usar?"), mas o convite passava despercebido justamente por quem tinha dificuldade. Quem já sabe usar sai num toque em **Pular**, que fica sempre à vista, ou com o Esc. O passo a passo acende, um de cada vez:
 - o campo de mensagem;
 - o botão de enviar;
