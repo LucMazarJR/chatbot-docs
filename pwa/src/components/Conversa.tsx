@@ -35,6 +35,7 @@ import { useDitado } from '@/lib/usar-ditado';
 import { useVozIa, type RecusaDaVoz } from '@/lib/usar-voz-ia';
 import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
 import { marcarChatNaHistoria } from '@/lib/navegacao';
+import { lerLimiteDeTempo } from '@/lib/limite-de-tempo';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
@@ -731,6 +732,9 @@ export function Conversa({
           texto: pergunta,
           ...(porVoz || opcoes.audio ? { origem: 'voz' } : {}),
           ...(opcoes.audio ? { audio: opcoes.audio } : {}),
+          // Staging: o modo de espera escolhido em Minha conta. Lido a cada
+          // pergunta, para a troca valer na próxima sem recarregar.
+          ...(comConta ? { limiteDeTempo: lerLimiteDeTempo() } : {}),
         }),
       });
 

@@ -1,12 +1,67 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 import { VoltarParaConversa } from '@/components/VoltarParaConversa';
 import type { ConversaResumida } from '@/lib/conta/conversas';
 import type { ContaPublica } from '@/lib/conta/tipos';
 import { dataCurta } from '@/lib/datas';
+import { guardarLimiteDeTempo, lerLimiteDeTempo } from '@/lib/limite-de-tempo';
+
+const MODOS_DE_TEMPO = [
+  {
+    com: true,
+    rotulo: 'Com limite de tempo',
+    descricao: 'Se o assistente não conseguir responder em cerca de 1 minuto e meio, ele avisa para perguntar de novo.',
+  },
+  {
+    com: false,
+    rotulo: 'Sem limite de tempo',
+    descricao: 'O assistente espera o quanto precisar para responder, até 4 minutos.',
+  },
+];
+
+/**
+ * O modo de espera da resposta (em teste), para o grupo comparar.
+ *
+ * Mora aqui, e não em Letra e voz: é escolha de quem está testando o
+ * assistente, e não ajuste de leitura. Vale para as próximas perguntas deste
+ * aparelho, sem recarregar a conversa.
+ */
+function TempoDeResposta() {
+  const [comLimite, setComLimite] = useState(true);
+  // Lido depois de montar: no servidor não há `localStorage`.
+  useEffect(() => setComLimite(lerLimiteDeTempo()), []);
+
+  return (
+    <section className="st-cartao">
+      <h2 id="rotulo-tempo">Tempo de resposta (em teste)</h2>
+      <p>Quando o serviço de IA está lento, a resposta pode demorar. Escolha como o assistente espera.</p>
+      <div role="radiogroup" aria-labelledby="rotulo-tempo" className="opcoes-tema">
+        {MODOS_DE_TEMPO.map((modo) => (
+          <button
+            key={modo.rotulo}
+            type="button"
+            role="radio"
+            aria-checked={comLimite === modo.com}
+            className={comLimite === modo.com ? 'escolhido' : ''}
+            onClick={() => {
+              setComLimite(modo.com);
+              guardarLimiteDeTempo(modo.com);
+            }}
+          >
+            <span className="marcador" aria-hidden="true" />
+            <span className="opcao-texto">
+              <strong>{modo.rotulo}</strong>
+              <small>{modo.descricao}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 /**
  * A conta de quem está logado: quem é, sair e apagar.
@@ -175,6 +230,8 @@ export function PainelConta({
           </ul>
         )}
       </section>
+
+      <TempoDeResposta />
 
       <section className="st-cartao">
         <h2>Privacidade</h2>

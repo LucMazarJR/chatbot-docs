@@ -84,6 +84,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     texto?: string;
     origem?: string;
     audio?: { duracaoSegundos?: unknown; modelo?: unknown; transcricaoMs?: unknown };
+    limiteDeTempo?: unknown;
   };
   const texto = String(corpo.texto ?? '').trim();
   // Só o rótulo: o áudio do ditado nunca chega aqui, só o texto que ele virou.
@@ -120,8 +121,10 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   const correlationId = randomUUID();
 
   // Só a conversa do staging manda o histórico: é ela que vai para o fluxo
-  // com reescrita, que usa as últimas mensagens para entender "e lá?". Lido
-  // antes de gravar a pergunta nova, para ela não entrar duas vezes.
+  // com reescrita, que usa as últimas 4 mensagens para entender "e lá?". Vão
+  // 8 porque o modo com limite de tempo responde sem a memória do agente, e 8
+  // são as 4 trocas que ela guarda. Lido antes de gravar a pergunta nova, para
+  // ela não entrar duas vezes.
   const staging = Boolean(sessao.usuarioId);
   const historico = staging
     ? (
@@ -131,7 +134,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
             { projection: { papel: 1, texto: 1 } },
           )
           .sort({ em: -1, papel: 1 })
-          .limit(4)
+          .limit(8)
           .toArray()
       )
         .reverse()
@@ -142,6 +145,10 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   // Mensagem de áudio só existe no staging: no `/` o campo é ignorado, e a
   // mensagem fica exatamente como sempre foi.
   const audio = staging && porVoz ? lerAudio(corpo.audio) : null;
+
+  // Staging: o modo de espera da resposta. Sem ele (tela antiga, `/`), o
+  // fluxo segue pelo agente de sempre.
+  const limiteDeTempo = staging && typeof corpo.limiteDeTempo === 'boolean' ? corpo.limiteDeTempo : undefined;
 
   const pergunta: Mensagem = {
     _id: randomUUID(),
@@ -165,6 +172,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     feedback: null,
     // Quem perguntou em áudio recebe a resposta em áudio, como no WhatsApp.
     ...(audio ? { respostaEmAudio: true } : {}),
+    ...(limiteDeTempo !== undefined ? { comLimiteDeTempo: limiteDeTempo } : {}),
   };
 
   await colMensagens.insertMany([pergunta, respostaBot]);
@@ -178,6 +186,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     urlDeRetorno: urlDeRetorno(requisicao),
     staging,
     historico,
+    limiteDeTempo,
   });
 
   if (!entrega.aceito) {

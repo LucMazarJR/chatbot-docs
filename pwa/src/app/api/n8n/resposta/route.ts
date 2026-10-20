@@ -22,6 +22,8 @@ type Corpo = {
   /** As partes da pergunta, com o que foi respondido em cada uma. */
   partes?: unknown;
   analiseMs?: number | null;
+  /** Por que falhou, quando o fluxo diz: a busca na base, o prazo dos modelos. */
+  motivo?: string;
 };
 
 /**
@@ -103,7 +105,9 @@ export async function POST(requisicao: Request) {
         modelo: corpo.modelo ?? null,
         semResposta,
         erro: houveFalha,
-        motivoErro: houveFalha ? 'o agente não concluiu' : null,
+        // O fluxo do staging diz o motivo (a busca na base falhou, nenhum
+        // modelo respondeu no prazo); o do `/` não diz, e fica o de sempre.
+        motivoErro: houveFalha ? (typeof corpo.motivo === 'string' && corpo.motivo ? corpo.motivo.slice(0, 120) : 'o agente não concluiu') : null,
         ...camposDaReescrita(corpo),
         ...(partes ? { partes, partesSemResposta } : {}),
       },

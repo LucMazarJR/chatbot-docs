@@ -71,6 +71,12 @@
               "name": "Historico",
               "value": "={{ JSON.stringify($json.body.historico || []) }}",
               "type": "string"
+            },
+            {
+              "id": "155d4495-e2bc-43d3-83a5-b0694c30d7ce",
+              "name": "LimiteDeTempo",
+              "value": "={{ $json.body.limiteDeTempo === true }}",
+              "type": "boolean"
             }
           ]
         },
@@ -116,7 +122,11 @@
           "id": "FcsqaFE5ejMSt7kW",
           "name": "MongoDB account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -139,7 +149,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Junta os trechos de todas as consultas num item só.\n//\n// Mesmo papel do nó de mesmo nome no fluxo sem reescrita (fan-out, campos que\n// o vector store derruba, pageContent vazio, corte de relevância), com duas\n// diferenças:\n//\n// 1. MAIS DE UMA BUSCA. Cada consulta da reescrita fez a sua. A FAQ que veio\n//    em duas conta uma vez só, com o melhor score.\n//\n// 2. RODÍZIO, E NÃO SÓ SCORE. O melhor trecho de cada consulta entra primeiro,\n//    depois o segundo de cada uma, e assim até 10. Ordenando só por score, a\n//    consulta específica (a receita de cada remédio, 0,90) empurraria para fora\n//    a consulta geral (a FAQ de receita vencida, 0,88), que é justamente a que\n//    a reescrita existe para trazer.\n//\n// 3. A CONSULTA PRINCIPAL MANDA. As consultas extras entram com no máximo 3\n//    trechos cada. Na avaliação com as perguntas de 29/09, uma consulta geral\n//    demais (\"unidades de saúde\") trazia FAQ de outro assunto com 0,89, e\n//    trecho real de outro assunto no contexto é o que faz o agente citar um\n//    prazo que não vale para a pergunta.\n//\n// O corte continua 0.82, o mesmo dos outros fluxos.\nconst dados = $('Consultas').first().json;\nconst LIMIAR_SCORE = 0.82;\nconst MAXIMO_TRECHOS = 10;\nconst MAXIMO_POR_CONSULTA_EXTRA = 3;\nconst TOP_K = 10;\n\nconst entradas = $input.all();\nconst pulouBusca = entradas.length === 1 && entradas[0].json && entradas[0].json.PularBusca === true;\n\nconst porConsulta = new Map();\nconst debug = [];\n\nif (!pulouBusca) {\n  entradas.forEach((item, posicao) => {\n    // De qual consulta veio o trecho: o n8n liga cada saída à entrada que a\n    // gerou. Sem essa ligação, a ordem é consulta a consulta, TOP_K de cada.\n    const ligado = item.pairedItem && typeof item.pairedItem.item === 'number' ? item.pairedItem.item : null;\n    const indice = ligado !== null ? ligado : Math.floor(posicao / TOP_K);\n\n    const doc = (item.json && item.json.document) || item.json || {};\n    const meta = doc.metadata || {};\n    const score = item.json && typeof item.json.score === 'number' ? item.json.score : 1;\n    const passou = score >= LIMIAR_SCORE;\n\n    // `||` e não `??`: string vazia precisa cair para a próxima fonte.\n    let texto = (doc.pageContent || '').trim();\n    if (!texto) texto = (meta.text || '').trim();\n    if (!texto && (meta.question || meta.answer)) {\n      texto = [\n        meta.category ? 'Assunto: ' + meta.category : null,\n        meta.question ? 'Pergunta: ' + meta.question : null,\n        meta.answer ? 'Resposta: ' + meta.answer : null,\n      ].filter(Boolean).join('\\n');\n    }\n\n    const faqId = meta._id || meta.id || doc.id || (item.json && item.json.id) || null;\n    debug.push({\n      score: Number(score.toFixed(4)),\n      usado: false,\n      faqId: faqId ? String(faqId) : null,\n      category: meta.category || null,\n      question: meta.question || null,\n      previa: texto ? texto.slice(0, 240) : null,\n      consulta: dados.Consultas[indice] || null,\n    });\n\n    if (passou && texto) {\n      const chave = faqId ? String(faqId) : (meta.question || '') + '|' + (meta.category || '') + '|' + texto.slice(0, 80);\n      if (!porConsulta.has(indice)) porConsulta.set(indice, []);\n      porConsulta.get(indice).push({ chave, texto, score, posicao: debug.length - 1 });\n    }\n  });\n}\n\nconst listas = [...porConsulta.keys()]\n  .sort((a, b) => a - b)\n  .map((indice) => {\n    const ordenada = porConsulta.get(indice).sort((a, b) => b.score - a.score);\n    return indice === 0 ? ordenada : ordenada.slice(0, MAXIMO_POR_CONSULTA_EXTRA);\n  });\nconst escolhidos = [];\nconst vistos = new Set();\nfor (let rodada = 0; escolhidos.length < MAXIMO_TRECHOS && listas.some((l) => l.length > rodada); rodada++) {\n  for (const lista of listas) {\n    const trecho = lista[rodada];\n    if (!trecho || vistos.has(trecho.chave) || escolhidos.length >= MAXIMO_TRECHOS) continue;\n    vistos.add(trecho.chave);\n    escolhidos.push(trecho);\n    debug[trecho.posicao].usado = true;\n  }\n}\n\nconst contexto = escolhidos.map((t, i) => '[Trecho ' + (i + 1) + ']\\n' + t.texto).join('\\n\\n');\n\nreturn [\n  {\n    json: {\n      ...dados,\n      ContextoFaq: contexto,\n      TemContexto: escolhidos.length > 0,\n      QtdTrechos: escolhidos.length,\n      TrechosDebug: debug,\n      LimiarScore: LIMIAR_SCORE,\n    },\n  },\n];\n"
+        "jsCode": "// Junta os trechos de todas as consultas num item só.\n//\n// Mesmo papel do nó de mesmo nome no fluxo sem reescrita (fan-out, campos que\n// o vector store derruba, pageContent vazio, corte de relevância), com duas\n// diferenças:\n//\n// 1. MAIS DE UMA BUSCA. Cada consulta da reescrita fez a sua. A FAQ que veio\n//    em duas conta uma vez só, com o melhor score.\n//\n// 2. RODÍZIO, E NÃO SÓ SCORE. O melhor trecho de cada consulta entra primeiro,\n//    depois o segundo de cada uma, e assim até 10. Ordenando só por score, a\n//    consulta específica (a receita de cada remédio, 0,90) empurraria para fora\n//    a consulta geral (a FAQ de receita vencida, 0,88), que é justamente a que\n//    a reescrita existe para trazer.\n//\n// 3. A CONSULTA PRINCIPAL MANDA. As consultas extras entram com no máximo 3\n//    trechos cada. Na avaliação com as perguntas de 29/09, uma consulta geral\n//    demais (\"unidades de saúde\") trazia FAQ de outro assunto com 0,89, e\n//    trecho real de outro assunto no contexto é o que faz o agente citar um\n//    prazo que não vale para a pergunta.\n//\n// 4. BUSCA QUE FALHOU. A busca segue em frente quando uma consulta falha\n//    (embedding recusado, Mongo fora), e o item dela chega aqui sem trecho.\n//    Ele não é trecho: contado, entraria com score 1. Se TODAS falharam, o\n//    fluxo avisa a pessoa para tentar de novo, e nunca responde sem a base.\n//\n// O corte continua 0.82, o mesmo dos outros fluxos.\nconst dados = $('Consultas').first().json;\nconst LIMIAR_SCORE = 0.82;\nconst MAXIMO_TRECHOS = 10;\nconst MAXIMO_POR_CONSULTA_EXTRA = 3;\nconst TOP_K = 10;\n\nconst entradas = $input.all();\nconst pulouBusca = entradas.length === 1 && entradas[0].json && entradas[0].json.PularBusca === true;\n\n// Reconhecida pela forma, e não por um campo de erro: quando a busca falha, o\n// nó devolve a própria consulta que recebeu, sem `document` e sem `error`.\nconst falhou = (item) => !item.json || (!item.json.document && item.json.pageContent === undefined);\nconst buscaFalhou = !pulouBusca && entradas.length > 0 && entradas.every(falhou);\n\nconst porConsulta = new Map();\nconst debug = [];\n\nif (!pulouBusca) {\n  entradas.forEach((item, posicao) => {\n    if (falhou(item)) return;\n    // De qual consulta veio o trecho: o n8n liga cada saída à entrada que a\n    // gerou. Sem essa ligação, a ordem é consulta a consulta, TOP_K de cada.\n    const ligado = item.pairedItem && typeof item.pairedItem.item === 'number' ? item.pairedItem.item : null;\n    const indice = ligado !== null ? ligado : Math.floor(posicao / TOP_K);\n\n    const doc = (item.json && item.json.document) || item.json || {};\n    const meta = doc.metadata || {};\n    const score = item.json && typeof item.json.score === 'number' ? item.json.score : 1;\n    const passou = score >= LIMIAR_SCORE;\n\n    // `||` e não `??`: string vazia precisa cair para a próxima fonte.\n    let texto = (doc.pageContent || '').trim();\n    if (!texto) texto = (meta.text || '').trim();\n    if (!texto && (meta.question || meta.answer)) {\n      texto = [\n        meta.category ? 'Assunto: ' + meta.category : null,\n        meta.question ? 'Pergunta: ' + meta.question : null,\n        meta.answer ? 'Resposta: ' + meta.answer : null,\n      ].filter(Boolean).join('\\n');\n    }\n\n    const faqId = meta._id || meta.id || doc.id || (item.json && item.json.id) || null;\n    debug.push({\n      score: Number(score.toFixed(4)),\n      usado: false,\n      faqId: faqId ? String(faqId) : null,\n      category: meta.category || null,\n      question: meta.question || null,\n      previa: texto ? texto.slice(0, 240) : null,\n      consulta: dados.Consultas[indice] || null,\n    });\n\n    if (passou && texto) {\n      const chave = faqId ? String(faqId) : (meta.question || '') + '|' + (meta.category || '') + '|' + texto.slice(0, 80);\n      if (!porConsulta.has(indice)) porConsulta.set(indice, []);\n      porConsulta.get(indice).push({ chave, texto, score, posicao: debug.length - 1 });\n    }\n  });\n}\n\nconst listas = [...porConsulta.keys()]\n  .sort((a, b) => a - b)\n  .map((indice) => {\n    const ordenada = porConsulta.get(indice).sort((a, b) => b.score - a.score);\n    return indice === 0 ? ordenada : ordenada.slice(0, MAXIMO_POR_CONSULTA_EXTRA);\n  });\nconst escolhidos = [];\nconst vistos = new Set();\nfor (let rodada = 0; escolhidos.length < MAXIMO_TRECHOS && listas.some((l) => l.length > rodada); rodada++) {\n  for (const lista of listas) {\n    const trecho = lista[rodada];\n    if (!trecho || vistos.has(trecho.chave) || escolhidos.length >= MAXIMO_TRECHOS) continue;\n    vistos.add(trecho.chave);\n    escolhidos.push(trecho);\n    debug[trecho.posicao].usado = true;\n  }\n}\n\nconst contexto = escolhidos.map((t, i) => '[Trecho ' + (i + 1) + ']\\n' + t.texto).join('\\n\\n');\n\nreturn [\n  {\n    json: {\n      ...dados,\n      ContextoFaq: contexto,\n      TemContexto: escolhidos.length > 0,\n      QtdTrechos: escolhidos.length,\n      TrechosDebug: debug,\n      LimiarScore: LIMIAR_SCORE,\n      BuscaFalhou: buscaFalhou,\n    },\n  },\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -233,7 +243,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  mensagemId: $('Dados').item.json.EventId,\n  sessionId: $('Dados').item.json.IdChat,\n  ok: true,\n  resposta: $json.output,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  perguntaCompleta: $('Montar contexto').item.json.PerguntaCompleta,\n  consultas: $('Montar contexto').item.json.Consultas,\n  reescritaMs: $('Montar contexto').item.json.ReescritaMs,\n  reescritaFalhou: $('Montar contexto').item.json.ReescritaFalhou,\n  modelo: $('AI Agent (última reserva)').isExecuted ? 'models/gemini-3.5-flash-lite' : 'models/gemini-3.1-flash-lite'\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  mensagemId: $('Dados').item.json.EventId,\n  sessionId: $('Dados').item.json.IdChat,\n  ok: true,\n  resposta: $json.output,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  perguntaCompleta: $('Montar contexto').item.json.PerguntaCompleta,\n  consultas: $('Montar contexto').item.json.Consultas,\n  reescritaMs: $('Montar contexto').item.json.ReescritaMs,\n  reescritaFalhou: $('Montar contexto').item.json.ReescritaFalhou,\n  modelo: $json.modelo || ($('AI Agent (última reserva)').isExecuted ? 'models/gemini-3.5-flash' : 'models/gemini-3.1-flash-lite')\n}) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -267,7 +277,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  mensagemId: $('Dados').item.json.EventId,\n  sessionId: $('Dados').item.json.IdChat,\n  ok: false,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  perguntaCompleta: $('Montar contexto').item.json.PerguntaCompleta,\n  consultas: $('Montar contexto').item.json.Consultas,\n  reescritaMs: $('Montar contexto').item.json.ReescritaMs,\n  reescritaFalhou: $('Montar contexto').item.json.ReescritaFalhou\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  mensagemId: $('Dados').item.json.EventId,\n  sessionId: $('Dados').item.json.IdChat,\n  ok: false,\n  temContexto: $('Montar contexto').item.json.TemContexto,\n  qtdTrechos: $('Montar contexto').item.json.QtdTrechos,\n  trechosDebug: $('Montar contexto').item.json.TrechosDebug,\n  limiarScore: $('Montar contexto').item.json.LimiarScore,\n  perguntaCompleta: $('Montar contexto').item.json.PerguntaCompleta,\n  consultas: $('Montar contexto').item.json.Consultas,\n  reescritaMs: $('Montar contexto').item.json.ReescritaMs,\n  reescritaFalhou: $('Montar contexto').item.json.ReescritaFalhou,\n  motivo: $('Montar contexto').item.json.BuscaFalhou ? 'a busca na base falhou' : $('Dados').item.json.LimiteDeTempo ? 'nenhum modelo respondeu no prazo' : 'o agente não concluiu'\n}) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -475,6 +485,221 @@
         532,
         -256
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fa08b77e-1208-40cd-977d-9cf6b961ee49",
+              "leftValue": "={{ $json.BuscaFalhou }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "326d326b-2c39-4212-8349-1a602690209c",
+      "name": "A busca funcionou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        176,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "adc8d08e-21dc-4e8b-b7ee-6f6493163851",
+              "leftValue": "={{ $('Dados').item.json.LimiteDeTempo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7d66f4c6-6a2c-4d37-bfa1-3d429dd5bdae",
+      "name": "Com limite de tempo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Modo com limite de tempo: o pedido da resposta para uma chamada direta ao\n// Gemini, que aceita prazo.\n//\n// LÓGICA DO LUCIANO: o nó do agente não tem prazo. A biblioteca por baixo\n// dele refaz a chamada sozinha a cada recusa do Gemini, esperando mais a cada\n// vez, e o próprio nó ainda tenta de novo: com o Gemini congestionado, uma\n// resposta levou 91 s só na reserva. Aqui cada modelo tem o seu prazo, e\n// passado o último a pessoa recebe o aviso de tentar de novo. O modo sem\n// limite continua indo pelo agente, para o grupo comparar os dois.\n//\n// O pedido é o mesmo que o agente monta: as instruções dele, lidas do próprio\n// nó para não existir uma segunda cópia, a conversa e a pergunta com os\n// trechos. A conversa vem do histórico que o PWA manda (até 8 mensagens, as\n// 4 trocas que a memória do agente guarda), e não do Redis, que só o agente\n// lê e escreve.\nconst ctx = $input.first().json;\nconst sistema = $('AI Agent').params.options.systemMessage;\n\nlet historico = [];\ntry {\n  historico = JSON.parse(ctx.Historico || '[]');\n} catch (erro) {\n  historico = [];\n}\n\n// O mesmo texto do campo \"text\" do AI Agent: o testar-codigo-staging confere.\nconst pergunta =\n  'Pergunta do cidadão:\\n' +\n  (ctx.TextoMensagem || '') +\n  (ctx.PerguntaCompleta && ctx.PerguntaCompleta !== ctx.TextoMensagem ? '\\n(entendida como: ' + ctx.PerguntaCompleta + ')' : '') +\n  '\\n\\n===== TRECHOS DA BASE DE FAQs =====\\n' +\n  (ctx.TemContexto ? ctx.ContextoFaq : 'NENHUM TRECHO ENCONTRADO NA BASE.') +\n  '\\n===== FIM DOS TRECHOS =====';\n\n// O Gemini quer a conversa começando pela pessoa e sem duas falas seguidas\n// do mesmo lado: falas seguidas viram uma só.\nconst contents = [];\nfor (const m of (Array.isArray(historico) ? historico : []).slice(-8)) {\n  const role = m && m.papel === 'user' ? 'user' : 'model';\n  const texto = String((m && m.texto) || '').trim();\n  if (!texto || (contents.length === 0 && role === 'model')) continue;\n  const ultimo = contents[contents.length - 1];\n  if (ultimo && ultimo.role === role) ultimo.parts[0].text += '\\n\\n' + texto;\n  else contents.push({ role, parts: [{ text: texto }] });\n}\nconst ultimo = contents[contents.length - 1];\nif (ultimo && ultimo.role === 'user') ultimo.parts[0].text += '\\n\\n' + pergunta;\nelse contents.push({ role: 'user', parts: [{ text: pergunta }] });\n\nreturn [{ json: { corpo: { systemInstruction: { parts: [{ text: sistema }] }, contents } }, pairedItem: { item: 0 } }];"
+      },
+      "id": "2a6108ba-9f2c-4262-b79a-056289209f8c",
+      "name": "Montar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Montar resposta').first().json.corpo) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "60da3c16-165b-4761-be8c-8a5ac47d865f",
+      "name": "Gerar resposta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        848,
+        760
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PwaGeminiAnali01",
+          "name": "Gemini Análise"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Montar resposta').first().json.corpo) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "e8283bea-efbb-48e7-b402-739a4c367af9",
+      "name": "Gerar resposta (reserva)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        848,
+        960
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PwaGeminiAnali01",
+          "name": "Gemini Análise"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Montar resposta').first().json.corpo) }}",
+        "options": {
+          "timeout": 25000
+        }
+      },
+      "id": "4b94316b-aa56-4c3b-82f4-83d1c270fac8",
+      "name": "Gerar resposta (última reserva)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        848,
+        1160
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PwaGeminiAnali01",
+          "name": "Gemini Análise"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// A resposta do modelo que conseguiu, no formato da saída do agente\n// (`output`), para o \"Responder\" servir aos dois modos. O modelo vem da\n// própria resposta: é o registro de quem escreveu.\nconst r = $input.first().json || {};\nconst partes = (r.candidates && r.candidates[0] && r.candidates[0].content && r.candidates[0].content.parts) || [];\nconst texto = partes.filter((p) => !p.thought).map((p) => p.text || '').join('').trim();\nreturn [{ json: { output: texto, modelo: r.modelVersion ? 'models/' + r.modelVersion : null }, pairedItem: { item: 0 } }];"
+      },
+      "id": "af5aac81-d985-4d73-9a99-2ba206536368",
+      "name": "Ler resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "aea24ed8-0699-4942-aa98-838d5dab1364",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "28b19cb6-3cdd-463e-ac10-d70c63fb707d",
+      "name": "Respondeu?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1296,
+        760
+      ]
     }
   ],
   "pinData": {},
@@ -516,7 +741,7 @@
       "main": [
         [
           {
-            "node": "AI Agent",
+            "node": "A busca funcionou?",
             "type": "main",
             "index": 0
           }
@@ -693,6 +918,136 @@
         [
           {
             "node": "Consultas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A busca funcionou?": {
+      "main": [
+        [
+          {
+            "node": "Com limite de tempo?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder com indisponibilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Com limite de tempo?": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resposta": {
+      "main": [
+        [
+          {
+            "node": "Gerar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar resposta": {
+      "main": [
+        [
+          {
+            "node": "Ler resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gerar resposta (reserva)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar resposta (reserva)": {
+      "main": [
+        [
+          {
+            "node": "Ler resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gerar resposta (última reserva)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar resposta (última reserva)": {
+      "main": [
+        [
+          {
+            "node": "Ler resposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder com indisponibilidade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler resposta": {
+      "main": [
+        [
+          {
+            "node": "Respondeu?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respondeu?": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder com indisponibilidade",
             "type": "main",
             "index": 0
           }

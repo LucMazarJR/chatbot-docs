@@ -291,7 +291,13 @@ A resposta a um áudio traz o tocador no topo do balão, já preparado quando ch
 
 Em Acessibilidade ficam também a velocidade (normal ou devagar, que vale para as duas vozes) e **ler as respostas sozinho**, desligado por padrão. Com ele ligado, a resposta a um áudio toca com a voz natural, e a resposta a texto com a voz do celular, para não gastar as falas naturais de quem preferiu escrever. A formatação (`*`, `_`, `•`) e os links ficam de fora da leitura.
 
-**Reescrita da pergunta.** Com `N8N_PWA_STAGING_WEBHOOK_URL` preenchida, a conversa do staging vai para o fluxo [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), que reescreve a pergunta antes de buscar e faz até três buscas por pergunta. O PWA manda junto as últimas 4 mensagens, para a reescrita entender "e lá?". Vazia, o staging usa o fluxo do `/`. Como funciona e o que a medição mostrou: [arquitetura.md](arquitetura.md#a-reescrita-em-validação-no-staging). Para ligar, ver [Ligar a reescrita](#ligar-a-reescrita-no-staging).
+**Tempo de resposta (em teste).** Em **Minha conta**, a pessoa escolhe como o assistente espera quando o Gemini está lento:
+- **Com limite de tempo** (o padrão): cada modelo tem um prazo, e passado o último o assistente avisa para perguntar de novo, por volta de 1 minuto e meio no pior caso.
+- **Sem limite de tempo:** o agente de sempre, que espera o quanto o Gemini precisar, até o teto de 4 minutos.
+
+A escolha fica no aparelho e vale na próxima pergunta. Cada resposta guarda o modo (`comLimiteDeTempo`), e com a `latenciaMs` é o que compara os dois. Como cada modo funciona: [arquitetura.md](arquitetura.md#a-reescrita-em-validação-no-staging).
+
+**Reescrita da pergunta.** Com `N8N_PWA_STAGING_WEBHOOK_URL` preenchida, a conversa do staging vai para o fluxo [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), que reescreve a pergunta antes de buscar e faz até três buscas por pergunta. O PWA manda junto as últimas 8 mensagens: a reescrita usa as 4 últimas para entender "e lá?", e o modo com limite de tempo usa as 8 como conversa. Vazia, o staging usa o fluxo do `/`. Como funciona e o que a medição mostrou: [arquitetura.md](arquitetura.md#a-reescrita-em-validação-no-staging). Para ligar, ver [Ligar a reescrita](#ligar-a-reescrita-no-staging).
 
 #### Ligar a reescrita no staging
 
