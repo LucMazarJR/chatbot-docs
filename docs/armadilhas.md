@@ -137,6 +137,8 @@ Ele não menciona `output` nem `standalone`, e leva a procurar no lugar errado. 
 
 **Sem `media-src blob:` na CSP, o áudio não toca e nada avisa.** A gravação e a voz natural tocam de um endereço `blob:` criado pela página. Com a política sem essa linha, o tocador fica em 0:00 e o play não faz nada; o motivo só aparece no console do navegador ([next.config.ts](../pwa/next.config.ts)).
 
+**Camada que fecha pela tela precisa tirar a entrada do histórico.** O voltar do celular só fecha menu e painel porque cada abertura põe uma entrada (`pushState`). Fechar pelo botão sem o `history.back()` correspondente deixa uma entrada a mais, e o próximo voltar não faz nada que a pessoa veja. A pilha de [camadas.ts](../pwa/src/lib/camadas.ts) cuida disso e de duas pegadinhas: trocar o menu pelo painel no mesmo toque não pode voltar e empilhar ao mesmo tempo (a ordem entre os dois muda de navegador para navegador), e um link de dentro da camada não pode voltar depois de navegar, senão desfaz a navegação. E `queueMicrotask` passado como método de objeto quebra com "Illegal invocation".
+
 **A voz natural em PCM não cabe na resposta da Vercel.** O Gemini devolve PCM de 24 kHz, e a resposta mais longa da base daria mais de 7 MB, acima do limite de 4,5 MB de corpo das funções. A rota converte para MP3 de 48 kbps (cerca de 300 KB numa resposta típica), o que também ajuda quem está no 4G.
 
 ---
