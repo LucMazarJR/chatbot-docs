@@ -28,9 +28,10 @@ import type { Papel, TipoAnexo } from '@/lib/tipos';
 import { Carregando } from '@/components/Carregando';
 import { decidirAvaliacao, INATIVIDADE_MS } from '@/lib/avaliacao-automatica';
 import { Tutorial, type PassoDoTutorial } from '@/components/Tutorial';
-import { OuvirResposta } from '@/components/OuvirResposta';
+import { AudioSemGravacao, TocadorDeAudio } from '@/components/TocadorDeAudio';
 import { falar, lerAutomatica } from '@/lib/leitura-em-voz';
 import { useDitado } from '@/lib/usar-ditado';
+import { useVozIa } from '@/lib/usar-voz-ia';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
@@ -59,6 +60,16 @@ type Item = {
   botoes?: BotaoRapido[];
   /** O que já foi escolhido: some com os outros e marca este. */
   escolhido?: string;
+  /**
+   * Staging: a pergunta foi um áudio. `url` é a gravação, que existe só neste
+   * aparelho e só até recarregar a página; sem ela, o balão mostra a duração e
+   * a transcrição, sem play.
+   */
+  audio?: { url?: string; duracao: number; transcrevendo?: boolean };
+  /** Staging: resposta a uma pergunta em áudio, que vem como áudio também. */
+  respostaEmAudio?: boolean;
+  /** Acabou de chegar, e não veio da conversa retomada: só ela se prepara e toca sozinha. */
+  recemChegada?: boolean;
 };
 
 /**
@@ -178,6 +189,10 @@ const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
   },
 ];
 
+/** O passo do botão de enviar quando o microfone manda áudio (voz por IA do staging). */
+const TEXTO_DO_PASSO_DE_AUDIO =
+  'Toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone: toque, fale e envie. A resposta vem em áudio.';
+
 function horaAgora(quando: Date = new Date()) {
   return hora(quando);
 }
@@ -268,6 +283,10 @@ export function Conversa({
   const veioDaVozRef = useRef(false);
   /** Recado passageiro acima do campo: microfone recusado, envio falhou. */
   const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
+  /** Staging: voz por IA (áudio no fluxo do WhatsApp e voz natural). */
+  const vozIa = useVozIa(comVoz);
+  /** Um áudio está sendo transcrito: nada mais sai até ele virar pergunta. */
+  const [transcrevendo, setTranscrevendo] = useState(false);
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
@@ -427,7 +446,15 @@ export function Conversa({
         iniciadaEm: string;
         encerrada: boolean;
         consentimento: boolean;
-        mensagens: { _id: string; papel: Papel; texto: string; em: string; erro?: boolean }[];
+        mensagens: {
+          _id: string;
+          papel: Papel;
+          texto: string;
+          em: string;
+          erro?: boolean;
+          audio?: { duracaoSegundos?: number };
+          respostaEmAudio?: boolean;
+        }[];
       };
 
       // Sessão já avaliada não volta: o participante encerrou de propósito.
@@ -460,6 +487,8 @@ export function Conversa({
           mensagemId: m.papel === 'bot' ? m._id : undefined,
           comFeedback: m.papel === 'bot' && !m.erro,
           lida: m.papel === 'user',
+          ...(m.audio?.duracaoSegundos ? { audio: { duracao: m.audio.duracaoSegundos } } : {}),
+          ...(m.respostaEmAudio ? { respostaEmAudio: true } : {}),
         })),
       ]);
       reiniciarInatividade();
@@ -590,7 +619,15 @@ export function Conversa({
     void enviarTexto(pergunta);
   }
 
-  async function enviarTexto(pergunta: string) {
+  async function enviarTexto(
+    pergunta: string,
+    opcoes: {
+      /** O balão da pergunta já está na tela (o de áudio): não cria outro. */
+      chaveExistente?: string;
+      /** Staging: a pergunta é a transcrição de um áudio. */
+      audio?: { duracaoSegundos: number; modelo?: string; transcricaoMs?: number };
+    } = {},
+  ) {
     // O aceite é a única porta: sem ele nada é enviado, nem por digitação nem
     // por botão.
     if (!sessaoId || !aceitou || digitando || encerrada) return;
@@ -599,11 +636,13 @@ export function Conversa({
     // quando a resposta chega.
     pararInatividade();
 
-    const chaveUsuario = crypto.randomUUID();
-    setItens((atuais) => [
-      ...atuais,
-      { chave: chaveUsuario, papel: 'user', texto: pergunta, hora: horaAgora(), lida: false },
-    ]);
+    const chaveUsuario = opcoes.chaveExistente ?? crypto.randomUUID();
+    if (!opcoes.chaveExistente) {
+      setItens((atuais) => [
+        ...atuais,
+        { chave: chaveUsuario, papel: 'user', texto: pergunta, hora: horaAgora(), lida: false },
+      ]);
+    }
     perguntasRef.current += 1;
     setDigitando(true);
 
@@ -622,7 +661,11 @@ export function Conversa({
       const resposta = await fetch(`/api/sessoes/${sessaoId}/mensagens`, {
         method: 'POST',
         headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ texto: pergunta, ...(porVoz ? { origem: 'voz' } : {}) }),
+        body: JSON.stringify({
+          texto: pergunta,
+          ...(porVoz || opcoes.audio ? { origem: 'voz' } : {}),
+          ...(opcoes.audio ? { audio: opcoes.audio } : {}),
+        }),
       });
 
       if (resposta.status === 429) {
@@ -655,9 +698,14 @@ export function Conversa({
       adicionarBot(
         textoDaFalha(pronta.causa) ?? pronta.resposta,
         pronta.erro ? null : aceite.mensagemId,
+        // Quem perguntou em áudio recebe áudio: o balão traz o tocador.
+        opcoes.audio && !pronta.erro ? { respostaEmAudio: true, recemChegada: true } : {},
       );
-      // Quem ligou "ler as respostas sozinho" ouve a resposta assim que ela chega.
-      if (comVoz && !pronta.erro && lerAutomatica()) void falar(pronta.resposta);
+      // Quem ligou "ler as respostas sozinho" ouve a resposta assim que ela
+      // chega. A resposta a um áudio toca pelo próprio balão, com a voz
+      // natural; a resposta a texto, pela voz do celular, para não gastar as
+      // poucas falas naturais do dia com quem preferiu escrever.
+      if (comVoz && !pronta.erro && !opcoes.audio && lerAutomatica()) void falar(pronta.resposta);
     } catch {
       // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
       // provável é a plataforma ter cortado a função no teto dela: isso é
@@ -719,10 +767,74 @@ export function Conversa({
     }
   }
 
+  /**
+   * Staging, voz por IA: o áudio vira um balão na hora, com a gravação para
+   * ouvir, é transcrito pelo servidor e segue como pergunta, com a transcrição
+   * embaixo do tocador, como no WhatsApp.
+   *
+   * Falhando a transcrição, o balão sai e o recado diz o que fazer: um balão
+   * de áudio sem pergunta seria uma mensagem que ninguém respondeu.
+   */
+  async function enviarAudio(audio: Blob, duracao: number) {
+    if (!sessaoId || !aceitou || digitando || encerrada) return;
+    setAvisoComposer(null);
+    const chave = crypto.randomUUID();
+    const url = URL.createObjectURL(audio);
+    setItens((atuais) => [
+      ...atuais,
+      { chave, papel: 'user', texto: '', hora: horaAgora(), lida: false, audio: { url, duracao, transcrevendo: true } },
+    ]);
+    setTranscrevendo(true);
+
+    const desfazer = (aviso: string) => {
+      setItens((atuais) => atuais.filter((item) => item.chave !== chave));
+      URL.revokeObjectURL(url);
+      setAvisoComposer(aviso);
+    };
+
+    try {
+      const formulario = new FormData();
+      formulario.append('audio', audio, `audio.${audio.type.includes('mp4') ? 'm4a' : 'webm'}`);
+      const resposta = await fetch('/api/voz/transcrever', { method: 'POST', body: formulario });
+      const dados = (await resposta.json().catch(() => ({}))) as {
+        texto?: string;
+        modelo?: string;
+        ms?: number;
+        erro?: string;
+        falha?: string;
+      };
+      if (!resposta.ok || !dados.texto) {
+        desfazer(dados.erro ?? 'Não consegui entender o áudio agora. Tente de novo, ou escreva a sua dúvida.');
+        // Acabou a cota ou a voz não está ligada: o microfone volta ao ditado.
+        if (dados.falha === 'esgotada' || dados.falha === 'cota' || dados.falha === 'sem-chave') void vozIa.consultar();
+        return;
+      }
+      const transcricao = dados.texto;
+      setItens((atuais) =>
+        atuais.map((item) =>
+          item.chave === chave ? { ...item, texto: transcricao, audio: { url, duracao } } : item,
+        ),
+      );
+      setTranscrevendo(false);
+      await enviarTexto(transcricao, {
+        chaveExistente: chave,
+        audio: { duracaoSegundos: duracao, modelo: dados.modelo, transcricaoMs: dados.ms },
+      });
+    } catch {
+      desfazer('Não consegui mandar o áudio. Confira a internet e grave de novo, ou escreva a sua dúvida.');
+    } finally {
+      setTranscrevendo(false);
+    }
+  }
+
   const gravador = useGravador({
-    aoTerminar: (duracaoSegundos, mime) =>
-      void enviarAnexo('audio', { duracaoSegundos, mime }),
+    aoTerminar: (duracaoSegundos, mime, audio) =>
+      audio ? void enviarAudio(audio, duracaoSegundos) : void enviarAnexo('audio', { duracaoSegundos, mime }),
     aoFalhar: setAvisoComposer,
+    // Só no fluxo de áudio do staging o áudio é guardado e enviado. Um minuto
+    // cabe com folga no limite de envio e é o que uma pergunta precisa.
+    guardarAudio: vozIa.fluxoDeAudio,
+    maximoSegundos: vozIa.fluxoDeAudio ? 60 : undefined,
   });
 
   const ditado = useDitado({
@@ -742,7 +854,10 @@ export function Conversa({
   }, [ditado.ouvindo]);
 
   function tocarMicrofone() {
-    if (!comVoz) {
+    // No `/`, grava para medir a tentativa. No staging com a voz por IA,
+    // grava para mandar o áudio. Sem ela, o staging dita no campo.
+    if (!comVoz || vozIa.fluxoDeAudio) {
+      setAvisoComposer(null);
       void gravador.iniciar();
       return;
     }
@@ -759,14 +874,18 @@ export function Conversa({
   }
 
   momentoRef.current = {
-    esperando: digitando,
+    esperando: digitando || transcrevendo,
     gravando: gravador.gravando || ditado.ouvindo,
     texto,
     outroPainel: menuAberto || ajustando || apagandoConversa || avaliando || tutorialAberto,
     encerrada,
   };
 
-  function adicionarBot(conteudo: string, mensagemId: string | null) {
+  function adicionarBot(
+    conteudo: string,
+    mensagemId: string | null,
+    extra: Pick<Item, 'respostaEmAudio' | 'recemChegada'> = {},
+  ) {
     setItens((atuais) => [
       ...atuais,
       {
@@ -776,6 +895,7 @@ export function Conversa({
         hora: horaAgora(),
         mensagemId: mensagemId ?? undefined,
         comFeedback: Boolean(mensagemId),
+        ...extra,
       },
     ]);
   }
@@ -810,7 +930,7 @@ export function Conversa({
 
   // Mesma porta do texto: sem aceite não sai nada, e enquanto uma resposta está
   // sendo esperada não entra mais nada.
-  const podeEnviarAnexo = Boolean(sessaoId) && aceitou && !digitando && !encerrada;
+  const podeEnviarAnexo = Boolean(sessaoId) && aceitou && !digitando && !transcrevendo && !encerrada;
 
   return (
     <div
@@ -1008,29 +1128,72 @@ export function Conversa({
             <p className="carregando carregando-balao">Faça sua pergunta aqui embaixo.</p>
           )}
 
-          {itens.map((item, indice) => (
-            <div key={item.chave}>
-              <Balao
-                papel={item.papel}
-                texto={item.texto}
-                hora={item.hora}
-                lida={item.lida}
-                // O rabinho só aparece no primeiro balão de uma sequência.
-                primeira={indice === 0 || itens[indice - 1].papel !== item.papel}
-              />
-              {item.botoes && (
-                <BotoesRapidos
-                  botoes={item.botoes}
-                  escolhido={item.escolhido}
-                  onEscolher={(botao) => void escolherBotao(item, botao)}
+          {itens.map((item, indice) => {
+            // Staging: a resposta pode ser ouvida. A resposta a um áudio vem
+            // como áudio (o tocador no topo do balão); a resposta a texto ganha
+            // um "Ouvir" pequeno no pé do balão. Os dois ficam DENTRO dele.
+            const fonteDaResposta =
+              comVoz && item.papel === 'bot' && item.mensagemId
+                ? {
+                    tipo: 'resposta' as const,
+                    mensagemId: item.mensagemId,
+                    texto: item.texto,
+                    natural: vozIa.falaNatural,
+                    voz: vozIa.voz,
+                  }
+                : null;
+            const acima = item.audio ? (
+              item.audio.url ? (
+                <TocadorDeAudio
+                  fonte={{ tipo: 'gravacao', url: item.audio.url }}
+                  duracao={item.audio.duracao}
+                  aoAvisar={setAvisoComposer}
                 />
-              )}
-              {item.comFeedback && item.mensagemId && <Feedback mensagemId={item.mensagemId} />}
-              {comVoz && item.papel === 'bot' && item.mensagemId && (
-                <OuvirResposta texto={item.texto} aoFalhar={setAvisoComposer} />
-              )}
-            </div>
-          ))}
+              ) : (
+                <AudioSemGravacao duracao={item.audio.duracao} />
+              )
+            ) : fonteDaResposta && item.respostaEmAudio ? (
+              <TocadorDeAudio
+                fonte={fonteDaResposta}
+                preparar={item.recemChegada}
+                tocarAgora={item.recemChegada && lerAutomatica()}
+                aoAvisar={setAvisoComposer}
+                aoCotaAcabar={() => void vozIa.consultar()}
+              />
+            ) : undefined;
+            const abaixo =
+              fonteDaResposta && !item.respostaEmAudio ? (
+                <TocadorDeAudio
+                  compacto
+                  fonte={fonteDaResposta}
+                  aoAvisar={setAvisoComposer}
+                  aoCotaAcabar={() => void vozIa.consultar()}
+                />
+              ) : undefined;
+            return (
+              <div key={item.chave}>
+                <Balao
+                  papel={item.papel}
+                  texto={item.audio?.transcrevendo ? 'Transcrevendo o áudio…' : item.texto}
+                  hora={item.hora}
+                  lida={item.lida}
+                  // O rabinho só aparece no primeiro balão de uma sequência.
+                  primeira={indice === 0 || itens[indice - 1].papel !== item.papel}
+                  acima={acima}
+                  abaixo={abaixo}
+                  transcricao={Boolean(item.audio)}
+                />
+                {item.botoes && (
+                  <BotoesRapidos
+                    botoes={item.botoes}
+                    escolhido={item.escolhido}
+                    onEscolher={(botao) => void escolherBotao(item, botao)}
+                  />
+                )}
+                {item.comFeedback && item.mensagemId && <Feedback mensagemId={item.mensagemId} />}
+              </div>
+            );
+          })}
 
           {digitando && <Digitando />}
 
@@ -1081,23 +1244,35 @@ export function Conversa({
           />
 
           {gravador.gravando ? (
-            <div className="gravando" role="status">
-              <span className="ponto-gravacao" aria-hidden="true" />
-              <span>Gravando áudio</span>
-              {/* Fora da leitura: o cronômetro muda a cada segundo, e num
-                  role="status" isso seria o leitor de tela falando sem parar. */}
-              <span className="cronometro" aria-hidden="true">
-                {formatarDuracao(gravador.segundos)}
-              </span>
-              <button
-                type="button"
-                className="cancelar-gravacao"
-                aria-label="Cancelar gravação"
-                onClick={() => gravador.parar(true)}
-              >
-                Cancelar
-              </button>
-            </div>
+            <>
+              <div className="gravando" role="status">
+                <span className="ponto-gravacao" aria-hidden="true" />
+                <span>Gravando áudio</span>
+                {/* Fora da leitura: o cronômetro muda a cada segundo, e num
+                    role="status" isso seria o leitor de tela falando sem parar. */}
+                <span className="cronometro" aria-hidden="true">
+                  {formatarDuracao(gravador.segundos)}
+                </span>
+                <button
+                  type="button"
+                  className="cancelar-gravacao"
+                  aria-label="Cancelar gravação"
+                  onClick={() => gravador.parar(true)}
+                >
+                  Cancelar
+                </button>
+              </div>
+              {/* Staging, voz por IA: o botão verde manda o áudio, como no
+                  WhatsApp. No `/` a gravação só mede a tentativa, e o botão
+                  não existe ali. */}
+              {comVoz && vozIa.fluxoDeAudio && (
+                <button type="button" className="enviar" aria-label="Enviar áudio" onClick={() => gravador.parar(false)}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" />
+                  </svg>
+                </button>
+              )}
+            </>
           ) : (
             <>
               <div className={destacarCampo ? 'campo destaque' : 'campo'}>
@@ -1177,7 +1352,11 @@ export function Conversa({
                 <button
                   className="enviar"
                   aria-label={
-                    comVoz ? (ditado.ouvindo ? 'Parar de ouvir' : 'Falar a pergunta') : 'Gravar áudio'
+                    comVoz && !vozIa.fluxoDeAudio
+                      ? ditado.ouvindo
+                        ? 'Parar de ouvir'
+                        : 'Falar a pergunta'
+                      : 'Gravar áudio'
                   }
                   disabled={!podeEnviarAnexo}
                   onClick={tocarMicrofone}
@@ -1196,11 +1375,17 @@ export function Conversa({
         </footer>
       </section>
 
-      {ajustando && <PainelAjustes comVoz={comVoz} aoFechar={() => setAjustando(false)} />}
+      {ajustando && <PainelAjustes comVoz={comVoz} vozIa={vozIa} aoFechar={() => setAjustando(false)} />}
 
       {tutorialAberto && (
         <Tutorial
-          passos={PASSOS_DO_TUTORIAL}
+          passos={
+            vozIa.fluxoDeAudio
+              ? PASSOS_DO_TUTORIAL.map((passo) =>
+                  passo.alvo === '.barra-envio .enviar' ? { ...passo, texto: TEXTO_DO_PASSO_DE_AUDIO } : passo,
+                )
+              : PASSOS_DO_TUTORIAL
+          }
           aoTerminar={(motivo) => {
             setTutorialAberto(false);
             registrarTutorial(motivo);
