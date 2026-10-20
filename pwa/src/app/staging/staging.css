@@ -27,6 +27,14 @@
   font-weight: 600;
 }
 
+/* Os itens do menu ⋮ que são links (Avisos, Minha conta) têm a cara dos que
+   são botões. Com a regra acima, saíam verdes e em negrito, como se fossem
+   de outro tipo. */
+.st .menu a {
+  color: inherit;
+  font-weight: inherit;
+}
+
 /* Amarelo de aviso de sistema: diz, sem assustar, que isto não é o app final.
    Leva também quem está logado e a saída, porque é a única barra que aparece em
    toda tela do staging, inclusive no chat, que ocupa a altura inteira. */
@@ -470,6 +478,52 @@
 
 .st-voltar {
   margin: 0 0 12px;
+}
+
+/* A conversa da lista e o "Apagar" dela na mesma linha; a confirmação desce
+   para a linha de baixo, com o que vai acontecer escrito. */
+.st-conversa {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.st .st-conversa > a {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-apagar-conversa {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 22px;
+  color: var(--perigo);
+  font-weight: 600;
+}
+
+.st-confirmar-conversa {
+  flex-basis: 100%;
+  padding: 0 0 14px;
+}
+
+.st-confirmar-conversa p {
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+/* Polegares: o desenho fica igual, e a área de toque chega a 44 px. Eram 32,
+   pequenos demais para o dedo de quem tem tremor. */
+.st .avaliar-msg button {
+  position: relative;
+}
+
+.st .avaliar-msg button::before {
+  position: absolute;
+  inset: -6px -2px;
+  content: '';
 }
 
 .st-voltar a {
