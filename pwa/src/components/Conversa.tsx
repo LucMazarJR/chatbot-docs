@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { aguardarResposta } from '@/lib/aguardar-resposta';
 import { Balao, Digitando } from '@/components/Balao';
+import { ProgressoDaResposta } from '@/components/ProgressoDaResposta';
 import { BotoesRapidos, type BotaoRapido } from '@/components/BotoesRapidos';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
@@ -1300,7 +1301,7 @@ export function Conversa({
             );
           })}
 
-          {digitando && <Digitando etapa={comConta ? etapa : null} />}
+          {digitando && (comConta && etapa ? <ProgressoDaResposta etapa={etapa} /> : <Digitando />)}
 
           {/* `alert` e não `log`: o serviço fora do ar interrompe o que a pessoa
               veio fazer, e precisa ser dito na hora, não na vez dela. */}
