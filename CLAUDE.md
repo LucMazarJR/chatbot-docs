@@ -53,6 +53,7 @@ O público inclui gente idosa e com pouca prática no celular. Toda tela e todo 
 * **Toda frase tem que apontar para algo que existe na tela.** Dizer "toque em Aceitar acima" quando o botão sumiu é defeito, mesmo que o código esteja certo.
 * **Não travar botão sem explicar.** Deixar tocar e dizer o que falta é melhor que um botão apagado que ninguém sabe por que está apagado.
 * **Sempre existe caminho de volta:** sair da conta, cancelar, desfazer, voltar. E ele fica onde a pessoa está, não só dentro de outra tela.
+* **O voltar do celular fecha o que está aberto por cima (menu, painel, folha) e nunca sai do app.** Camada nova usa `useVoltarFecha` ([pwa/src/lib/usar-voltar-fecha.ts](pwa/src/lib/usar-voltar-fecha.ts)), e link de dentro de uma camada usa `replace`, para a página nova ocupar a entrada dela.
 * O que é obrigatório por lei, como o aceite, ainda precisa ser fácil de entender e de encontrar.
 * Antes de dar por pronto: abrir a tela de verdade, no tamanho de celular, e percorrer o caminho inteiro.
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { VoltarParaConversa } from '@/components/VoltarParaConversa';
 import type { ConversaResumida } from '@/lib/conta/conversas';
 import type { ContaPublica } from '@/lib/conta/tipos';
 import { dataCurta } from '@/lib/datas';
@@ -51,7 +52,7 @@ export function PainelConta({
   return (
     <>
       <p className="st-voltar">
-        <a href="/staging">← Voltar para a conversa</a>
+        <VoltarParaConversa>← Voltar para a conversa</VoltarParaConversa>
       </p>
 
       <header className="st-marca">

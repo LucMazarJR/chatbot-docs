@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { PainelAvisos } from '@/components/avisos/PainelAvisos';
+import { VoltarParaConversa } from '@/components/VoltarParaConversa';
 import { contaAtual } from '@/lib/conta/servidor';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,7 @@ export default async function Avisos() {
   return (
     <main className="st-pagina">
       <p className="st-voltar">
-        <a href="/staging">← Voltar para a conversa</a>
+        <VoltarParaConversa>← Voltar para a conversa</VoltarParaConversa>
       </p>
 
       <header className="st-marca">
