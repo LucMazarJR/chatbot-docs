@@ -197,6 +197,14 @@ services:
       # Gatilhos de avisos (pwa/src/gatilhos). Vazio desliga todos.
       GATILHOS_ATIVOS: ${GATILHOS_ATIVOS:-}
       GATILHOS_ENSAIO: ${GATILHOS_ENSAIO:-}
+      # Voz por IA do /staging (áudio no fluxo do WhatsApp e voz natural). A
+      # chave é de um projeto do Google SEM cobrança, nunca a _2. Vazia, o
+      # staging fica com o ditado e a voz do celular, como antes.
+      GEMINI_VOZ_API_KEY: ${GEMINI_VOZ_API_KEY:-}
+      # Teto próprio de chamadas de voz por IA por dia, abaixo da cota gratuita.
+      VOZ_IA_LIMITE_DIA: ${VOZ_IA_LIMITE_DIA:-}
+      VOZ_IA_MODELO_FALA: ${VOZ_IA_MODELO_FALA:-}
+      VOZ_IA_MODELO_TRANSCRICAO: ${VOZ_IA_MODELO_TRANSCRICAO:-}
       # Vazias, o PWA gera o par de chaves na primeira vez e o guarda no banco,
       # e todo ambiente que usa o mesmo banco envia com as mesmas chaves. Ver
       # docs/notificacoes-push.md antes de preencher.
