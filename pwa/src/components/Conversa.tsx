@@ -29,7 +29,8 @@ import { Carregando } from '@/components/Carregando';
 import { decidirAvaliacao, INATIVIDADE_MS } from '@/lib/avaliacao-automatica';
 import { Tutorial, type PassoDoTutorial } from '@/components/Tutorial';
 import { AudioSemGravacao, TocadorDeAudio } from '@/components/TocadorDeAudio';
-import { falar, lerAutomatica } from '@/lib/leitura-em-voz';
+import { falar, lerAutomatica, pararDeFalar } from '@/lib/leitura-em-voz';
+import { pararTodoSom, soltarAVez, tomarAVez } from '@/lib/som-unico';
 import { useDitado } from '@/lib/usar-ditado';
 import { useVozIa } from '@/lib/usar-voz-ia';
 import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
@@ -719,7 +720,10 @@ export function Conversa({
       // chega. A resposta a um áudio toca pelo próprio balão, com a voz
       // natural; a resposta a texto, pela voz do celular, para não gastar as
       // poucas falas naturais do dia com quem preferiu escrever.
-      if (comVoz && !pronta.erro && !opcoes.audio && lerAutomatica()) void falar(pronta.resposta);
+      if (comVoz && !pronta.erro && !opcoes.audio && lerAutomatica()) {
+        const vez = tomarAVez(pararDeFalar);
+        void falar(pronta.resposta, () => soltarAVez(vez));
+      }
     } catch {
       // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
       // provável é a plataforma ter cortado a função no teto dela: isso é
@@ -868,6 +872,9 @@ export function Conversa({
   }, [ditado.ouvindo]);
 
   function tocarMicrofone() {
+    // Gravar ou ditar com um áudio tocando gravaria o próprio áudio, e a
+    // pessoa não ouviria a si mesma: o WhatsApp também cala tudo ao gravar.
+    if (comVoz) pararTodoSom();
     // No `/`, grava para medir a tentativa. No staging com a voz por IA,
     // grava para mandar o áudio. Sem ela, o staging dita no campo.
     if (!comVoz || vozIa.fluxoDeAudio) {

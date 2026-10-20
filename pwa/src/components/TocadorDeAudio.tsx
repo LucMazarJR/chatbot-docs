@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { falar, pararDeFalar, taxaDeReproducao, vozSuportada } from '@/lib/leitura-em-voz';
+import { aindaEAVez, soltarAVez, tomarAVez } from '@/lib/som-unico';
 import { formatarDuracao } from '@/lib/usar-gravador';
 
 /**
@@ -44,9 +45,6 @@ function prepararResposta(mensagemId: string, voz: string) {
   return pronto;
 }
 
-/** Um áudio por vez, como no WhatsApp: o play de um para o que estiver tocando. */
-let pararOAnterior: (() => void) | null = null;
-
 const ICONE_PLAY = <path d="M8 5v14l11-7z" />;
 const ICONE_PAUSA = <path d="M6 5h4v14H6zM14 5h4v14h-4z" />;
 
@@ -84,15 +82,28 @@ export function TocadorDeAudio({
   // guardou a função de uma renderização antiga.
   const estadoRef = useRef<Estado>('parado');
   estadoRef.current = estado;
+  /** A vez deste tocador no som único (lib/som-unico.ts), enquanto ele toca ou prepara. */
+  const vezRef = useRef<number | null>(null);
 
+  // Chamado também por OUTRO som que tomou a vez: inclusive no meio do
+  // preparo, que então termina sem tocar.
   const parar = useCallback(() => {
     audioRef.current?.pause();
     if (estadoRef.current === 'aparelho') pararDeFalar();
-    setEstado((atual) => (atual === 'tocando' ? 'pausado' : atual === 'aparelho' ? 'parado' : atual));
+    setEstado((atual) =>
+      atual === 'tocando' ? 'pausado' : atual === 'aparelho' || atual === 'preparando' ? 'parado' : atual,
+    );
   }, []);
+
+  /** A pessoa tocou em pausa: a vez fica livre. */
+  function pausar() {
+    if (vezRef.current !== null) soltarAVez(vezRef.current);
+    parar();
+  }
 
   useEffect(() => () => {
     audioRef.current?.pause();
+    if (vezRef.current !== null) soltarAVez(vezRef.current);
   }, []);
 
   /** Garante o elemento de áudio com a fonte certa. */
@@ -105,6 +116,7 @@ export function TocadorDeAudio({
         if (Number.isFinite(audio.duration)) setTotal(audio.duration);
       });
       audio.addEventListener('ended', () => {
+        if (vezRef.current !== null) soltarAVez(vezRef.current);
         setEstado('parado');
         setTempo(0);
       });
@@ -114,7 +126,7 @@ export function TocadorDeAudio({
     return audioRef.current;
   }, []);
 
-  async function falarNoAparelho() {
+  async function falarNoAparelho(vez: number) {
     if (fonte.tipo !== 'resposta') return;
     if (!vozSuportada()) {
       aoAvisar('Este navegador não lê respostas em voz alta.');
@@ -122,7 +134,10 @@ export function TocadorDeAudio({
       return;
     }
     setEstado('aparelho');
-    const conseguiu = await falar(fonte.texto, () => setEstado('parado'));
+    const conseguiu = await falar(fonte.texto, () => {
+      soltarAVez(vez);
+      setEstado('parado');
+    });
     if (!conseguiu) {
       setEstado('parado');
       aoAvisar('Este aparelho não tem voz em português instalada. Dá para instalar nas configurações de voz do celular.');
@@ -146,8 +161,8 @@ export function TocadorDeAudio({
   }
 
   async function tocar() {
-    pararOAnterior?.();
-    pararOAnterior = parar;
+    const vez = tomarAVez(parar);
+    vezRef.current = vez;
 
     if (fonte.tipo === 'gravacao') {
       const audio = elemento(fonte.url);
@@ -159,8 +174,11 @@ export function TocadorDeAudio({
 
     if (!urlPronta() && fonte.natural) setEstado('preparando');
     const url = await urlDaVozNatural(true);
+    // A pessoa tocou em outro áudio enquanto este chegava: ele fica pronto
+    // para o próximo play, mas não toca junto com o outro.
+    if (!aindaEAVez(vez)) return;
     if (!url) {
-      await falarNoAparelho();
+      await falarNoAparelho(vez);
       return;
     }
     const audio = elemento(url);
@@ -209,7 +227,7 @@ export function TocadorDeAudio({
         aria-label={rotulo}
         aria-pressed={tocando}
         disabled={estado === 'preparando'}
-        onClick={() => (tocando ? parar() : void tocar())}
+        onClick={() => (tocando ? pausar() : void tocar())}
       >
         {estado === 'preparando' ? (
           <span className="giro-pequeno" aria-hidden="true" />
@@ -231,7 +249,7 @@ export function TocadorDeAudio({
         className="tocador-play"
         aria-label={rotulo}
         disabled={estado === 'preparando'}
-        onClick={() => (tocando ? parar() : void tocar())}
+        onClick={() => (tocando ? pausar() : void tocar())}
       >
         {estado === 'preparando' ? (
           <span className="giro-pequeno" aria-hidden="true" />

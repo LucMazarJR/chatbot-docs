@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 import {
@@ -27,6 +27,7 @@ import {
 } from '@/lib/leitura-em-voz';
 import type { useVozIa } from '@/lib/usar-voz-ia';
 import { VOZES } from '@/lib/vozes';
+import { soltarAVez, tomarAVez } from '@/lib/som-unico';
 
 const VOZ_IA: { id: 'ligada' | 'desligada'; rotulo: string; descricao: string }[] = [
   {
@@ -118,21 +119,42 @@ function GrupoDeOpcoes<T extends string>({
  * vale na próxima resposta tocada, sem fechar o painel.
  */
 function EscolhaDaVozIa({ vozIa }: { vozIa: ReturnType<typeof useVozIa> }) {
-  const amostraRef = useRef<HTMLAudioElement | null>(null);
+  const amostraRef = useRef<{ audio: HTMLAudioElement; vez: number } | null>(null);
   const [tocando, setTocando] = useState<string | null>(null);
 
+  function pararAmostra() {
+    const amostra = amostraRef.current;
+    amostraRef.current = null;
+    if (!amostra) return;
+    amostra.audio.pause();
+    soltarAVez(amostra.vez);
+    setTocando(null);
+  }
+
+  // Fechar o painel cala a amostra: ela não tem mais botão para parar.
+  useEffect(() => pararAmostra, []);
+
   function ouvirAmostra(nome: string) {
-    amostraRef.current?.pause();
-    if (tocando === nome) {
-      setTocando(null);
-      return;
-    }
+    const repetiu = tocando === nome;
+    pararAmostra();
+    if (repetiu) return;
     const audio = new Audio(`/vozes/${nome}.mp3`);
     audio.playbackRate = taxaDeReproducao();
-    audio.addEventListener('ended', () => setTocando(null));
-    amostraRef.current = audio;
+    // A amostra para a resposta que estiver tocando na conversa, e o
+    // contrário também: duas vozes juntas não deixam comparar nenhuma.
+    const vez = tomarAVez(() => {
+      audio.pause();
+      if (amostraRef.current?.audio === audio) amostraRef.current = null;
+      setTocando(null);
+    });
+    audio.addEventListener('ended', () => {
+      soltarAVez(vez);
+      if (amostraRef.current?.audio === audio) amostraRef.current = null;
+      setTocando(null);
+    });
+    amostraRef.current = { audio, vez };
     setTocando(nome);
-    void audio.play().catch(() => setTocando(null));
+    void audio.play().catch(() => pararAmostra());
   }
 
   const { estado } = vozIa;
