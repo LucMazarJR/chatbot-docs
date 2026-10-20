@@ -39,6 +39,8 @@ type Entrega = {
   staging?: boolean;
   /** As últimas mensagens da conversa, que a reescrita usa para entender "e lá?". */
   historico?: { papel: 'user' | 'bot'; texto: string }[];
+  /** Staging: responder com prazo em cada modelo, em vez do agente sem prazo. */
+  limiteDeTempo?: boolean;
 };
 
 /**
@@ -68,6 +70,7 @@ export async function despachar({
   urlDeRetorno,
   staging = false,
   historico,
+  limiteDeTempo,
 }: Entrega): Promise<ResultadoDaEntrega> {
   const url = enderecoDoFluxo(staging);
   const token = process.env.N8N_PWA_WEBHOOK_TOKEN;
@@ -95,6 +98,7 @@ export async function despachar({
         nome,
         urlDeRetorno,
         ...(historico ? { historico } : {}),
+        ...(limiteDeTempo !== undefined ? { limiteDeTempo } : {}),
       }),
       signal: AbortSignal.timeout(TEMPO_LIMITE_ENTREGA),
       cache: 'no-store',

@@ -148,6 +148,13 @@ export type Mensagem = {
   /** Staging: a resposta a uma pergunta em áudio vem como áudio também. */
   respostaEmAudio?: boolean;
 
+  /**
+   * Staging: o modo de espera escolhido para esta resposta. Com limite, cada
+   * modelo tem prazo; sem, o agente espera o quanto o Gemini precisar. Com a
+   * `latenciaMs`, é o que compara os dois modos.
+   */
+  comLimiteDeTempo?: boolean;
+
   /** Staging: a última vez que a resposta foi falada com voz natural. Registro do acionamento. */
   vozGerada?: {
     modelo: string;
