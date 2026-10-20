@@ -248,14 +248,18 @@ function MarcasDaResposta({ mensagem }: { mensagem: MensagemConversa }) {
     marcas.push(
       <Selo tom="atencao">{((mensagem.latenciaMs ?? 0) / 1000).toFixed(0)} s para responder</Selo>,
     );
-  // A resposta a um áudio vai como áudio; a voz natural, quando foi usada, é
-  // o registro do acionamento da IA que falou.
+  // A resposta a um áudio vai como áudio, e a escrita pode ser ouvida. A voz
+  // que tocou é o que o grupo compara para decidir se a natural vale o custo:
+  // a natural é o registro do acionamento da IA, a do celular não custa nada.
+  const vozes = [
+    mensagem.vozGerada && `voz natural ${mensagem.vozGerada.voz}`,
+    mensagem.ouvidaNoCelularEm && "voz do celular",
+  ]
+    .filter(Boolean)
+    .join(" e ");
   if (mensagem.respostaEmAudio)
-    marcas.push(
-      <Selo>
-        Respondida em áudio{mensagem.vozGerada ? `, voz natural ${mensagem.vozGerada.voz}` : ""}
-      </Selo>,
-    );
+    marcas.push(<Selo>Respondida em áudio{vozes ? `, ${vozes}` : ""}</Selo>);
+  else if (vozes) marcas.push(<Selo>Ouvida com {vozes}</Selo>);
   if (mensagem.feedback === "up") marcas.push(<Selo tom="sucesso">Avaliada como boa</Selo>);
   if (mensagem.feedback === "down") marcas.push(<Selo tom="erro">Avaliada como ruim</Selo>);
   if (marcas.length === 0 && !mensagem.feedbackComentario) return null;

@@ -118,6 +118,13 @@ export class Mensagem {
     @Prop({ type: Object, default: undefined })
     vozGerada?: { modelo: string; voz: string; em: Date; caracteres: number; ms: number };
 
+    /**
+     * Staging: a última vez que a resposta tocou na voz do celular. Com
+     * `vozGerada`, compara o uso das duas vozes.
+     */
+    @Prop({ type: Date, default: undefined })
+    ouvidaNoCelularEm?: Date;
+
     // Daqui para baixo, só nas mensagens do bot.
 
     @Prop()
