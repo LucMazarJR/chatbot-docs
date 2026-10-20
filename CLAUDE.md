@@ -40,6 +40,14 @@ Tela que busca dado mostra o **sinal de carregamento** até a resposta chegar, e
 * Número que depende da resposta (contador, total, percentual) não aparece como zero enquanto espera.
 * Conferir no navegador com a rede lenta (DevTools, *Slow 4G*): é assim que o vazio falso aparece.
 
+## Quem usa o chat
+
+O público inclui gente idosa e com pouca prática no celular. Toda tela e todo recurso do chat são pensados primeiro para essa pessoa, e só depois para quem já se vira sozinho.
+
+* **Copiar o que a pessoa já conhece antes de inventar.** O chat imita o WhatsApp de propósito: quem sabe usar um sabe usar o outro. Controle que não existe no WhatsApp precisa de um motivo forte, e controle ligado a uma mensagem fica dentro do balão dela, ou colado nele e no mesmo estilo, nunca solto embaixo.
+* **Voz segue o fluxo do WhatsApp.** Quem manda áudio vê o próprio balão de áudio, com a transcrição, e recebe a resposta em áudio, com o texto junto. Quem escreve recebe texto.
+* **Ajuda que depende de a pessoa achar um convite não chega a quem mais precisa dela.** A demonstração de como usar abre sozinha na primeira vez, com Pular sempre à vista, e continua disponível no menu. A caixa de explicação fica ao lado do que explica, aponta para ele sem cobri-lo, tem o visual do próprio app, frase curta e botões de 44 px.
+
 ## UX antes de dar por pronto
 
 * **Toda frase tem que apontar para algo que existe na tela.** Dizer "toque em Aceitar acima" quando o botão sumiu é defeito, mesmo que o código esteja certo.
@@ -89,6 +97,7 @@ Este arquivo guarda só regra de trabalho. O estado do momento (o que está publ
 * **O painel é a ferramenta de trabalho da equipe.** Mexer nele pede verificação antes do push.
 * Variável de ambiente nova nasce com padrão vazio e o sistema funciona sem ela, como o login do Google, que fica oculto enquanto não houver credencial.
 * Segredo não entra no código nem no log, e `.env` não vai para o repositório.
+* **Orçamento zero.** Recurso pago não entra. IA só no plano gratuito, com um teto diário próprio abaixo da cota, e quando o teto ou a cota acabam o recurso volta ao equivalente gratuito do aparelho e diz isso na tela. Todo recurso com IA tem um jeito de ligar e desligar. Chave de API nova vem de projeto sem cobrança ativada.
 
 ## Comandos
 
