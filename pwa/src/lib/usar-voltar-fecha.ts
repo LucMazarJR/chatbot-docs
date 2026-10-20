@@ -15,7 +15,9 @@ function pilhaDaPagina() {
       empilhar: () => window.history.pushState(null, ''),
       voltar: () => window.history.back(),
       endereco: () => window.location.pathname + window.location.search,
-      depois: queueMicrotask,
+      // Chamada solta, e não como método do objeto: o navegador recusa
+      // `queueMicrotask` com outro `this` ("Illegal invocation").
+      depois: (tarefa) => queueMicrotask(tarefa),
     });
     const pilha = camadas;
     window.addEventListener('popstate', () => pilha.aoVoltar());
