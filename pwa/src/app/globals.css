@@ -643,96 +643,86 @@ button {
   animation-delay: 0.36s;
 }
 
-/* Staging: a etapa da resposta no balão de "digitando". Um ícone que se mexe
-   devagar e a frase, que entra deslizando quando a etapa muda; os três pontos
-   continuam, menores, para o balão ainda parecer alguém escrevendo. */
-.digitando .balao.com-etapa {
+/* Staging: no lugar do balão de "digitando", a frase da etapa e uma barra em
+   três trechos, um por etapa. Sem fundo nem sombra, de propósito: no balão
+   branco, a espera parecia uma mensagem do assistente. */
+.progresso {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-}
-
-.etapa {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 7px;
-  color: var(--texto);
-  font-size: 0.92em;
-  animation: etapa-entrar 0.35s ease-out;
+  width: min(72%, 17em);
+  padding: 6px 2px 4px;
+  animation: progresso-entrar 0.3s ease-out;
 }
 
-.etapa svg {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  fill: var(--acento);
+.progresso-frase {
+  color: color-mix(in srgb, var(--texto) 78%, transparent);
+  font-size: 0.88em;
+  font-weight: 500;
+  animation: progresso-entrar 0.35s ease-out;
 }
 
-.etapa-entendendo svg {
-  animation: etapa-ler 1.6s ease-in-out infinite;
+.progresso-trilho {
+  display: flex;
+  gap: 4px;
 }
 
-.etapa-buscando svg {
-  animation: etapa-procurar 1.8s ease-in-out infinite;
+.progresso-trecho {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--texto-fraco) 24%, transparent);
 }
 
-.etapa-escrevendo svg {
-  animation: etapa-escrever 0.9s ease-in-out infinite alternate;
+.progresso-trecho i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--acento);
+  /* Linear e do tamanho do passo do relógio: o trecho desliza sem parar entre
+     um passo e outro, em vez de andar aos pulos. */
+  transition: width 0.45s linear;
 }
 
-.balao.com-etapa .pontos i {
-  width: 5px;
-  height: 5px;
+/* O brilho que corre só no trecho da etapa atual: é ele que diz "está
+   trabalhando agora" quando a etapa demora e o trecho anda pouco. */
+.progresso-trecho.atual i {
+  background:
+    linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.55) 50%, transparent 80%) no-repeat,
+    var(--acento);
+  background-size:
+    60% 100%,
+    100% 100%;
+  animation: progresso-brilho 1.5s ease-in-out infinite;
 }
 
-@keyframes etapa-entrar {
+@keyframes progresso-entrar {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(4px);
   }
 }
 
-@keyframes etapa-ler {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.15);
-  }
-}
-
-/* A lupa dá uma volta pequena, como quem procura numa página. */
-@keyframes etapa-procurar {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  25% {
-    transform: translate(2px, -2px);
-  }
-  50% {
-    transform: translate(0, -3px);
-  }
-  75% {
-    transform: translate(-2px, -2px);
-  }
-}
-
-/* O lápis vai e volta, como quem escreve. */
-@keyframes etapa-escrever {
+/* Com o brilho do tamanho de 60% do trecho, -150% e 250% são as posições em
+   que ele fica inteiro fora, à esquerda e à direita. */
+@keyframes progresso-brilho {
   from {
-    transform: translateX(-2px) rotate(-6deg);
+    background-position:
+      -150% 0,
+      0 0;
   }
   to {
-    transform: translateX(2px) rotate(6deg);
+    background-position:
+      250% 0,
+      0 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .etapa,
-  .etapa svg {
+  .progresso,
+  .progresso-frase,
+  .progresso-trecho.atual i {
     animation: none;
   }
 }
