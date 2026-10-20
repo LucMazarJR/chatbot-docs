@@ -13,11 +13,13 @@ export const dynamic = 'force-dynamic';
  * de conversas e entra na curadoria como qualquer outra.
  */
 export default async function Staging() {
-  if (!(await contaAtual())) redirect('/staging/entrar');
+  const conta = await contaAtual();
+  if (!conta) redirect('/staging/entrar');
 
   return (
     <Conversa
       modo="conta"
+      nome={conta.nome}
       comTutorial
       comVoz
       itensDeMenu={[
