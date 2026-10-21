@@ -376,8 +376,15 @@ button {
 /* Estava em opacity 0.85, o que dava 3.99:1 de contraste contra o verde do
    cabeçalho: abaixo dos 4.5:1 que a WCAG pede para texto deste tamanho. A
    opacidade cheia leva para 4.89:1. A hierarquia continua pelo tamanho. */
+/* A etapa da resposta ("procurando a informação…") é mais longa que
+   "digitando…": com a letra no máximo, ela corta com reticências em vez de
+   empurrar o botão do menu para fora. */
 .topo-nome span {
+  display: block;
+  overflow: hidden;
   font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topo button {
@@ -588,6 +595,7 @@ button {
 }
 
 .avaliar-msg button {
+  position: relative;
   min-height: 32px;
   min-width: 40px;
   padding: 3px 9px;
@@ -598,6 +606,14 @@ button {
   line-height: 1.4;
   opacity: 0.75;
   transition: opacity 0.15s;
+}
+
+/* O desenho fica com 32 px, e a área de toque chega a 44: 32 era pequeno
+   demais para o dedo de quem tem tremor. */
+.avaliar-msg button::before {
+  position: absolute;
+  inset: -6px -2px;
+  content: '';
 }
 
 .avaliar-msg button:hover {

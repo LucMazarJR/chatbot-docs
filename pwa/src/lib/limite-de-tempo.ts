@@ -13,7 +13,7 @@
  * Sem limite é o padrão enquanto o grupo valida a reescrita e mede quanto cada
  * etapa demora de verdade: com limite, as etapas lentas seriam cortadas antes
  * de terminar, e a medição mostraria o prazo, e não o tempo real. Quem quiser
- * comparar troca. Fica no aparelho, como as outras escolhas do staging.
+ * comparar troca. Fica no aparelho, como as outras escolhas do chat.
  */
 const CHAVE = 'pwa:limite-de-tempo';
 

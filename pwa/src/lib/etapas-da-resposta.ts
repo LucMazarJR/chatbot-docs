@@ -1,5 +1,5 @@
 /**
- * As etapas da resposta que a tela mostra enquanto espera (staging).
+ * As etapas da resposta que a tela mostra enquanto espera.
  *
  * O fluxo do n8n avisa ao entrar em cada uma, e a tela troca "digitando…" pelo
  * que está acontecendo. Três pontinhos parados por 40 s pareciam travamento, e

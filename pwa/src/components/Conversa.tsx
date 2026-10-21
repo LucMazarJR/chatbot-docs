@@ -13,7 +13,6 @@ import { FolhaApagar } from '@/components/FolhaApagar';
 import { PainelAjustes } from '@/components/PainelAjustes';
 import { RegistrarSW } from '@/components/RegistrarSW';
 import {
-  AVISOS_DE_DEMORA,
   MS_PARA_CONSIDERAR_DEMORA,
   TEXTO_DEMOROU_DEMAIS,
   TEXTO_FORA_DO_AR,
@@ -131,14 +130,19 @@ const CHAVES_DE_ACEITE = ['aceite', 'aceite-depois'];
  * podiam começar. A frase aponta para o campo pelo nome que está escrito nele,
  * e não por "aqui embaixo": com o teclado aberto, o campo muda de lugar.
  */
-const ACEITE_CONFIRMADO = [
-  'Pronto, já pode perguntar!',
-  '',
-  'Escreva sua dúvida no campo *Escreva sua pergunta* e toque no botão de enviar, ao lado dele.',
-].join('\n');
-
-function confirmacaoDoAceite(quando?: Date): Item {
-  return { chave: 'aceite-pronto', papel: 'bot', texto: ACEITE_CONFIRMADO, hora: horaAgora(quando) };
+function confirmacaoDoAceite(comVoz: boolean, quando?: Date): Item {
+  return {
+    chave: 'aceite-pronto',
+    papel: 'bot',
+    texto: [
+      'Pronto, já pode perguntar!',
+      '',
+      comVoz
+        ? 'Escreva sua dúvida no campo *Escreva sua pergunta*, ou toque no microfone verde e mande um áudio.'
+        : 'Escreva sua dúvida no campo *Escreva sua pergunta* e toque no botão de enviar, ao lado dele.',
+    ].join('\n'),
+    hora: horaAgora(quando),
+  };
 }
 
 /**
@@ -204,7 +208,7 @@ const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
   },
 ];
 
-/** O passo do botão de enviar quando o microfone manda áudio (voz por IA do staging). */
+/** O passo do botão de enviar quando o microfone manda áudio (voz por IA). */
 const TEXTO_DO_PASSO_DE_AUDIO =
   'Toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone: toque, fale e envie. A resposta vem em áudio.';
 
@@ -271,16 +275,16 @@ export type PropsConversa = {
    * no cadastro, então o pedido de aceite não aparece.
    */
   modo?: 'anonimo' | 'conta';
-  /** Staging: o nome da conta, para as boas-vindas. */
+  /** Com conta: o nome dela, para as boas-vindas. */
   nome?: string | null;
   /** Destinos extras no menu ⋮, entre Privacidade e Encerrar. */
   itensDeMenu?: { rotulo: string; href: string }[];
-  /** Staging: oferece o passo a passo de como usar, e põe "Como usar" no menu. */
+  /** Oferece o passo a passo de como usar, e põe "Como usar" no menu. */
   comTutorial?: boolean;
   /**
-   * Staging: o microfone vira ditado (a fala vira texto no campo) e cada
-   * resposta ganha "Ouvir". Sem esta prop, o microfone continua medindo
-   * quanta gente tenta mandar áudio, como no `/`.
+   * O microfone manda áudio (ou dita, à escolha da pessoa) e cada resposta
+   * pode ser ouvida. Sem esta prop, o microfone só mede quanta gente tenta
+   * mandar áudio.
    */
   comVoz?: boolean;
 };
@@ -326,30 +330,28 @@ export function Conversa({
   const aberturaDoTutorialRef = useRef(false);
   /** O texto do campo veio, ao menos em parte, do ditado. Vai junto da mensagem, para medir. */
   const veioDaVozRef = useRef(false);
-  /** `/`: recado passageiro acima do campo (microfone recusado, envio falhou). No staging, `avisar`. */
-  const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
   /** Recados que já viraram mensagem nesta visita: a falta da voz natural se diz uma vez só. */
   const avisosDadosRef = useRef(new Set<string>());
   /** Respostas já registradas como ouvidas na voz do celular nesta visita: uma vez cada. */
   const ouvidasRef = useRef(new Set<string>());
 
   /**
-   * Staging: a resposta tocou na voz do celular. Com o `vozGerada` da voz
+   * A resposta tocou na voz do celular. Com o `vozGerada` da voz
    * natural, é o que deixa o grupo comparar as duas pelo uso de verdade.
    * Sem esperar e sem avisar se falhar: é medição.
    */
   function registrarOuvida(mensagemId: string) {
     if (!comVoz || ouvidasRef.current.has(mensagemId)) return;
     ouvidasRef.current.add(mensagemId);
-    void fetch(`/api/mensagens/${mensagemId}/ouvida`, { method: 'POST' }).catch(() => {});
+    void fetch(`/api/mensagens/${mensagemId}/ouvida`, { method: 'POST', headers: cabecalhosDaSessao() }).catch(() => {});
   }
-  /** Staging: voz por IA (áudio no fluxo do WhatsApp e voz natural). */
+  /** Voz por IA (áudio no fluxo do WhatsApp e voz natural). */
   const vozIa = useVozIa(comVoz);
   /** Um áudio está sendo transcrito: nada mais sai até ele virar pergunta. */
   const [transcrevendo, setTranscrevendo] = useState(false);
-  /** Staging: em que etapa está a resposta que está sendo esperada. */
+  /** Em que etapa está a resposta que está sendo esperada. */
   const [etapa, setEtapa] = useState<EtapaDaResposta | null>(null);
-  /** Staging: a resposta chegou, e a caixa da espera mostra "Pronto" antes de ela entrar. */
+  /** A resposta chegou, e a caixa da espera mostra "Pronto" antes de ela entrar. */
   const [respostaPronta, setRespostaPronta] = useState(false);
 
   const listaRef = useRef<HTMLElement>(null);
@@ -384,14 +386,14 @@ export function Conversa({
 
   // --- Menu do cabeçalho ---------------------------------------------------
 
-  // Staging: o voltar do celular fecha o menu, em vez de sair do app.
-  const camadaDoMenu = useVoltarFecha(menuAberto, () => setMenuAberto(false), comConta);
+  // O voltar do celular fecha o menu, em vez de sair do app.
+  const camadaDoMenu = useVoltarFecha(menuAberto, () => setMenuAberto(false));
 
-  // As páginas do staging (conta, avisos) voltam para cá pelo histórico, e
-  // não abrindo o chat de novo por cima delas.
+  // As páginas abertas daqui (privacidade, conta, avisos) voltam pelo
+  // histórico, e não abrindo o chat de novo por cima delas.
   useEffect(() => {
-    if (comConta) marcarChatNaHistoria();
-  }, [comConta]);
+    marcarChatNaHistoria();
+  }, []);
 
   /**
    * Abrir o menu leva o foco para dentro dele; Esc fecha e devolve o foco.
@@ -550,7 +552,7 @@ export function Conversa({
         ...(comConta
           ? [boasVindas(nome, comVoz, inicio)]
           : dados.consentimento
-            ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, confirmacaoDoAceite(inicio)]
+            ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, confirmacaoDoAceite(comVoz, inicio)]
             : [pedidoDeAceite(inicio)]),
         ...dados.mensagens.map((m) => ({
           chave: m._id,
@@ -664,7 +666,7 @@ export function Conversa({
       setItens((atuais) =>
         atuais.some((item) => item.chave === 'aceite-pronto')
           ? atuais
-          : [...atuais, confirmacaoDoAceite()],
+          : [...atuais, confirmacaoDoAceite(comVoz)],
       );
       setDestacarCampo(true);
     } else
@@ -718,18 +720,12 @@ export function Conversa({
     }
     perguntasRef.current += 1;
     setDigitando(true);
-    // A primeira etapa começa assim que a pergunta sai; as próximas vêm do fluxo.
-    if (comConta) setEtapa('entendendo');
-
-    // Passado um tempo sem resposta, avisa que ainda está trabalhando. Ficar
-    // olhando três pontinhos por minutos sem explicação é o que faz alguém
-    // fechar a aba, e aí a conversa e a avaliação se perdem junto.
+    // A primeira etapa começa assim que a pergunta sai; as próximas vêm do
+    // fluxo. A caixa da espera diz a etapa ao vivo e, passado o comum, que não
+    // precisa reenviar: é ela que segura quem fecharia a aba diante de três
+    // pontinhos parados.
+    setEtapa('entendendo');
     const iniciouEm = Date.now();
-    // Staging: sem recados de demora na conversa. A caixa da espera já diz a
-    // etapa ao vivo e, passado o comum, que não precisa reenviar.
-    const avisos = (comConta ? [] : AVISOS_DE_DEMORA).map(({ ms, texto }) =>
-      setTimeout(() => adicionarBot(texto, null), ms),
-    );
 
     const porVoz = veioDaVozRef.current;
     veioDaVozRef.current = false;
@@ -742,9 +738,10 @@ export function Conversa({
           texto: pergunta,
           ...(porVoz || opcoes.audio ? { origem: 'voz' } : {}),
           ...(opcoes.audio ? { audio: opcoes.audio } : {}),
-          // Staging: o modo de espera escolhido em Minha conta. Lido a cada
-          // pergunta, para a troca valer na próxima sem recarregar.
-          ...(comConta ? { limiteDeTempo: lerLimiteDeTempo() } : {}),
+          // O modo de espera (a escolha fica em Minha conta, no staging; sem
+          // ela, vale o padrão). Lido a cada pergunta, para a troca valer na
+          // próxima sem recarregar.
+          limiteDeTempo: lerLimiteDeTempo(),
         }),
       });
 
@@ -774,10 +771,10 @@ export function Conversa({
         return;
       }
 
-      const pronta = await aguardarResposta(aceite.mensagemId, comConta ? setEtapa : undefined);
-      // Staging: a barra completa e mostra "Pronto" antes de a resposta entrar.
-      // Na falha não: "Pronto" antes de um pedido de desculpas seria mentira.
-      if (comConta && !pronta.erro) {
+      const pronta = await aguardarResposta(aceite.mensagemId, setEtapa);
+      // A barra completa e mostra "Pronto" antes de a resposta entrar. Na
+      // falha não: "Pronto" antes de um pedido de desculpas seria mentira.
+      if (!pronta.erro) {
         setRespostaPronta(true);
         await new Promise((resolver) => setTimeout(resolver, MOSTRAR_PRONTO_MS));
       }
@@ -802,7 +799,6 @@ export function Conversa({
       const demorou = Date.now() - iniciouEm >= MS_PARA_CONSIDERAR_DEMORA;
       adicionarBot(demorou ? TEXTO_DEMOROU_DEMAIS : TEXTO_FORA_DO_AR, null);
     } finally {
-      avisos.forEach(clearTimeout);
       setDigitando(false);
       setEtapa(null);
       setRespostaPronta(false);
@@ -829,7 +825,6 @@ export function Conversa({
     dados: { mime?: string; tamanhoBytes?: number; duracaoSegundos?: number },
   ) {
     if (!sessaoId || !aceitou || digitando || encerrada) return;
-    setAvisoComposer(null);
 
     try {
       const resposta = await fetch(`/api/sessoes/${sessaoId}/anexos`, {
@@ -859,7 +854,7 @@ export function Conversa({
   }
 
   /**
-   * Staging, voz por IA: o áudio vira um balão na hora, com a gravação para
+   * Voz por IA: o áudio vira um balão na hora, com a gravação para
    * ouvir, é transcrito pelo servidor e segue como pergunta, com a transcrição
    * embaixo do tocador, como no WhatsApp.
    *
@@ -869,7 +864,6 @@ export function Conversa({
    */
   async function enviarAudio(audio: Blob, duracao: number) {
     if (!sessaoId || !aceitou || digitando || encerrada) return;
-    setAvisoComposer(null);
     const chave = crypto.randomUUID();
     const url = URL.createObjectURL(audio);
     setItens((atuais) => [
@@ -888,7 +882,11 @@ export function Conversa({
     try {
       const formulario = new FormData();
       formulario.append('audio', audio, `audio.${audio.type.includes('mp4') ? 'm4a' : 'webm'}`);
-      const resposta = await fetch('/api/voz/transcrever', { method: 'POST', body: formulario });
+      const resposta = await fetch(`/api/voz/transcrever?sessao=${encodeURIComponent(sessaoId)}`, {
+        method: 'POST',
+        headers: cabecalhosDaSessao(),
+        body: formulario,
+      });
       const dados = (await resposta.json().catch(() => ({}))) as {
         texto?: string;
         modelo?: string;
@@ -925,8 +923,8 @@ export function Conversa({
     aoTerminar: (duracaoSegundos, mime, audio) =>
       audio ? void enviarAudio(audio, duracaoSegundos) : void enviarAnexo('audio', { duracaoSegundos, mime }),
     aoFalhar: (aviso) => avisar(aviso),
-    // Só no fluxo de áudio do staging o áudio é guardado e enviado. Um minuto
-    // cabe com folga no limite de envio e é o que uma pergunta precisa.
+    // Só no fluxo de áudio o áudio é guardado e enviado. Um minuto cabe com
+    // folga no limite de envio e é o que uma pergunta precisa.
     guardarAudio: vozIa.fluxoDeAudio,
     maximoSegundos: vozIa.fluxoDeAudio ? 60 : undefined,
   });
@@ -951,10 +949,9 @@ export function Conversa({
     // Gravar ou ditar com um áudio tocando gravaria o próprio áudio, e a
     // pessoa não ouviria a si mesma: o WhatsApp também cala tudo ao gravar.
     if (comVoz) pararTodoSom();
-    // No `/`, grava para medir a tentativa. No staging com a voz por IA,
-    // grava para mandar o áudio. Sem ela, o staging dita no campo.
+    // Sem voz, grava só para medir a tentativa. Com a voz por IA, grava para
+    // mandar o áudio. Com "O celular escreve", dita no campo.
     if (!comVoz || vozIa.fluxoDeAudio) {
-      setAvisoComposer(null);
       void gravador.iniciar();
       return;
     }
@@ -962,7 +959,6 @@ export function Conversa({
       ditado.parar();
       return;
     }
-    setAvisoComposer(null);
     if (!ditado.suportado || !ditado.iniciar()) {
       avisar('Este navegador não transforma voz em texto. Use o microfone do teclado do celular, ou escreva a sua dúvida.');
     }
@@ -980,16 +976,12 @@ export function Conversa({
    * Um recado para a pessoa: microfone recusado, envio que falhou, voz natural
    * que acabou.
    *
-   * No staging, vira mensagem do assistente na conversa, onde a pessoa já está
-   * olhando. A faixa amarela acima do campo parecia erro do aparelho e ficava
-   * lá até o próximo toque. Não vai para o banco: é assunto da tela, como as
-   * mensagens do aceite. No `/`, em uso, continua a faixa.
+   * Vira mensagem do assistente na conversa, onde a pessoa já está olhando. A
+   * faixa amarela acima do campo parecia erro do aparelho e ficava lá até o
+   * próximo toque. Não vai para o banco: é assunto da tela, como as mensagens
+   * do aceite.
    */
   function avisar(texto: string, { umaVez = false } = {}) {
-    if (!comConta) {
-      setAvisoComposer(texto);
-      return;
-    }
     if (umaVez) {
       if (avisosDadosRef.current.has(texto)) return;
       avisosDadosRef.current.add(texto);
@@ -1087,10 +1079,10 @@ export function Conversa({
                 precisa saber, porque aqui ela dura dezenas de segundos. */}
             <span role="status">
               {digitando
-                ? comConta && etapa
+                ? etapa
                   ? `${TEXTO_DA_ETAPA[etapa].toLowerCase()}…`
                   : 'digitando…'
-                : comConta && transcrevendo
+                : transcrevendo
                   ? 'ouvindo seu áudio…'
                   : encerrada
                     ? 'conversa encerrada'
@@ -1125,10 +1117,11 @@ export function Conversa({
             Sobrou o nome verdadeiro. Relatar problema PONTUAL continua tendo
             caminho, e melhor: o 👎 sob cada resposta, que diz QUAL resposta
             falhou em vez de "a conversa foi ruim". */}
-        {/* Staging: cinco itens. Eram oito, com o Sair em três lugares, e
+        {/* Poucos itens: eram oito no staging, com o Sair em três lugares, e
             quem tem pouca prática lia a lista inteira antes de achar a letra
-            maior. Privacidade e apagar a conversa moram em Minha conta, e o
-            Sair na faixa do topo, presente em toda tela. O `/` não muda. */}
+            maior. Com conta, Privacidade e apagar a conversa moram em Minha
+            conta, e o Sair na faixa do topo. Sem conta, não há outro lugar
+            para eles, e ficam aqui. */}
         {menuAberto && (
           <div className="menu" role="menu" aria-label="Opções da conversa">
             <button
@@ -1154,19 +1147,27 @@ export function Conversa({
                 Como usar
               </button>
             )}
+            {/* Com `replace`: a página nova ocupa a entrada do menu no
+                histórico, e o voltar de lá cai direto no chat. */}
             {!comConta && (
-              <Link href="/privacidade" role="menuitem" onClick={() => setMenuAberto(false)}>
+              <Link
+                href="/privacidade"
+                role="menuitem"
+                replace
+                onClick={() => {
+                  camadaDoMenu.sair();
+                  setMenuAberto(false);
+                }}
+              >
                 Privacidade
               </Link>
             )}
-            {/* Com `replace` no staging: a página nova ocupa a entrada do menu
-                no histórico, e o voltar de lá cai direto no chat. */}
             {itensDeMenu.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 role="menuitem"
-                replace={comConta}
+                replace
                 onClick={() => {
                   camadaDoMenu.sair();
                   setMenuAberto(false);
@@ -1311,7 +1312,7 @@ export function Conversa({
           })}
 
           {digitando &&
-            (comConta && etapa ? <ProgressoDaResposta etapa={etapa} pronta={respostaPronta} /> : <Digitando />)}
+            (etapa ? <ProgressoDaResposta etapa={etapa} pronta={respostaPronta} /> : <Digitando />)}
 
           {/* `alert` e não `log`: o serviço fora do ar interrompe o que a pessoa
               veio fazer, e precisa ser dito na hora, não na vez dela. */}
@@ -1322,12 +1323,6 @@ export function Conversa({
           )}
         </main>
 
-        {avisoComposer && (
-          <p className="aviso-composer" role="alert">
-            {avisoComposer}
-          </p>
-        )}
-
         {ditado.ouvindo && (
           <p className="aviso-composer ouvindo" role="status">
             <span className="ponto-gravacao" aria-hidden="true" />
@@ -1336,11 +1331,11 @@ export function Conversa({
         )}
 
         <footer className="barra-envio">
-          {/* Staging: encerrada, a barra oferece outra conversa no lugar do
-              campo desligado, que deixava a pessoa diante de um chat que não
-              envia. Recarregar basta: a conta já não tem conversa aberta, e o
-              servidor começa outra. */}
-          {encerrada && comConta ? (
+          {/* Encerrada, a barra oferece outra conversa no lugar do campo
+              desligado, que deixava a pessoa diante de um chat que não envia.
+              Recarregar basta: a conversa encerrada já saiu do aparelho (ou da
+              conta), e a abertura começa outra. */}
+          {encerrada ? (
             <button type="button" className="recomecar" onClick={() => window.location.reload()}>
               Começar outra conversa
             </button>
@@ -1507,7 +1502,6 @@ export function Conversa({
         <PainelAjustes
           comVoz={comVoz}
           vozIa={vozIa}
-          comVoltar={comConta}
           hrefPrivacidade={hrefPrivacidade}
           aoFechar={() => setAjustando(false)}
         />
@@ -1522,7 +1516,6 @@ export function Conversa({
                 )
               : PASSOS_DO_TUTORIAL
           }
-          comVoltar={comConta}
           aoTerminar={(motivo) => {
             setTutorialAberto(false);
             registrarTutorial(motivo);
@@ -1534,7 +1527,6 @@ export function Conversa({
       {apagandoConversa && sessaoId && (
         <FolhaApagar
           sessaoId={sessaoId}
-          comVoltar={comConta}
           aoVoltar={() => setApagandoConversa(false)}
           // Com conta, a sessão não mora no aparelho, e o que mora lá é a
           // conversa anônima que a pessoa pode ter no `/`, que não é desta.
@@ -1545,8 +1537,7 @@ export function Conversa({
       {avaliando && (
         <FolhaAvaliacao
           automatica={avaliacaoAutomatica}
-          comVoltar={comConta}
-          aoRecomecar={comConta ? () => window.location.reload() : undefined}
+          aoRecomecar={() => window.location.reload()}
           onEnviar={enviarAvaliacao}
           onVoltar={() => {
             setAvaliando(false);

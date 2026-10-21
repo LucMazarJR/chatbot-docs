@@ -35,7 +35,7 @@ const VISTO = (
 );
 
 /**
- * Staging: no lugar do balão de "digitando", uma caixa com a frase da etapa,
+ * No lugar do balão de "digitando", uma caixa com a frase da etapa,
  * o tempo de espera ("0:08", como na gravação de áudio) e uma barra em três
  * trechos, um por etapa da resposta. Se a espera passa do comum, uma linha
  * diz que pode demorar e que não precisa enviar de novo; quando a resposta

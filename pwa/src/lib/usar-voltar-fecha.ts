@@ -28,11 +28,10 @@ function pilhaDaPagina() {
 /**
  * Faz o voltar do celular fechar esta camada (ver `camadas.ts`).
  *
- * `ativo` falso deixa tudo como era: é o que o `/`, em uso, recebe.
  * `sair` é para o link de dentro da camada, que deve usar `replace`: a página
  * nova ocupa a entrada da camada, e o voltar de lá cai direto no chat.
  */
-export function useVoltarFecha(aberto: boolean, fechar: () => void, ativo: boolean) {
+export function useVoltarFecha(aberto: boolean, fechar: () => void) {
   const fecharRef = useRef(fechar);
   const idRef = useRef<number | null>(null);
 
@@ -41,7 +40,7 @@ export function useVoltarFecha(aberto: boolean, fechar: () => void, ativo: boole
   });
 
   useEffect(() => {
-    if (!ativo || !aberto) return;
+    if (!aberto) return;
     const pilha = pilhaDaPagina();
     const id = pilha.abrir(() => fecharRef.current());
     idRef.current = id;
@@ -49,7 +48,7 @@ export function useVoltarFecha(aberto: boolean, fechar: () => void, ativo: boole
       idRef.current = null;
       pilha.soltar(id);
     };
-  }, [aberto, ativo]);
+  }, [aberto]);
 
   const sair = useCallback(() => {
     if (idRef.current !== null) pilhaDaPagina().sair(idRef.current);
