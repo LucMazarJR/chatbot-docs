@@ -53,10 +53,14 @@ export function avancoDaEtapa(etapa: EtapaDaResposta, passouMs: number): number 
 /**
  * Quanto cada trecho da barra está cheio: as etapas que já passaram ficam
  * cheias, a atual mostra o seu avanço, e as que faltam ficam vazias.
+ *
+ * `concluindo`: a etapa seguinte já chegou, e o trecho atual corre até o fim
+ * antes de a tela passar para ela. Sem essa pausa, o trecho seguinte começava
+ * a andar enquanto o anterior ainda enchia, e os dois pareciam disputar.
  */
-export function trechosDaBarra(etapa: EtapaDaResposta, passouMs: number): number[] {
+export function trechosDaBarra(etapa: EtapaDaResposta, passouMs: number, concluindo = false): number[] {
   const atual = ETAPAS.indexOf(etapa);
   return ETAPAS.map((_, indice) =>
-    indice < atual ? 1 : indice === atual ? avancoDaEtapa(etapa, passouMs) : 0,
+    indice < atual ? 1 : indice === atual ? (concluindo ? 1 : avancoDaEtapa(etapa, passouMs)) : 0,
   );
 }

@@ -645,19 +645,20 @@ button {
 }
 
 /* Staging: no lugar do balão de "digitando", uma caixa com a frase da etapa e
-   uma barra em três trechos, um por etapa. A caixa tem o fundo puxado para o
-   verde, contorno e cantos iguais, sem o rabinho, para ser lida como
-   andamento e não como mensagem; sem caixa, a barra ficava solta. */
+   uma barra em três trechos, um por etapa. A caixa é a mesma superfície dos
+   balões e do selo de data, para fazer parte da página; fundo colorido com
+   contorno destoava do resto. O que a separa de uma resposta é o texto em
+   cinza, no tom da hora, e não na cor das mensagens. Sem caixa, a barra
+   ficava solta no fundo. */
 .progresso {
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  width: min(78%, 18em);
+  gap: 8px;
+  width: min(78%, 17em);
   margin-top: 6px;
-  padding: 10px 12px 12px;
-  border: 1px solid color-mix(in srgb, var(--acento) 22%, transparent);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--acento) 7%, var(--balao-entrada));
+  padding: 8px 10px 10px;
+  border-radius: 7.5px;
+  background: var(--balao-entrada);
   box-shadow: var(--sombra);
   animation: progresso-entrar 0.3s ease-out;
 }
@@ -669,22 +670,15 @@ button {
   gap: 8px;
 }
 
-/* No verde do app, e não na cor do texto das mensagens: na mesma cor, a
-   etapa se confundia com uma resposta. Um pouco da cor do texto entra na
-   mistura porque o verde puro, sobre o fundo esverdeado da caixa, ficava
-   abaixo de 4,5:1 nos dois temas; assim escurece no claro e clareia no
-   escuro. */
 .progresso-frase {
-  color: color-mix(in srgb, var(--acento) 80%, var(--texto));
-  font-size: 0.92em;
-  font-weight: 500;
+  color: var(--texto-fraco);
+  font-size: 0.9em;
   animation: progresso-entrar 0.35s ease-out;
 }
 
 .progresso-passo {
   flex: 0 0 auto;
-  /* Pelo mesmo motivo da frase: o cinza puro ficava abaixo de 4,5:1. */
-  color: color-mix(in srgb, var(--texto-fraco) 80%, var(--texto));
+  color: var(--texto-fraco);
   font-size: 0.8em;
   font-variant-numeric: tabular-nums;
 }
