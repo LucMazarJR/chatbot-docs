@@ -142,6 +142,7 @@
 :root[data-contraste='alto'] .divisor span,
 :root[data-contraste='alto'] .aviso-chat,
 :root[data-contraste='alto'] .botoes-rapidos button,
+:root[data-contraste='alto'] .progresso,
 :root[data-contraste='alto'] .barra-envio .campo {
   box-shadow: 0 0 0 1.5px var(--contorno);
 }
@@ -643,23 +644,49 @@ button {
   animation-delay: 0.36s;
 }
 
-/* Staging: no lugar do balão de "digitando", a frase da etapa e uma barra em
-   três trechos, um por etapa. Sem fundo nem sombra, de propósito: no balão
-   branco, a espera parecia uma mensagem do assistente. */
+/* Staging: no lugar do balão de "digitando", uma caixa com a frase da etapa e
+   uma barra em três trechos, um por etapa. A caixa tem o fundo puxado para o
+   verde, contorno e cantos iguais, sem o rabinho, para ser lida como
+   andamento e não como mensagem; sem caixa, a barra ficava solta. */
 .progresso {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  width: min(72%, 17em);
-  padding: 6px 2px 4px;
+  gap: 9px;
+  width: min(78%, 18em);
+  margin-top: 6px;
+  padding: 10px 12px 12px;
+  border: 1px solid color-mix(in srgb, var(--acento) 22%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--acento) 7%, var(--balao-entrada));
+  box-shadow: var(--sombra);
   animation: progresso-entrar 0.3s ease-out;
 }
 
+.progresso-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* No verde do app, e não na cor do texto das mensagens: na mesma cor, a
+   etapa se confundia com uma resposta. Um pouco da cor do texto entra na
+   mistura porque o verde puro, sobre o fundo esverdeado da caixa, ficava
+   abaixo de 4,5:1 nos dois temas; assim escurece no claro e clareia no
+   escuro. */
 .progresso-frase {
-  color: color-mix(in srgb, var(--texto) 78%, transparent);
-  font-size: 0.88em;
+  color: color-mix(in srgb, var(--acento) 80%, var(--texto));
+  font-size: 0.92em;
   font-weight: 500;
   animation: progresso-entrar 0.35s ease-out;
+}
+
+.progresso-passo {
+  flex: 0 0 auto;
+  /* Pelo mesmo motivo da frase: o cinza puro ficava abaixo de 4,5:1. */
+  color: color-mix(in srgb, var(--texto-fraco) 80%, var(--texto));
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
 }
 
 .progresso-trilho {
@@ -721,8 +748,13 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .progresso,
-  .progresso-frase,
+  .progresso-frase {
+    animation: none;
+  }
+
+  /* Parado, o brilho viraria uma mancha no começo do trecho. */
   .progresso-trecho.atual i {
+    background: var(--acento);
     animation: none;
   }
 }
