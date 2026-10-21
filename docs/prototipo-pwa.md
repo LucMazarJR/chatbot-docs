@@ -14,9 +14,9 @@ Esta seção é o estado do projeto, e muda com ele. As regras de trabalho ([CLA
 
 | Parte | Situação | Onde a novidade entra antes |
 |---|---|---|
-| Chat anônimo, `/` | em uso por participantes da validação: não muda de comportamento | `/staging` |
+| Chat anônimo, `/` | em validação com a equipe; tem tudo o que o staging validou, menos contas e avisos | `/staging` |
 | Contas e avisos push, `/staging` | em validação com a equipe | variável própria, desligada por padrão (como `GATILHOS_ATIVOS`) |
-| Tutorial, voz e reescrita da pergunta, `/staging` | em validação com a equipe | props `comTutorial` e `comVoz`, que só a página do staging passa; a reescrita vai por `N8N_PWA_STAGING_WEBHOOK_URL`, vazia por padrão |
+| Novidades do chat e do fluxo do n8n | entram no `/staging` e vão para o `/` depois de validadas | uma prop nova do `Conversa`, que só a página do staging passa; no n8n, o fluxo do staging (`N8N_PWA_STAGING_WEBHOOK_URL`), de onde o do `/` é gerado por `node n8n/promover-staging.mjs` |
 | Painel da equipe | ferramenta de trabalho diária | selo `emTeste: true` no menu |
 | Canal do WhatsApp | pausado: só o PWA fica no ar, e o gateway pode ficar parado sem o QR lido | nenhum |
 
@@ -229,14 +229,15 @@ A avaliação final abre pelo menu (**Encerrar e avaliar**) ou sozinha, após 2 
 
 Antes da primeira pergunta o bot pede o **aceite**, com dois botões, e o campo só libera depois de *Aceitar*; a data do aceite ou da recusa fica gravada na sessão. Ao aceitar, o assistente responde que já pode perguntar, apontando o campo pelo nome escrito nele (*Escreva sua pergunta*), e o campo ganha foco e um destaque breve. Sem esse retorno, no primeiro teste de campo, metade das pessoas levou de 3 a 18 minutos para a primeira pergunta. Não há saudação nem atalhos de assunto: o que o assistente entende, entende do texto.
 
-O **menu ⋮** tem quatro itens:
+O **menu ⋮** tem cinco itens:
 
-- **Acessibilidade**: tamanho do texto em quatro degraus, com uma amostra que mostra o efeito na hora, tema claro, escuro ou automático, e contraste normal ou alto. Existe porque o chat mede tudo em px para imitar o WhatsApp e por isso ignora a fonte do sistema, e no posto muita gente usa o celular com a fonte no máximo. O contraste alto põe contorno em balão, botão e campo, tira o desenho do fundo e escurece o texto secundário: num monitor de posto, o balão branco sumia no fundo bege. Sem escolha feita, ele segue o "aumentar contraste" do sistema.
+- **Letra e voz**: as escolhas de voz (ver [O que os dois chats têm](#o-que-os-dois-chats-têm)) e o tamanho do texto em quatro degraus, com uma amostra que mostra o efeito na hora, tema claro, escuro ou automático, e contraste normal ou alto. Existe porque o chat mede tudo em px para imitar o WhatsApp e por isso ignora a fonte do sistema, e no posto muita gente usa o celular com a fonte no máximo. O contraste alto põe contorno em balão, botão e campo, tira o desenho do fundo e escurece o texto secundário: num monitor de posto, o balão branco sumia no fundo bege. Sem escolha feita, ele segue o "aumentar contraste" do sistema.
+- **Como usar**: o passo a passo de como usar, que abre sozinho na primeira conversa.
 - **Privacidade**: a página `/privacidade`, que também tem link no aviso do topo da conversa.
 - **Encerrar e avaliar**: abre a avaliação.
 - **Apagar minha conversa**: depois de confirmar, apaga a conversa e as cópias das perguntas guardadas pela curadoria. Some quando a conversa já foi encerrada, porque a chave sai do aparelho ao avaliar; nesse caso a equipe apaga pela transcrição no dashboard.
 
-O **clipe e o microfone** simulam a experiência do WhatsApp, mas nada sai do aparelho: o bot responde que só lê texto, e fica registrado só que houve a tentativa, com tipo, tamanho e duração. O nome do arquivo não é guardado. Servem para medir quanta gente tenta mandar foto do exame ou áudio em vez de digitar.
+O **clipe** simula a experiência do WhatsApp, mas nada sai do aparelho: o bot responde que só lê texto, e fica registrado só que houve a tentativa, com tipo e tamanho. O nome do arquivo não é guardado. Serve para medir quanta gente tenta mandar foto do exame em vez de digitar. O **microfone** manda áudio, como no WhatsApp (ver **Voz**, mais abaixo).
 
 Dá para conversar só pelo **teclado ou com leitor de tela**: o foco fica preso nos diálogos e o Esc fecha, um atalho pula direto para o campo de mensagem, e a espera ("digitando…") e os tiques de entrega são anunciados em palavras.
 
@@ -246,18 +247,23 @@ As conversas **se apagam sozinhas** depois de `PWA_RETENCAO_DIAS` (180 por padr�
 
 Uma rota de validação no **mesmo app e nos mesmos bancos**, sem link a partir do `/` e com uma faixa dizendo que é ambiente de testes. Nela o chat é o mesmo, mas ligado a uma **conta** (e-mail e senha, ou Google quando houver credencial), com histórico em qualquer aparelho e **avisos push** que a equipe envia pelo dashboard.
 
-O `/` não muda em nada: continua anônimo, com o mesmo service worker e o mesmo manifest. Tudo do staging mora em `pwa/src/app/staging/`, e levá-lo para o `/` depois é mover a pasta.
+O `/` continua anônimo, com o próprio service worker e o próprio manifest. O que é da conta mora em `pwa/src/app/staging/`.
 
 Como funciona cada parte, e como medir se o push chega em cada tipo de celular: [contas-de-usuario.md](contas-de-usuario.md) e [notificacoes-push.md](notificacoes-push.md).
 
-O chat do staging tem ainda várias coisas que o `/` não tem. Todas entram pelo componente de conversa de sempre, ligadas por props que só a página do staging passa.
+### O que os dois chats têm
+
+As partes abaixo foram validadas no staging e valem também no `/`, que as recebeu sem contas e avisos. Entram pelo componente de conversa de sempre, ligadas por props que as duas páginas passam (`comTutorial`, `comVoz`). No `/`, o que depende de conta muda assim:
+- Privacidade e Apagar minha conversa ficam no menu, porque não há Minha conta.
+- O tempo de resposta é o padrão (sem limite), porque a escolha mora em Minha conta.
+- As rotas de voz aceitam a chave da conversa no lugar da conta, e só em conversa que tem chave. A transcrição tem também um limite por endereço (60 áudios a cada 10 minutos): sem conta, dá para abrir conversas novas para fugir do limite de cada uma.
 
 **Recados, começo e fim.**
 - O que a tela precisa dizer à pessoa (microfone recusado, áudio que não deu para entender, voz natural que acabou) chega como mensagem do assistente, e não como faixa acima do campo. Essas mensagens não vão para o banco.
 - O áudio que não foi entendido fica na conversa, e o assistente responde o que fazer.
-- A conversa abre com boas-vindas, com o primeiro nome da conta.
+- Com conta, a conversa abre com boas-vindas, com o primeiro nome. Sem conta, abre pelo aceite, e a confirmação dele cita o microfone.
 - Encerrada, ela oferece **Começar outra conversa** na folha de agradecimento e no lugar do campo.
-- O voltar do celular fecha a camada aberta (menu, painel, folha) em vez de sair do app, e as páginas da conta voltam ao chat pelo histórico.
+- O voltar do celular fecha a camada aberta (menu, painel, folha) em vez de sair do app, e as páginas abertas do chat (privacidade, conta, avisos) voltam a ele pelo histórico.
 - Um som por vez: tocar um áudio para o anterior, e gravar cala tudo.
 
 **Etapas da resposta.** Enquanto a resposta não chega, no lugar do balão de "digitando" aparece uma caixa com a frase da etapa ("Lendo sua pergunta", "Procurando a informação" e "Escrevendo a resposta"), o tempo de espera no formato do relógio da gravação de áudio ("0:08") e uma barra de progresso em três trechos, um por etapa. A caixa é a mesma superfície dos balões, e o texto fica em cinza, no tom da hora das mensagens, para a espera não se confundir com uma resposta. O trecho da etapa atual enche cada vez mais devagar e nunca chega ao fim sozinho, e um brilho corre por ele, para a tela não parecer parada quando a etapa demora. Quando chega o aviso da etapa seguinte, o trecho atual corre até o fim e só então o próximo começa; uma etapa que a consulta de 2 s pulou inteira também passa pela barra. O cabeçalho acompanha, no lugar do "digitando…", e o áudio sendo transcrito aparece como "ouvindo seu áudio…". O fluxo avisa ao entrar em cada etapa (`POST /api/n8n/etapa`), a mensagem pendente guarda a etapa, e a consulta de 2 s da tela a devolve.
@@ -293,15 +299,15 @@ A resposta a um áudio traz o tocador no topo do balão, já preparado quando ch
 - Sem cota de transcrição, o microfone volta ao ditado, e o assistente avisa.
 - A regra pura está em [bloqueio-da-voz.ts](../pwa/src/lib/bloqueio-da-voz.ts), com teste.
 
-Em Acessibilidade ficam também a velocidade (normal ou devagar, que vale para as duas vozes) e **ler as respostas sozinho**, desligado por padrão. Com ele ligado, a resposta a um áudio toca com a voz natural, e a resposta a texto com a voz do celular, para não gastar as falas naturais de quem preferiu escrever. A formatação (`*`, `_`, `•`) e os links ficam de fora da leitura.
+Em Letra e voz ficam também a velocidade (normal ou devagar, que vale para as duas vozes) e **ler as respostas sozinho**, desligado por padrão. Com ele ligado, a resposta a um áudio toca com a voz natural, e a resposta a texto com a voz do celular, para não gastar as falas naturais de quem preferiu escrever. A formatação (`*`, `_`, `•`) e os links ficam de fora da leitura.
 
 **Tempo de resposta (em teste).** Em **Minha conta**, a pessoa escolhe como o assistente espera quando o Gemini está lento:
 - **Sem limite de tempo** (o padrão, enquanto o grupo valida a reescrita e mede o tempo real de cada etapa): o agente de sempre, que espera o quanto o Gemini precisar, até o teto de 4 minutos. A reescrita tem 30 s em cada modelo.
 - **Com limite de tempo:** cada modelo tem um prazo, e passado o último o assistente avisa para perguntar de novo, por volta de 1 minuto e meio no pior caso. A reescrita tem 12 s em cada modelo.
 
-A escolha fica no aparelho e vale na próxima pergunta. Cada resposta guarda o modo (`comLimiteDeTempo`), e com a `latenciaMs` é o que compara os dois. Como cada modo funciona: [arquitetura.md](arquitetura.md#a-reescrita-em-validação-no-staging).
+A escolha fica no aparelho e vale na próxima pergunta; no `/`, que não tem Minha conta, vale o padrão. Cada resposta guarda o modo (`comLimiteDeTempo`), e com a `latenciaMs` é o que compara os dois. Como cada modo funciona: [arquitetura.md](arquitetura.md#a-reescrita-da-pergunta).
 
-**Reescrita da pergunta.** Com `N8N_PWA_STAGING_WEBHOOK_URL` preenchida, a conversa do staging vai para o fluxo [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), que reescreve a pergunta antes de buscar e faz até três buscas por pergunta. O PWA manda junto as últimas 8 mensagens: a reescrita usa as 4 últimas para entender "e lá?", e o modo com limite de tempo usa as 8 como conversa. Vazia, o staging usa o fluxo do `/`. Como funciona e o que a medição mostrou: [arquitetura.md](arquitetura.md#a-reescrita-em-validação-no-staging). Para ligar, ver [Ligar a reescrita](#ligar-a-reescrita-no-staging).
+**Reescrita da pergunta.** Os dois fluxos do PWA reescrevem a pergunta antes de buscar e fazem até três buscas por pergunta. A conversa do `/` vai para [n8n/pwa-chatbot.json](../n8n/pwa-chatbot.json), e a do staging, com `N8N_PWA_STAGING_WEBHOOK_URL` preenchida, para [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json). O do `/` não se edita à mão: é gerado do staging por `node n8n/promover-staging.mjs`, que troca só o id, a rota e a credencial (`Gemini PWA`), e depois é importado como no [passo 3](#3-importar-e-ativar-o-fluxo). O PWA manda junto as últimas 8 mensagens: a reescrita usa as 4 últimas para entender "e lá?", e o modo com limite de tempo usa as 8 como conversa. Vazia, o staging usa o fluxo do `/`. Como funciona e o que a medição mostrou: [arquitetura.md](arquitetura.md#a-reescrita-da-pergunta). Para ligar, ver [Ligar a reescrita](#ligar-a-reescrita-no-staging).
 
 #### Ligar a reescrita no staging
 

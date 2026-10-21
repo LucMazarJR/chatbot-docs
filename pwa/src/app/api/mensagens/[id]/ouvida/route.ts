@@ -10,7 +10,7 @@ type Contexto = { params: Promise<{ id: string }> };
 const NAO_ENCONTRADA = () => Response.json({ erro: 'mensagem não encontrada' }, { status: 404 });
 
 /**
- * A resposta tocou na voz do celular (staging).
+ * A resposta tocou na voz do celular.
  *
  * A voz natural já se registra ao ser gerada (`vozGerada`); a do celular toca
  * no aparelho e não passava pelo servidor. Sem este registro, o painel não
@@ -18,8 +18,8 @@ const NAO_ENCONTRADA = () => Response.json({ erro: 'mensagem não encontrada' },
  * vale o custo. Grava só a hora: o texto já está na mensagem.
  */
 export async function POST(requisicao: Request, { params }: Contexto) {
-  // Quem prova ser dono é o cookie da conta, e cookie vai junto até em pedido
-  // de outro site: a origem precisa ser a do próprio app.
+  // No staging, quem prova ser dono é o cookie da conta, e cookie vai junto
+  // até em pedido de outro site: a origem precisa ser a do próprio app.
   if (!origemConfiavel(requisicao)) return Response.json({ erro: 'origem não permitida' }, { status: 403 });
   const { id } = await params;
   const colecao = await mensagens();
@@ -27,7 +27,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
   if (!mensagem || mensagem.papel !== 'bot') return NAO_ENCONTRADA();
 
   const autenticada = await autenticarSessao(requisicao, mensagem.sessaoId);
-  if ('erro' in autenticada || !autenticada.sessao.usuarioId) return NAO_ENCONTRADA();
+  if ('erro' in autenticada) return NAO_ENCONTRADA();
 
   // Medição, e não ação: passando do limite, só deixa de registrar.
   if (!(await dentroDoLimite(`voz:ouvida:${mensagem.sessaoId}`, { janelaMs: 10 * 60 * 1000, maximo: 60 }))) {

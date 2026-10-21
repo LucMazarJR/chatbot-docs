@@ -60,7 +60,7 @@ const SEM_RESPOSTA: Bloqueio = { ate: Infinity, motivo: 'agora' };
  * A escolha fica guardada mesmo com a parte bloqueada: a voz do celular assume
  * enquanto o bloqueio vale, e a escolha volta sozinha quando ele vence.
  *
- * Só no staging (`ativo`): no `/` nada é perguntado ao servidor.
+ * Só com a voz ligada (`ativo`): sem ela, nada é perguntado ao servidor.
  */
 export function useVozIa(ativo: boolean) {
   const [entrada, setEntrada] = useState<Entrada>('ia');

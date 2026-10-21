@@ -1,6 +1,6 @@
 import { mensagens } from '@/lib/db';
 import { dentroDoLimite } from '@/lib/limite';
-import { autenticarSessao } from '@/lib/sessao-autenticada';
+import { autenticarSessao, temDonoQueSeProva } from '@/lib/sessao-autenticada';
 import { avisoDaFalha, falarComVozNatural, JANELA_POR_PESSOA_MS, voltaEmDaRecusa } from '@/lib/voz-ia';
 import { vozDaLista } from '@/lib/vozes';
 
@@ -15,7 +15,8 @@ const NAO_ENCONTRADA = () => Response.json({ erro: 'mensagem não encontrada' },
 /**
  * A resposta do bot falada com voz natural, em MP3.
  *
- * Só a pessoa dona da conversa ouve, e só no staging. O texto falado é o que
+ * Só a pessoa dona da conversa ouve: a conta, no staging, ou quem tem a chave
+ * da conversa, no `/`. O texto falado é o que
  * está gravado na mensagem, e não um texto mandado pela tela: assim a rota não
  * vira um gerador de voz para qualquer coisa. O áudio não é guardado; a
  * mensagem registra o acionamento (modelo, voz, quando, quantos caracteres),
@@ -31,7 +32,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
   if (!mensagem) return NAO_ENCONTRADA();
 
   const autenticada = await autenticarSessao(requisicao, mensagem.sessaoId);
-  if ('erro' in autenticada || !autenticada.sessao.usuarioId) return NAO_ENCONTRADA();
+  if ('erro' in autenticada || !temDonoQueSeProva(autenticada.sessao)) return NAO_ENCONTRADA();
 
   if (mensagem.papel !== 'bot' || mensagem.pendente || mensagem.erro || !mensagem.texto) {
     return Response.json({ erro: 'Esta mensagem não tem resposta para ouvir.' }, { status: 409 });
@@ -47,7 +48,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
   const voz = vozDaLista(new URL(requisicao.url).searchParams.get('voz'));
   const resultado = await falarComVozNatural(mensagem.texto, voz);
   if (!resultado.ok) {
-    if (resultado.falha !== 'longa') console.error('voz natural do staging falhou', { falha: resultado.falha });
+    if (resultado.falha !== 'longa') console.error('voz natural falhou', { falha: resultado.falha });
     return Response.json(
       { erro: avisoDaFalha(resultado.falha), falha: resultado.falha, voltaEm: voltaEmDaRecusa(resultado.falha)?.toISOString() },
       { status: resultado.falha === 'longa' ? 413 : 503 },

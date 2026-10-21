@@ -1,8 +1,9 @@
 /*
  * Telas do ambiente de testes.
  *
- * Tudo com prefixo `st-`, carregado só pela moldura de /staging: nada daqui
- * pode vazar para o `/`, que está em teste de campo. As cores vêm das mesmas
+ * Tudo com prefixo `st-`, carregado só pela moldura de /staging: é a moldura
+ * da conta, que o `/` não tem. O que vale para o chat dos dois mora no
+ * globals.css. As cores vêm das mesmas
  * variáveis do chat, então tema escuro e tamanho de texto valem aqui também.
  */
 
@@ -33,16 +34,6 @@
 .st .menu a {
   color: inherit;
   font-weight: inherit;
-}
-
-/* A etapa da resposta no cabeçalho ("procurando a informação…") é mais longa
-   que "digitando…": com a letra no máximo, ela corta com reticências em vez de
-   empurrar o botão do menu para fora. */
-.st .topo-nome span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Amarelo de aviso de sistema: diz, sem assustar, que isto não é o app final.
@@ -522,18 +513,6 @@
 .st-confirmar-conversa p {
   margin: 0 0 10px;
   line-height: 1.45;
-}
-
-/* Polegares: o desenho fica igual, e a área de toque chega a 44 px. Eram 32,
-   pequenos demais para o dedo de quem tem tremor. */
-.st .avaliar-msg button {
-  position: relative;
-}
-
-.st .avaliar-msg button::before {
-  position: absolute;
-  inset: -6px -2px;
-  content: '';
 }
 
 .st-voltar a {

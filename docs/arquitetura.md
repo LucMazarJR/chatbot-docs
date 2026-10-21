@@ -151,14 +151,14 @@ Webhook → If → Dados → Switch → Buscar FAQs → Montar contexto → AI A
 | **Switch** | `TipoMensagem == "text"` segue para a busca; o resto vai para o aviso de somente texto, sem chegar ao agente |
 | **Buscar FAQs** | Vector Store em `mode: load`, `topK: 10`, `preFilter: {"isActive": true}` |
 | **Montar contexto** | Nó Code: agrega os documentos num item só, descarta trechos com `score < 0.82` e reanexa os campos que o Vector Store derruba |
-| **AI Agent** | `gemini-3.1-flash-lite` (cota gratuita de 500 por dia), com 3 tentativas contra sobrecarga e `gemini-2.5-flash-lite` de reserva quando as três falham. No fluxo do PWA, se as duas falharem, um segundo agente tenta o `gemini-3.5-flash-lite` antes da mensagem de indisponibilidade. O staging, que usa chave de projeto Google novo, não tem os modelos 2.5: a reserva é o `gemini-3.5-flash-lite` e a última tentativa o `gemini-3.5-flash` |
+| **AI Agent** | `gemini-3.1-flash-lite` (cota gratuita de 500 por dia), com 3 tentativas contra sobrecarga e `gemini-2.5-flash-lite` de reserva quando as três falham. Os fluxos do PWA, gerados do staging, não usam os modelos 2.5, que os projetos Google novos não têm: a reserva é o `gemini-3.5-flash-lite` e a última tentativa, antes da mensagem de indisponibilidade, o `gemini-3.5-flash` |
 | **Redis Chat Memory** | db 0, janela de **4 mensagens** (2 turnos), TTL de 1h |
 | **Embeddings Google Gemini** | `gemini-embedding-2`, que precisa ser **o mesmo modelo da base**. Ver [base-de-faqs.md](base-de-faqs.md#a-regra-que-quebra-tudo-em-silêncio) |
 | **Enviar \*** | `POST /api/v1/messages` no gateway, com `idempotencyKey = EventId` |
 
-Existe um segundo fluxo, [n8n/pwa-chatbot.json](../n8n/pwa-chatbot.json), cópia deste com outra rota, outro token e outra credencial do Gemini. Ele não interfere no canal: ver [prototipo-pwa.md](prototipo-pwa.md).
+Existe um segundo fluxo, [n8n/pwa-chatbot.json](../n8n/pwa-chatbot.json), rota `/webhook/pwa-chat`, que o `/` do PWA usa. Ele não interfere no canal: ver [prototipo-pwa.md](prototipo-pwa.md).
 
-E um terceiro, [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), rota `/webhook/pwa-chat-staging`, que só a conversa do `/staging` usa: é o do PWA com a **reescrita da pergunta** antes da busca (ver [Perguntas de acompanhamento](#perguntas-de-acompanhamento-ainda-falham)).
+E um terceiro, [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), rota `/webhook/pwa-chat-staging`, que só a conversa do `/staging` usa: é onde a mudança no fluxo do PWA entra antes de chegar ao `/`. O do `/` não se edita à mão: é gerado deste por `node n8n/promover-staging.mjs`, que troca só o id, a rota e a credencial. Os dois têm a **reescrita da pergunta** antes da busca (ver [Perguntas de acompanhamento](#perguntas-de-acompanhamento-ainda-falham)).
 
 ### Por que a busca é obrigatória
 
@@ -228,9 +228,9 @@ Os dois primeiros continuam abaixo do corte: o tema melhora, mas a base não tem
 
 A correção de verdade é **condensação por LLM**, que resolve a referência e descarta o assunto anterior: reescreveria "E fralda geriátrica?" como "Onde consigo pegar fralda geriátrica?". Custa uma chamada de modelo a mais por mensagem, sobre uma latência que já é o maior problema de experiência. Ou se faz assim, ou não se faz.
 
-#### A reescrita, em validação no `/staging`
+#### A reescrita da pergunta
 
-O fluxo de staging faz a condensação, e aproveita a chamada para atacar mais dois padrões que as perguntas sem resposta do primeiro teste de campo mostraram (42 das 50 sem resposta tinham trechos acima do corte, mas não a FAQ certa): a pergunta curta ou abreviada ("endereço nga" ficava em 0,78; "onde fica o nga 16" passava com 0,85) e o top-10 tomado por FAQs quase iguais (a validade da receita de cada remédio empurrava para fora a regra geral de receita vencida).
+Os fluxos do PWA fazem a condensação (validada no staging e levada ao `/`), e aproveita a chamada para atacar mais dois padrões que as perguntas sem resposta do primeiro teste de campo mostraram (42 das 50 sem resposta tinham trechos acima do corte, mas não a FAQ certa): a pergunta curta ou abreviada ("endereço nga" ficava em 0,78; "onde fica o nga 16" passava com 0,85) e o top-10 tomado por FAQs quase iguais (a validade da receita de cada remédio empurrava para fora a regra geral de receita vencida).
 
 ```
 Dados → Montar reescrita → Reescrever pergunta → Consultas → Precisa buscar? → Buscar FAQs → Montar contexto → AI Agent
@@ -295,9 +295,9 @@ Três mudanças foram medidas no staging e ficaram de fora, porque não melhorar
 - **Uma vaga por pergunta repetida na busca** (as 551 FAQs de exame que repetem três perguntas, ver [armadilhas.md](armadilhas.md#n8n)), com 20 candidatos: o mesmo resultado da temperatura sozinha. Nos casos sintéticos de preparo de exame, a reescrita já põe o nome do exame na consulta, e a FAQ certa chega.
 - **Triagem por partes e análise sem o agente** (uma chamada com resposta estruturada, temperatura 0 e o histórico do PWA no lugar da memória do Redis): os mesmos 77%, mas inventou em 6% das respostas e só 11 de 18 lacunas chegaram à curadoria, com mediana de 11,5 s por resposta.
 
-A rota de retorno do PWA aceita a resposta em partes (`partes`, cada uma com a pergunta, se foi respondida e as FAQs usadas). Com ela, a mensagem só conta como sem resposta quando nenhuma parte foi respondida, e só a parte que faltou vai para a curadoria. O fluxo do staging não manda `partes`: a versão que mandava é a terceira da lista acima.
+A rota de retorno do PWA aceita a resposta em partes (`partes`, cada uma com a pergunta, se foi respondida e as FAQs usadas). Com ela, a mensagem só conta como sem resposta quando nenhuma parte foi respondida, e só a parte que faltou vai para a curadoria. Os fluxos do PWA não mandam `partes`: a versão que mandava é a terceira da lista acima.
 
-O staging usa uma chave para cada papel, nenhuma delas a do `/`: a triagem e os embeddings vão com a credencial **Gemini Reescrita** (`GEMINI_API_KEY_3`), e a resposta com a **Gemini Análise** (`GEMINI_API_KEY_4`). Assim, testar o staging não gasta a cota de quem conversa no `/`.
+O staging usa uma chave para cada papel, nenhuma delas a do `/`: a triagem e os embeddings vão com a credencial **Gemini Reescrita** (`GEMINI_API_KEY_3`), e a resposta com a **Gemini Análise** (`GEMINI_API_KEY_4`). Assim, testar o staging não gasta a cota de quem conversa no `/`, que usa a credencial dele, **Gemini PWA**, em todos os nós: é o script de promoção que faz a troca.
 
 ---
 
@@ -352,5 +352,5 @@ Dívidas em aberto, com o impacto de cada uma:
 | n8n valida o token, não a assinatura HMAC | n8n | Proteção menor que a possível; o gateway já envia a assinatura |
 | Só recebe e envia texto | backend | Áudio e imagem caem no aviso de somente texto |
 | Baileys não-oficial | backend | Risco de bloqueio do número. Ver [caminho-para-producao.md](caminho-para-producao.md) |
-| Perguntas de acompanhamento falham | fluxos do WhatsApp e do `/` | A reescrita por LLM está em validação no `/staging` (ver a seção acima); custa uma chamada de modelo por mensagem, de 1 a 2 segundos na mediana |
+| Perguntas de acompanhamento falham | fluxo do WhatsApp | A reescrita por LLM já roda nos fluxos do PWA (ver a seção acima); custa uma chamada de modelo por mensagem, de 1 a 2 segundos na mediana |
 | Latência mediana de ~24s | fluxo | É o maior problema de experiência, e ainda não foi medido onde o tempo é gasto (embedding, busca no Atlas, Gemini ou as 3 tentativas do agente) |

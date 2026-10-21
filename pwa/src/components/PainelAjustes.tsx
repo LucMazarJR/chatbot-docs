@@ -115,16 +115,13 @@ export function PainelAjustes({
   aoFechar,
   comVoz = false,
   vozIa,
-  comVoltar = false,
   hrefPrivacidade = '/privacidade',
 }: {
   aoFechar: () => void;
-  /** Staging: o voltar do celular fecha o painel, e não o app. */
-  comVoltar?: boolean;
   hrefPrivacidade?: string;
-  /** Staging: mostra a velocidade da voz e a leitura automática das respostas. */
+  /** Mostra as escolhas de voz, a velocidade e a leitura automática das respostas. */
   comVoz?: boolean;
-  /** Staging: as escolhas de voz (quem entende a fala e quem fala as respostas), do gancho da conversa. */
+  /** As escolhas de voz (quem entende a fala e quem fala as respostas), do gancho da conversa. */
   vozIa?: VozIa;
 }) {
   const [tema, setTema] = useState<Tema>(() => lerTema());
@@ -136,12 +133,12 @@ export function PainelAjustes({
 
   const fechar = aoFechar;
   useFocoPreso(painelRef, fechar);
-  const camada = useVoltarFecha(true, fechar, comVoltar);
+  const camada = useVoltarFecha(true, fechar);
 
   // A lista das vozes abre por cima do painel, como uma tela própria, e o
   // voltar do celular volta ao painel, e não à conversa.
   const [escolhendoVoz, setEscolhendoVoz] = useState(false);
-  useVoltarFecha(escolhendoVoz, () => setEscolhendoVoz(false), comVoltar);
+  useVoltarFecha(escolhendoVoz, () => setEscolhendoVoz(false));
   const voltouDaVozRef = useRef(false);
   useEffect(() => {
     if (escolhendoVoz) {
@@ -290,7 +287,7 @@ export function PainelAjustes({
               outra pessoa.
             </p>
             <p className="painel-sobre">
-              <Link href={hrefPrivacidade} replace={comVoltar} onClick={camada.sair}>
+              <Link href={hrefPrivacidade} replace onClick={camada.sair}>
                 Como tratamos seus dados
               </Link>
             </p>

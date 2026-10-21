@@ -21,14 +21,12 @@ type Props = {
    * conversa, e a pessoa parou de perguntar.
    */
   automatica?: boolean;
-  /** Staging: o voltar do celular fecha a folha, e não o app. */
-  comVoltar?: boolean;
   /**
-   * Staging: o "Obrigado!" oferece outra conversa. Sem isso ele não tinha
-   * botão nenhum, e mandar "fechar esta janela" não faz sentido no app
-   * instalado, que não tem janela para fechar.
+   * O "Obrigado!" oferece outra conversa. Sem isso ele não tinha botão
+   * nenhum, e mandar "fechar esta janela" não faz sentido no app instalado,
+   * que não tem janela para fechar.
    */
-  aoRecomecar?: () => void;
+  aoRecomecar: () => void;
 };
 
 /**
@@ -38,7 +36,7 @@ type Props = {
  * opcionais: cobrar resposta de quem só queria encerrar a conversa é a melhor
  * forma de não receber nenhuma.
  */
-export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false, comVoltar = false, aoRecomecar }: Props) {
+export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false, aoRecomecar }: Props) {
   const [estrelas, setEstrelas] = useState<number | null>(null);
   const [nps, setNps] = useState<number | null>(null);
   const [comentario, setComentario] = useState('');
@@ -47,7 +45,7 @@ export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false, comVolt
   const folhaRef = useRef<HTMLDivElement>(null);
 
   useFocoPreso(folhaRef, onVoltar);
-  useVoltarFecha(true, onVoltar, comVoltar);
+  useVoltarFecha(true, onVoltar);
 
   async function enviar() {
     setEnviando(true);
@@ -70,18 +68,12 @@ export function FolhaAvaliacao({ onEnviar, onVoltar, automatica = false, comVolt
               ✓
             </div>
             <h2 id="titulo-avaliacao">Obrigado!</h2>
-            {aoRecomecar ? (
-              <>
-                <p className="sub">Sua avaliação foi registrada. Quando tiver outra dúvida, é só começar outra conversa.</p>
-                <div className="acoes">
-                  <button className="enviar-avaliacao" type="button" onClick={aoRecomecar}>
-                    Começar outra conversa
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="sub">Sua avaliação foi registrada. Pode fechar esta janela.</p>
-            )}
+            <p className="sub">Sua avaliação foi registrada. Quando tiver outra dúvida, é só começar outra conversa.</p>
+            <div className="acoes">
+              <button className="enviar-avaliacao" type="button" onClick={aoRecomecar}>
+                Começar outra conversa
+              </button>
+            </div>
           </div>
         ) : (
           <>

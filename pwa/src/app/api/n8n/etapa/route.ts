@@ -4,7 +4,7 @@ import { etapaValida } from '@/lib/etapas-da-resposta';
 export const dynamic = 'force-dynamic';
 
 /**
- * O fluxo do staging avisa em que etapa a resposta está: lendo a pergunta,
+ * O fluxo avisa em que etapa a resposta está: lendo a pergunta,
  * procurando na base ou escrevendo.
  *
  * Só marca a mensagem que ainda está pendente: um aviso atrasado, que chegue

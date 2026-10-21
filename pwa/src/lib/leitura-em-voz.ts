@@ -85,7 +85,7 @@ export function guardarAutomatica(ligada: boolean): void {
   }
 }
 
-/** As escolhas de voz do staging guardadas no aparelho (ver `escolhas-de-voz.ts`). */
+/** As escolhas de voz guardadas no aparelho (ver `escolhas-de-voz.ts`). */
 export function lerEscolhas() {
   try {
     return lerEscolhasDeVoz((chave) => localStorage.getItem(chave));

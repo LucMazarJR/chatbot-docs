@@ -23,12 +23,9 @@ export function FolhaApagar({
   sessaoId,
   aoVoltar,
   esquecerNoAparelho = true,
-  comVoltar = false,
 }: {
   sessaoId: string;
   aoVoltar: () => void;
-  /** Staging: o voltar do celular fecha a folha, e não o app. */
-  comVoltar?: boolean;
   /** Tirar a sessão do `localStorage` depois de apagar. Só faz sentido no chat anônimo. */
   esquecerNoAparelho?: boolean;
 }) {
@@ -41,7 +38,7 @@ export function FolhaApagar({
     else if (estado !== 'apagando') aoVoltar();
   };
   useFocoPreso(folhaRef, fechar);
-  useVoltarFecha(true, fechar, comVoltar);
+  useVoltarFecha(true, fechar);
 
   // O botão que tinha o foco ("Apagar") some da tela ao terminar; sem isto o
   // foco cairia no corpo da página, e o leitor de tela não anunciaria nada.
