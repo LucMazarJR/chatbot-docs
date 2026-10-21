@@ -676,11 +676,61 @@ button {
   animation: progresso-entrar 0.35s ease-out;
 }
 
-.progresso-passo {
+/* O tempo de espera, no formato do relógio da gravação de áudio (0:08). */
+.progresso-tempo {
   flex: 0 0 auto;
   color: var(--texto-fraco);
   font-size: 0.8em;
   font-variant-numeric: tabular-nums;
+}
+
+.progresso-pronta {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+/* O visto fica na linha do texto, e não num flex: num flex, a linha de base
+   da frase vira o pé do desenho, e o tempo ao lado descia alguns pixels. */
+.progresso-pronta svg {
+  width: 15px;
+  height: 15px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  fill: currentColor;
+}
+
+/* A linha de calma abre deslizando quando a espera passa do comum. Fechada,
+   não ocupa nada: a margem negativa desfaz o espaço entre os itens da caixa,
+   e o espaço volta por dentro do trecho que abre. */
+.progresso-calma {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: -8px;
+  transition: grid-template-rows 0.4s ease-out;
+}
+
+.progresso-calma.aberta {
+  grid-template-rows: 1fr;
+}
+
+.progresso-calma p {
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.progresso-calma span {
+  display: block;
+  padding-top: 6px;
+  color: var(--texto-fraco);
+  font-size: 0.8em;
+  line-height: 1.35;
+  opacity: 0;
+  transition: opacity 0.4s 0.15s;
+}
+
+.progresso-calma.aberta span {
+  opacity: 1;
 }
 
 .progresso-trilho {
@@ -750,6 +800,11 @@ button {
   .progresso-trecho.atual i {
     background: var(--acento);
     animation: none;
+  }
+
+  .progresso-calma,
+  .progresso-calma span {
+    transition: none;
   }
 }
 

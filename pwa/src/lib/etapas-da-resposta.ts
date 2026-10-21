@@ -50,6 +50,23 @@ export function avancoDaEtapa(etapa: EtapaDaResposta, passouMs: number): number 
   return COMECO_DO_TRECHO + (TETO_DO_TRECHO - COMECO_DO_TRECHO) * fracao;
 }
 
+/** A partir de quando a caixa avisa que pode demorar: antes disso, a espera é a comum. */
+export const CALMA_MS = 25_000;
+
+/** A partir de quando a espera já passou do normal, e o recado muda. */
+export const LENTO_MS = 60_000;
+
+/**
+ * A linha da caixa para quem está esperando há mais tempo que o comum, ou
+ * nada. É o que impede a pessoa de reenviar a pergunta ou fechar a aba. Faz o
+ * papel dos recados de demora que, no `/`, chegam como mensagem na conversa.
+ */
+export function recadoDaEspera(passouMs: number): string | null {
+  if (passouMs >= LENTO_MS) return 'Hoje está mais lento que o normal. Não precisa enviar de novo.';
+  if (passouMs >= CALMA_MS) return 'Pode levar até 1 minuto. Não precisa enviar de novo.';
+  return null;
+}
+
 /**
  * Quanto cada trecho da barra está cheio: as etapas que já passaram ficam
  * cheias, a atual mostra o seu avanço, e as que faltam ficam vazias.
