@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import { aguardarResposta } from '@/lib/aguardar-resposta';
 import { Balao, Digitando } from '@/components/Balao';
-import { ProgressoDaResposta } from '@/components/ProgressoDaResposta';
+import { MOSTRAR_PRONTO_MS, ProgressoDaResposta } from '@/components/ProgressoDaResposta';
 import { BotoesRapidos, type BotaoRapido } from '@/components/BotoesRapidos';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
@@ -349,6 +349,8 @@ export function Conversa({
   const [transcrevendo, setTranscrevendo] = useState(false);
   /** Staging: em que etapa está a resposta que está sendo esperada. */
   const [etapa, setEtapa] = useState<EtapaDaResposta | null>(null);
+  /** Staging: a resposta chegou, e a caixa da espera mostra "Pronto" antes de ela entrar. */
+  const [respostaPronta, setRespostaPronta] = useState(false);
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
@@ -723,10 +725,10 @@ export function Conversa({
     // olhando três pontinhos por minutos sem explicação é o que faz alguém
     // fechar a aba, e aí a conversa e a avaliação se perdem junto.
     const iniciouEm = Date.now();
-    // Staging: o recado dos 20 s sai, porque o balão já diz a etapa ao vivo; o
-    // dos 60 s fica, para dizer que não precisa reenviar.
-    const avisos = (comConta ? AVISOS_DE_DEMORA.filter((aviso) => aviso.ms >= 60_000) : AVISOS_DE_DEMORA).map(
-      ({ ms, texto }) => setTimeout(() => adicionarBot(texto, null), ms),
+    // Staging: sem recados de demora na conversa. A caixa da espera já diz a
+    // etapa ao vivo e, passado o comum, que não precisa reenviar.
+    const avisos = (comConta ? [] : AVISOS_DE_DEMORA).map(({ ms, texto }) =>
+      setTimeout(() => adicionarBot(texto, null), ms),
     );
 
     const porVoz = veioDaVozRef.current;
@@ -773,6 +775,12 @@ export function Conversa({
       }
 
       const pronta = await aguardarResposta(aceite.mensagemId, comConta ? setEtapa : undefined);
+      // Staging: a barra completa e mostra "Pronto" antes de a resposta entrar.
+      // Na falha não: "Pronto" antes de um pedido de desculpas seria mentira.
+      if (comConta && !pronta.erro) {
+        setRespostaPronta(true);
+        await new Promise((resolver) => setTimeout(resolver, MOSTRAR_PRONTO_MS));
+      }
       adicionarBot(
         textoDaFalha(pronta.causa) ?? pronta.resposta,
         pronta.erro ? null : aceite.mensagemId,
@@ -797,6 +805,7 @@ export function Conversa({
       avisos.forEach(clearTimeout);
       setDigitando(false);
       setEtapa(null);
+      setRespostaPronta(false);
       reiniciarInatividade();
     }
   }
@@ -1301,7 +1310,8 @@ export function Conversa({
             );
           })}
 
-          {digitando && (comConta && etapa ? <ProgressoDaResposta etapa={etapa} /> : <Digitando />)}
+          {digitando &&
+            (comConta && etapa ? <ProgressoDaResposta etapa={etapa} pronta={respostaPronta} /> : <Digitando />)}
 
           {/* `alert` e não `log`: o serviço fora do ar interrompe o que a pessoa
               veio fazer, e precisa ser dito na hora, não na vez dela. */}

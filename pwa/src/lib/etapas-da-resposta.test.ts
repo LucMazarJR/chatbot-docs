@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { avancoDaEtapa, TETO_DO_TRECHO, trechosDaBarra } from './etapas-da-resposta';
+import { avancoDaEtapa, CALMA_MS, LENTO_MS, recadoDaEspera, TETO_DO_TRECHO, trechosDaBarra } from './etapas-da-resposta';
 
 describe('barra de progresso da resposta', () => {
   it('o trecho da etapa já nasce com um pouco de cor', () => {
@@ -35,5 +35,22 @@ describe('barra de progresso da resposta', () => {
 
   it('concluindo, o trecho atual vai até o fim e o seguinte ainda espera vazio', () => {
     expect(trechosDaBarra('entendendo', 3000, true)).toEqual([1, 0, 0]);
+  });
+});
+
+describe('recado da espera', () => {
+  it('na espera comum, a caixa não diz nada além da etapa', () => {
+    expect(recadoDaEspera(0)).toBeNull();
+    expect(recadoDaEspera(CALMA_MS - 1)).toBeNull();
+  });
+
+  it('passado o comum, diz que pode levar até 1 minuto e que não precisa reenviar', () => {
+    expect(recadoDaEspera(CALMA_MS)).toMatch(/até 1 minuto.*Não precisa enviar de novo/);
+  });
+
+  it('passado 1 minuto, deixa de prometer o minuto', () => {
+    const recado = recadoDaEspera(LENTO_MS + 30_000);
+    expect(recado).not.toMatch(/1 minuto/);
+    expect(recado).toMatch(/Não precisa enviar de novo/);
   });
 });
