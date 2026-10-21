@@ -32,4 +32,8 @@ describe('barra de progresso da resposta', () => {
     expect(procurando).toBeLessThan(1);
     expect(escrevendo).toBe(0);
   });
+
+  it('concluindo, o trecho atual vai até o fim e o seguinte ainda espera vazio', () => {
+    expect(trechosDaBarra('entendendo', 3000, true)).toEqual([1, 0, 0]);
+  });
 });
