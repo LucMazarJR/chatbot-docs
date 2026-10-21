@@ -75,6 +75,18 @@ export async function autenticarSessao(
 }
 
 /**
+ * A sessão tem um dono que se prova: a conta, ou a chave guardada no aparelho.
+ *
+ * As sessões anônimas antigas, de antes da chave, passam pela autenticação só
+ * com o id. Para a pessoa continuar lendo a própria conversa isso foi aceito
+ * (ver acima), mas não para o que gasta a cota pequena da voz: o id aparece
+ * no painel e nos registros do n8n, e qualquer um poderia gastá-la com ele.
+ */
+export function temDonoQueSeProva(sessao: Sessao): boolean {
+    return Boolean(sessao.usuarioId || sessao.chave);
+}
+
+/**
  * O mesmo, para as rotas que recebem o id de uma MENSAGEM.
  *
  * A consulta de resposta e o voto de 👍/👎 não trazem o id da sessão, então a

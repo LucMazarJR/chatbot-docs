@@ -42,7 +42,7 @@ export async function GET(requisicao: Request, { params }: Contexto) {
           erro: 1,
           feedback: 1,
           pendente: 1,
-          // Para a tela remontar os balões de áudio do staging.
+          // Para a tela remontar os balões de áudio.
           'audio.duracaoSegundos': 1,
           respostaEmAudio: 1,
         },
@@ -120,35 +120,33 @@ export async function POST(requisicao: Request, { params }: Contexto) {
 
   const correlationId = randomUUID();
 
-  // Só a conversa do staging manda o histórico: é ela que vai para o fluxo
-  // com reescrita, que usa as últimas 4 mensagens para entender "e lá?". Vão
-  // 8 porque o modo com limite de tempo responde sem a memória do agente, e 8
-  // são as 4 trocas que ela guarda. Lido antes de gravar a pergunta nova, para
-  // ela não entrar duas vezes.
+  // A conversa com conta vai para o fluxo do staging, e a anônima para o do
+  // `/`. Os dois recebem o mesmo pedido: o do `/` é uma cópia do staging.
   const staging = Boolean(sessao.usuarioId);
-  const historico = staging
-    ? (
-        await colMensagens
-          .find(
-            { sessaoId: sessao._id, pendente: { $ne: true }, tipo: { $exists: false } },
-            { projection: { papel: 1, texto: 1 } },
-          )
-          .sort({ em: -1, papel: 1 })
-          .limit(8)
-          .toArray()
+
+  // A reescrita usa as últimas 4 mensagens para entender "e lá?". Vão 8 porque
+  // o modo com limite de tempo responde sem a memória do agente, e 8 são as 4
+  // trocas que ela guarda. Lido antes de gravar a pergunta nova, para ela não
+  // entrar duas vezes.
+  const historico = (
+    await colMensagens
+      .find(
+        { sessaoId: sessao._id, pendente: { $ne: true }, tipo: { $exists: false } },
+        { projection: { papel: 1, texto: 1 } },
       )
-        .reverse()
-        .filter((m) => m.texto)
-        .map((m) => ({ papel: m.papel, texto: m.texto }))
-    : undefined;
+      .sort({ em: -1, papel: 1 })
+      .limit(8)
+      .toArray()
+  )
+    .reverse()
+    .filter((m) => m.texto)
+    .map((m) => ({ papel: m.papel, texto: m.texto }));
 
-  // Mensagem de áudio só existe no staging: no `/` o campo é ignorado, e a
-  // mensagem fica exatamente como sempre foi.
-  const audio = staging && porVoz ? lerAudio(corpo.audio) : null;
+  const audio = porVoz ? lerAudio(corpo.audio) : null;
 
-  // Staging: o modo de espera da resposta. Sem ele (tela antiga, `/`), o
-  // fluxo segue pelo agente de sempre.
-  const limiteDeTempo = staging && typeof corpo.limiteDeTempo === 'boolean' ? corpo.limiteDeTempo : undefined;
+  // O modo de espera da resposta. Sem ele (tela antiga), o fluxo segue pelo
+  // agente de sempre.
+  const limiteDeTempo = typeof corpo.limiteDeTempo === 'boolean' ? corpo.limiteDeTempo : undefined;
 
   const pergunta: Mensagem = {
     _id: randomUUID(),

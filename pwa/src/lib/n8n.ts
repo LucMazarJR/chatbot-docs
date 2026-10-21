@@ -39,17 +39,18 @@ type Entrega = {
   staging?: boolean;
   /** As últimas mensagens da conversa, que a reescrita usa para entender "e lá?". */
   historico?: { papel: 'user' | 'bot'; texto: string }[];
-  /** Staging: responder com prazo em cada modelo, em vez do agente sem prazo. */
+  /** Responder com prazo em cada modelo, em vez do agente sem prazo. */
   limiteDeTempo?: boolean;
 };
 
 /**
  * Para onde vai a pergunta.
  *
- * LÓGICA DO LUCIANO: o `/` está em teste de campo e não pode mudar de
- * comportamento, então a reescrita da pergunta mora num fluxo separado do n8n,
- * e só a conversa do staging vai para ele. A variável nasce vazia: sem ela,
- * o staging usa o fluxo de sempre, e nada quebra por falta de configuração.
+ * LÓGICA DO LUCIANO: o staging tem um fluxo próprio no n8n, que é onde a
+ * novidade entra antes de chegar ao `/`; o do `/` é gerado dele quando a
+ * novidade é validada (`n8n/promover-staging.mjs`). A variável nasce vazia:
+ * sem ela, o staging usa o fluxo do `/`, e nada quebra por falta de
+ * configuração.
  */
 export function enderecoDoFluxo(staging: boolean): string | undefined {
   const deStaging = process.env.N8N_PWA_STAGING_WEBHOOK_URL?.trim();
@@ -89,8 +90,8 @@ export async function despachar({
         'X-Webhook-Token': token,
         'X-Correlation-Id': correlationId,
       },
-      // O histórico só vai quando existe: o fluxo do `/` não o usa, e o corpo
-      // dele fica exatamente como sempre foi.
+      // O histórico e o modo de espera só vão quando existem: o fluxo segue
+      // pelo agente de sempre sem eles.
       body: JSON.stringify({
         sessionId: sessaoId,
         mensagemId,

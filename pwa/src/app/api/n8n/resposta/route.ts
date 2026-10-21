@@ -105,7 +105,7 @@ export async function POST(requisicao: Request) {
         modelo: corpo.modelo ?? null,
         semResposta,
         erro: houveFalha,
-        // O fluxo do staging diz o motivo (a busca na base falhou, nenhum
+        // O fluxo diz o motivo (a busca na base falhou, nenhum
         // modelo respondeu no prazo); o do `/` não diz, e fica o de sempre.
         motivoErro: houveFalha ? (typeof corpo.motivo === 'string' && corpo.motivo ? corpo.motivo.slice(0, 120) : 'o agente não concluiu') : null,
         ...camposDaReescrita(corpo),
