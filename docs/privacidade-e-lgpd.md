@@ -25,10 +25,10 @@ O gateway também **mascara segredos no log**: falha de entrega ao n8n registra 
 
 - **Base legal: consentimento** (Art. 7º, I, e Art. 11, I). A conversa só começa depois de tocar em *Aceitar*, e a data do aceite, ou da recusa, fica gravada na sessão. Um aviso na tela vale menos, numa auditoria, que "esta conversa começou às 14h32, com aceite às 14h31".
 - **Política publicada** em `/privacidade`, escrita para quem está no posto com o celular na mão: o que fica registrado, para que, quem mais recebe (Gemini do Google para gerar a resposta, MongoDB Atlas para guardar), por quanto tempo e como exercer os direitos. O prazo que ela mostra é lido do ambiente, então a página não promete número diferente do que o banco aplica.
-- **Aviso antes da primeira pergunta**, com link para a política no topo da conversa, no menu e no painel de acessibilidade (no staging, em *Minha conta*, no lugar do menu).
+- **Aviso antes da primeira pergunta**, com link para a política no topo da conversa, no menu e no painel *Letra e voz* (no staging, em *Minha conta*, no lugar do menu).
 - **Prazo de retenção aplicado pelo banco.** As conversas se apagam sozinhas em `PWA_RETENCAO_DIAS` (180 por padrão), por índice TTL do Mongo. Prazo que depende de alguém lembrar de rodar um script não é prazo.
 - **Exclusão a pedido, por duas portas.** A própria pessoa, no menu do chat (*Apagar minha conversa*; no staging, em *Minha conta*, conversa por conversa), ou a equipe, pela transcrição em `/conversas`, para quem não tem mais a conversa no aparelho. A exclusão pela equipe fica registrada no histórico: quem apagou, quando e quantos registros, sem nenhum conteúdo.
-- **Minimização no que não é texto.** Arquivo e áudio nunca saem do aparelho: fica registrado só o tipo, o tamanho e a duração da tentativa. O nome do arquivo não é guardado, porque "exame_maria_silva.pdf" é exatamente o dado que o aviso pede para ninguém mandar.
+- **Minimização no que não é texto.** O arquivo nunca sai do aparelho: fica registrado só o tipo e o tamanho da tentativa. O nome do arquivo não é guardado, porque "exame_maria_silva.pdf" é exatamente o dado que o aviso pede para ninguém mandar. O áudio sai só para virar texto, e não é gravado (ver [Reescrita, voz e tutorial](#reescrita-voz-e-tutorial)).
 - **Acesso restrito.** As conversas só abrem para quem tem papel `admin` no dashboard, com login individual.
 
 ### A exclusão alcança as cópias
@@ -44,6 +44,20 @@ O que a exclusão **não** alcança, e por quê:
 - A resposta crua do modelo numa rodada de curadoria é apagada **inteira**, e não só o trecho daquela pessoa: o texto do modelo pode repetir a pergunta com outras palavras, e não há como separar com segurança. Custa a auditoria daquela rodada, que é o preço certo diante de um pedido de exclusão.
 - A pergunta reescrita pelo modelo numa sugestão fica: ela já não é a frase da pessoa, é o rascunho de uma FAQ.
 - No relatório do dia, a resposta crua do modelo sai inteira, pelo mesmo motivo da rodada de curadoria. Ficam os temas para revisar e o resumo, que falam do conjunto do dia e não citam a pergunta de ninguém.
+
+---
+
+## Reescrita, voz e tutorial
+
+Nos dois chats, o `/` e o `/staging` ([prototipo-pwa.md](prototipo-pwa.md#o-que-os-dois-chats-têm)).
+
+- **A reescrita manda ao Gemini a pergunta e as últimas 4 mensagens da conversa**, no `/` pela mesma chave do agente (credencial `Gemini PWA`), e no staging por outra (`GEMINI_API_KEY_3`, credencial `Gemini Reescrita`). Não é destinatário novo: o agente que responde já recebe a pergunta e o histórico pelo mesmo Gemini. O que volta, a pergunta como o modelo entendeu e as consultas feitas, fica gravado **na mensagem da resposta**, em `mensagens`, e por isso some junto com a conversa: pelo prazo de retenção, pelo *Apagar minha conversa*, pela exclusão no painel e pela exclusão da conta. É texto derivado do que o cidadão escreveu, e segue as mesmas regras dele: não vai para log nem para auditoria, e no painel aparece só nos bastidores da resposta, para quem já pode ler a transcrição.
+- **Com "A IA entende o seu áudio", o áudio passa pelo nosso servidor até o Gemini**, que o transforma em texto (`/api/voz/transcrever`, só para quem prova ser dono da conversa: pela conta, no staging, ou pela chave da conversa, no `/`). O áudio fica só na memória da função e não é gravado, nem vai para log. A mensagem guarda o texto, a marca `origem: 'voz'` e `audio` (a duração, o modelo e o tempo da transcrição), que é o registro do acionamento. A gravação fica no aparelho só até a página fechar.
+- **A voz natural da resposta manda ao Gemini o texto da resposta**, que é conteúdo da base de FAQs e já está gravado na mensagem. O MP3 não é guardado no servidor. A mensagem registra em `vozGerada` o modelo, a voz, quando e quantos caracteres. A rota fala só o texto gravado na mensagem, e não um texto mandado pela tela, para não virar gerador de voz.
+- **Com "O celular escreve", o ditado é do navegador**, com o serviço de voz dele (do Google no Chrome, da Apple no Safari). Nesse caminho o áudio nunca passa pelo nosso servidor.
+- **Com a voz "Do celular", a resposta é lida pelo próprio aparelho** (`speechSynthesis`), sem nada sair do celular. A mensagem guarda só a hora em que isso aconteceu (`ouvidaNoCelularEm`), para comparar o uso das duas vozes.
+- A página `/privacidade` descreve os caminhos. As preferências de voz (quem entende, voz escolhida, velocidade, leitura automática) e os bloqueios por limite ficam só no aparelho.
+- **O tutorial** grava na sessão o que a pessoa fez com ele (viu, pulou, recusou ou ignorou) e quando. Não é dado de saúde, e existe para medir se o tutorial serve. O aparelho guarda a mesma escolha, só para não oferecer de novo.
 
 ---
 
@@ -67,18 +81,6 @@ Só existem na rota de validação: ver [contas-de-usuario.md](contas-de-usuario
 - **Na equipe**, `/conversas` mostra só que a conversa tem conta, nunca o e-mail. Os e-mails aparecem apenas em `/notificacoes`, para quem tem papel `admin` escolher quem recebe. O histórico registra quem agendou ou cancelou um aviso, o tipo e quantas pessoas, nunca o texto nem quem recebeu.
 - **Apagar a conta** leva as conversas (com as cópias da curadoria, pelo mesmo caminho da exclusão de conversa), os avisos, os aparelhos e as sessões, e a conta por último.
 - **Senha**: guardada só como hash `scrypt`. As sessões guardam o hash do token, nunca o token.
-
-### Reescrita, voz e tutorial
-
-Também só no `/staging` ([prototipo-pwa.md](prototipo-pwa.md#contas-e-avisos-staging)).
-
-- **A reescrita manda ao Gemini a pergunta e as últimas 4 mensagens da conversa**, por outra chave (`GEMINI_API_KEY_3`, credencial `Gemini Reescrita`). Não é destinatário novo: o agente que responde já recebe a pergunta e o histórico pelo mesmo Gemini. O que volta, a pergunta como o modelo entendeu e as consultas feitas, fica gravado **na mensagem da resposta**, em `mensagens`, e por isso some junto com a conversa: pelo prazo de retenção, pelo *Apagar minha conversa*, pela exclusão no painel e pela exclusão da conta. É texto derivado do que o cidadão escreveu, e segue as mesmas regras dele: não vai para log nem para auditoria, e no painel aparece só nos bastidores da resposta, para quem já pode ler a transcrição.
-- **Com "A IA entende o seu áudio", o áudio passa pelo nosso servidor até o Gemini**, que o transforma em texto (`/api/voz/transcrever`, só para quem está logado). O áudio fica só na memória da função e não é gravado, nem vai para log. A mensagem guarda o texto, a marca `origem: 'voz'` e `audio` (a duração, o modelo e o tempo da transcrição), que é o registro do acionamento. A gravação fica no aparelho só até a página fechar.
-- **A voz natural da resposta manda ao Gemini o texto da resposta**, que é conteúdo da base de FAQs e já está gravado na mensagem. O MP3 não é guardado no servidor. A mensagem registra em `vozGerada` o modelo, a voz, quando e quantos caracteres. A rota fala só o texto gravado na mensagem, e não um texto mandado pela tela, para não virar gerador de voz.
-- **Com "O celular escreve", o ditado é do navegador**, com o serviço de voz dele (do Google no Chrome, da Apple no Safari). Nesse caminho o áudio nunca passa pelo nosso servidor.
-- **Com a voz "Do celular", a resposta é lida pelo próprio aparelho** (`speechSynthesis`), sem nada sair do celular. A mensagem guarda só a hora em que isso aconteceu (`ouvidaNoCelularEm`), para comparar o uso das duas vozes.
-- A página `/privacidade` descreve os caminhos. As preferências de voz (quem entende, voz escolhida, velocidade, leitura automática) e os bloqueios por limite ficam só no aparelho.
-- **O tutorial** grava na sessão o que a pessoa fez com ele (viu, pulou, recusou ou ignorou) e quando. Não é dado de saúde, e existe para medir se o tutorial serve. O aparelho guarda a mesma escolha, só para não oferecer de novo.
 
 ---
 
