@@ -8,8 +8,8 @@ import { ETAPAS, TEXTO_DA_ETAPA, trechosDaBarra, type EtapaDaResposta } from '@/
 const PASSO_MS = 400;
 
 /**
- * Staging: no lugar do balão de "digitando", uma barra em três trechos, um
- * por etapa da resposta, com a frase da etapa em cima.
+ * Staging: no lugar do balão de "digitando", uma caixa com a frase da etapa,
+ * o passo ("2 de 3") e uma barra em três trechos, um por etapa da resposta.
  *
  * Não é balão de propósito: no balão branco, a espera parecia uma mensagem do
  * assistente. O trecho atual enche devagar e tem um brilho que corre, para a
@@ -34,10 +34,15 @@ export function ProgressoDaResposta({ etapa }: { etapa: EtapaDaResposta }) {
     // passo da barra.
     <div className="linha entrada-linha digitando" aria-hidden="true">
       <div className="progresso">
-        {/* A chave muda com a etapa: a frase nova entra deslizando, em vez de trocar seca. */}
-        <span key={etapa} className="progresso-frase">
-          {TEXTO_DA_ETAPA[etapa]}
-        </span>
+        <div className="progresso-topo">
+          {/* A chave muda com a etapa: a frase nova entra deslizando, em vez de trocar seca. */}
+          <span key={etapa} className="progresso-frase">
+            {TEXTO_DA_ETAPA[etapa]}
+          </span>
+          <span className="progresso-passo">
+            {ETAPAS.indexOf(etapa) + 1} de {ETAPAS.length}
+          </span>
+        </div>
         <div className="progresso-trilho">
           {ETAPAS.map((nome, indice) => (
             <span key={nome} className={nome === etapa ? 'progresso-trecho atual' : 'progresso-trecho'}>
