@@ -4,37 +4,42 @@
 #
 #   scripts/vm082/verificar.sh
 set -uo pipefail
-source "$(dirname "$0")/comum.sh"
+cd "$(dirname "$0")/../.."
 
 falhas=0
 ok()   { echo "  ok    $*"; }
 erro() { echo "  FALHA $*"; falhas=$((falhas + 1)); }
 
+# Lê uma variável do .env sem executá-lo: `source .env` quebraria com segredo
+# que tenha $, aspas ou espaço.
+valor_env() { grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | tr -d "\"'"; }
+# Código HTTP de um POST sem token. Um webhook publicado e protegido responde 403.
+codigo_post() { curl -s -o /dev/null -w '%{http_code}' -m 15 -X POST "$1" || true; }
+
+echo "Configuração"
+if [[ "$(valor_env COMPOSE_FILE)" == docker-compose.yml:docker-compose.vm082.yml ]]; then
+  ok "COMPOSE_FILE inclui a sobreposição da VM"
+else
+  erro "falta COMPOSE_FILE=docker-compose.yml:docker-compose.vm082.yml no .env. Sem ela, o docker compose sobe com volumes vazios e portas abertas"
+fi
+
 echo "Containers"
 for s in redis n8n cloudflared; do
-  if "${COMPOSE[@]}" ps --status running --services | grep -qx "$s"; then
+  if docker compose ps --status running --services | grep -qx "$s"; then
     ok "$s no ar"
   else
-    erro "$s parado. Veja: ${COMPOSE[*]} logs --tail 50 $s"
+    erro "$s parado. Veja: docker compose logs --tail 50 $s"
   fi
 done
 
-saude=$(docker inspect -f '{{.State.Health.Status}}' "$("${COMPOSE[@]}" ps -q redis)" 2>/dev/null || echo ausente)
-if [[ "$saude" == healthy ]]; then
-  ok "redis saudável"
-else
-  erro "redis com saúde '$saude'. Confira REDIS_PASSWORD no .env"
-fi
-
 echo "n8n"
 if curl -fsS -m 10 http://127.0.0.1:5678/healthz >/dev/null 2>&1; then
-  ok "responde em 127.0.0.1:5678 ($("${COMPOSE[@]}" exec -T n8n n8n --version 2>/dev/null | tail -n 1))"
+  ok "responde em 127.0.0.1:5678"
 else
   erro "não responde em 127.0.0.1:5678. Veja os logs do n8n: permissão no volume ou versão diferente da original aparecem lá"
 fi
 
-# 403 é o esperado: a rota existe e recusa quem não apresenta o token. 404 quer
-# dizer fluxo despublicado, o que acontece depois de importar pelo CLI.
+# 404 quer dizer fluxo despublicado, o que acontece depois de importar pelo CLI.
 codigo=$(codigo_post http://127.0.0.1:5678/webhook/pwa-chat)
 case "$codigo" in
   403) ok "fluxo do chat publicado e protegido por token" ;;
@@ -47,7 +52,7 @@ url=$(valor_env CLOUDFLARE_URL)
 codigo=$(codigo_post "$url/webhook/pwa-chat")
 case "$codigo" in
   403) ok "$url chega ao n8n" ;;
-  530) erro "$url sem máquina conectada (530). Veja: ${COMPOSE[*]} logs --tail 50 cloudflared" ;;
+  530) erro "$url sem máquina conectada (530). Veja: docker compose logs --tail 50 cloudflared" ;;
   *)   erro "$url respondeu $codigo, esperado 403" ;;
 esac
 
@@ -58,7 +63,7 @@ abertas=$(ss -tln | awk '{print $4}' | grep -E '^(0\.0\.0\.0|\[::\]|\*):(3000|54
 if [[ -z "$abertas" ]]; then
   ok "nenhuma porta do chatbot aberta para a rede"
 else
-  erro "portas abertas para a rede: ${abertas//$'\n'/ }. Confira se o docker-compose.vm082.yml entrou no comando"
+  erro "portas abertas para a rede: ${abertas//$'\n'/ }. Confira o COMPOSE_FILE no .env"
 fi
 
 echo

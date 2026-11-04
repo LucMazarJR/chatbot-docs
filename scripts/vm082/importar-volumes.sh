@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Roda na VM082. Recria os volumes a partir da pasta que o exportar-volumes.ps1
-# gerou na máquina antiga, e põe o .env no lugar. Depois disso, o instalar.sh
-# sobe tudo. Ver docs/servidor-vm082.md.
+# Roda na VM082, na raiz do projeto. Recria os volumes a partir da pasta que o
+# exportar-volumes.ps1 gerou na máquina antiga e põe o .env no lugar.
 #
 #   scripts/vm082/importar-volumes.sh ~/migracao-chatbot
+#
+# Ver docs/servidor-vm082.md.
 set -euo pipefail
 origem=$(cd "${1:?informe a pasta com os .tgz, ex.: ~/migracao-chatbot}" && pwd)
-source "$(dirname "$0")/comum.sh"
+cd "$(dirname "$0")/../.."
+
+falha() { echo "ERRO: $*" >&2; exit 1; }
 
 docker info >/dev/null 2>&1 \
-  || falha "sem acesso ao Docker. O DTI precisa rodar 'sudo gpasswd -a $USER docker'; depois saia e entre de novo no servidor."
+  || falha "sem acesso ao Docker. O seu usuário precisa estar no grupo docker; depois de incluído, saia e entre de novo no servidor."
 
 shopt -s nullglob
 pacotes=("$origem"/*.tgz)
@@ -20,7 +23,7 @@ pacotes=("$origem"/*.tgz)
 for p in "${pacotes[@]}"; do
   v=$(basename "$p" .tgz)
   if docker volume inspect "chatbot-docs_$v" >/dev/null 2>&1; then
-    falha "o volume chatbot-docs_$v já existe nesta máquina. Se é para trocar mesmo, pare os containers e apague com 'docker volume rm chatbot-docs_$v'."
+    falha "o volume chatbot-docs_$v já existe. Se é para trocar mesmo, pare os containers e apague com 'docker volume rm chatbot-docs_$v'."
   fi
 done
 
@@ -39,27 +42,21 @@ for p in "${pacotes[@]}"; do
   echo "chatbot-docs_$v importado"
 done
 
-if [[ -f "$origem/env" ]]; then
-  if [[ -f .env ]]; then
-    echo "AVISO: já existe um .env aqui; o da pasta não foi copiado."
-  else
-    install -m 640 "$origem/env" .env
-    echo ".env copiado (permissão 640)"
-  fi
-fi
-
-if [[ -f "$origem/n8n-versao.txt" ]]; then
+if [[ -f .env ]]; then
+  echo "AVISO: já existe um .env aqui, e o da pasta não foi copiado."
+else
+  [[ -f "$origem/env" ]] || falha "falta o arquivo env em $origem."
+  # 640: o grupo da equipe lê, para outra pessoa conseguir reiniciar os
+  # containers; o resto dos usuários do servidor não.
+  install -m 640 "$origem/env" .env
   versao=$(tr -d '[:space:]' < "$origem/n8n-versao.txt")
-  definir_no_env N8N_VERSAO "$versao"
-  echo "N8N_VERSAO=$versao no .env, a mesma da máquina antiga"
+  # COMPOSE_FILE faz o `docker compose` digitado à mão incluir a sobreposição da
+  # VM. Sem ela, o projeto ganharia o nome da pasta, com volumes novos e vazios,
+  # e as portas ficariam abertas para a rede da prefeitura.
+  printf '\n# --- VM082 ---\nN8N_VERSAO=%s\nCOMPOSE_FILE=docker-compose.yml:docker-compose.vm082.yml\n' "$versao" >> .env
+  echo ".env copiado, com N8N_VERSAO=$versao (a da máquina antiga) e COMPOSE_FILE"
 fi
-
-# Faz o `docker compose` digitado à mão incluir a sobreposição da VM. Sem ela, o
-# projeto ganharia o nome da pasta, com volumes novos e vazios, e as portas
-# ficariam abertas para a rede da prefeitura.
-definir_no_env COMPOSE_FILE docker-compose.yml:docker-compose.vm082.yml
-echo "COMPOSE_FILE no .env: o docker compose puro já usa a sobreposição da VM"
 
 echo
-echo "Próximo passo: scripts/vm082/instalar.sh"
+echo "Próximo passo: docker compose up -d redis n8n cloudflared"
 echo "Depois de verificado, apague $origem: ali estão os segredos e as conversas guardadas no n8n."

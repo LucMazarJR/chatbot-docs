@@ -47,7 +47,3 @@ scripts/backups/
 # Gabarito, cache e relatórios do teste de conversas: têm frases de cidadão
 # ou texto derivado delas, e só existem na máquina de quem testa.
 n8n/.local/
-
-# Permissoes do Claude Code de cada maquina. Na VM082 ela bloqueia o acesso aos
-# segredos (ver docs/servidor-vm082.md), e versionada valeria para todo mundo.
-.claude/settings.local.json

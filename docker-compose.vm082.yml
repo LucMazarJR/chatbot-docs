@@ -1,7 +1,8 @@
 # Sobreposição para a VM082 (172.21.31.182), o servidor da prefeitura dedicado
-# ao chatbot. Não substitui o compose principal:
-#   docker compose -f docker-compose.yml -f docker-compose.vm082.yml up -d
-# Os scripts em scripts/vm082/ já montam esse comando. Ver docs/servidor-vm082.md.
+# ao chatbot. Não substitui o compose principal: o .env da VM tem
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.vm082.yml
+# e com isso o `docker compose` comum já inclui este arquivo. Ver
+# docs/servidor-vm082.md.
 #
 # O docker-compose.franca.yml é de outro servidor (172.21.31.167, compartilhado
 # com outras aplicações) e não vale aqui.

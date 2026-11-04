@@ -177,7 +177,7 @@ Ele não menciona `output` nem `standalone`, e leva a procurar no lugar errado. 
 
 ## Servidor (VM082)
 
-**Dois `cloudflared` com o mesmo token dividem as conversas.** A Cloudflare reparte o tráfego entre todas as máquinas conectadas ao túnel, sem aviso. Metade das perguntas cai num n8n e metade no outro, e cada um parece funcionar quando testado sozinho. Ao trocar de máquina, pare o túnel na antiga **antes** de subir o da nova. O [instalar.sh](../scripts/vm082/instalar.sh) recusa subir enquanto o túnel responde algo diferente de 530 (sem máquina conectada).
+**Dois `cloudflared` com o mesmo token dividem as conversas.** A Cloudflare reparte o tráfego entre todas as máquinas conectadas ao túnel, sem aviso. Metade das perguntas cai num n8n e metade no outro, e cada um parece funcionar quando testado sozinho. Ao trocar de máquina, pare o túnel na antiga **antes** de subir o da nova. Antes de subir, um `curl -X POST <CLOUDFLARE_URL>/webhook/pwa-chat` precisa responder 530, que quer dizer túnel sem máquina conectada.
 
 **`docker compose` sem a sobreposição da VM sobe um chatbot vazio e aberto.** Sem o [docker-compose.vm082.yml](../docker-compose.vm082.yml), o nome do projeto vira o nome da pasta, os volumes migrados não são encontrados (o n8n sobe sem fluxos nem credenciais) e as portas ficam abertas para a rede da prefeitura. O `.env` da VM precisa de `COMPOSE_FILE=docker-compose.yml:docker-compose.vm082.yml`. No Windows o separador dessa variável é `;`, e com `:` o compose não lê nada.
 
