@@ -7,6 +7,7 @@
  * sem nenhuma conexão pendurada.
  */
 
+import { etapaValida, type EtapaDaResposta } from '@/lib/etapas-da-resposta';
 import { cabecalhosDaSessao } from '@/lib/sessao-local';
 
 const INTERVALO_MS = 2_000;
@@ -25,7 +26,11 @@ export type RespostaPronta = {
 
 const espera = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function aguardarResposta(mensagemId: string): Promise<RespostaPronta> {
+/** `aoMudarEtapa`: staging, recebe a etapa a cada consulta, para a tela mostrar. */
+export async function aguardarResposta(
+  mensagemId: string,
+  aoMudarEtapa?: (etapa: EtapaDaResposta) => void,
+): Promise<RespostaPronta> {
   const comecou = Date.now();
 
   while (Date.now() - comecou < MS_ATE_DESISTIR) {
@@ -43,9 +48,14 @@ export async function aguardarResposta(mensagemId: string): Promise<RespostaPron
         erro?: boolean;
         resposta?: string;
         causa?: RespostaPronta['causa'];
+        etapa?: unknown;
       };
 
-      if (dados.pendente) continue;
+      if (dados.pendente) {
+        const etapa = etapaValida(dados.etapa);
+        if (etapa) aoMudarEtapa?.(etapa);
+        continue;
+      }
 
       return {
         resposta: dados.resposta ?? '',

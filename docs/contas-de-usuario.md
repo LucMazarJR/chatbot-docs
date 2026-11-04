@@ -68,7 +68,9 @@ Não existe envio de e-mail no projeto. Por isso uma conta de senha tem `emailVe
 - `POST /api/sessoes` com `comConta: true` cria a sessão com `usuarioId` e sem chave. Sessão com `usuarioId` só abre com o cookie da própria conta: a chave não vale para ela.
 - **O `/` segue exatamente o caminho de antes.** A conta nunca é deduzida do cookie: só `comConta: true` explícito liga uma conversa a ela. Sem isso, alguém logado no staging que abrisse o `/` no mesmo navegador teria a conversa anônima gravada na conta.
 
-O menu ⋮ do chat com conta ganha **Avisos**, **Minha conta** e **Sair da conta**: a saída fica onde a pessoa está, e não só dentro de outra tela, porque o aparelho pode ser emprestado.
+O menu ⋮ do chat com conta tem cinco itens: **Letra e voz**, **Como usar**, **Avisos**, **Minha conta** e **Encerrar e avaliar**. Com mais, quem tem pouca prática lia a lista inteira antes de achar a letra maior.
+- **Sair** fica na faixa do topo, presente em toda tela do staging, e em Minha conta: a saída fica onde a pessoa está, porque o aparelho pode ser emprestado.
+- **Minha conta** lista as conversas, cada uma com **Apagar** (confirmado na própria linha, e que leva junto as cópias da curadoria), e leva à política de privacidade.
 
 No dashboard, `/conversas` mostra só um selo **"com conta"**, nunca o e-mail: quem analisa respostas não precisa saber de quem é o relato de saúde.
 

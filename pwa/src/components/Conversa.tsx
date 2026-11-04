@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { aguardarResposta } from '@/lib/aguardar-resposta';
 import { Balao, Digitando } from '@/components/Balao';
+import { MOSTRAR_PRONTO_MS, ProgressoDaResposta } from '@/components/ProgressoDaResposta';
 import { BotoesRapidos, type BotaoRapido } from '@/components/BotoesRapidos';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
@@ -12,7 +13,6 @@ import { FolhaApagar } from '@/components/FolhaApagar';
 import { PainelAjustes } from '@/components/PainelAjustes';
 import { RegistrarSW } from '@/components/RegistrarSW';
 import {
-  AVISOS_DE_DEMORA,
   MS_PARA_CONSIDERAR_DEMORA,
   TEXTO_DEMOROU_DEMAIS,
   TEXTO_FORA_DO_AR,
@@ -28,9 +28,15 @@ import type { Papel, TipoAnexo } from '@/lib/tipos';
 import { Carregando } from '@/components/Carregando';
 import { decidirAvaliacao, INATIVIDADE_MS } from '@/lib/avaliacao-automatica';
 import { Tutorial, type PassoDoTutorial } from '@/components/Tutorial';
-import { OuvirResposta } from '@/components/OuvirResposta';
-import { falar, lerAutomatica } from '@/lib/leitura-em-voz';
+import { AudioSemGravacao, TocadorDeAudio } from '@/components/TocadorDeAudio';
+import { falar, lerAutomatica, pararDeFalar } from '@/lib/leitura-em-voz';
+import { pararTodoSom, soltarAVez, tomarAVez } from '@/lib/som-unico';
 import { useDitado } from '@/lib/usar-ditado';
+import { useVozIa, type RecusaDaVoz } from '@/lib/usar-voz-ia';
+import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
+import { marcarChatNaHistoria } from '@/lib/navegacao';
+import { lerLimiteDeTempo } from '@/lib/limite-de-tempo';
+import { TEXTO_DA_ETAPA, type EtapaDaResposta } from '@/lib/etapas-da-resposta';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
@@ -59,6 +65,16 @@ type Item = {
   botoes?: BotaoRapido[];
   /** O que já foi escolhido: some com os outros e marca este. */
   escolhido?: string;
+  /**
+   * Staging: a pergunta foi um áudio. `url` é a gravação, que existe só neste
+   * aparelho e só até recarregar a página; sem ela, o balão mostra a duração e
+   * a transcrição, sem play.
+   */
+  audio?: { url?: string; duracao: number; transcrevendo?: boolean };
+  /** Staging: resposta a uma pergunta em áudio, que vem como áudio também. */
+  respostaEmAudio?: boolean;
+  /** Acabou de chegar, e não veio da conversa retomada: só ela se prepara e toca sozinha. */
+  recemChegada?: boolean;
 };
 
 /**
@@ -114,52 +130,61 @@ const CHAVES_DE_ACEITE = ['aceite', 'aceite-depois'];
  * podiam começar. A frase aponta para o campo pelo nome que está escrito nele,
  * e não por "aqui embaixo": com o teclado aberto, o campo muda de lugar.
  */
-const ACEITE_CONFIRMADO = [
-  'Pronto, já pode perguntar!',
-  '',
-  'Escreva sua dúvida no campo *Escreva sua pergunta* e toque no botão de enviar, ao lado dele.',
-].join('\n');
-
-function confirmacaoDoAceite(quando?: Date): Item {
-  return { chave: 'aceite-pronto', papel: 'bot', texto: ACEITE_CONFIRMADO, hora: horaAgora(quando) };
+function confirmacaoDoAceite(comVoz: boolean, quando?: Date): Item {
+  return {
+    chave: 'aceite-pronto',
+    papel: 'bot',
+    texto: [
+      'Pronto, já pode perguntar!',
+      '',
+      comVoz
+        ? 'Escreva sua dúvida no campo *Escreva sua pergunta*, ou toque no microfone verde e mande um áudio.'
+        : 'Escreva sua dúvida no campo *Escreva sua pergunta* e toque no botão de enviar, ao lado dele.',
+    ].join('\n'),
+    hora: horaAgora(quando),
+  };
 }
 
 /**
- * A oferta do tutorial, dentro da conversa.
+ * O passo a passo de como usar, que abre sozinho na primeira conversa do
+ * aparelho.
  *
- * LÓGICA DO LUCIANO: um convite, e não um tutorial que abre sozinho. Quem já
- * sabe usar WhatsApp perderia tempo com cinco passos, e a maioria sabe. Quem
- * não sabe toca em "Ver como usar". E quem ignora e já escreve a pergunta não
- * é interrompido: a oferta fica lá, e o menu tem "Como usar".
+ * LÓGICA DO LUCIANO: ele começou como convite dentro da conversa ("Quer ver
+ * como usar?"), para não fazer quem já sabe usar WhatsApp perder tempo. No
+ * staging, o convite passou despercebido justamente por quem mais precisava
+ * dele: quem tem dificuldade não lê a mensagem e não sabe que existe ajuda.
+ * Agora ele abre sozinho, uma vez por aparelho, e quem já sabe sai num toque
+ * em Pular, que fica sempre à vista. Continua no menu, em "Como usar".
+ *
+ * Os textos têm uma ou duas frases: é a leitura de quem tem mais dificuldade.
  */
-const OFERTA_DO_TUTORIAL = 'Quer ver em poucos passos como usar este chat? Se já sabe, é só perguntar.';
-
-const BOTOES_DO_TUTORIAL: BotaoRapido[] = [
-  { rotulo: 'Ver como usar', valor: 'ver' },
-  { rotulo: 'Já sei usar', valor: 'recusar' },
-];
-
 const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
   {
     alvo: '.barra-envio .campo',
     titulo: 'Onde escrever',
-    texto:
-      'Toque aqui e escreva sua dúvida do seu jeito, como numa conversa de WhatsApp. Não precisa escrever certinho.',
+    texto: 'Toque aqui e escreva sua dúvida do seu jeito, como no WhatsApp.',
   },
   {
     alvo: '.barra-envio .enviar',
     titulo: 'Como enviar',
-    texto:
-      'Depois de escrever, toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone.',
+    texto: 'Toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone.',
   },
   {
     alvo: null,
-    titulo: 'Diga se a resposta ajudou',
+    titulo: 'Ouvir e avaliar a resposta',
     texto:
-      'Embaixo de cada resposta aparecem dois botões. Toque no polegar para cima se ajudou, ou para baixo se não ajudou. É assim que a equipe descobre o que melhorar.',
+      'Toque no alto-falante, no canto da resposta, para ouvir. Embaixo, toque no polegar para cima se ajudou, ou para baixo se não ajudou.',
     exemplo: (
       <>
-        <div className="amostra-balao">Para marcar consulta, procure a UBS mais perto de casa.</div>
+        <div className="amostra-balao amostra-com-canto">
+          Para marcar consulta, procure a UBS mais perto de casa.
+          <span className="amostra-canto">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05A4.5 4.5 0 0 0 16.5 12ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77Z" />
+            </svg>
+            10:32
+          </span>
+        </div>
         <div className="avaliar-msg">
           <button type="button" tabIndex={-1}>
             👍
@@ -174,17 +199,45 @@ const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
   {
     alvo: 'button[aria-label="Mais opções"]',
     titulo: 'Letra maior e outras opções',
-    texto: 'Neste menu você aumenta a letra, liga o contraste alto e encerra a conversa.',
+    texto: 'Neste menu você aumenta a letra, escolhe a voz e encerra a conversa.',
   },
   {
     alvo: null,
     titulo: 'Pronto!',
-    texto: 'Pode perguntar. Se quiser ver este passo a passo de novo, ele fica no menu, em Como usar.',
+    texto: 'Pode perguntar. Este passo a passo fica no menu, em Como usar.',
   },
 ];
 
+/** O passo do botão de enviar quando o microfone manda áudio (voz por IA). */
+const TEXTO_DO_PASSO_DE_AUDIO =
+  'Toque neste botão verde para mandar. Com o campo vazio, ele vira o microfone: toque, fale e envie. A resposta vem em áudio.';
+
 function horaAgora(quando: Date = new Date()) {
   return hora(quando);
+}
+
+/**
+ * A primeira mensagem da conversa com conta, no lugar do pedido de aceite.
+ *
+ * A conversa nova abria com "Faça sua pergunta aqui embaixo." no cinza de
+ * carregando, que não parecia fala de ninguém. No WhatsApp, quem abre uma
+ * conversa com uma empresa é recebido por uma mensagem dela. Fica só na tela,
+ * como o aceite: é remontada a cada abertura e não vai para o banco.
+ */
+function boasVindas(nome: string | null | undefined, comVoz: boolean, quando?: Date): Item {
+  const primeiroNome = nome?.trim().split(/\s+/)[0];
+  return {
+    chave: 'boas-vindas',
+    papel: 'bot',
+    hora: horaAgora(quando),
+    texto: [
+      `Olá${primeiroNome ? `, ${primeiroNome}` : ''}! 👋 Sou o Assistente de Saúde.`,
+      '',
+      comVoz
+        ? 'Escreva a sua dúvida no campo *Escreva sua pergunta*, ou toque no microfone verde e mande um áudio.'
+        : 'Escreva a sua dúvida no campo *Escreva sua pergunta* e toque no botão de enviar, ao lado dele.',
+    ].join('\n'),
+  };
 }
 
 function pedidoDeAceite(quando?: Date): Item {
@@ -222,14 +275,16 @@ export type PropsConversa = {
    * no cadastro, então o pedido de aceite não aparece.
    */
   modo?: 'anonimo' | 'conta';
+  /** Com conta: o nome dela, para as boas-vindas. */
+  nome?: string | null;
   /** Destinos extras no menu ⋮, entre Privacidade e Encerrar. */
   itensDeMenu?: { rotulo: string; href: string }[];
-  /** Staging: oferece o passo a passo de como usar, e põe "Como usar" no menu. */
+  /** Oferece o passo a passo de como usar, e põe "Como usar" no menu. */
   comTutorial?: boolean;
   /**
-   * Staging: o microfone vira ditado (a fala vira texto no campo) e cada
-   * resposta ganha "Ouvir". Sem esta prop, o microfone continua medindo
-   * quanta gente tenta mandar áudio, como no `/`.
+   * O microfone manda áudio (ou dita, à escolha da pessoa) e cada resposta
+   * pode ser ouvida. Sem esta prop, o microfone só mede quanta gente tenta
+   * mandar áudio.
    */
   comVoz?: boolean;
 };
@@ -245,11 +300,15 @@ export type PropsConversa = {
  */
 export function Conversa({
   modo = 'anonimo',
+  nome = null,
   itensDeMenu = [],
   comTutorial = false,
   comVoz = false,
 }: PropsConversa) {
   const comConta = modo === 'conta';
+  // A página de privacidade é a mesma do `/`, e o voltar dela precisa saber
+  // para qual chat voltar.
+  const hrefPrivacidade = comConta ? '/privacidade?de=staging' : '/privacidade';
   const [sessaoId, setSessaoId] = useState<string | null>(null);
   const [falhaAoAbrir, setFalhaAoAbrir] = useState(false);
   // Quando a conversa começou, para o divisor dizer o dia certo numa conversa retomada.
@@ -268,11 +327,32 @@ export function Conversa({
   /** Logo depois do aceite: o campo pisca em destaque para mostrar onde escrever. */
   const [destacarCampo, setDestacarCampo] = useState(false);
   const [tutorialAberto, setTutorialAberto] = useState(false);
-  const ofertaFeitaRef = useRef(false);
+  const aberturaDoTutorialRef = useRef(false);
   /** O texto do campo veio, ao menos em parte, do ditado. Vai junto da mensagem, para medir. */
   const veioDaVozRef = useRef(false);
-  /** Recado passageiro acima do campo: microfone recusado, envio falhou. */
-  const [avisoComposer, setAvisoComposer] = useState<string | null>(null);
+  /** Recados que já viraram mensagem nesta visita: a falta da voz natural se diz uma vez só. */
+  const avisosDadosRef = useRef(new Set<string>());
+  /** Respostas já registradas como ouvidas na voz do celular nesta visita: uma vez cada. */
+  const ouvidasRef = useRef(new Set<string>());
+
+  /**
+   * A resposta tocou na voz do celular. Com o `vozGerada` da voz
+   * natural, é o que deixa o grupo comparar as duas pelo uso de verdade.
+   * Sem esperar e sem avisar se falhar: é medição.
+   */
+  function registrarOuvida(mensagemId: string) {
+    if (!comVoz || ouvidasRef.current.has(mensagemId)) return;
+    ouvidasRef.current.add(mensagemId);
+    void fetch(`/api/mensagens/${mensagemId}/ouvida`, { method: 'POST', headers: cabecalhosDaSessao() }).catch(() => {});
+  }
+  /** Voz por IA (áudio no fluxo do WhatsApp e voz natural). */
+  const vozIa = useVozIa(comVoz);
+  /** Um áudio está sendo transcrito: nada mais sai até ele virar pergunta. */
+  const [transcrevendo, setTranscrevendo] = useState(false);
+  /** Em que etapa está a resposta que está sendo esperada. */
+  const [etapa, setEtapa] = useState<EtapaDaResposta | null>(null);
+  /** A resposta chegou, e a caixa da espera mostra "Pronto" antes de ela entrar. */
+  const [respostaPronta, setRespostaPronta] = useState(false);
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
@@ -305,6 +385,15 @@ export function Conversa({
   }, [itens, digitando]);
 
   // --- Menu do cabeçalho ---------------------------------------------------
+
+  // O voltar do celular fecha o menu, em vez de sair do app.
+  const camadaDoMenu = useVoltarFecha(menuAberto, () => setMenuAberto(false));
+
+  // As páginas abertas daqui (privacidade, conta, avisos) voltam pelo
+  // histórico, e não abrindo o chat de novo por cima delas.
+  useEffect(() => {
+    marcarChatNaHistoria();
+  }, []);
 
   /**
    * Abrir o menu leva o foco para dentro dele; Esc fecha e devolve o foco.
@@ -432,7 +521,15 @@ export function Conversa({
         iniciadaEm: string;
         encerrada: boolean;
         consentimento: boolean;
-        mensagens: { _id: string; papel: Papel; texto: string; em: string; erro?: boolean }[];
+        mensagens: {
+          _id: string;
+          papel: Papel;
+          texto: string;
+          em: string;
+          erro?: boolean;
+          audio?: { duracaoSegundos?: number };
+          respostaEmAudio?: boolean;
+        }[];
       };
 
       // Sessão já avaliada não volta: o participante encerrou de propósito.
@@ -453,9 +550,9 @@ export function Conversa({
         // aceitou vê o pedido já respondido, e não recebe outro. Com conta, o
         // aceite foi no cadastro, e repeti-lo em cada conversa seria ruído.
         ...(comConta
-          ? []
+          ? [boasVindas(nome, comVoz, inicio)]
           : dados.consentimento
-            ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, confirmacaoDoAceite(inicio)]
+            ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, confirmacaoDoAceite(comVoz, inicio)]
             : [pedidoDeAceite(inicio)]),
         ...dados.mensagens.map((m) => ({
           chave: m._id,
@@ -465,6 +562,8 @@ export function Conversa({
           mensagemId: m.papel === 'bot' ? m._id : undefined,
           comFeedback: m.papel === 'bot' && !m.erro,
           lida: m.papel === 'user',
+          ...(m.audio?.duracaoSegundos ? { audio: { duracao: m.audio.duracaoSegundos } } : {}),
+          ...(m.respostaEmAudio ? { respostaEmAudio: true } : {}),
         })),
       ]);
       reiniciarInatividade();
@@ -494,16 +593,15 @@ export function Conversa({
     }
   }
 
-  // A oferta do tutorial entra uma vez, quando a conversa abre, e só no
-  // primeiro uso do aparelho.
+  // O passo a passo abre sozinho quando a conversa está pronta para a
+  // primeira pergunta, e só no primeiro uso do aparelho. A espera curta deixa
+  // a tela terminar de montar: o destaque mede o campo e o botão de verdade.
   useEffect(() => {
-    if (!comTutorial || !sessaoId || ofertaFeitaRef.current || tutorialJaOferecido()) return;
-    ofertaFeitaRef.current = true;
-    setItens((atuais) => [
-      ...atuais,
-      { chave: 'tutorial-oferta', papel: 'bot', texto: OFERTA_DO_TUTORIAL, hora: horaAgora(), botoes: BOTOES_DO_TUTORIAL },
-    ]);
-  }, [comTutorial, sessaoId]);
+    if (!comTutorial || !sessaoId || !aceitou || aberturaDoTutorialRef.current || tutorialJaOferecido()) return;
+    aberturaDoTutorialRef.current = true;
+    const abrir = setTimeout(() => setTutorialAberto(true), 700);
+    return () => clearTimeout(abrir);
+  }, [comTutorial, sessaoId, aceitou]);
 
   /** Lembra no aparelho e grava na sessão o que a pessoa fez com o tutorial. */
   function registrarTutorial(escolha: EscolhaDoTutorial) {
@@ -542,15 +640,6 @@ export function Conversa({
   async function escolherBotao(item: Item, botao: BotaoRapido) {
     marcarEscolha(item.chave, botao.valor);
 
-    if (item.chave === 'tutorial-oferta') {
-      if (botao.valor === 'ver') setTutorialAberto(true);
-      else {
-        registrarTutorial('recusado');
-        campoRef.current?.focus();
-      }
-      return;
-    }
-
     if (!CHAVES_DE_ACEITE.includes(item.chave)) {
       // Sugestão de assunto: vale como pergunta digitada.
       void enviarTexto(botao.valor);
@@ -577,7 +666,7 @@ export function Conversa({
       setItens((atuais) =>
         atuais.some((item) => item.chave === 'aceite-pronto')
           ? atuais
-          : [...atuais, confirmacaoDoAceite()],
+          : [...atuais, confirmacaoDoAceite(comVoz)],
       );
       setDestacarCampo(true);
     } else
@@ -605,7 +694,15 @@ export function Conversa({
     void enviarTexto(pergunta);
   }
 
-  async function enviarTexto(pergunta: string) {
+  async function enviarTexto(
+    pergunta: string,
+    opcoes: {
+      /** O balão da pergunta já está na tela (o de áudio): não cria outro. */
+      chaveExistente?: string;
+      /** Staging: a pergunta é a transcrição de um áudio. */
+      audio?: { duracaoSegundos: number; modelo?: string; transcricaoMs?: number };
+    } = {},
+  ) {
     // O aceite é a única porta: sem ele nada é enviado, nem por digitação nem
     // por botão.
     if (!sessaoId || !aceitou || digitando || encerrada) return;
@@ -614,29 +711,21 @@ export function Conversa({
     // quando a resposta chega.
     pararInatividade();
 
-    // Perguntou sem responder à oferta do tutorial: não precisa dele, e a
-    // oferta não volta nas próximas conversas.
-    const ofertaSemResposta = itens.find((item) => item.chave === 'tutorial-oferta' && !item.escolhido);
-    if (ofertaSemResposta) {
-      marcarEscolha('tutorial-oferta', 'ignorado');
-      registrarTutorial('ignorado');
+    const chaveUsuario = opcoes.chaveExistente ?? crypto.randomUUID();
+    if (!opcoes.chaveExistente) {
+      setItens((atuais) => [
+        ...atuais,
+        { chave: chaveUsuario, papel: 'user', texto: pergunta, hora: horaAgora(), lida: false },
+      ]);
     }
-
-    const chaveUsuario = crypto.randomUUID();
-    setItens((atuais) => [
-      ...atuais,
-      { chave: chaveUsuario, papel: 'user', texto: pergunta, hora: horaAgora(), lida: false },
-    ]);
     perguntasRef.current += 1;
     setDigitando(true);
-
-    // Passado um tempo sem resposta, avisa que ainda está trabalhando. Ficar
-    // olhando três pontinhos por minutos sem explicação é o que faz alguém
-    // fechar a aba, e aí a conversa e a avaliação se perdem junto.
+    // A primeira etapa começa assim que a pergunta sai; as próximas vêm do
+    // fluxo. A caixa da espera diz a etapa ao vivo e, passado o comum, que não
+    // precisa reenviar: é ela que segura quem fecharia a aba diante de três
+    // pontinhos parados.
+    setEtapa('entendendo');
     const iniciouEm = Date.now();
-    const avisos = AVISOS_DE_DEMORA.map(({ ms, texto }) =>
-      setTimeout(() => adicionarBot(texto, null), ms),
-    );
 
     const porVoz = veioDaVozRef.current;
     veioDaVozRef.current = false;
@@ -645,7 +734,15 @@ export function Conversa({
       const resposta = await fetch(`/api/sessoes/${sessaoId}/mensagens`, {
         method: 'POST',
         headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ texto: pergunta, ...(porVoz ? { origem: 'voz' } : {}) }),
+        body: JSON.stringify({
+          texto: pergunta,
+          ...(porVoz || opcoes.audio ? { origem: 'voz' } : {}),
+          ...(opcoes.audio ? { audio: opcoes.audio } : {}),
+          // O modo de espera (a escolha fica em Minha conta, no staging; sem
+          // ela, vale o padrão). Lido a cada pergunta, para a troca valer na
+          // próxima sem recarregar.
+          limiteDeTempo: lerLimiteDeTempo(),
+        }),
       });
 
       if (resposta.status === 429) {
@@ -674,13 +771,27 @@ export function Conversa({
         return;
       }
 
-      const pronta = await aguardarResposta(aceite.mensagemId);
+      const pronta = await aguardarResposta(aceite.mensagemId, setEtapa);
+      // A barra completa e mostra "Pronto" antes de a resposta entrar. Na
+      // falha não: "Pronto" antes de um pedido de desculpas seria mentira.
+      if (!pronta.erro) {
+        setRespostaPronta(true);
+        await new Promise((resolver) => setTimeout(resolver, MOSTRAR_PRONTO_MS));
+      }
       adicionarBot(
         textoDaFalha(pronta.causa) ?? pronta.resposta,
         pronta.erro ? null : aceite.mensagemId,
+        // Quem perguntou em áudio recebe áudio: o balão traz o tocador.
+        opcoes.audio && !pronta.erro ? { respostaEmAudio: true, recemChegada: true } : {},
       );
-      // Quem ligou "ler as respostas sozinho" ouve a resposta assim que ela chega.
-      if (comVoz && !pronta.erro && lerAutomatica()) void falar(pronta.resposta);
+      // Quem ligou "ler as respostas sozinho" ouve a resposta assim que ela
+      // chega. A resposta a um áudio toca pelo próprio balão, com a voz
+      // natural; a resposta a texto, pela voz do celular, para não gastar as
+      // poucas falas naturais do dia com quem preferiu escrever.
+      if (comVoz && !pronta.erro && !opcoes.audio && lerAutomatica()) {
+        const vez = tomarAVez(pararDeFalar);
+        void falar(pronta.resposta, () => soltarAVez(vez)).then((falou) => falou && registrarOuvida(aceite.mensagemId));
+      }
     } catch {
       // A requisição inteira falhou. Se já tinha passado bastante tempo, o mais
       // provável é a plataforma ter cortado a função no teto dela: isso é
@@ -688,8 +799,9 @@ export function Conversa({
       const demorou = Date.now() - iniciouEm >= MS_PARA_CONSIDERAR_DEMORA;
       adicionarBot(demorou ? TEXTO_DEMOROU_DEMAIS : TEXTO_FORA_DO_AR, null);
     } finally {
-      avisos.forEach(clearTimeout);
       setDigitando(false);
+      setEtapa(null);
+      setRespostaPronta(false);
       reiniciarInatividade();
     }
   }
@@ -713,7 +825,6 @@ export function Conversa({
     dados: { mime?: string; tamanhoBytes?: number; duracaoSegundos?: number },
   ) {
     if (!sessaoId || !aceitou || digitando || encerrada) return;
-    setAvisoComposer(null);
 
     try {
       const resposta = await fetch(`/api/sessoes/${sessaoId}/anexos`, {
@@ -738,14 +849,84 @@ export function Conversa({
       adicionarBot(pronta.resposta, null);
       reiniciarInatividade();
     } catch {
-      setAvisoComposer('Não consegui registrar o envio. Tente de novo em instantes.');
+      avisar('Não consegui registrar o envio. Tente de novo em instantes.');
+    }
+  }
+
+  /**
+   * Voz por IA: o áudio vira um balão na hora, com a gravação para
+   * ouvir, é transcrito pelo servidor e segue como pergunta, com a transcrição
+   * embaixo do tocador, como no WhatsApp.
+   *
+   * Falhando a transcrição, o balão fica, com a gravação, e o assistente
+   * responde que não entendeu e o que fazer, como uma pessoa faria no
+   * WhatsApp. Sumir com o balão fazia o áudio parecer perdido.
+   */
+  async function enviarAudio(audio: Blob, duracao: number) {
+    if (!sessaoId || !aceitou || digitando || encerrada) return;
+    const chave = crypto.randomUUID();
+    const url = URL.createObjectURL(audio);
+    setItens((atuais) => [
+      ...atuais,
+      { chave, papel: 'user', texto: '', hora: horaAgora(), lida: false, audio: { url, duracao, transcrevendo: true } },
+    ]);
+    setTranscrevendo(true);
+
+    const naoEntendeu = (aviso: string) => {
+      setItens((atuais) =>
+        atuais.map((item) => (item.chave === chave ? { ...item, lida: true, audio: { url, duracao } } : item)),
+      );
+      adicionarBot(aviso, null);
+    };
+
+    try {
+      const formulario = new FormData();
+      formulario.append('audio', audio, `audio.${audio.type.includes('mp4') ? 'm4a' : 'webm'}`);
+      const resposta = await fetch(`/api/voz/transcrever?sessao=${encodeURIComponent(sessaoId)}`, {
+        method: 'POST',
+        headers: cabecalhosDaSessao(),
+        body: formulario,
+      });
+      const dados = (await resposta.json().catch(() => ({}))) as {
+        texto?: string;
+        modelo?: string;
+        ms?: number;
+        erro?: string;
+        falha?: string;
+      };
+      if (!resposta.ok || !dados.texto) {
+        naoEntendeu(dados.erro ?? 'Não consegui entender o áudio agora. Tente de novo, ou escreva a sua dúvida.');
+        // Acabou a cota, ou a pessoa passou do limite dela: a IA fica
+        // bloqueada até a hora que o servidor mandou, e o microfone dita.
+        vozIa.registrarRecusa('audio', dados);
+        return;
+      }
+      const transcricao = dados.texto;
+      setItens((atuais) =>
+        atuais.map((item) =>
+          item.chave === chave ? { ...item, texto: transcricao, audio: { url, duracao } } : item,
+        ),
+      );
+      setTranscrevendo(false);
+      await enviarTexto(transcricao, {
+        chaveExistente: chave,
+        audio: { duracaoSegundos: duracao, modelo: dados.modelo, transcricaoMs: dados.ms },
+      });
+    } catch {
+      naoEntendeu('Não consegui receber o áudio. Confira a internet e grave de novo, ou escreva a sua dúvida.');
+    } finally {
+      setTranscrevendo(false);
     }
   }
 
   const gravador = useGravador({
-    aoTerminar: (duracaoSegundos, mime) =>
-      void enviarAnexo('audio', { duracaoSegundos, mime }),
-    aoFalhar: setAvisoComposer,
+    aoTerminar: (duracaoSegundos, mime, audio) =>
+      audio ? void enviarAudio(audio, duracaoSegundos) : void enviarAnexo('audio', { duracaoSegundos, mime }),
+    aoFalhar: (aviso) => avisar(aviso),
+    // Só no fluxo de áudio o áudio é guardado e enviado. Um minuto cabe com
+    // folga no limite de envio e é o que uma pergunta precisa.
+    guardarAudio: vozIa.fluxoDeAudio,
+    maximoSegundos: vozIa.fluxoDeAudio ? 60 : undefined,
   });
 
   const ditado = useDitado({
@@ -753,7 +934,7 @@ export function Conversa({
       veioDaVozRef.current = true;
       setTexto(ouvido);
     },
-    aoFalhar: setAvisoComposer,
+    aoFalhar: (aviso) => avisar(aviso),
   });
 
   // Terminou de ouvir: o texto fica no campo, com o foco, para a pessoa
@@ -765,7 +946,12 @@ export function Conversa({
   }, [ditado.ouvindo]);
 
   function tocarMicrofone() {
-    if (!comVoz) {
+    // Gravar ou ditar com um áudio tocando gravaria o próprio áudio, e a
+    // pessoa não ouviria a si mesma: o WhatsApp também cala tudo ao gravar.
+    if (comVoz) pararTodoSom();
+    // Sem voz, grava só para medir a tentativa. Com a voz por IA, grava para
+    // mandar o áudio. Com "O celular escreve", dita no campo.
+    if (!comVoz || vozIa.fluxoDeAudio) {
       void gravador.iniciar();
       return;
     }
@@ -773,23 +959,41 @@ export function Conversa({
       ditado.parar();
       return;
     }
-    setAvisoComposer(null);
     if (!ditado.suportado || !ditado.iniciar()) {
-      setAvisoComposer(
-        'Este navegador não transforma voz em texto. Use o microfone do teclado do celular, ou escreva a sua dúvida.',
-      );
+      avisar('Este navegador não transforma voz em texto. Use o microfone do teclado do celular, ou escreva a sua dúvida.');
     }
   }
 
   momentoRef.current = {
-    esperando: digitando,
+    esperando: digitando || transcrevendo,
     gravando: gravador.gravando || ditado.ouvindo,
     texto,
     outroPainel: menuAberto || ajustando || apagandoConversa || avaliando || tutorialAberto,
     encerrada,
   };
 
-  function adicionarBot(conteudo: string, mensagemId: string | null) {
+  /**
+   * Um recado para a pessoa: microfone recusado, envio que falhou, voz natural
+   * que acabou.
+   *
+   * Vira mensagem do assistente na conversa, onde a pessoa já está olhando. A
+   * faixa amarela acima do campo parecia erro do aparelho e ficava lá até o
+   * próximo toque. Não vai para o banco: é assunto da tela, como as mensagens
+   * do aceite.
+   */
+  function avisar(texto: string, { umaVez = false } = {}) {
+    if (umaVez) {
+      if (avisosDadosRef.current.has(texto)) return;
+      avisosDadosRef.current.add(texto);
+    }
+    adicionarBot(texto, null);
+  }
+
+  function adicionarBot(
+    conteudo: string,
+    mensagemId: string | null,
+    extra: Pick<Item, 'respostaEmAudio' | 'recemChegada'> = {},
+  ) {
     setItens((atuais) => [
       ...atuais,
       {
@@ -799,6 +1003,7 @@ export function Conversa({
         hora: horaAgora(),
         mensagemId: mensagemId ?? undefined,
         comFeedback: Boolean(mensagemId),
+        ...extra,
       },
     ]);
   }
@@ -833,7 +1038,7 @@ export function Conversa({
 
   // Mesma porta do texto: sem aceite não sai nada, e enquanto uma resposta está
   // sendo esperada não entra mais nada.
-  const podeEnviarAnexo = Boolean(sessaoId) && aceitou && !digitando && !encerrada;
+  const podeEnviarAnexo = Boolean(sessaoId) && aceitou && !digitando && !transcrevendo && !encerrada;
 
   return (
     <div
@@ -874,10 +1079,14 @@ export function Conversa({
                 precisa saber, porque aqui ela dura dezenas de segundos. */}
             <span role="status">
               {digitando
-                ? 'digitando…'
-                : encerrada
-                  ? 'conversa encerrada'
-                  : 'online'}
+                ? etapa
+                  ? `${TEXTO_DA_ETAPA[etapa].toLowerCase()}…`
+                  : 'digitando…'
+                : transcrevendo
+                  ? 'ouvindo seu áudio…'
+                  : encerrada
+                    ? 'conversa encerrada'
+                    : 'online'}
             </span>
           </div>
 
@@ -908,6 +1117,11 @@ export function Conversa({
             Sobrou o nome verdadeiro. Relatar problema PONTUAL continua tendo
             caminho, e melhor: o 👎 sob cada resposta, que diz QUAL resposta
             falhou em vez de "a conversa foi ruim". */}
+        {/* Poucos itens: eram oito no staging, com o Sair em três lugares, e
+            quem tem pouca prática lia a lista inteira antes de achar a letra
+            maior. Com conta, Privacidade e apagar a conversa moram em Minha
+            conta, e o Sair na faixa do topo. Sem conta, não há outro lugar
+            para eles, e ficam aqui. */}
         {menuAberto && (
           <div className="menu" role="menu" aria-label="Opções da conversa">
             <button
@@ -919,7 +1133,7 @@ export function Conversa({
                 setAjustando(true);
               }}
             >
-              Acessibilidade
+              {comVoz ? 'Letra e voz' : 'Acessibilidade'}
             </button>
             {comTutorial && (
               <button
@@ -933,36 +1147,35 @@ export function Conversa({
                 Como usar
               </button>
             )}
-            <Link href="/privacidade" role="menuitem" onClick={() => setMenuAberto(false)}>
-              Privacidade
-            </Link>
+            {/* Com `replace`: a página nova ocupa a entrada do menu no
+                histórico, e o voltar de lá cai direto no chat. */}
+            {!comConta && (
+              <Link
+                href="/privacidade"
+                role="menuitem"
+                replace
+                onClick={() => {
+                  camadaDoMenu.sair();
+                  setMenuAberto(false);
+                }}
+              >
+                Privacidade
+              </Link>
+            )}
             {itensDeMenu.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 role="menuitem"
-                onClick={() => setMenuAberto(false)}
+                replace
+                onClick={() => {
+                  camadaDoMenu.sair();
+                  setMenuAberto(false);
+                }}
               >
                 {item.rotulo}
               </Link>
             ))}
-            {/* Sair fica aqui, e não só dentro de "Minha conta": quem está num
-                aparelho emprestado precisa achar a saída de onde está, sem
-                atravessar outra tela. */}
-            {comConta && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuAberto(false);
-                  void fetch('/api/conta/sair', { method: 'POST' }).finally(() =>
-                    window.location.assign('/staging/entrar'),
-                  );
-                }}
-              >
-                Sair da conta
-              </button>
-            )}
             <div className="menu-divisor" />
             <button
               type="button"
@@ -979,7 +1192,7 @@ export function Conversa({
                 volta. Some com a conversa encerrada porque, ao avaliar, a chave
                 da sessão já saiu do aparelho: o pedido passaria a falhar, e o
                 caminho certo é o contato da página de privacidade. */}
-            {!encerrada && sessaoId && (
+            {!comConta && !encerrada && sessaoId && (
               <button
                 type="button"
                 role="menuitem"
@@ -1017,7 +1230,7 @@ export function Conversa({
           <div className="aviso-chat">
             Este é um <b>protótipo em teste</b>. As mensagens são registradas para avaliarmos a
             qualidade das respostas. Por favor, <b>não informe dados pessoais</b> como CPF, cartão
-            do SUS ou endereço. <Link href="/privacidade">Como tratamos seus dados</Link>
+            do SUS ou endereço. <Link href={hrefPrivacidade}>Como tratamos seus dados</Link>
           </div>
 
           {/* Enquanto a conversa abre, a área ficava em branco: sem o pedido
@@ -1025,37 +1238,81 @@ export function Conversa({
               algo estava vindo. */}
           {!sessaoId && !falhaAoAbrir && <Carregando texto="Abrindo a conversa…" variante="balao" />}
 
-          {/* Com conta não há pedido de aceite, então a conversa nova abria
-              vazia, sem dizer por onde começar. */}
-          {comConta && sessaoId && itens.length === 0 && (
-            <p className="carregando carregando-balao">Faça sua pergunta aqui embaixo.</p>
-          )}
-
-          {itens.map((item, indice) => (
-            <div key={item.chave}>
-              <Balao
-                papel={item.papel}
-                texto={item.texto}
-                hora={item.hora}
-                lida={item.lida}
-                // O rabinho só aparece no primeiro balão de uma sequência.
-                primeira={indice === 0 || itens[indice - 1].papel !== item.papel}
-              />
-              {item.botoes && (
-                <BotoesRapidos
-                  botoes={item.botoes}
-                  escolhido={item.escolhido}
-                  onEscolher={(botao) => void escolherBotao(item, botao)}
+          {itens.map((item, indice) => {
+            // Staging: a resposta pode ser ouvida. A resposta a um áudio vem
+            // como áudio (o tocador no topo do balão); a resposta a texto ganha
+            // o alto-falante no canto, ao lado da hora. Os dois ficam DENTRO
+            // do balão.
+            const mensagemId = item.mensagemId;
+            const fonteDaResposta =
+              comVoz && item.papel === 'bot' && mensagemId
+                ? {
+                    tipo: 'resposta' as const,
+                    mensagemId,
+                    texto: item.texto,
+                    natural: vozIa.falaNatural,
+                    voz: vozIa.vozNatural,
+                  }
+                : null;
+            const aoRecusa = (recusa: RecusaDaVoz) => vozIa.registrarRecusa('vozNatural', recusa);
+            const aoOuvirNoCelular = () => mensagemId && registrarOuvida(mensagemId);
+            const acima = item.audio ? (
+              item.audio.url ? (
+                <TocadorDeAudio
+                  fonte={{ tipo: 'gravacao', url: item.audio.url }}
+                  duracao={item.audio.duracao}
+                  aoAvisar={avisar}
                 />
-              )}
-              {item.comFeedback && item.mensagemId && <Feedback mensagemId={item.mensagemId} />}
-              {comVoz && item.papel === 'bot' && item.mensagemId && (
-                <OuvirResposta texto={item.texto} aoFalhar={setAvisoComposer} />
-              )}
-            </div>
-          ))}
+              ) : (
+                <AudioSemGravacao duracao={item.audio.duracao} />
+              )
+            ) : fonteDaResposta && item.respostaEmAudio ? (
+              <TocadorDeAudio
+                fonte={fonteDaResposta}
+                preparar={item.recemChegada}
+                tocarAgora={item.recemChegada && lerAutomatica()}
+                aoAvisar={(aviso) => avisar(aviso, { umaVez: true })}
+                aoRecusa={aoRecusa}
+                aoOuvirNoCelular={aoOuvirNoCelular}
+              />
+            ) : undefined;
+            const canto =
+              fonteDaResposta && !item.respostaEmAudio ? (
+                <TocadorDeAudio
+                  canto
+                  fonte={fonteDaResposta}
+                  aoAvisar={(aviso) => avisar(aviso, { umaVez: true })}
+                  aoRecusa={aoRecusa}
+                  aoOuvirNoCelular={aoOuvirNoCelular}
+                />
+              ) : undefined;
+            return (
+              <div key={item.chave}>
+                <Balao
+                  papel={item.papel}
+                  texto={item.audio?.transcrevendo ? 'Transcrevendo o áudio…' : item.texto}
+                  hora={item.hora}
+                  lida={item.lida}
+                  // O rabinho só aparece no primeiro balão de uma sequência.
+                  primeira={indice === 0 || itens[indice - 1].papel !== item.papel}
+                  acima={acima}
+                  canto={canto}
+                  transcricao={Boolean(item.audio)}
+                />
+                {item.botoes && (
+                  <BotoesRapidos
+                    botoes={item.botoes}
+                    escolhido={item.escolhido}
+                    onEscolher={(botao) => void escolherBotao(item, botao)}
+                  />
+                )}
+                {item.comFeedback && item.mensagemId && <Feedback mensagemId={item.mensagemId} />}
+              </div>
+            );
+          })}
 
-          {digitando && <Digitando />}
+          {digitando &&
+            (etapa ? <ProgressoDaResposta etapa={etapa} pronta={respostaPronta} /> : <Digitando />)}
 
           {/* `alert` e não `log`: o serviço fora do ar interrompe o que a pessoa
               veio fazer, e precisa ser dito na hora, não na vez dela. */}
@@ -1066,12 +1323,6 @@ export function Conversa({
           )}
         </main>
 
-        {avisoComposer && (
-          <p className="aviso-composer" role="alert">
-            {avisoComposer}
-          </p>
-        )}
-
         {ditado.ouvindo && (
           <p className="aviso-composer ouvindo" role="status">
             <span className="ponto-gravacao" aria-hidden="true" />
@@ -1080,150 +1331,191 @@ export function Conversa({
         )}
 
         <footer className="barra-envio">
-          {/* O canal real só lê texto, e estes dois botões existem para medir
-              quanta gente tenta outra coisa: pergunta que não tem resposta sem
-              o botão para tentar. O conteúdo nunca sai do aparelho. */}
-          <input
-            ref={arquivoRef}
-            type="file"
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden="true"
-            onChange={(evento) => {
-              const arquivo = evento.target.files?.[0];
-              // Zera antes de qualquer coisa: sem isto, escolher o MESMO
-              // arquivo duas vezes seguidas não dispara o segundo `change`.
-              evento.target.value = '';
-              if (arquivo) {
-                void enviarAnexo('arquivo', {
-                  mime: arquivo.type,
-                  tamanhoBytes: arquivo.size,
-                });
-              }
-            }}
-          />
-
-          {gravador.gravando ? (
-            <div className="gravando" role="status">
-              <span className="ponto-gravacao" aria-hidden="true" />
-              <span>Gravando áudio</span>
-              {/* Fora da leitura: o cronômetro muda a cada segundo, e num
-                  role="status" isso seria o leitor de tela falando sem parar. */}
-              <span className="cronometro" aria-hidden="true">
-                {formatarDuracao(gravador.segundos)}
-              </span>
-              <button
-                type="button"
-                className="cancelar-gravacao"
-                aria-label="Cancelar gravação"
-                onClick={() => gravador.parar(true)}
-              >
-                Cancelar
-              </button>
-            </div>
+          {/* Encerrada, a barra oferece outra conversa no lugar do campo
+              desligado, que deixava a pessoa diante de um chat que não envia.
+              Recarregar basta: a conversa encerrada já saiu do aparelho (ou da
+              conta), e a abertura começa outra. */}
+          {encerrada ? (
+            <button type="button" className="recomecar" onClick={() => window.location.reload()}>
+              Começar outra conversa
+            </button>
           ) : (
             <>
-              <div className={destacarCampo ? 'campo destaque' : 'campo'}>
-            <textarea
-              id="campo-mensagem"
-              ref={campoRef}
-              rows={1}
-              placeholder={
-                encerrada
-                  ? 'Conversa encerrada'
-                  : aceitou
-                    ? 'Escreva sua pergunta'
-                    : 'Aceite para começar'
-              }
-              enterKeyHint="send"
-              maxLength={1000}
-              aria-label="Escreva sua mensagem"
-              // O placeholder não é anunciado de forma confiável, e é onde
-              // estava a explicação de por que o campo está desligado.
-              aria-describedby="dica-campo"
-              disabled={encerrada || !sessaoId || !aceitou}
-              value={texto}
+            {/* O canal real só lê texto, e estes dois botões existem para medir
+                quanta gente tenta outra coisa: pergunta que não tem resposta sem
+                o botão para tentar. O conteúdo nunca sai do aparelho. */}
+            <input
+              ref={arquivoRef}
+              type="file"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
               onChange={(evento) => {
-                setTexto(evento.target.value);
-                // Cresce com o conteúdo, até o teto definido no CSS.
-                const campo = evento.target;
-                // Some com a altura inline para o CSS voltar a mandar quando o
-                // campo esvazia: sem isto, apagar tudo deixava a caixa parada
-                // na altura de tres linhas.
-                campo.style.height = '';
-                if (campo.value) campo.style.height = `${campo.scrollHeight}px`;
-              }}
-              onKeyDown={(evento) => {
-                // Enter envia, Shift+Enter quebra linha, como no WhatsApp Web.
-                if (evento.key === 'Enter' && !evento.shiftKey) {
-                  evento.preventDefault();
-                  void enviar();
+                const arquivo = evento.target.files?.[0];
+                // Zera antes de qualquer coisa: sem isto, escolher o MESMO
+                // arquivo duas vezes seguidas não dispara o segundo `change`.
+                evento.target.value = '';
+                if (arquivo) {
+                  void enviarAnexo('arquivo', {
+                    mime: arquivo.type,
+                    tamanhoBytes: arquivo.size,
+                  });
                 }
               }}
             />
-                <button
-                  type="button"
-                  className="acessorio"
-                  aria-label="Anexar arquivo"
-                  disabled={!podeEnviarAnexo}
-                  onClick={() => arquivoRef.current?.click()}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M16.5 6v11.5a4 4 0 1 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 1 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 1 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5Z" />
-                  </svg>
-                </button>
-              </div>
 
-          <p id="dica-campo" className="sr-only">
-            {encerrada
-              ? 'A conversa foi encerrada. Não é possível enviar novas mensagens.'
-              : !aceitou
-                ? 'Para começar, aceite os termos na primeira mensagem da conversa.'
-                : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
-          </p>
-
-              {/* Microfone enquanto não há texto, avião quando há: a troca do
-                  WhatsApp. Os dois ao mesmo tempo deixariam três botões
-                  redondos lado a lado numa tela de 360px. */}
-              {texto.trim() && !ditado.ouvindo ? (
-                <button
-                  className="enviar"
-                  aria-label="Enviar"
-                  disabled={digitando || encerrada || !sessaoId || !aceitou}
-                  onClick={() => void enviar()}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" />
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  className="enviar"
-                  aria-label={
-                    comVoz ? (ditado.ouvindo ? 'Parar de ouvir' : 'Falar a pergunta') : 'Gravar áudio'
+            {gravador.gravando ? (
+              <>
+                <div className="gravando" role="status">
+                  <span className="ponto-gravacao" aria-hidden="true" />
+                  <span>Gravando áudio</span>
+                  {/* Fora da leitura: o cronômetro muda a cada segundo, e num
+                      role="status" isso seria o leitor de tela falando sem parar. */}
+                  <span className="cronometro" aria-hidden="true">
+                    {formatarDuracao(gravador.segundos)}
+                  </span>
+                  <button
+                    type="button"
+                    className="cancelar-gravacao"
+                    aria-label="Cancelar gravação"
+                    onClick={() => gravador.parar(true)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                {/* Staging, voz por IA: o botão verde manda o áudio, como no
+                    WhatsApp. No `/` a gravação só mede a tentativa, e o botão
+                    não existe ali. */}
+                {comVoz && vozIa.fluxoDeAudio && (
+                  <button type="button" className="enviar" aria-label="Enviar áudio" onClick={() => gravador.parar(false)}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" />
+                    </svg>
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <div className={destacarCampo ? 'campo destaque' : 'campo'}>
+              <textarea
+                id="campo-mensagem"
+                ref={campoRef}
+                rows={1}
+                placeholder={
+                  encerrada
+                    ? 'Conversa encerrada'
+                    : aceitou
+                      ? 'Escreva sua pergunta'
+                      : 'Aceite para começar'
+                }
+                enterKeyHint="send"
+                maxLength={1000}
+                aria-label="Escreva sua mensagem"
+                // O placeholder não é anunciado de forma confiável, e é onde
+                // estava a explicação de por que o campo está desligado.
+                aria-describedby="dica-campo"
+                disabled={encerrada || !sessaoId || !aceitou}
+                value={texto}
+                onChange={(evento) => {
+                  setTexto(evento.target.value);
+                  // Cresce com o conteúdo, até o teto definido no CSS.
+                  const campo = evento.target;
+                  // Some com a altura inline para o CSS voltar a mandar quando o
+                  // campo esvazia: sem isto, apagar tudo deixava a caixa parada
+                  // na altura de tres linhas.
+                  campo.style.height = '';
+                  if (campo.value) campo.style.height = `${campo.scrollHeight}px`;
+                }}
+                onKeyDown={(evento) => {
+                  // Enter envia, Shift+Enter quebra linha, como no WhatsApp Web.
+                  if (evento.key === 'Enter' && !evento.shiftKey) {
+                    evento.preventDefault();
+                    void enviar();
                   }
-                  disabled={!podeEnviarAnexo}
-                  onClick={tocarMicrofone}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    {ditado.ouvindo ? (
-                      <path d="M7 7h10v10H7z" />
-                    ) : (
-                      <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
-                    )}
-                  </svg>
-                </button>
-              )}
+                }}
+              />
+                  <button
+                    type="button"
+                    className="acessorio"
+                    aria-label="Anexar arquivo"
+                    disabled={!podeEnviarAnexo}
+                    onClick={() => arquivoRef.current?.click()}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M16.5 6v11.5a4 4 0 1 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 1 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 1 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5Z" />
+                    </svg>
+                  </button>
+                </div>
+
+            <p id="dica-campo" className="sr-only">
+              {encerrada
+                ? 'A conversa foi encerrada. Não é possível enviar novas mensagens.'
+                : !aceitou
+                  ? 'Para começar, aceite os termos na primeira mensagem da conversa.'
+                  : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
+            </p>
+
+                {/* Microfone enquanto não há texto, avião quando há: a troca do
+                    WhatsApp. Os dois ao mesmo tempo deixariam três botões
+                    redondos lado a lado numa tela de 360px. */}
+                {texto.trim() && !ditado.ouvindo ? (
+                  <button
+                    className="enviar"
+                    aria-label="Enviar"
+                    disabled={digitando || encerrada || !sessaoId || !aceitou}
+                    onClick={() => void enviar()}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M2 21l21-9L2 3v7l15 2-15 2v7Z" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    className="enviar"
+                    aria-label={
+                      comVoz && !vozIa.fluxoDeAudio
+                        ? ditado.ouvindo
+                          ? 'Parar de ouvir'
+                          : 'Falar a pergunta'
+                        : 'Gravar áudio'
+                    }
+                    disabled={!podeEnviarAnexo}
+                    onClick={tocarMicrofone}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      {ditado.ouvindo ? (
+                        <path d="M7 7h10v10H7z" />
+                      ) : (
+                        <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+                      )}
+                    </svg>
+                  </button>
+                )}
+              </>
+            )}
             </>
           )}
         </footer>
       </section>
 
-      {ajustando && <PainelAjustes comVoz={comVoz} aoFechar={() => setAjustando(false)} />}
+      {ajustando && (
+        <PainelAjustes
+          comVoz={comVoz}
+          vozIa={vozIa}
+          hrefPrivacidade={hrefPrivacidade}
+          aoFechar={() => setAjustando(false)}
+        />
+      )}
 
       {tutorialAberto && (
         <Tutorial
-          passos={PASSOS_DO_TUTORIAL}
+          passos={
+            vozIa.fluxoDeAudio
+              ? PASSOS_DO_TUTORIAL.map((passo) =>
+                  passo.alvo === '.barra-envio .enviar' ? { ...passo, texto: TEXTO_DO_PASSO_DE_AUDIO } : passo,
+                )
+              : PASSOS_DO_TUTORIAL
+          }
           aoTerminar={(motivo) => {
             setTutorialAberto(false);
             registrarTutorial(motivo);
@@ -1245,6 +1537,7 @@ export function Conversa({
       {avaliando && (
         <FolhaAvaliacao
           automatica={avaliacaoAutomatica}
+          aoRecomecar={() => window.location.reload()}
           onEnviar={enviarAvaliacao}
           onVoltar={() => {
             setAvaliando(false);

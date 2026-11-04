@@ -10,7 +10,7 @@ Tudo em português do Brasil: as respostas ao usuário durante o trabalho, os re
 
 Commitar por partes ao longo do trabalho, e não um commit gigante no fim. Cada commit precisa compilar e passar nos testes sozinho.
 
-Cada funcionalidade nova nasce numa branch própria, criada a partir da `main` (`feat/nome-curto`, ou `fix/` para correção). Quando ela está terminada e verificada, entra na `main` com `git merge --no-ff`, para o histórico mostrar onde a funcionalidade começa e termina, e a branch é apagada. Vale nos dois repositórios, o do chat e o do painel.
+Cada funcionalidade nova nasce numa branch própria, criada a partir da `main` (`feat/nome-curto`, ou `fix/` para correção). Quando ela está terminada e verificada, entra na `main` com `git merge --no-ff`, para o histórico mostrar onde a funcionalidade começa e termina, e a branch é apagada. O painel mora no mesmo repositório, em `Dashboard-PetSaude/`, e segue as mesmas regras.
 
 A branch fica só na máquina. Na Vercel, branch enviada ao GitHub vira deploy de pré-visualização, que conta no mesmo limite do plano grátis.
 
@@ -40,11 +40,22 @@ Tela que busca dado mostra o **sinal de carregamento** até a resposta chegar, e
 * Número que depende da resposta (contador, total, percentual) não aparece como zero enquanto espera.
 * Conferir no navegador com a rede lenta (DevTools, *Slow 4G*): é assim que o vazio falso aparece.
 
+## Quem usa o chat
+
+O público inclui gente idosa e com pouca prática no celular. Toda tela e todo recurso do chat são pensados primeiro para essa pessoa, e só depois para quem já se vira sozinho.
+
+* **Copiar o que a pessoa já conhece antes de inventar.** O chat imita o WhatsApp de propósito: quem sabe usar um sabe usar o outro. Controle que não existe no WhatsApp precisa de um motivo forte, e controle ligado a uma mensagem fica dentro do balão dela, ou colado nele e no mesmo estilo, nunca solto embaixo.
+* **Voz segue o fluxo do WhatsApp.** Quem manda áudio vê o próprio balão de áudio, com a transcrição, e recebe a resposta em áudio, com o texto junto. Quem escreve recebe texto.
+* **Recado à pessoa é mensagem do assistente na conversa,** onde ela já está olhando: microfone recusado, áudio que não deu para entender, voz que acabou. Faixa no canto da tela parece erro do aparelho e passa despercebida.
+* **Um som por vez.** Tocar um áudio para o que estiver tocando, e gravar ou ditar cala tudo. Todo som novo (tocador, amostra, leitura em voz alta) toma a vez em [pwa/src/lib/som-unico.ts](pwa/src/lib/som-unico.ts).
+* **Ajuda que depende de a pessoa achar um convite não chega a quem mais precisa dela.** A demonstração de como usar abre sozinha na primeira vez, com Pular sempre à vista, e continua disponível no menu. A caixa de explicação fica ao lado do que explica, aponta para ele sem cobri-lo, tem o visual do próprio app, frase curta e botões de 44 px.
+
 ## UX antes de dar por pronto
 
 * **Toda frase tem que apontar para algo que existe na tela.** Dizer "toque em Aceitar acima" quando o botão sumiu é defeito, mesmo que o código esteja certo.
 * **Não travar botão sem explicar.** Deixar tocar e dizer o que falta é melhor que um botão apagado que ninguém sabe por que está apagado.
 * **Sempre existe caminho de volta:** sair da conta, cancelar, desfazer, voltar. E ele fica onde a pessoa está, não só dentro de outra tela.
+* **O voltar do celular fecha o que está aberto por cima (menu, painel, folha) e nunca sai do app.** Camada nova usa `useVoltarFecha` ([pwa/src/lib/usar-voltar-fecha.ts](pwa/src/lib/usar-voltar-fecha.ts)), e link de dentro de uma camada usa `replace`, para a página nova ocupar a entrada dela.
 * O que é obrigatório por lei, como o aceite, ainda precisa ser fácil de entender e de encontrar.
 * Antes de dar por pronto: abrir a tela de verdade, no tamanho de celular, e percorrer o caminho inteiro.
 
@@ -89,19 +100,21 @@ Este arquivo guarda só regra de trabalho. O estado do momento (o que está publ
 * **O painel é a ferramenta de trabalho da equipe.** Mexer nele pede verificação antes do push.
 * Variável de ambiente nova nasce com padrão vazio e o sistema funciona sem ela, como o login do Google, que fica oculto enquanto não houver credencial.
 * Segredo não entra no código nem no log, e `.env` não vai para o repositório.
+* **Orçamento zero.** Recurso pago não entra. IA só no plano gratuito, com um teto diário próprio abaixo da cota, e quando o teto ou a cota acabam o recurso volta ao equivalente gratuito do aparelho e diz isso na tela. Todo recurso com IA tem, à escolha da pessoa, o equivalente do aparelho: é o jeito de desligar a IA e o que deixa o grupo comparar se ela vale o custo. Quando a cota acaba, a opção da IA fica bloqueada e a tela diz a hora em que ela volta, escrita, e não num tooltip, que não existe no celular. Chave de API nova vem de projeto sem cobrança ativada.
 
 ## Comandos
 
 ```powershell
 # PWA
 cd pwa; npm test; npx tsc --noEmit
-docker compose up -d --build pwa        # recriar, para variável nova valer
+docker compose up -d --no-deps --build pwa   # recriar, para variável nova valer; sem --no-deps, o n8n sobe junto
 
-# Dashboard (repositório próprio, dentro desta pasta)
+# Dashboard
 cd Dashboard-PetSaude/back;  npx jest; npx tsc --noEmit -p tsconfig.json
 cd Dashboard-PetSaude/front; npx tsc --noEmit; npx vite build
 
 # Fluxos do chat, fora do n8n (só leem os bancos)
 node n8n/testar-codigo-staging.mjs      # nós de código do staging
 node n8n/testar-conversas.mjs           # conversas do gabarito no / e no staging
+node n8n/promover-staging.mjs           # gera o fluxo do / a partir do staging, ao promover
 ```

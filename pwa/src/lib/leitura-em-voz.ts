@@ -15,26 +15,11 @@ export type Velocidade = 'normal' | 'devagar';
 const CHAVE_VELOCIDADE = 'pwa:voz-velocidade';
 const CHAVE_AUTOMATICA = 'pwa:voz-automatica';
 
-/**
- * O texto como deve ser falado.
- *
- * A resposta vem com a formatação do WhatsApp. Lidos em voz alta, os
- * asteriscos, sublinhados e marcadores viram "asterisco", e um link vira uma
- * sequência de letras. Os links saem com "(link)", para a pessoa saber que há
- * um endereço na tela.
- */
-export function textoParaFala(texto: string): string {
-  return texto
-    .replace(/https?:\/\/\S+/g, 'link')
-    .replace(/[*_~]/g, '')
-    .replace(/^[\s]*[•·\-]\s*/gm, '')
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-    .replace(/\n{2,}/g, '. ')
-    .replace(/\n/g, ', ')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/([.,!?:])\s*[.,]\s*/g, '$1 ')
-    .trim();
-}
+import { textoParaFala } from './texto-para-fala';
+import { CHAVE_ENTRADA, CHAVE_VOZ, lerEscolhasDeVoz, type Entrada } from './escolhas-de-voz';
+import type { EscolhaDeVoz } from './vozes';
+
+export { textoParaFala };
 
 export function vozSuportada(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -98,6 +83,36 @@ export function guardarAutomatica(ligada: boolean): void {
   } catch {
     // Vale para esta visita.
   }
+}
+
+/** As escolhas de voz guardadas no aparelho (ver `escolhas-de-voz.ts`). */
+export function lerEscolhas() {
+  try {
+    return lerEscolhasDeVoz((chave) => localStorage.getItem(chave));
+  } catch {
+    return lerEscolhasDeVoz(() => null);
+  }
+}
+
+export function guardarEntrada(entrada: Entrada): void {
+  try {
+    localStorage.setItem(CHAVE_ENTRADA, entrada);
+  } catch {
+    // Vale para esta visita.
+  }
+}
+
+export function guardarVozEscolhida(voz: EscolhaDeVoz): void {
+  try {
+    localStorage.setItem(CHAVE_VOZ, voz);
+  } catch {
+    // Vale para esta visita.
+  }
+}
+
+/** A velocidade de reprodução do áudio da voz natural: "devagar" pausa sem engrossar a voz. */
+export function taxaDeReproducao(): number {
+  return lerVelocidade() === 'devagar' ? 0.85 : 1;
 }
 
 /**

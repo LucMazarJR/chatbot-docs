@@ -142,6 +142,7 @@
 :root[data-contraste='alto'] .divisor span,
 :root[data-contraste='alto'] .aviso-chat,
 :root[data-contraste='alto'] .botoes-rapidos button,
+:root[data-contraste='alto'] .progresso,
 :root[data-contraste='alto'] .barra-envio .campo {
   box-shadow: 0 0 0 1.5px var(--contorno);
 }
@@ -375,8 +376,15 @@ button {
 /* Estava em opacity 0.85, o que dava 3.99:1 de contraste contra o verde do
    cabeçalho: abaixo dos 4.5:1 que a WCAG pede para texto deste tamanho. A
    opacidade cheia leva para 4.89:1. A hierarquia continua pelo tamanho. */
+/* A etapa da resposta ("procurando a informação…") é mais longa que
+   "digitando…": com a letra no máximo, ela corta com reticências em vez de
+   empurrar o botão do menu para fora. */
 .topo-nome span {
+  display: block;
+  overflow: hidden;
   font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topo button {
@@ -587,6 +595,7 @@ button {
 }
 
 .avaliar-msg button {
+  position: relative;
   min-height: 32px;
   min-width: 40px;
   padding: 3px 9px;
@@ -597,6 +606,14 @@ button {
   line-height: 1.4;
   opacity: 0.75;
   transition: opacity 0.15s;
+}
+
+/* O desenho fica com 32 px, e a área de toque chega a 44: 32 era pequeno
+   demais para o dedo de quem tem tremor. */
+.avaliar-msg button::before {
+  position: absolute;
+  inset: -6px -2px;
+  content: '';
 }
 
 .avaliar-msg button:hover {
@@ -641,6 +658,170 @@ button {
 
 .pontos i:nth-child(3) {
   animation-delay: 0.36s;
+}
+
+/* Staging: no lugar do balão de "digitando", uma caixa com a frase da etapa e
+   uma barra em três trechos, um por etapa. A caixa é a mesma superfície dos
+   balões e do selo de data, para fazer parte da página; fundo colorido com
+   contorno destoava do resto. O que a separa de uma resposta é o texto em
+   cinza, no tom da hora, e não na cor das mensagens. Sem caixa, a barra
+   ficava solta no fundo. */
+.progresso {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(78%, 17em);
+  margin-top: 6px;
+  padding: 8px 10px 10px;
+  border-radius: 7.5px;
+  background: var(--balao-entrada);
+  box-shadow: var(--sombra);
+  animation: progresso-entrar 0.3s ease-out;
+}
+
+.progresso-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.progresso-frase {
+  color: var(--texto-fraco);
+  font-size: 0.9em;
+  animation: progresso-entrar 0.35s ease-out;
+}
+
+/* O tempo de espera, no formato do relógio da gravação de áudio (0:08). */
+.progresso-tempo {
+  flex: 0 0 auto;
+  color: var(--texto-fraco);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+
+.progresso-pronta {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+/* O visto fica na linha do texto, e não num flex: num flex, a linha de base
+   da frase vira o pé do desenho, e o tempo ao lado descia alguns pixels. */
+.progresso-pronta svg {
+  width: 15px;
+  height: 15px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  fill: currentColor;
+}
+
+/* A linha de calma abre deslizando quando a espera passa do comum. Fechada,
+   não ocupa nada: a margem negativa desfaz o espaço entre os itens da caixa,
+   e o espaço volta por dentro do trecho que abre. */
+.progresso-calma {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: -8px;
+  transition: grid-template-rows 0.4s ease-out;
+}
+
+.progresso-calma.aberta {
+  grid-template-rows: 1fr;
+}
+
+.progresso-calma p {
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.progresso-calma span {
+  display: block;
+  padding-top: 6px;
+  color: var(--texto-fraco);
+  font-size: 0.8em;
+  line-height: 1.35;
+  opacity: 0;
+  transition: opacity 0.4s 0.15s;
+}
+
+.progresso-calma.aberta span {
+  opacity: 1;
+}
+
+.progresso-trilho {
+  display: flex;
+  gap: 4px;
+}
+
+.progresso-trecho {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--texto-fraco) 24%, transparent);
+}
+
+.progresso-trecho i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--acento);
+  /* Linear e do tamanho do passo do relógio: o trecho desliza sem parar entre
+     um passo e outro, em vez de andar aos pulos. */
+  transition: width 0.45s linear;
+}
+
+/* O brilho que corre só no trecho da etapa atual: é ele que diz "está
+   trabalhando agora" quando a etapa demora e o trecho anda pouco. */
+.progresso-trecho.atual i {
+  background:
+    linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.55) 50%, transparent 80%) no-repeat,
+    var(--acento);
+  background-size:
+    60% 100%,
+    100% 100%;
+  animation: progresso-brilho 1.5s ease-in-out infinite;
+}
+
+@keyframes progresso-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Com o brilho do tamanho de 60% do trecho, -150% e 250% são as posições em
+   que ele fica inteiro fora, à esquerda e à direita. */
+@keyframes progresso-brilho {
+  from {
+    background-position:
+      -150% 0,
+      0 0;
+  }
+  to {
+    background-position:
+      250% 0,
+      0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progresso,
+  .progresso-frase {
+    animation: none;
+  }
+
+  /* Parado, o brilho viraria uma mancha no começo do trecho. */
+  .progresso-trecho.atual i {
+    background: var(--acento);
+    animation: none;
+  }
+
+  .progresso-calma,
+  .progresso-calma span {
+    transition: none;
+  }
 }
 
 @keyframes pulsar {
@@ -896,6 +1077,18 @@ button {
   font-weight: 600;
 }
 
+/* Staging, conversa encerrada: no lugar do campo desligado, o caminho para
+   começar outra. */
+.recomecar {
+  flex: 1;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 23px;
+  background: var(--acento);
+  color: var(--acento-texto);
+  font-weight: 600;
+}
+
 /* Recado passageiro acima do campo: microfone recusado, envio que não foi.
    Fica FORA da conversa de propósito: é assunto entre a pessoa e o aparelho,
    não uma fala do assistente, e não tem por que entrar na transcrição. */
@@ -919,28 +1112,242 @@ button {
   color: var(--texto);
 }
 
-/* "Ouvir", embaixo da resposta, no mesmo desenho dos polegares. */
-.ouvir {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 32px;
-  margin: -4px 0 8px 2px;
-  padding: 3px 11px;
-  border: 1px solid var(--borda);
-  border-radius: 12px;
-  background: var(--balao-entrada);
-  color: var(--texto);
-  font-size: 0.88em;
+/*
+ * O balão de áudio (staging): play, barra e tempo DENTRO do balão, como no
+ * WhatsApp. O texto embaixo é a transcrição, ou a resposta escrita.
+ */
+.balao.com-audio {
+  min-width: min(78%, 17rem);
 }
 
-.ouvir.falando {
-  border-color: var(--acento);
+.tocador {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 4px;
+}
+
+.tocador-play {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--topo);
+  color: #fff;
+  place-items: center;
+}
+
+:root[data-tema='escuro'] .tocador-play {
+  background: var(--acento);
+  color: #111b21;
+}
+
+.tocador-play:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.tocador.sem-gravacao .tocador-play {
+  background: transparent;
+  color: var(--texto-fraco);
+}
+
+.tocador-meio {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* A barra é um controle de verdade: arrastar leva o áudio até ali. */
+.tocador-barra {
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--acento);
+  cursor: pointer;
+}
+
+.tocador-onda {
+  display: block;
+  height: 4px;
+  margin: 10px 0;
+  border-radius: 2px;
+  background: var(--borda);
+}
+
+.tocador-tempo {
+  color: var(--texto-fraco);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+
+.texto.transcricao {
+  display: block;
+  color: var(--texto-fraco);
+  font-size: 0.9em;
+}
+
+/* O alto-falante das respostas escritas (staging): no canto do balão, antes
+   da hora, discreto como os tiques. O desenho tem 18 px; a área de toque, com
+   o ::before, passa de 44. */
+.ouvir-canto {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  margin-right: 5px;
+  color: var(--texto-fraco);
+  font-size: inherit;
+}
+
+.ouvir-canto::before {
+  position: absolute;
+  inset: -13px -9px;
+  content: '';
+}
+
+.meta .ouvir-canto svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.ouvir-canto.tocando {
   color: var(--acento);
 }
 
-:root[data-contraste='alto'] .ouvir {
-  border-color: var(--contorno);
+.ouvir-canto .giro-pequeno {
+  width: 14px;
+  height: 14px;
+}
+
+.ouvir-canto-tempo {
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-contraste='alto'] .ouvir-canto {
+  color: var(--texto);
+}
+
+.balao .espaco-meta.com-canto {
+  width: 88px;
+}
+
+/* Tocando, o tempo entra ao lado do ícone, e a reserva cresce junto. */
+.balao:has(.ouvir-canto.tocando) .espaco-meta.com-canto {
+  width: 122px;
+}
+
+.giro-pequeno {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: girar 0.9s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .giro-pequeno {
+    animation-duration: 2.4s;
+  }
+}
+
+/* Escolhas de voz, em Letra e voz (staging). */
+
+/* A linha que abre a lista das vozes: o valor atual e a seta, como o "toque
+   do celular" nas configurações do Android. */
+.linha-escolha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.linha-escolha:hover {
+  background: var(--barra);
+}
+
+.linha-escolha .opcao-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.linha-escolha svg {
+  flex: 0 0 auto;
+  color: var(--texto-fraco);
+}
+
+/* Bloqueada: apagada, com o motivo à vista. A opacidade fica no rótulo e no
+   marcador, e não no motivo, que precisa ser lido. */
+.opcoes-tema button.bloqueada {
+  cursor: default;
+}
+
+.opcoes-tema button.bloqueada .marcador,
+.opcoes-tema button.bloqueada .opcao-texto strong,
+.opcoes-tema button.bloqueada .opcao-texto small:not(.motivo-bloqueio) {
+  opacity: 0.55;
+}
+
+.opcao-texto .motivo-bloqueio {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: var(--texto);
+  font-weight: 600;
+}
+
+.opcao-texto .motivo-bloqueio svg {
+  flex: 0 0 auto;
+}
+
+/* O motivo comum a um grupo inteiro (as vozes naturais), uma vez só, acima
+   dele, no lugar de repetido em cada opção. */
+.motivo-do-grupo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--barra);
+  color: var(--texto);
+  font-size: 0.92em;
+  line-height: 1.45;
+}
+
+.motivo-do-grupo svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.opcoes-voz .opcao-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Tocando a amostra: o alto-falante à direita da opção, na cor de destaque. */
+.opcao-tocando {
+  display: grid;
+  flex: 0 0 auto;
+  color: var(--acento);
+  place-items: center;
 }
 
 /* --- Folha de avaliação -------------------------------------------------- */
@@ -1250,6 +1657,22 @@ button {
   line-height: 1.45;
 }
 
+/* No exemplo do tutorial: o alto-falante e a hora no canto, como no balão. */
+.amostra-canto {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  color: var(--texto-fraco);
+  font-size: 0.78em;
+}
+
+.amostra-canto svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 .opcoes-tema {
   display: flex;
   flex-direction: column;
@@ -1530,18 +1953,48 @@ button {
   pointer-events: none;
 }
 
+/*
+ * A caixa de explicação tem a cara de um balão da conversa (a mesma cor e o
+ * mesmo canto), e não de um painel do sistema: é o que a pessoa já conhece do
+ * WhatsApp. A posição e a seta vêm de lib/posicao-do-balao.ts.
+ *
+ * A rolagem fica só no conteúdo, e não na caixa: com `overflow` na caixa, a
+ * seta, desenhada fora dela, seria cortada.
+ */
 .tutorial-balao {
   position: absolute;
-  left: 50%;
-  width: min(92vw, 22em);
-  max-height: 70vh;
-  overflow-y: auto;
-  padding: 1em 1.1em;
-  border-radius: 12px;
-  background: var(--painel);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  width: min(calc(100vw - 24px), 21em);
+  padding: 0.9em 1em 0.8em;
+  border-radius: 10px;
+  background: var(--balao-entrada);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
   color: var(--texto);
+}
+
+.tutorial-conteudo {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tutorial-balao.acima::after,
+.tutorial-balao.abaixo::after {
+  content: '';
+  position: absolute;
+  left: var(--seta-x);
+  border: 10px solid transparent;
   translate: -50% 0;
+}
+
+.tutorial-balao.acima::after {
+  top: 100%;
+  border-top-color: var(--balao-entrada);
+}
+
+.tutorial-balao.abaixo::after {
+  bottom: 100%;
+  border-bottom-color: var(--balao-entrada);
 }
 
 :root[data-contraste='alto'] .tutorial-balao {

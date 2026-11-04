@@ -1,8 +1,9 @@
 /*
  * Telas do ambiente de testes.
  *
- * Tudo com prefixo `st-`, carregado só pela moldura de /staging: nada daqui
- * pode vazar para o `/`, que está em teste de campo. As cores vêm das mesmas
+ * Tudo com prefixo `st-`, carregado só pela moldura de /staging: é a moldura
+ * da conta, que o `/` não tem. O que vale para o chat dos dois mora no
+ * globals.css. As cores vêm das mesmas
  * variáveis do chat, então tema escuro e tamanho de texto valem aqui também.
  */
 
@@ -25,6 +26,14 @@
 .st a {
   color: var(--acento);
   font-weight: 600;
+}
+
+/* Os itens do menu ⋮ que são links (Avisos, Minha conta) têm a cara dos que
+   são botões. Com a regra acima, saíam verdes e em negrito, como se fossem
+   de outro tipo. */
+.st .menu a {
+  color: inherit;
+  font-weight: inherit;
 }
 
 /* Amarelo de aviso de sistema: diz, sem assustar, que isto não é o app final.
@@ -470,6 +479,40 @@
 
 .st-voltar {
   margin: 0 0 12px;
+}
+
+/* A conversa da lista e o "Apagar" dela na mesma linha; a confirmação desce
+   para a linha de baixo, com o que vai acontecer escrito. */
+.st-conversa {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.st .st-conversa > a {
+  flex: 1;
+  min-width: 0;
+}
+
+.st-apagar-conversa {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 22px;
+  color: var(--perigo);
+  font-weight: 600;
+}
+
+.st-confirmar-conversa {
+  flex-basis: 100%;
+  padding: 0 0 14px;
+}
+
+.st-confirmar-conversa p {
+  margin: 0 0 10px;
+  line-height: 1.45;
 }
 
 .st-voltar a {

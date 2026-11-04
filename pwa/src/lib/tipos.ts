@@ -10,6 +10,7 @@
  * em `back/src/conversas/schemas/`. Este arquivo continua sendo o dono do
  * formato: mudar um campo aqui exige mudar lá na mesma alteração.
  */
+import type { EtapaDaResposta } from './etapas-da-resposta';
 import type { ParteDaResposta } from './partes-da-resposta';
 
 /** Um trecho recuperado da busca vetorial, com o veredito do filtro de score. */
@@ -122,14 +123,60 @@ export type Mensagem = {
    */
   pendente?: boolean;
 
+  /**
+   * Staging: em que etapa a resposta pendente está, avisada pelo fluxo (lendo
+   * a pergunta, procurando na base, escrevendo). Sai quando a resposta chega.
+   */
+  etapa?: EtapaDaResposta;
+
   /** Ausente em mensagem de texto, que é o caso comum. */
   tipo?: TipoAnexo;
 
   /**
-   * Staging: a pergunta foi ditada, e não digitada. Mede quanta gente prefere
-   * falar. O áudio não existe aqui: o navegador o transformou em texto.
+   * Staging: a pergunta foi falada, e não digitada. Mede quanta gente prefere
+   * falar. O áudio não existe aqui: virou texto no navegador (ditado) ou na
+   * transcrição da voz por IA, e só o texto foi gravado.
    */
   origem?: 'voz';
+
+  /**
+   * Staging, voz por IA: a pergunta chegou como mensagem de áudio. É o
+   * registro do acionamento da transcrição (o que entrou foi o áudio, que não é
+   * guardado; o que saiu é o `texto`) e o que faz a tela mostrar o balão de
+   * áudio de novo depois de recarregar.
+   */
+  audio?: {
+    duracaoSegundos: number;
+    transcritoPor: 'ia';
+    modelo?: string | null;
+    transcricaoMs?: number | null;
+  };
+
+  /** Staging: a resposta a uma pergunta em áudio vem como áudio também. */
+  respostaEmAudio?: boolean;
+
+  /**
+   * Staging: o modo de espera escolhido para esta resposta. Com limite, cada
+   * modelo tem prazo; sem, o agente espera o quanto o Gemini precisar. Com a
+   * `latenciaMs`, é o que compara os dois modos.
+   */
+  comLimiteDeTempo?: boolean;
+
+  /** Staging: a última vez que a resposta foi falada com voz natural. Registro do acionamento. */
+  vozGerada?: {
+    modelo: string;
+    voz: string;
+    em: Date;
+    caracteres: number;
+    ms: number;
+  };
+
+  /**
+   * Staging: a última vez que a resposta tocou na voz do celular, por escolha
+   * da pessoa ou porque a natural estava bloqueada. Com `vozGerada`, é o que
+   * compara as duas vozes pelo uso.
+   */
+  ouvidaNoCelularEm?: Date;
 
   /**
    * Só metadado, nunca o conteúdo.

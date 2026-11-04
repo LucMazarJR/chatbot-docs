@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 import {
@@ -16,6 +16,7 @@ import {
   type Tema,
 } from '@/lib/preferencias';
 import { useFocoPreso } from '@/lib/usar-foco-preso';
+import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
 import {
   guardarAutomatica,
   guardarVelocidade,
@@ -23,6 +24,8 @@ import {
   lerVelocidade,
   type Velocidade,
 } from '@/lib/leitura-em-voz';
+import type { VozIa } from '@/lib/usar-voz-ia';
+import { SecaoDeVoz, TelaDaVozDasRespostas } from '@/components/EscolhasDeVoz';
 
 const TEMAS: { id: Tema; rotulo: string; descricao: string }[] = [
   { id: 'claro', rotulo: 'Claro', descricao: 'Fundo branco, melhor sob luz forte' },
@@ -45,7 +48,7 @@ const VELOCIDADES: { id: Velocidade; rotulo: string; descricao: string }[] = [
 ];
 
 const LEITURA_AUTOMATICA: { id: 'sim' | 'nao'; rotulo: string; descricao: string }[] = [
-  { id: 'nao', rotulo: 'Não', descricao: 'Toque em Ouvir embaixo da resposta quando quiser' },
+  { id: 'nao', rotulo: 'Não', descricao: 'Toque no alto-falante, no canto da resposta, quando quiser' },
   { id: 'sim', rotulo: 'Sim', descricao: 'Cada resposta é lida assim que chega' },
 ];
 
@@ -111,10 +114,15 @@ function GrupoDeOpcoes<T extends string>({
 export function PainelAjustes({
   aoFechar,
   comVoz = false,
+  vozIa,
+  hrefPrivacidade = '/privacidade',
 }: {
   aoFechar: () => void;
-  /** Staging: mostra a velocidade da voz e a leitura automática das respostas. */
+  hrefPrivacidade?: string;
+  /** Mostra as escolhas de voz, a velocidade e a leitura automática das respostas. */
   comVoz?: boolean;
+  /** As escolhas de voz (quem entende a fala e quem fala as respostas), do gancho da conversa. */
+  vozIa?: VozIa;
 }) {
   const [tema, setTema] = useState<Tema>(() => lerTema());
   const [escala, setEscala] = useState<Escala>(() => lerEscala());
@@ -125,6 +133,22 @@ export function PainelAjustes({
 
   const fechar = aoFechar;
   useFocoPreso(painelRef, fechar);
+  const camada = useVoltarFecha(true, fechar);
+
+  // A lista das vozes abre por cima do painel, como uma tela própria, e o
+  // voltar do celular volta ao painel, e não à conversa.
+  const [escolhendoVoz, setEscolhendoVoz] = useState(false);
+  useVoltarFecha(escolhendoVoz, () => setEscolhendoVoz(false));
+  const voltouDaVozRef = useRef(false);
+  useEffect(() => {
+    if (escolhendoVoz) {
+      voltouDaVozRef.current = true;
+      return;
+    }
+    // De volta da lista, o foco vai para a linha que a abriu, e não para o
+    // começo do painel.
+    if (voltouDaVozRef.current) painelRef.current?.querySelector<HTMLElement>('.linha-escolha')?.focus();
+  }, [escolhendoVoz]);
 
   const indice = ESCALAS.findIndex((e) => e.id === escala.id);
 
@@ -154,13 +178,17 @@ export function PainelAjustes({
         aria-modal="true"
         aria-labelledby="titulo-ajustes"
       >
+        {escolhendoVoz && vozIa ? (
+          <TelaDaVozDasRespostas vozIa={vozIa} aoVoltar={() => setEscolhendoVoz(false)} />
+        ) : (
+        <>
         <header className="painel-topo">
           <button type="button" aria-label="Voltar para a conversa" onClick={fechar}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2Z" />
             </svg>
           </button>
-          <h2 id="titulo-ajustes">Acessibilidade</h2>
+          <h2 id="titulo-ajustes">{comVoz ? 'Letra e voz' : 'Acessibilidade'}</h2>
         </header>
 
         <div className="painel-corpo">
@@ -219,6 +247,8 @@ export function PainelAjustes({
             aoMudar={mudarContraste}
           />
 
+          {comVoz && vozIa && <SecaoDeVoz vozIa={vozIa} aoEscolherVoz={() => setEscolhendoVoz(true)} />}
+
           {comVoz && (
             <>
               <GrupoDeOpcoes
@@ -257,10 +287,14 @@ export function PainelAjustes({
               outra pessoa.
             </p>
             <p className="painel-sobre">
-              <Link href="/privacidade">Como tratamos seus dados</Link>
+              <Link href={hrefPrivacidade} replace onClick={camada.sair}>
+                Como tratamos seus dados
+              </Link>
             </p>
           </section>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

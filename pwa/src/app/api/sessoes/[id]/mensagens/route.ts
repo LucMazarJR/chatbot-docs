@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { lerAudio } from '@/lib/audio-da-mensagem';
 import { mensagens, ORDEM_DA_CONVERSA } from '@/lib/db';
 import { LIMITE_POR_CONVERSA, dentroDoLimite, identificar } from '@/lib/limite';
 import { despachar, urlDeRetorno } from '@/lib/n8n';
@@ -33,7 +34,19 @@ export async function GET(requisicao: Request, { params }: Contexto) {
   const lista = await (await mensagens())
     .find(
       { sessaoId: id },
-      { projection: { papel: 1, texto: 1, em: 1, erro: 1, feedback: 1, pendente: 1 } },
+      {
+        projection: {
+          papel: 1,
+          texto: 1,
+          em: 1,
+          erro: 1,
+          feedback: 1,
+          pendente: 1,
+          // Para a tela remontar os balões de áudio.
+          'audio.duracaoSegundos': 1,
+          respostaEmAudio: 1,
+        },
+      },
     )
     .sort(ORDEM_DA_CONVERSA)
     .toArray();
@@ -67,7 +80,12 @@ export async function GET(requisicao: Request, { params }: Contexto) {
 export async function POST(requisicao: Request, { params }: Contexto) {
   const { id } = await params;
 
-  const corpo = (await requisicao.json().catch(() => ({}))) as { texto?: string; origem?: string };
+  const corpo = (await requisicao.json().catch(() => ({}))) as {
+    texto?: string;
+    origem?: string;
+    audio?: { duracaoSegundos?: unknown; modelo?: unknown; transcricaoMs?: unknown };
+    limiteDeTempo?: unknown;
+  };
   const texto = String(corpo.texto ?? '').trim();
   // Só o rótulo: o áudio do ditado nunca chega aqui, só o texto que ele virou.
   const porVoz = corpo.origem === 'voz';
@@ -102,25 +120,33 @@ export async function POST(requisicao: Request, { params }: Contexto) {
 
   const correlationId = randomUUID();
 
-  // Só a conversa do staging manda o histórico: é ela que vai para o fluxo
-  // com reescrita, que usa as últimas mensagens para entender "e lá?". Lido
-  // antes de gravar a pergunta nova, para ela não entrar duas vezes.
+  // A conversa com conta vai para o fluxo do staging, e a anônima para o do
+  // `/`. Os dois recebem o mesmo pedido: o do `/` é uma cópia do staging.
   const staging = Boolean(sessao.usuarioId);
-  const historico = staging
-    ? (
-        await colMensagens
-          .find(
-            { sessaoId: sessao._id, pendente: { $ne: true }, tipo: { $exists: false } },
-            { projection: { papel: 1, texto: 1 } },
-          )
-          .sort({ em: -1, papel: 1 })
-          .limit(4)
-          .toArray()
+
+  // A reescrita usa as últimas 4 mensagens para entender "e lá?". Vão 8 porque
+  // o modo com limite de tempo responde sem a memória do agente, e 8 são as 4
+  // trocas que ela guarda. Lido antes de gravar a pergunta nova, para ela não
+  // entrar duas vezes.
+  const historico = (
+    await colMensagens
+      .find(
+        { sessaoId: sessao._id, pendente: { $ne: true }, tipo: { $exists: false } },
+        { projection: { papel: 1, texto: 1 } },
       )
-        .reverse()
-        .filter((m) => m.texto)
-        .map((m) => ({ papel: m.papel, texto: m.texto }))
-    : undefined;
+      .sort({ em: -1, papel: 1 })
+      .limit(8)
+      .toArray()
+  )
+    .reverse()
+    .filter((m) => m.texto)
+    .map((m) => ({ papel: m.papel, texto: m.texto }));
+
+  const audio = porVoz ? lerAudio(corpo.audio) : null;
+
+  // O modo de espera da resposta. Sem ele (tela antiga), o fluxo segue pelo
+  // agente de sempre.
+  const limiteDeTempo = typeof corpo.limiteDeTempo === 'boolean' ? corpo.limiteDeTempo : undefined;
 
   const pergunta: Mensagem = {
     _id: randomUUID(),
@@ -130,6 +156,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     em: new Date(),
     correlationId,
     ...(porVoz ? { origem: 'voz' as const } : {}),
+    ...(audio ? { audio } : {}),
   };
 
   const respostaBot: Mensagem = {
@@ -141,6 +168,9 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     correlationId,
     pendente: true,
     feedback: null,
+    // Quem perguntou em áudio recebe a resposta em áudio, como no WhatsApp.
+    ...(audio ? { respostaEmAudio: true } : {}),
+    ...(limiteDeTempo !== undefined ? { comLimiteDeTempo: limiteDeTempo } : {}),
   };
 
   await colMensagens.insertMany([pergunta, respostaBot]);
@@ -154,6 +184,7 @@ export async function POST(requisicao: Request, { params }: Contexto) {
     urlDeRetorno: urlDeRetorno(requisicao),
     staging,
     historico,
+    limiteDeTempo,
   });
 
   if (!entrega.aceito) {

@@ -10,7 +10,7 @@ Este documento explica **como o sistema funciona e por que é assim**. Para subi
 
 - **`whatsapp-gateway`** (NestJS, [backend/](../backend/)), dono do canal: conexão, sessão, deduplicação, política anti-ban e formatação. Substituiu o WAHA.
 - **n8n**: dono da inteligência: agente Gemini, busca vetorial e memória da conversa.
-- **Dashboard-PetSaúde**: painel de gestão das FAQs, em [repositório próprio](https://github.com/LucMazarJR/Dashboard-PetSaude), clonado dentro desta pasta. Escreve na mesma base que o chatbot lê.
+- **Dashboard-PetSaúde**: painel de gestão das FAQs, em [Dashboard-PetSaude/](../Dashboard-PetSaude/). Escreve na mesma base que o chatbot lê.
 - **PWA** ([pwa/](../pwa/)), protótipo de validação: o mesmo RAG numa interface web, com as conversas gravadas para análise. Ver [prototipo-pwa.md](prototipo-pwa.md).
 
 ```
@@ -151,14 +151,14 @@ Webhook → If → Dados → Switch → Buscar FAQs → Montar contexto → AI A
 | **Switch** | `TipoMensagem == "text"` segue para a busca; o resto vai para o aviso de somente texto, sem chegar ao agente |
 | **Buscar FAQs** | Vector Store em `mode: load`, `topK: 10`, `preFilter: {"isActive": true}` |
 | **Montar contexto** | Nó Code: agrega os documentos num item só, descarta trechos com `score < 0.82` e reanexa os campos que o Vector Store derruba |
-| **AI Agent** | `gemini-3.1-flash-lite` (cota gratuita de 500 por dia), com 3 tentativas contra sobrecarga e `gemini-2.5-flash-lite` de reserva quando as três falham. No fluxo do PWA, se as duas falharem, um segundo agente tenta o `gemini-3.5-flash-lite` antes da mensagem de indisponibilidade. O staging, que usa chave de projeto Google novo, não tem os modelos 2.5: a reserva é o `gemini-3.5-flash-lite` e a última tentativa o `gemini-3.5-flash` |
+| **AI Agent** | `gemini-3.1-flash-lite` (cota gratuita de 500 por dia), com 3 tentativas contra sobrecarga e `gemini-2.5-flash-lite` de reserva quando as três falham. Os fluxos do PWA, gerados do staging, não usam os modelos 2.5, que os projetos Google novos não têm: a reserva é o `gemini-3.5-flash-lite` e a última tentativa, antes da mensagem de indisponibilidade, o `gemini-3.5-flash` |
 | **Redis Chat Memory** | db 0, janela de **4 mensagens** (2 turnos), TTL de 1h |
 | **Embeddings Google Gemini** | `gemini-embedding-2`, que precisa ser **o mesmo modelo da base**. Ver [base-de-faqs.md](base-de-faqs.md#a-regra-que-quebra-tudo-em-silêncio) |
 | **Enviar \*** | `POST /api/v1/messages` no gateway, com `idempotencyKey = EventId` |
 
-Existe um segundo fluxo, [n8n/pwa-chatbot.json](../n8n/pwa-chatbot.json), cópia deste com outra rota, outro token e outra credencial do Gemini. Ele não interfere no canal: ver [prototipo-pwa.md](prototipo-pwa.md).
+Existe um segundo fluxo, [n8n/pwa-chatbot.json](../n8n/pwa-chatbot.json), rota `/webhook/pwa-chat`, que o `/` do PWA usa. Ele não interfere no canal: ver [prototipo-pwa.md](prototipo-pwa.md).
 
-E um terceiro, [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), rota `/webhook/pwa-chat-staging`, que só a conversa do `/staging` usa: é o do PWA com a **reescrita da pergunta** antes da busca (ver [Perguntas de acompanhamento](#perguntas-de-acompanhamento-ainda-falham)).
+E um terceiro, [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), rota `/webhook/pwa-chat-staging`, que só a conversa do `/staging` usa: é onde a mudança no fluxo do PWA entra antes de chegar ao `/`. O do `/` não se edita à mão: é gerado deste por `node n8n/promover-staging.mjs`, que troca só o id, a rota e a credencial. Os dois têm a **reescrita da pergunta** antes da busca (ver [Perguntas de acompanhamento](#perguntas-de-acompanhamento-ainda-falham)).
 
 ### Por que a busca é obrigatória
 
@@ -228,21 +228,52 @@ Os dois primeiros continuam abaixo do corte: o tema melhora, mas a base não tem
 
 A correção de verdade é **condensação por LLM**, que resolve a referência e descarta o assunto anterior: reescreveria "E fralda geriátrica?" como "Onde consigo pegar fralda geriátrica?". Custa uma chamada de modelo a mais por mensagem, sobre uma latência que já é o maior problema de experiência. Ou se faz assim, ou não se faz.
 
-#### A reescrita, em validação no `/staging`
+#### A reescrita da pergunta
 
-O fluxo de staging faz a condensação, e aproveita a chamada para atacar mais dois padrões que as perguntas sem resposta do primeiro teste de campo mostraram (42 das 50 sem resposta tinham trechos acima do corte, mas não a FAQ certa): a pergunta curta ou abreviada ("endereço nga" ficava em 0,78; "onde fica o nga 16" passava com 0,85) e o top-10 tomado por FAQs quase iguais (a validade da receita de cada remédio empurrava para fora a regra geral de receita vencida).
+Os fluxos do PWA fazem a condensação (validada no staging e levada ao `/`), e aproveita a chamada para atacar mais dois padrões que as perguntas sem resposta do primeiro teste de campo mostraram (42 das 50 sem resposta tinham trechos acima do corte, mas não a FAQ certa): a pergunta curta ou abreviada ("endereço nga" ficava em 0,78; "onde fica o nga 16" passava com 0,85) e o top-10 tomado por FAQs quase iguais (a validade da receita de cada remédio empurrava para fora a regra geral de receita vencida).
 
 ```
 Dados → Montar reescrita → Reescrever pergunta → Consultas → Precisa buscar? → Buscar FAQs → Montar contexto → AI Agent
          (Code: prompt       (HTTP ao Gemini,      (Code: 1 item                      (uma busca
-          + 4 mensagens)      8 s de prazo)         por consulta)                      por consulta)
+          + 4 mensagens)      prazo pelo modo)      por consulta)                      por consulta)
+                                    │ falhou            ▲
+                                    └→ Reescrever pergunta (reserva) ┘
+                                       (outro modelo, mesmo prazo)
 ```
 
 - Um modelo pequeno (`gemini-3.1-flash-lite`, credencial **Gemini Reescrita**, chave própria) recebe a pergunta e as últimas 4 mensagens, que o PWA manda junto, e devolve a **pergunta completa** e de 1 a 3 **consultas**: a específica e uma geral do mesmo assunto ("onde tomo a BCG" gera também "Onde tomo as vacinas de rotina?").
 - Cada consulta é uma busca. Os trechos entram por **rodízio** (o melhor de cada consulta primeiro), sem FAQ repetida, até 10, e cada consulta extra entra com no máximo 3. O corte continua 0,82.
 - **Saudação pula a busca** e economiza o embedding. Fora de escopo ainda busca: um modelo pequeno pode confundir pergunta de profissional com assunto de fora.
-- **Se a reescrita falhar** (prazo, cota, JSON quebrado), a busca usa o texto original, que é o comportamento sem reescrita.
+- **Se o modelo principal falhar**, a falha sai pela saída de erro do nó para a reserva, `gemini-3.5-flash-lite`, pela mesma chave. Tentar de novo o mesmo modelo não adiantava: a falha é quase sempre sobrecarga dele ("high demand", 503), que não passa em um segundo.
+- **Se a reserva também falhar** (prazo, cota, JSON quebrado), a busca usa o texto original, que é o comportamento sem reescrita.
+- **O prazo depende do modo de espera** que a pessoa escolheu: 30 s em cada modelo sem limite de tempo (até 60 s antes da busca), para a reescrita terminar e o tempo real dela aparecer no `reescritaMs`; 12 s com limite (até 24 s).
 - O agente recebe a pergunta original e a entendida. A mensagem guarda a pergunta entendida, as consultas e o tempo da reescrita, e o painel mostra isso nos bastidores da resposta.
+
+**A busca nunca é pulada, e a resposta nunca sai sem ela.** A busca tenta duas vezes. Se falhar em todas as consultas, o fluxo manda na hora a mensagem de indisponível, com o motivo "a busca na base falhou", em vez de deixar o modelo responder sem trechos. Antes, a falha parava a execução, e a pessoa esperava os 4 minutos do teto do PWA. A única pergunta que não busca é a saudação, de propósito.
+
+**Dois modos de espera da resposta, escolhidos pela pessoa** em Minha conta (o PWA manda `limiteDeTempo`, e a mensagem guarda `comLimiteDeTempo`):
+
+```
+Montar contexto → A busca funcionou? ─ não → Responder com indisponibilidade
+                         │ sim
+                  Com limite de tempo? ─ não → AI Agent (o de sempre, sem prazo)
+                         │ sim
+   Montar resposta → Gerar resposta → Ler resposta → Respondeu? → Responder
+                      (3.1-flash-lite, 20 s)
+                         │ falhou
+                      Gerar resposta (reserva) (3.5-flash-lite, 20 s)
+                         │ falhou
+                      Gerar resposta (última reserva) (3.5-flash, 25 s)
+                         │ falhou
+                      Responder com indisponibilidade ("nenhum modelo respondeu no prazo")
+```
+
+- **Sem limite** é o agente de sempre. Ele não tem prazo: o nó de modelo de chat do n8n não aceita, e a biblioteca por baixo dele refaz a chamada sozinha a cada recusa do Gemini, esperando mais a cada vez. Com o Gemini congestionado, uma resposta levou 91 s só na reserva.
+- **Com limite** faz o mesmo pedido em chamadas diretas, com prazo em cada modelo. As instruções são lidas do próprio nó do agente (`$('AI Agent').params`), para não existir uma segunda cópia. A pergunta com os trechos é a mesma que o agente recebe, e o [testar-codigo-staging.mjs](../n8n/testar-codigo-staging.mjs) confere as duas. A conversa vem do histórico que o PWA manda (8 mensagens, as 4 trocas que a memória do agente guarda), e não do Redis, que só o agente usa.
+- O pior caso com limite é de uns 95 s: 24 s da reescrita, a busca e 65 s dos três modelos. Com o Gemini normal, a resposta chega em 15 a 25 s nos dois modos.
+- A mensagem registra o modelo que respondeu e, na falha, o motivo (`motivoErro`), e o painel mostra o modo em cada resposta.
+
+**Avisos de etapa.** Antes da reescrita, da busca e da escrita da resposta, um nó HTTP (`Avisar etapa: …`) avisa o PWA, que mostra a etapa a quem espera. Cada aviso é uma folha ligada em paralelo à etapa, roda uma vez só (`executeOnce`), tem 3 s de prazo e segue em frente se falhar: a tela perde a etapa, e a resposta não perde nada.
 
 **Medição.** O [n8n/testar-conversas.mjs](../n8n/testar-conversas.mjs) roda conversas inteiras, turno a turno, nos dois fluxos e fora do n8n. Ele tira de cada arquivo de fluxo o prompt, os parâmetros da busca e o código dos nós, e confere cada resposta contra um gabarito de FAQs esperadas. Resposta dada não conta como acerto: um juiz compara a resposta com a FAQ certa de cada parte da pergunta, e o resumo separa a resposta certa, a parcial, a de FAQ errada, o "não encontrei" indevido e o "não encontrei" correto. O gabarito aponta para conversas reais e fica só na máquina de quem testa. Como usar: [prototipo-pwa.md](prototipo-pwa.md#testar-antes-de-mexer-no-staging). O teste dos nós de código fica em [n8n/testar-codigo-staging.mjs](../n8n/testar-codigo-staging.mjs).
 
@@ -264,15 +295,15 @@ Três mudanças foram medidas no staging e ficaram de fora, porque não melhorar
 - **Uma vaga por pergunta repetida na busca** (as 551 FAQs de exame que repetem três perguntas, ver [armadilhas.md](armadilhas.md#n8n)), com 20 candidatos: o mesmo resultado da temperatura sozinha. Nos casos sintéticos de preparo de exame, a reescrita já põe o nome do exame na consulta, e a FAQ certa chega.
 - **Triagem por partes e análise sem o agente** (uma chamada com resposta estruturada, temperatura 0 e o histórico do PWA no lugar da memória do Redis): os mesmos 77%, mas inventou em 6% das respostas e só 11 de 18 lacunas chegaram à curadoria, com mediana de 11,5 s por resposta.
 
-A rota de retorno do PWA aceita a resposta em partes (`partes`, cada uma com a pergunta, se foi respondida e as FAQs usadas). Com ela, a mensagem só conta como sem resposta quando nenhuma parte foi respondida, e só a parte que faltou vai para a curadoria. O fluxo do staging não manda `partes`: a versão que mandava é a terceira da lista acima.
+A rota de retorno do PWA aceita a resposta em partes (`partes`, cada uma com a pergunta, se foi respondida e as FAQs usadas). Com ela, a mensagem só conta como sem resposta quando nenhuma parte foi respondida, e só a parte que faltou vai para a curadoria. Os fluxos do PWA não mandam `partes`: a versão que mandava é a terceira da lista acima.
 
-O staging usa uma chave para cada papel, nenhuma delas a do `/`: a triagem e os embeddings vão com a credencial **Gemini Reescrita** (`GEMINI_API_KEY_3`), e a resposta com a **Gemini Análise** (`GEMINI_API_KEY_4`). Assim, testar o staging não gasta a cota de quem conversa no `/`.
+O staging usa uma chave para cada papel, nenhuma delas a do `/`: a triagem e os embeddings vão com a credencial **Gemini Reescrita** (`GEMINI_API_KEY_3`), e a resposta com a **Gemini Análise** (`GEMINI_API_KEY_4`). Assim, testar o staging não gasta a cota de quem conversa no `/`, que usa a credencial dele, **Gemini PWA**, em todos os nós: é o script de promoção que faz a troca.
 
 ---
 
 ## O dashboard
 
-Repositório separado, clonado em `Dashboard-PetSaude/`. O `.gitignore` da raiz o ignora de propósito, porque ele tem git e remote próprios.
+Fica em `Dashboard-PetSaude/`. Já foi um repositório separado (`LucMazarJR/Dashboard-PetSaude`, fork de `marinanevesa/Dashboard-PetSaude`), e a história dele veio junto: `git log` e `git blame` nessa pasta mostram os commits originais.
 
 - **back**: NestJS na porta 3333. FAQs no mesmo Mongo do chatbot; identidade (usuários, papéis, sessões) no Postgres, banco separado.
 - **front**: TanStack Start na porta 5173.
@@ -321,5 +352,5 @@ Dívidas em aberto, com o impacto de cada uma:
 | n8n valida o token, não a assinatura HMAC | n8n | Proteção menor que a possível; o gateway já envia a assinatura |
 | Só recebe e envia texto | backend | Áudio e imagem caem no aviso de somente texto |
 | Baileys não-oficial | backend | Risco de bloqueio do número. Ver [caminho-para-producao.md](caminho-para-producao.md) |
-| Perguntas de acompanhamento falham | fluxos do WhatsApp e do `/` | A reescrita por LLM está em validação no `/staging` (ver a seção acima); custa uma chamada de modelo por mensagem, de 1 a 2 segundos na mediana |
+| Perguntas de acompanhamento falham | fluxo do WhatsApp | A reescrita por LLM já roda nos fluxos do PWA (ver a seção acima); custa uma chamada de modelo por mensagem, de 1 a 2 segundos na mediana |
 | Latência mediana de ~24s | fluxo | É o maior problema de experiência, e ainda não foi medido onde o tempo é gasto (embedding, busca no Atlas, Gemini ou as 3 tentativas do agente) |

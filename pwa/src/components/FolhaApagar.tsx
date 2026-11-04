@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { cabecalhosDaSessao, esquecerSessao } from '@/lib/sessao-local';
 import { useFocoPreso } from '@/lib/usar-foco-preso';
+import { useVoltarFecha } from '@/lib/usar-voltar-fecha';
 
 type Estado = 'confirmar' | 'apagando' | 'apagada' | 'erro';
 
@@ -32,10 +33,12 @@ export function FolhaApagar({
   const folhaRef = useRef<HTMLDivElement>(null);
   const recomecarRef = useRef<HTMLButtonElement>(null);
 
-  useFocoPreso(folhaRef, () => {
+  const fechar = () => {
     if (estado === 'apagada') window.location.reload();
     else if (estado !== 'apagando') aoVoltar();
-  });
+  };
+  useFocoPreso(folhaRef, fechar);
+  useVoltarFecha(true, fechar);
 
   // O botão que tinha o foco ("Apagar") some da tela ao terminar; sem isto o
   // foco cairia no corpo da página, e o leitor de tela não anunciaria nada.

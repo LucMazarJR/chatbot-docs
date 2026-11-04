@@ -48,7 +48,7 @@ export function carregarFluxo(referencia) {
       const $ = (outro) => {
         const valor = nos[outro];
         const itens = Array.isArray(valor) ? valor.map((json) => ({ json })) : [{ json: valor }];
-        return { first: () => itens[0], all: () => itens, item: itens[0] };
+        return { first: () => itens[0], all: () => itens, item: itens[0], params: porNome.get(outro)?.parameters };
       };
       const $input = { first: () => entrada[0], all: () => entrada, item: entrada[0] };
       return new Function('$', '$input', no(nome).parameters.jsCode)($, $input);

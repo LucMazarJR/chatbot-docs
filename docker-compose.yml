@@ -197,6 +197,14 @@ services:
       # Gatilhos de avisos (pwa/src/gatilhos). Vazio desliga todos.
       GATILHOS_ATIVOS: ${GATILHOS_ATIVOS:-}
       GATILHOS_ENSAIO: ${GATILHOS_ENSAIO:-}
+      # Voz por IA do /staging (áudio no fluxo do WhatsApp e voz natural). A
+      # chave é de um projeto do Google SEM cobrança, nunca a _2. Vazia, o
+      # staging fica com o ditado e a voz do celular, como antes.
+      GEMINI_VOZ_API_KEY: ${GEMINI_VOZ_API_KEY:-}
+      # Teto próprio de chamadas de voz por IA por dia, abaixo da cota gratuita.
+      VOZ_IA_LIMITE_DIA: ${VOZ_IA_LIMITE_DIA:-}
+      VOZ_IA_MODELO_FALA: ${VOZ_IA_MODELO_FALA:-}
+      VOZ_IA_MODELO_TRANSCRICAO: ${VOZ_IA_MODELO_TRANSCRICAO:-}
       # Vazias, o PWA gera o par de chaves na primeira vez e o guarda no banco,
       # e todo ambiente que usa o mesmo banco envia com as mesmas chaves. Ver
       # docs/notificacoes-push.md antes de preencher.
@@ -212,10 +220,9 @@ services:
       - n8n
 
   # --- Dashboard de gestão de FAQs -------------------------------------------
-  # Vive em outro repositório (LucMazarJR/Dashboard-PetSaude), clonado dentro
-  # desta pasta. Por isso os dois serviços ficam no profile `dashboard`: sem
-  # ele, `docker compose up -d` continua funcionando para quem clonou só este
-  # repositório e não tem a pasta.
+  # Fica em Dashboard-PetSaude/. Os dois serviços ficam no profile `dashboard`
+  # para que `docker compose up -d` não compile o painel em toda máquina que só
+  # precisa do chat: o build do front é o mais demorado do projeto.
   #
   # Para subir tudo junto, defina COMPOSE_PROFILES=dashboard no .env: aí o
   # `docker compose up -d` normal já inclui os dois.

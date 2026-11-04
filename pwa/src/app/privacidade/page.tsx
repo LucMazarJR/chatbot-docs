@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
+import { VoltarParaConversa } from '@/components/VoltarParaConversa';
 import { diasDeRetencao } from '@/lib/db';
 
 // Dinâmica, e não gerada no build: o prazo e o contato vêm do ambiente em que o
@@ -25,18 +25,26 @@ export const metadata: Metadata = {
  * do órgão) não aparece aqui como se estivesse resolvido: está listado em
  * docs/privacidade-e-lgpd.md.
  */
-export default function Privacidade() {
+export default async function Privacidade({
+  searchParams,
+}: {
+  searchParams: Promise<{ de?: string }>;
+}) {
   const dias = diasDeRetencao();
   const contato = process.env.PWA_CONTATO_PRIVACIDADE?.trim();
+  // A página é a mesma para os dois chats. Aberta do staging, o voltar leva
+  // de volta a ele, e não ao chat do `/`, que pediria o aceite de novo.
+  const doStaging = (await searchParams).de === 'staging';
+  const voltarPara = doStaging ? '/staging' : '/';
 
   return (
     <div className="privacidade">
       <header className="privacidade-topo">
-        <Link href="/" aria-label="Voltar para a conversa">
+        <VoltarParaConversa href={voltarPara} rotulo="Voltar para a conversa">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2Z" />
           </svg>
-        </Link>
+        </VoltarParaConversa>
         <h1>Como tratamos seus dados</h1>
       </header>
 
@@ -58,9 +66,14 @@ export default function Privacidade() {
             <li>A avaliação, se você responder: nota, recomendação e comentário.</li>
             <li>O tipo de navegador e de aparelho, para a equipe investigar problemas de tela.</li>
             <li>
-              Se você tocar no clipe ou no microfone: só o tipo, o tamanho e a duração. O arquivo e o
-              áudio <b>não saem do seu aparelho</b>, e o nome do arquivo não é guardado.
+              Se você tocar no clipe: só o tipo e o tamanho do arquivo. O arquivo <b>não sai do seu
+              aparelho</b>, e o nome dele não é guardado.
             </li>
+            <li>
+              Se você mandar um <b>áudio</b>: o texto que ele virou e a duração. O áudio em si não é
+              guardado (veja abaixo).
+            </li>
+            <li>Qual voz leu cada resposta, se você ouvir uma: a natural ou a do celular.</li>
           </ul>
           <p>
             Não pedimos seu nome, CPF, cartão do SUS, telefone ou endereço, e pedimos que você
@@ -87,6 +100,27 @@ export default function Privacidade() {
             <li>
               Para gerar a resposta, sua mensagem é processada pelo <b>Gemini</b>, serviço de
               inteligência artificial do Google.
+            </li>
+            <li>
+              Antes da busca, sua pergunta e as últimas mensagens da conversa passam por outro
+              serviço do <b>Gemini</b>, que a reescreve para a busca achar a resposta certa. O que
+              ele devolve fica registrado junto da mensagem.
+            </li>
+            <li>
+              Com <b>A IA entende o seu áudio</b> (em Letra e voz), o <b>áudio que você grava</b>{' '}
+              passa pelo nosso servidor até o <b>Gemini</b>, que o transforma em texto. Guardamos só
+              o texto e a duração do áudio: o áudio não é gravado em lugar nenhum e não vai para os
+              registros do sistema. A gravação fica no seu aparelho só até você fechar a página.
+            </li>
+            <li>
+              Com <b>O celular escreve</b>, quem transforma a sua voz em texto é o serviço de voz do
+              seu navegador (do Google no Chrome, da Apple no Safari), e nós recebemos só o texto,
+              se você enviar.
+            </li>
+            <li>
+              Para <b>ouvir a resposta</b> com uma voz natural, o texto da resposta é enviado ao
+              Gemini, que devolve a fala; ela também não é guardada. Com a voz <b>Do celular</b>, a
+              resposta é lida pelo próprio aparelho, sem enviar nada.
             </li>
             <li>
               As conversas ficam guardadas no <b>MongoDB Atlas</b>, serviço de banco de dados em
@@ -176,18 +210,6 @@ export default function Privacidade() {
             </li>
             <li>Quem da equipe lê as conversas para avaliar as respostas não vê o seu e-mail.</li>
             <li>
-              Na versão com conta, antes da busca, sua pergunta e as últimas mensagens da conversa
-              passam por outro serviço do <b>Gemini</b>, que a reescreve para a busca achar a
-              resposta certa. O que ele devolve fica registrado junto da mensagem.
-            </li>
-            <li>
-              Se você usar o <b>microfone para falar</b>, quem transforma a sua voz em texto é o
-              serviço de voz do seu navegador (do Google no Chrome, da Apple no Safari). Nós
-              recebemos só o texto, e só se você enviar. O áudio não chega até nós e não é
-              guardado. Para <b>ouvir as respostas</b>, é usada a voz do próprio aparelho, sem
-              enviar nada.
-            </li>
-            <li>
               Podemos usar esses dados porque você deu seu consentimento ao criar a conta. A conta fica
               guardada até você apagá-la: em <b>Minha conta</b>, <b>Apagar minha conta</b> apaga a
               conta, as conversas, os avisos e os aparelhos cadastrados.
@@ -223,7 +245,7 @@ export default function Privacidade() {
         </section>
 
         <p className="privacidade-voltar">
-          <Link href="/">Voltar para a conversa</Link>
+          <VoltarParaConversa href={voltarPara}>Voltar para a conversa</VoltarParaConversa>
         </p>
       </main>
     </div>

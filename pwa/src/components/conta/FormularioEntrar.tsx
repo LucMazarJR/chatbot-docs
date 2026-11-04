@@ -200,7 +200,7 @@ export function FormularioEntrar({ googleAtivo }: { googleAtivo: boolean }) {
             <span>
               Aceito que minhas conversas fiquem guardadas na conta para a equipe avaliar as
               respostas, como descrito em{' '}
-              <Link href="/privacidade" target="_blank">
+              <Link href="/privacidade?de=staging" target="_blank">
                 Como tratamos seus dados
               </Link>
               .
@@ -242,7 +242,7 @@ export function FormularioEntrar({ googleAtivo }: { googleAtivo: boolean }) {
           <p className="st-dica st-termos-google" id={`${id}-termos-google`}>
             Se ainda não tiver conta, ela é criada na hora. Ao entrar com o Google você aceita que
             suas conversas fiquem guardadas na conta para a equipe avaliar as respostas, como
-            descrito em <Link href="/privacidade" target="_blank">Como tratamos seus dados</Link>.
+            descrito em <Link href="/privacidade?de=staging" target="_blank">Como tratamos seus dados</Link>.
           </p>
         </>
       )}

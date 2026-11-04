@@ -11,6 +11,11 @@ import type { NextConfig } from 'next';
  * próprio bootstrap inline e o React insere estilos em tempo de execução;
  * apertar isso exigiria nonce por requisição. `data:` em `img-src` é o padrão de
  * fundo do chat, que é um SVG embutido no CSS.
+ *
+ * `blob:` em `media-src` é o áudio do staging: a gravação da pessoa e a voz
+ * natural da resposta tocam a partir de um endereço `blob:` que a própria
+ * página cria. Sem ele, o navegador recusava tocar, em silêncio: o tocador
+ * ficava em 0:00 e o play não fazia nada.
  */
 const CSP = [
   "default-src 'self'",
@@ -18,6 +23,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self' data:",
+  "media-src 'self' blob:",
   "connect-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",

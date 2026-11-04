@@ -73,7 +73,14 @@ export function criarExecutor({ fluxo, triagem, analise, banco, cache }) {
   async function chamarNoHttp(nomeDoNo, corpo, etapa, cliente) {
     const no = fluxo.no(nomeDoNo);
     const modelo = /models\/([^:/]+):/.exec(no.parameters.url)[1];
-    const prazoMs = Number(no.parameters.options?.timeout) || 300_000;
+    // O prazo pode depender do modo de espera (uma expressão sobre o
+    // `LimiteDeTempo`). A medição roda o modo sem limite, o do agente.
+    const bruto = no.parameters.options?.timeout;
+    const semLimite = () => ({ first: () => ({ json: { LimiteDeTempo: false } }) });
+    const prazoMs =
+      typeof bruto === 'string' && bruto.startsWith('={{')
+        ? Number(new Function('$', `return (${bruto.slice(3, -2)});`)(semLimite))
+        : Number(bruto) || 300_000;
     const tentativasPorPrazo = no.retryOnFail ? Number(no.maxTries) || 3 : 1;
     const esperaPorPrazoMs = Number(no.waitBetweenTries) || 1000;
     let chamou = false;
@@ -98,10 +105,27 @@ export function criarExecutor({ fluxo, triagem, analise, banco, cache }) {
       ms = r.ms;
       chamadas = r.chamou ? 1 : 0;
     } catch (erro) {
-      // O nó segue pela saída normal com o erro, e o "Consultas" usa o texto original.
       if (erro instanceof CotaEsgotada) throw erro;
-      resposta = { error: { message: erro.message } };
-      falhou = erro.message;
+      // Como no fluxo: a falha do principal vai para o nó de reserva, quando
+      // ele existe. Sem resposta dos dois, o "Consultas" usa o texto original.
+      const reserva = `${nos.chamar} (reserva)`;
+      let motivo = erro.message;
+      if (fluxo.tem(reserva)) {
+        try {
+          const r = await chamarNoHttp(reserva, montado.json.corpo, `${nos.etapa}-reserva`, triagem);
+          resposta = r.dados;
+          ms = r.ms;
+          chamadas = r.chamou ? 1 : 0;
+          motivo = null;
+        } catch (erroDaReserva) {
+          if (erroDaReserva instanceof CotaEsgotada) throw erroDaReserva;
+          motivo = `${erro.message}; reserva: ${erroDaReserva.message}`;
+        }
+      }
+      if (motivo) {
+        resposta = { error: { message: motivo } };
+        falhou = motivo;
+      }
     }
     const itens = fluxo.rodarCodigo('Consultas', { nos: { [nos.montar]: montado.json }, entrada: [{ json: resposta }] });
     return { itens, ms, falhou, chamadas };

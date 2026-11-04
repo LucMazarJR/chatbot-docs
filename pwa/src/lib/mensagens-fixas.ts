@@ -16,33 +16,6 @@ export const TEXTO_INDISPONIVEL =
   'Não consegui responder agora. 😕 Por favor, tente novamente em alguns minutos. ' +
   'Se for uma emergência, procure atendimento médico imediato ou ligue 192.';
 
-/**
- * Avisos sobre a espera, em duas etapas.
- *
- * Os tempos vêm do uso real, não de chute: a resposta leva cerca de 30s em
- * média e há casos chegando perto de 3 minutos, quando o Gemini devolve
- * sobrecarga e o agente repete a pergunta. Por isso o primeiro aviso só aparece
- * aos 20s (antes disso ele interromperia uma espera que é normal), e o segundo
- * aos 60s, quando a conversa já saiu de qualquer expectativa razoável.
- *
- * Nenhum dos dois expõe detalhe interno: dizem só o que muda o que a pessoa faz
- * em seguida, que é continuar esperando.
- */
-export const AVISOS_DE_DEMORA = [
-  {
-    ms: 20_000,
-    texto:
-      'Ainda estou procurando essa informação. 🔎 Às vezes a busca leva um pouco mais, ' +
-      'pode aguardar.',
-  },
-  {
-    ms: 60_000,
-    texto:
-      'Continuo trabalhando na sua pergunta. ⏳ Hoje o sistema está mais lento que o ' +
-      'normal: não precisa reenviar, é só aguardar mais um pouco.',
-  },
-] as const;
-
 export const TEXTO_DEMOROU_DEMAIS =
   'Demorei demais para responder desta vez e acabei não conseguindo concluir. 😕 ' +
   'Pode tentar perguntar de novo? Se for uma emergência, procure atendimento médico ' +
