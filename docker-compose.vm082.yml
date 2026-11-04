@@ -1,0 +1,34 @@
+# Sobreposição para a VM082 (172.21.31.182), o servidor da prefeitura dedicado
+# ao chatbot. Não substitui o compose principal:
+#   docker compose -f docker-compose.yml -f docker-compose.vm082.yml up -d
+# Os scripts em scripts/vm082/ já montam esse comando. Ver docs/servidor-vm082.md.
+#
+# O docker-compose.franca.yml é de outro servidor (172.21.31.167, compartilhado
+# com outras aplicações) e não vale aqui.
+
+# O Compose nomeia os volumes pelo nome do projeto, que por padrão é o nome da
+# pasta. Sem isto, clonar em /srv/chatbot-petsaude criaria volumes
+# chatbot-petsaude_*, e o n8n subiria vazio, sem os fluxos e as credenciais
+# migrados da máquina anterior (que usava a pasta chatbot-docs).
+name: chatbot-docs
+
+services:
+  n8n:
+    # A versão precisa ser a mesma da máquina de onde os dados vieram: o `latest`
+    # pode trazer uma versão nova, que migra o banco do n8n na primeira subida, e
+    # aí não dá mais para voltar os dados para a máquina antiga.
+    image: n8nio/n8n:${N8N_VERSAO:-latest}
+    # A entrada de fora é o túnel, que fala com o n8n pela rede do compose. Na
+    # rede da prefeitura, o editor e os webhooks não ficam abertos a ninguém.
+    ports: !override
+      - "127.0.0.1:5678:5678"
+
+  whatsapp-gateway:
+    ports: !override
+      - "127.0.0.1:3000:3000"
+
+  # Não sobe por padrão (o chat público fica na Vercel). Se subir, só para teste
+  # pelo túnel SSH.
+  pwa:
+    ports: !override
+      - "127.0.0.1:${PWA_PORT:-8080}:8080"

@@ -172,3 +172,17 @@ Ele não menciona `output` nem `standalone`, e leva a procurar no lugar errado. 
 **O endereço de volta do Google não pode vir de `PWA_PUBLIC_URL`.** No Docker ela é `http://pwa:8080`, que só o n8n alcança. O login usa os cabeçalhos `x-forwarded-*`; se um proxy novo não os repassar, o Google responde `redirect_uri_mismatch` com um endereço interno.
 
 **O cookie da conta vale para o site inteiro, inclusive o `/`.** Por isso a conversa só é ligada à conta com `comConta: true` explícito, e nunca por existir o cookie. Deduzir a conta do cookie faria alguém logado no staging que abrisse o `/` ter a conversa anônima gravada na conta.
+
+---
+
+## Servidor (VM082)
+
+**Dois `cloudflared` com o mesmo token dividem as conversas.** A Cloudflare reparte o tráfego entre todas as máquinas conectadas ao túnel, sem aviso. Metade das perguntas cai num n8n e metade no outro, e cada um parece funcionar quando testado sozinho. Ao trocar de máquina, pare o túnel na antiga **antes** de subir o da nova. O [instalar.sh](../scripts/vm082/instalar.sh) recusa subir enquanto o túnel responde algo diferente de 530 (sem máquina conectada).
+
+**`docker compose` sem a sobreposição da VM sobe um chatbot vazio e aberto.** Sem o [docker-compose.vm082.yml](../docker-compose.vm082.yml), o nome do projeto vira o nome da pasta, os volumes migrados não são encontrados (o n8n sobe sem fluxos nem credenciais) e as portas ficam abertas para a rede da prefeitura. O `.env` da VM precisa de `COMPOSE_FILE=docker-compose.yml:docker-compose.vm082.yml`. No Windows o separador dessa variável é `;`, e com `:` o compose não lê nada.
+
+**n8n `latest` numa migração converte o banco sem volta.** Se a VM baixar uma versão mais nova que a da máquina de origem, o n8n migra o banco na primeira subida, e os dados não voltam mais para a máquina antiga. A `N8N_VERSAO` do `.env` fixa a versão, e o importador a preenche com a da origem.
+
+**Por SSH, o Docker do Windows não baixa imagem.** O gerenciador de credenciais do Docker Desktop exige a sessão do usuário logado, e o `docker run` responde "A sessão de logon especificada não existe". Imagem que já está na máquina funciona. Rode o `exportar-volumes.ps1` no terminal da própria máquina.
+
+**O PowerShell 5.1 estraga argumentos de programas externos.** Ele descarta argumento vazio (`--entrypoint ""` some, e o próximo argumento vira o nome da imagem) e tira as aspas de dentro de um argumento (`--format '{{index .Labels "x"}}'` chega ao docker sem as aspas, e a resposta é "function not defined"). Dentro do argumento, escreva `\"`.
