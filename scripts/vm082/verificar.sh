@@ -4,7 +4,7 @@
 #
 #   scripts/vm082/verificar.sh
 set -uo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 
 falhas=0
 ok()   { echo "  ok    $*"; }
