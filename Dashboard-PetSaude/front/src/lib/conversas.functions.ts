@@ -1,0 +1,196 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+import { apiFetch } from "./api.server";
+
+/**
+ * Conversas do protótipo PWA.
+ *
+ * Só leitura: quem escreve é o chatbot. Todas as rotas exigem papel admin no
+ * backend: o conteúdo é relato de sintoma e pedido de atendimento escrito por
+ * cidadãos identificáveis pelo que contam.
+ */
+
+export const PERIODOS = ["hoje", "7d", "30d", "dia", "tudo"] as const;
+export const SITUACOES = [
+  "validas",
+  "todas",
+  "negativos",
+  "nota-baixa",
+  "sem-resposta",
+  "com-erro",
+] as const;
+
+export type Periodo = (typeof PERIODOS)[number];
+export type Situacao = (typeof SITUACOES)[number];
+
+export type Avaliacao = {
+  estrelas: number | null;
+  nps: number | null;
+  comentario: string | null;
+  avaliadaEm: string;
+};
+
+export type TrechoUsado = {
+  score: number;
+  usado: boolean;
+  faqId: string | null;
+  category: string | null;
+  question: string | null;
+  previa: string | null;
+  /** No fluxo com reescrita (staging): qual das consultas trouxe o trecho. */
+  consulta?: string | null;
+  /** No fluxo com triagem (staging): de qual parte da pergunta é a busca, contando de 1. */
+  parte?: number | null;
+};
+
+/** Uma parte da pergunta e o que a resposta cobriu nela (fluxo com triagem). */
+export type ParteDaResposta = {
+  pergunta: string;
+  respondida: boolean;
+  faqIds: string[];
+};
+
+export type MensagemConversa = {
+  _id: string;
+  sessaoId: string;
+  papel: "user" | "bot";
+  texto: string;
+  em: string;
+  latenciaMs?: number;
+  temContexto?: boolean | null;
+  qtdTrechos?: number | null;
+  trechosDebug?: TrechoUsado[];
+  limiarScore?: number | null;
+  modelo?: string | null;
+  semResposta?: boolean;
+  erro?: boolean;
+  motivoErro?: string | null;
+  feedback?: "up" | "down" | null;
+  feedbackComentario?: string | null;
+  // Só no fluxo de staging, com a pergunta preparada antes da busca.
+  perguntaCompleta?: string | null;
+  consultas?: string[];
+  reescritaMs?: number | null;
+  reescritaFalhou?: boolean;
+  /** Fluxo com triagem: as partes da pergunta e o que foi respondido em cada uma. */
+  partes?: ParteDaResposta[];
+  /** As partes que ficaram sem resposta e foram para a curadoria. */
+  partesSemResposta?: string[];
+  analiseMs?: number | null;
+  /** Staging: a pergunta foi falada (ditado do navegador, ou áudio transcrito pela IA). */
+  origem?: "voz";
+  /** Staging, voz por IA: a pergunta chegou como áudio; o áudio em si não é guardado. */
+  audio?: { duracaoSegundos: number; transcritoPor: "ia"; modelo?: string | null };
+  /** Staging: a resposta foi entregue como áudio. */
+  respostaEmAudio?: boolean;
+  /** Staging: a última vez que a resposta foi falada com voz natural. */
+  vozGerada?: { modelo: string; voz: string; em: string };
+  /** Staging: a última vez que a resposta tocou na voz do celular. */
+  ouvidaNoCelularEm?: string;
+  /** Staging: o modo de espera da resposta (com prazo em cada modelo, ou sem). */
+  comLimiteDeTempo?: boolean;
+};
+
+export type ConversaResumida = {
+  _id: string;
+  nome: string;
+  versao?: "a" | "b";
+  iniciadaEm: string;
+  encerradaEm: string | null;
+  avaliacao: Avaliacao | null;
+  qtdMensagens: number;
+  qtdPerguntas: number;
+  positivos: number;
+  negativos: number;
+  semResposta: number;
+  erros: number;
+  latenciaMaxima: number | null;
+  /** Presente quando a conversa foi feita com conta. O painel só mostra que existe. */
+  usuarioId?: string;
+};
+
+export type EstatisticasConversas = {
+  sessoes: number;
+  sessoesVazias: number;
+  sessoesAvaliadas: number;
+  mensagens: number;
+  respostas: number;
+  notaMedia: number | null;
+  npsMedio: number | null;
+  npsScore: number | null;
+  percentualSemResposta: number | null;
+  erros: number;
+  positivos: number;
+  negativos: number;
+  latenciaMedia: number | null;
+  latenciaP95: number | null;
+  respostasLentas: number;
+};
+
+/** `dia` é "AAAA-MM-DD" e só vale com periodo "dia". */
+const recorte = z.object({
+  periodo: z.enum(PERIODOS).default("tudo"),
+  dia: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+
+const recorteComSituacao = recorte.extend({
+  situacao: z.enum(SITUACOES).default("validas"),
+});
+
+/** Omite o que está no padrão, como em faq.functions.ts. */
+function montarQuery(dados: Record<string, string | undefined>) {
+  const p = new URLSearchParams();
+  for (const [chave, valor] of Object.entries(dados)) {
+    if (valor) p.set(chave, valor);
+  }
+  return p.toString();
+}
+
+export const getEstatisticasConversas = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => recorte.parse(data ?? {}))
+  .handler(async ({ data }): Promise<EstatisticasConversas> =>
+    apiFetch<EstatisticasConversas>(`/conversas/estatisticas?${montarQuery(data)}`),
+  );
+
+export const listarConversas = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => recorteComSituacao.parse(data ?? {}))
+  .handler(async ({ data }): Promise<ConversaResumida[]> =>
+    apiFetch<ConversaResumida[]>(`/conversas?${montarQuery(data)}`),
+  );
+
+export const detalharConversa = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(
+    async ({ data }): Promise<{ sessao: ConversaResumida; mensagens: MensagemConversa[] } | null> =>
+      apiFetch(`/conversas/${encodeURIComponent(data.id)}`),
+  );
+
+/**
+ * Avisa o back que a conversa vai ser baixada em PDF, para ficar no histórico.
+ * O PDF só é montado depois que o registro deu certo.
+ */
+export const registrarExportacaoConversa = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(
+    async ({ data }: { data: { id: string } }): Promise<{ ok: true }> =>
+      apiFetch(`/conversas/${encodeURIComponent(data.id)}/exportacao`, { method: "POST" }),
+  );
+
+/**
+ * Exclusão a pedido da pessoa. Apaga a conversa e troca as cópias das perguntas
+ * guardadas pela curadoria por uma marca: ver ConversasService.apagar.
+ */
+export const apagarConversa = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(
+    async ({
+      data,
+    }: {
+      data: { id: string };
+    }): Promise<{ ok: true; mensagens: number; sugestoes: number; rodadas: number }> =>
+      apiFetch(`/conversas/${encodeURIComponent(data.id)}`, { method: "DELETE" }),
+  );
