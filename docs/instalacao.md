@@ -4,6 +4,8 @@ Como subir tudo do zero, numa máquina nova. Para entender o que cada peça faz,
 
 Ambiente de referência: Windows 11 + PowerShell + Docker Desktop. Em Linux ou macOS só mudam os comandos de shell.
 
+No servidor da prefeitura, o caminho é outro, com scripts próprios: ver [servidor-vm082.md](servidor-vm082.md).
+
 ---
 
 ## Pré-requisitos
