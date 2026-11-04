@@ -10,7 +10,7 @@ Tudo em português do Brasil: as respostas ao usuário durante o trabalho, os re
 
 Commitar por partes ao longo do trabalho, e não um commit gigante no fim. Cada commit precisa compilar e passar nos testes sozinho.
 
-Cada funcionalidade nova nasce numa branch própria, criada a partir da `main` (`feat/nome-curto`, ou `fix/` para correção). Quando ela está terminada e verificada, entra na `main` com `git merge --no-ff`, para o histórico mostrar onde a funcionalidade começa e termina, e a branch é apagada. Vale nos dois repositórios, o do chat e o do painel.
+Cada funcionalidade nova nasce numa branch própria, criada a partir da `main` (`feat/nome-curto`, ou `fix/` para correção). Quando ela está terminada e verificada, entra na `main` com `git merge --no-ff`, para o histórico mostrar onde a funcionalidade começa e termina, e a branch é apagada. O painel mora no mesmo repositório, em `Dashboard-PetSaude/`, e segue as mesmas regras.
 
 A branch fica só na máquina. Na Vercel, branch enviada ao GitHub vira deploy de pré-visualização, que conta no mesmo limite do plano grátis.
 
@@ -109,7 +109,7 @@ Este arquivo guarda só regra de trabalho. O estado do momento (o que está publ
 cd pwa; npm test; npx tsc --noEmit
 docker compose up -d --no-deps --build pwa   # recriar, para variável nova valer; sem --no-deps, o n8n sobe junto
 
-# Dashboard (repositório próprio, dentro desta pasta)
+# Dashboard
 cd Dashboard-PetSaude/back;  npx jest; npx tsc --noEmit -p tsconfig.json
 cd Dashboard-PetSaude/front; npx tsc --noEmit; npx vite build
 

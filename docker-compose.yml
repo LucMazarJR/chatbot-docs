@@ -220,10 +220,9 @@ services:
       - n8n
 
   # --- Dashboard de gestão de FAQs -------------------------------------------
-  # Vive em outro repositório (LucMazarJR/Dashboard-PetSaude), clonado dentro
-  # desta pasta. Por isso os dois serviços ficam no profile `dashboard`: sem
-  # ele, `docker compose up -d` continua funcionando para quem clonou só este
-  # repositório e não tem a pasta.
+  # Fica em Dashboard-PetSaude/. Os dois serviços ficam no profile `dashboard`
+  # para que `docker compose up -d` não compile o painel em toda máquina que só
+  # precisa do chat: o build do front é o mais demorado do projeto.
   #
   # Para subir tudo junto, defina COMPOSE_PROFILES=dashboard no .env: aí o
   # `docker compose up -d` normal já inclui os dois.

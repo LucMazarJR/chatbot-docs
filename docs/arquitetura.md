@@ -10,7 +10,7 @@ Este documento explica **como o sistema funciona e por que é assim**. Para subi
 
 - **`whatsapp-gateway`** (NestJS, [backend/](../backend/)), dono do canal: conexão, sessão, deduplicação, política anti-ban e formatação. Substituiu o WAHA.
 - **n8n**: dono da inteligência: agente Gemini, busca vetorial e memória da conversa.
-- **Dashboard-PetSaúde**: painel de gestão das FAQs, em [repositório próprio](https://github.com/LucMazarJR/Dashboard-PetSaude), clonado dentro desta pasta. Escreve na mesma base que o chatbot lê.
+- **Dashboard-PetSaúde**: painel de gestão das FAQs, em [Dashboard-PetSaude/](../Dashboard-PetSaude/). Escreve na mesma base que o chatbot lê.
 - **PWA** ([pwa/](../pwa/)), protótipo de validação: o mesmo RAG numa interface web, com as conversas gravadas para análise. Ver [prototipo-pwa.md](prototipo-pwa.md).
 
 ```
@@ -303,7 +303,7 @@ O staging usa uma chave para cada papel, nenhuma delas a do `/`: a triagem e os 
 
 ## O dashboard
 
-Repositório separado, clonado em `Dashboard-PetSaude/`. O `.gitignore` da raiz o ignora de propósito, porque ele tem git e remote próprios.
+Fica em `Dashboard-PetSaude/`. Já foi um repositório separado (`LucMazarJR/Dashboard-PetSaude`, fork de `marinanevesa/Dashboard-PetSaude`), e a história dele veio junto: `git log` e `git blame` nessa pasta mostram os commits originais.
 
 - **back**: NestJS na porta 3333. FAQs no mesmo Mongo do chatbot; identidade (usuários, papéis, sessões) no Postgres, banco separado.
 - **front**: TanStack Start na porta 5173.
