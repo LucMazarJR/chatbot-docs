@@ -37,8 +37,9 @@ for p in "${pacotes[@]}"; do
     "chatbot-docs_$v" >/dev/null
   # Extraído como root, o tar mantém o dono de cada arquivo. O n8n roda como o
   # usuário node (1000) e não abre o próprio banco se os arquivos forem de root.
-  docker run --rm -v "chatbot-docs_$v:/destino" -v "$origem:/origem:ro" alpine \
-    tar xzpf "/origem/$v.tgz" -C /destino
+  # A mesma imagem do Redis que o compose já usa: nada a mais para baixar.
+  docker run --rm -v "chatbot-docs_$v:/destino" -v "$origem:/origem:ro" \
+    --entrypoint tar redis:7-alpine xzpf "/origem/$v.tgz" -C /destino
   echo "chatbot-docs_$v importado"
 done
 

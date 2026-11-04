@@ -4,14 +4,15 @@
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\vm082\exportar-volumes.ps1
 #   ... -ComWhatsApp   leva também a sessão do WhatsApp
+#   ... -Projeto <pasta>  a pasta do projeto, se o script estiver fora dela
 #
 # O chatbot fica PARADO ao final, de propósito: se voltasse, o túnel teria duas
 # máquinas e o n8n antigo seguiria gravando execuções que não chegam à VM.
 # Para desistir e voltar a máquina antiga: docker compose start redis n8n cloudflared
-param([switch]$ComWhatsApp)
+param([switch]$ComWhatsApp, [string]$Projeto)
 $ErrorActionPreference = 'Stop'
 
-$raiz = Resolve-Path (Join-Path $PSScriptRoot '..\..')
+if ($Projeto) { $raiz = Resolve-Path $Projeto } else { $raiz = Resolve-Path (Join-Path $PSScriptRoot '..\..') }
 Set-Location $raiz
 if (-not (Test-Path .env)) { throw "Falta o .env em $raiz. Rode na pasta do projeto da maquina de producao." }
 
@@ -47,7 +48,9 @@ foreach ($v in $volumes) {
   $nome = "chatbot-docs_$v"
   docker volume inspect $nome *> $null
   if ($LASTEXITCODE -ne 0) { throw "Volume $nome nao existe nesta maquina." }
-  docker run --rm -v "${nome}:/origem:ro" -v "${destino}:/destino" alpine tar czf "/destino/$v.tgz" -C /origem .
+  # A imagem do Redis, e não a alpine: ela já está na máquina, e por SSH o
+  # Docker do Windows não consegue baixar imagem nova (ver docs/armadilhas.md).
+  docker run --rm -v "${nome}:/origem:ro" -v "${destino}:/destino" --entrypoint tar redis:7-alpine czf "/destino/$v.tgz" -C /origem .
   if ($LASTEXITCODE -ne 0) { throw "Falha ao empacotar $nome." }
   Write-Host "$v empacotado"
 }
