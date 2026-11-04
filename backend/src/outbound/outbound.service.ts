@@ -95,9 +95,7 @@ export class OutboundService {
     // `null` = não foi possível verificar. Segue o envio: bloquear uma mensagem
     // legítima por causa de uma consulta que falhou é pior que o problema.
     if (existe === false) {
-      throw new BadRequestException(
-        `O número ${original} não tem conta no WhatsApp.`,
-      );
+      throw new BadRequestException(`O número ${original} não tem conta no WhatsApp.`);
     }
   }
 
