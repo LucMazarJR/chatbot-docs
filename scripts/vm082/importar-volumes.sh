@@ -47,9 +47,10 @@ if [[ -f .env ]]; then
   echo "AVISO: já existe um .env aqui, e o da pasta não foi copiado."
 else
   [[ -f "$origem/env" ]] || falha "falta o arquivo env em $origem."
-  # 640: o grupo da equipe lê, para outra pessoa conseguir reiniciar os
-  # containers; o resto dos usuários do servidor não.
-  install -m 640 "$origem/env" .env
+  # 600: o grupo padrão dos usuários do AD costuma reunir todo mundo do
+  # servidor, e 640 entregaria os segredos a eles. Na pasta da equipe, com o
+  # grupo próprio, dá para abrir depois: chgrp <grupo> .env; chmod 640 .env
+  install -m 600 "$origem/env" .env
   versao=$(tr -d '[:space:]' < "$origem/n8n-versao.txt")
   # COMPOSE_FILE faz o `docker compose` digitado à mão incluir a sobreposição da
   # VM. Sem ela, o projeto ganharia o nome da pasta, com volumes novos e vazios,

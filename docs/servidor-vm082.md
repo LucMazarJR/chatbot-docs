@@ -56,7 +56,7 @@ docker compose up -d redis n8n cloudflared
 scripts/vm082/verificar.sh
 ```
 
-O importador cria os volumes, põe o `.env` com permissão 640 e acrescenta a `N8N_VERSAO` e o `COMPOSE_FILE`. O verificador confere os containers, o n8n, o fluxo do chat, o túnel e as portas, e cada falha diz onde olhar.
+O importador cria os volumes, põe o `.env` com permissão 600 (só o dono lê) e acrescenta a `N8N_VERSAO` e o `COMPOSE_FILE`. O verificador confere os containers, o n8n, o fluxo do chat, o túnel e as portas, e cada falha diz onde olhar.
 
 **4. Apague a pasta `migracao-chatbot`** nos três lugares. Ela tem os segredos e as perguntas guardadas nas execuções do n8n.
 
