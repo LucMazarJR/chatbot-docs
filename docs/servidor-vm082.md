@@ -81,6 +81,13 @@ scripts/vm082/verificar.sh
 
 O n8n só muda de versão quando a `N8N_VERSAO` do `.env` muda. Antes de subir a versão, faça uma cópia do volume do n8n: a versão nova converte o banco, e ele não volta para a antiga.
 
-## Domínio da prefeitura no lugar do túnel
+## Trocar o túnel pela entrada da prefeitura
 
-O DTI aponta o domínio para a entrada pública da prefeitura e encaminha só os caminhos `/webhook/` para o n8n da VM. O editor não pode ficar público. Depois disso, as URLs dos webhooks na Vercel e a `CLOUDFLARE_URL` do `.env` passam a usar o domínio novo, e o `cloudflared` deixa de subir.
+A entrada definitiva é um proxy do DTI, com domínio da prefeitura, que encaminha só os caminhos `/webhook/` para o n8n da VM. O editor não pode ficar público. As duas entradas funcionam juntas, então a troca não tira o chat do ar:
+
+1. No `.env` da VM, `N8N_HOST_IP=172.21.31.182`, e depois `docker compose up -d n8n`. Assim o proxy, que está em outra máquina, alcança a porta 5678. Com o túnel, ela fica presa ao `127.0.0.1`.
+2. Com o proxy pronto, confira o endereço novo: `curl -X POST https://<domínio>/webhook/pwa-chat` precisa responder 403.
+3. Na Vercel, `N8N_PWA_WEBHOOK_URL` e `N8N_PWA_STAGING_WEBHOOK_URL` passam a usar o domínio novo, seguidos de um redeploy. No `.env` da VM, `CLOUDFLARE_URL` também recebe o domínio novo, porque o n8n monta as URLs dos webhooks com ele, e depois `docker compose up -d n8n`.
+4. Só então desligue o túnel: `docker compose stop cloudflared`. A partir daí, sobe-se só `redis n8n`, e o `verificar.sh` passa a acusar o `cloudflared` parado, o que é esperado.
+
+Para voltar, basta pôr as URLs antigas de novo na Vercel e subir o `cloudflared`.
