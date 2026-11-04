@@ -48,14 +48,6 @@ if [[ -f "$origem/env" ]]; then
   fi
 fi
 
-definir_no_env() {
-  if grep -q "^$1=" .env; then
-    sed -i "s|^$1=.*|$1=$2|" .env
-  else
-    printf '\n%s=%s\n' "$1" "$2" >> .env
-  fi
-}
-
 if [[ -f "$origem/n8n-versao.txt" ]]; then
   versao=$(tr -d '[:space:]' < "$origem/n8n-versao.txt")
   definir_no_env N8N_VERSAO "$versao"

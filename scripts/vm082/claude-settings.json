@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(scripts/vm082/env.sh listar)",
+      "Bash(scripts/vm082/verificar.sh)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Edit(./.env)",
+      "Edit(./**/.env)",
+      "Bash(cat *.env*)",
+      "Bash(less *.env*)",
+      "Bash(head *.env*)",
+      "Bash(tail *.env*)",
+      "Bash(grep *.env*)",
+      "Bash(env)",
+      "Bash(printenv*)",
+      "Bash(docker inspect*)",
+      "Bash(docker exec*)",
+      "Bash(docker compose exec*)",
+      "Bash(docker compose config)",
+      "Bash(docker run*)"
+    ]
+  }
+}

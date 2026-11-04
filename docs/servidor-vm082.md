@@ -146,6 +146,28 @@ Depois rode `scripts/vm082/instalar.sh` e importe os fluxos no n8n (ver [instala
 
 ---
 
+## O `.env` sem ver os segredos
+
+```bash
+scripts/vm082/env.sh listar           # nomes, e se cada um está preenchido, vazio ou faltando
+scripts/vm082/env.sh definir NOME     # pede o valor sem mostrar o que se digita
+scripts/vm082/env.sh gerar NOME       # grava um segredo aleatório novo
+```
+
+Nenhum dos três mostra valor. É o caminho para quem administra o servidor sem precisar ver os segredos, e o único que um assistente de código usa aqui.
+
+### Claude Code na VM
+
+A extensão pelo Remote-SSH roda **na VM**, e o que ela lê sai do servidor. O `.env` tem os segredos de produção, e os volumes do n8n têm as perguntas dos cidadãos guardadas nas execuções. Antes de abrir o Claude lá, copie as permissões prontas para a pasta do projeto:
+
+```bash
+mkdir -p .claude && cp scripts/vm082/claude-settings.json .claude/settings.local.json
+```
+
+Elas bloqueiam ler e editar o `.env` direto, e também os comandos que mostram segredo ou conteúdo de cidadão: `docker inspect` (exibe as variáveis dos containers), `docker compose config` sem `-q` (imprime a configuração com os segredos preenchidos), `docker exec`, `docker compose exec` e `docker run`. O modo fica no que pede aprovação a cada comando. Lá o Claude só instala e confere. O desenvolvimento e os testes ficam fora do servidor.
+
+---
+
 ## Conferir
 
 ```bash
