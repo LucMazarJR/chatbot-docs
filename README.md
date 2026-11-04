@@ -9,7 +9,7 @@ Quatro peças, responsabilidades separadas:
 - **[backend/](backend/)**: gateway próprio de WhatsApp em NestJS. Dono do canal: conexão, sessão, deduplicação, política anti-ban e formatação. **Substitui o WAHA.**
 - **[n8n/](n8n/)**, dono da inteligência: agente Gemini, busca vetorial e memória da conversa.
 - **[pwa/](pwa/)**, protótipo de validação: o mesmo RAG numa interface web com cara de WhatsApp, que pede uma nota ao final e registra as conversas para análise.
-- **Dashboard-PetSaúde**: painel de gestão das FAQs, em [repositório próprio](https://github.com/LucMazarJR/Dashboard-PetSaude). Escreve na mesma base que o chatbot lê.
+- **Dashboard-PetSaúde**: painel de gestão das FAQs, em [Dashboard-PetSaude/](Dashboard-PetSaude/). Escreve na mesma base que o chatbot lê.
 
 ## Estrutura
 

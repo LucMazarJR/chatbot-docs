@@ -1,6 +1,6 @@
 # Como trabalhar no dashboard
 
-Valem as regras de trabalho do repositório que hospeda este aqui, em `chatbot-docs/CLAUDE.md`: commits pequenos numa branch por funcionalidade, padrão de aplicação profissional, UX conferida na tela de verdade, escrita sem marcadores de IA (nada de travessão), verificação contra o ambiente real e privacidade no conteúdo escrito por cidadão.
+Valem as regras de trabalho da raiz do repositório, em [../CLAUDE.md](../CLAUDE.md): commits pequenos numa branch por funcionalidade, padrão de aplicação profissional, UX conferida na tela de verdade, escrita sem marcadores de IA (nada de travessão), verificação contra o ambiente real e privacidade no conteúdo escrito por cidadão.
 
 O que é específico daqui:
 
