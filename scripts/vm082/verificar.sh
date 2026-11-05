@@ -11,8 +11,10 @@ ok()   { echo "  ok    $*"; }
 erro() { echo "  FALHA $*"; falhas=$((falhas + 1)); }
 
 # Lê uma variável do .env sem executá-lo: `source .env` quebraria com segredo
-# que tenha $, aspas ou espaço.
-valor_env() { grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | tr -d "\"'"; }
+# que tenha $, aspas ou espaço. O \r sai junto porque o .env vem de uma máquina
+# Windows: o Docker o ignora, mas aqui ele grudaria no valor, e endereço e
+# comparação falhariam com uma mensagem embaralhada.
+valor_env() { grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | tr -d "\"'\r"; }
 # Código HTTP de um POST sem token. Um webhook publicado e protegido responde 403.
 codigo_post() { curl -s -o /dev/null -w '%{http_code}' -m 15 -X POST "$1" || true; }
 
