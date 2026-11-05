@@ -20,11 +20,14 @@ services:
     # aí não dá mais para voltar os dados para a máquina antiga.
     image: n8nio/n8n:${N8N_VERSAO:-latest}
     # Com o túnel, a entrada fala com o n8n pela rede do compose, e o n8n fica
-    # fechado para a rede da prefeitura. A entrada definitiva é o proxy do DTI,
-    # que está em outra máquina e precisa alcançar esta porta: aí N8N_HOST_IP
-    # recebe o IP da VM (172.21.31.182), e o proxy publica só os /webhook/.
+    # fechado para a rede da prefeitura. A entrada definitiva é o proxy do DTI
+    # (Nginx Proxy Manager, num container desta VM), e de dentro de um container
+    # o 127.0.0.1 do host não é alcançável: aí N8N_HOST_IP recebe o IP da VM
+    # (172.21.31.182), e o proxy publica só os /webhook/.
+    # A VM também roda outras instalações, e uma delas já ocupa a 5678 do host:
+    # N8N_PORTA escolhe outra. Dentro do compose ela continua 5678.
     ports: !override
-      - "${N8N_HOST_IP:-127.0.0.1}:5678:5678"
+      - "${N8N_HOST_IP:-127.0.0.1}:${N8N_PORTA:-5678}:5678"
 
   whatsapp-gateway:
     ports: !override

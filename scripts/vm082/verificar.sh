@@ -33,14 +33,16 @@ for s in redis n8n cloudflared; do
 done
 
 echo "n8n"
-if curl -fsS -m 10 http://127.0.0.1:5678/healthz >/dev/null 2>&1; then
-  ok "responde em 127.0.0.1:5678"
+n8n="127.0.0.1:$(valor_env N8N_PORTA)"
+[[ "$n8n" == "127.0.0.1:" ]] && n8n=127.0.0.1:5678
+if curl -fsS -m 10 "http://$n8n/healthz" >/dev/null 2>&1; then
+  ok "responde em $n8n"
 else
-  erro "não responde em 127.0.0.1:5678. Veja os logs do n8n: permissão no volume ou versão diferente da original aparecem lá"
+  erro "não responde em $n8n. Veja os logs do n8n: permissão no volume ou versão diferente da original aparecem lá"
 fi
 
 # 404 quer dizer fluxo despublicado, o que acontece depois de importar pelo CLI.
-codigo=$(codigo_post http://127.0.0.1:5678/webhook/pwa-chat)
+codigo=$(codigo_post "http://$n8n/webhook/pwa-chat")
 case "$codigo" in
   403) ok "fluxo do chat publicado e protegido por token" ;;
   404) erro "fluxo do chat não publicado (404). Ver docs/armadilhas.md, 'Importar workflow pelo CLI o desativa'" ;;

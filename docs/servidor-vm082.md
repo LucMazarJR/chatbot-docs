@@ -23,13 +23,32 @@ Host servidor-prefeitura
     User fulano.silva
 ```
 
-Os manuais do DTI trazem o IP `172.21.3.182`, que está errado. O n8n só escuta em `127.0.0.1` da VM. Para abrir o editor, use `ssh -L 5678:127.0.0.1:5678 servidor-prefeitura` e acesse `http://localhost:5678`.
+Os manuais do DTI trazem o IP `172.21.3.182`, que está errado. O n8n só escuta em `127.0.0.1` da VM. Para abrir o editor, use `ssh -L 5678:127.0.0.1:3811 servidor-prefeitura` (a `N8N_PORTA`) e acesse `http://localhost:5678`.
 
 ## Como funciona
 
 * **A entrada de fora é o túnel do Cloudflare.** O `cloudflared` só abre conexão de saída, e por isso funciona de dentro da rede da prefeitura sem regra no firewall. Nenhuma porta da VM fica aberta para a rede.
 * **O [docker-compose.vm082.yml](../docker-compose.vm082.yml) se sobrepõe ao compose principal.** Ele fixa o nome do projeto e a versão do n8n e prende as portas ao `127.0.0.1`. A linha `COMPOSE_FILE=docker-compose.yml:docker-compose.vm082.yml` no `.env` faz o `docker compose` usá-lo sempre.
 * **O gateway do WhatsApp e o PWA não sobem por padrão.** O canal do WhatsApp está pausado, e o chat fica na Vercel. O PWA só precisa subir se os avisos push forem usados, porque o relógio que os envia roda nele ([notificacoes-push.md](notificacoes-push.md#o-relógio)).
+
+## Outras instalações na VM
+
+A VM roda também instalações do usuário `petsaude`, que não são esta: `petsaude-correlacao` (um clone deste repositório, em `/home/petsaude/chatbot/chatbot-docs`) e `infra-ia` (outro projeto, com n8n, PWA, Evolution API e o Nginx Proxy Manager nas portas 80 e 443). Não mexa nelas. Elas já ocupam estas portas do host:
+
+| Porta | Quem usa |
+|---|---|
+| 80, 443, 81 | Nginx Proxy Manager (`infra-npm`) |
+| 5432, 5678, 8080, 8081 | `infra-ia` |
+| 3801, 3802, 5534 | `petsaude-correlacao` |
+
+Por isso, o `.env` desta instalação define portas próprias:
+
+```ini
+N8N_PORTA=3811
+PWA_PORT=3812
+```
+
+Antes de subir, confira que estão livres: `ss -tln | grep -E ':(3811|3812)\s'` não pode mostrar nada.
 
 ## Migrar da máquina anterior
 
