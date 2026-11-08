@@ -51,6 +51,10 @@ else
   # servidor, e 640 entregaria os segredos a eles. Na pasta da equipe, com o
   # grupo próprio, dá para abrir depois: chgrp <grupo> .env; chmod 640 .env
   install -m 600 "$origem/env" .env
+  # Na VM não há túnel: sem apagar estes valores, o token da máquina antiga
+  # ficaria guardado aqui à toa. Vazias, e não removidas, para o compose não
+  # avisar a cada comando que a variável não existe.
+  sed -i -E 's/^(CLOUDFLARE_TUNNEL_TOKEN|CLOUDFLARE_URL)=.*/\1=/' .env
   versao=$(tr -d '[:space:]' < "$origem/n8n-versao.txt")
   # COMPOSE_FILE faz o `docker compose` digitado à mão incluir a sobreposição da
   # VM. Sem ela, o projeto ganharia o nome da pasta, com volumes novos e vazios,
@@ -60,5 +64,5 @@ else
 fi
 
 echo
-echo "Próximo passo: docker compose up -d redis n8n cloudflared"
+echo "Próximo passo: docker compose up -d redis n8n"
 echo "Depois de verificado, apague $origem: ali estão os segredos e as conversas guardadas no n8n."

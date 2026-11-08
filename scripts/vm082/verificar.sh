@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Confere o chatbot na VM082 de ponta a ponta: containers, n8n, fluxo publicado,
-# túnel e portas expostas. Só lê; não muda nada. Sai com código 1 se algo falhar.
+# entrada pública e portas expostas. Só lê; não muda nada. Sai com código 1 se algo falhar.
 #
 #   scripts/vm082/verificar.sh
 set -uo pipefail
@@ -26,7 +26,7 @@ else
 fi
 
 echo "Containers"
-for s in redis n8n cloudflared; do
+for s in redis n8n; do
   if docker compose ps --status running --services | grep -qx "$s"; then
     ok "$s no ar"
   else
@@ -51,18 +51,22 @@ case "$codigo" in
   *)   erro "webhook do chat respondeu $codigo, esperado 403" ;;
 esac
 
-echo "Túnel"
-url=$(valor_env CLOUDFLARE_URL)
-codigo=$(codigo_post "$url/webhook/pwa-chat")
-case "$codigo" in
-  403) ok "$url chega ao n8n" ;;
-  530) erro "$url sem máquina conectada (530). Veja: docker compose logs --tail 50 cloudflared" ;;
-  *)   erro "$url respondeu $codigo, esperado 403" ;;
-esac
+echo "Entrada pública"
+url=$(valor_env N8N_URL_PUBLICA)
+if [[ -z "$url" ]]; then
+  ok "N8N_URL_PUBLICA vazia: o n8n só é alcançado pelo túnel SSH, e o chat da Vercel fica sem resposta"
+else
+  codigo=$(codigo_post "$url/webhook/pwa-chat")
+  if [[ "$codigo" == 403 ]]; then
+    ok "$url chega ao n8n"
+  else
+    erro "$url respondeu $codigo, esperado 403. Confira a rota do proxy e o N8N_HOST_IP no .env"
+  fi
+fi
 
 echo "Portas"
-# Nenhuma porta do chatbot pode ficar aberta para a rede da prefeitura: o túnel
-# fala com o n8n por dentro do compose.
+# Nenhuma porta do chatbot pode ficar aberta a toda a rede da prefeitura: o
+# proxy alcança o n8n pelo IP da VM, nunca por 0.0.0.0.
 abertas=$(ss -tln | awk '{print $4}' | grep -E '^(0\.0\.0\.0|\[::\]|\*):(3000|5432|5678|6379|8080)$' || true)
 if [[ -z "$abertas" ]]; then
   ok "nenhuma porta do chatbot aberta para a rede"
