@@ -7,7 +7,7 @@ A VM082 é a máquina da Prefeitura de Franca dedicada ao chatbot. Ela roda o n8
 | Endereço | `172.21.31.182`, só dentro da rede da prefeitura |
 | SSH | porta `22022`, usuário e senha do AD, sem domínio |
 | Sistema | Ubuntu 24.04, 8 vCPU, 31 GB de RAM, 490 GB de disco, Docker com `docker compose` |
-| Pasta do projeto | `/srv/chatbot-petsaude` |
+| Pasta do projeto | `/home/lucianojunior/chatbot/chatbot-docs` |
 | Responsável no DTI | Ricardo David |
 
 O [docker-compose.franca.yml](../docker-compose.franca.yml) e o [mapa de portas](mapa-portas-172-21-31-167.md) são de **outro** servidor (`172.21.31.167`) e não valem aqui.
@@ -23,7 +23,17 @@ Host servidor-prefeitura
     User fulano.silva
 ```
 
-Os manuais do DTI trazem o IP `172.21.3.182`, que está errado. O n8n só escuta em `127.0.0.1` da VM. Para abrir o editor, use `ssh -L 5678:127.0.0.1:3811 servidor-prefeitura` (a `N8N_PORTA`) e acesse `http://localhost:5678`.
+`servidor-prefeitura` é só um apelido, e existe apenas para quem tem esse bloco no próprio `~/.ssh/config`. Sem ele, o `ssh` responde "could not resolve hostname". Os manuais do DTI trazem o IP `172.21.3.182`, que está errado.
+
+### Testar do seu computador
+
+O n8n e o PWA só escutam em `127.0.0.1` da VM. Para abrir os dois, com a VPN conectada, use um túnel SSH. O comando completo, que funciona sem o apelido:
+
+```bash
+ssh -p 22022 -L 8080:127.0.0.1:3812 -L 5678:127.0.0.1:3811 fulano.silva@172.21.31.182
+```
+
+Ele pede a senha do AD. Enquanto esse terminal estiver aberto, o chat fica em `http://localhost:8080` e o editor do n8n em `http://localhost:5678`. Só o computador de quem abriu o túnel alcança esses endereços.
 
 ## Como funciona
 
@@ -67,7 +77,7 @@ scp -r maquina-anterior:migracao-chatbot .
 scp -r migracao-chatbot servidor-prefeitura:
 ```
 
-**3. Na VM**, em `/srv/chatbot-petsaude`:
+**3. Na VM**, na pasta do projeto:
 
 ```bash
 scripts/vm082/importar-volumes.sh ~/migracao-chatbot
@@ -92,13 +102,13 @@ docker compose start redis n8n cloudflared   # na máquina anterior, na pasta do
 ## Atualizar
 
 ```bash
-cd /srv/chatbot-petsaude
-git pull
+cd ~/chatbot/chatbot-docs
+git pull --no-edit github main
 docker compose up -d redis n8n
 scripts/vm082/verificar.sh
 ```
 
-O n8n só muda de versão quando a `N8N_VERSAO` do `.env` muda. Antes de subir a versão, faça uma cópia do volume do n8n: a versão nova converte o banco, e ele não volta para a antiga.
+O `origin` dessa pasta é o Gitness da prefeitura, cujo certificado a VM não reconhece, e por isso a atualização vem do remoto `github`. O n8n só muda de versão quando a `N8N_VERSAO` do `.env` muda. Antes de subir a versão, faça uma cópia do volume do n8n: a versão nova converte o banco, e ele não volta para a antiga.
 
 ## Entrada pública
 
