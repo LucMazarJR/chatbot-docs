@@ -30,10 +30,10 @@ Host servidor-prefeitura
 O n8n e o PWA só escutam em `127.0.0.1` da VM. Para abrir os dois, com a VPN conectada, use um túnel SSH. O comando completo, que funciona sem o apelido:
 
 ```bash
-ssh -p 22022 -L 8080:127.0.0.1:3812 -L 5678:127.0.0.1:3811 fulano.silva@172.21.31.182
+ssh -p 22022 -L 3811:127.0.0.1:3811 -L 3812:127.0.0.1:3812 fulano.silva@172.21.31.182
 ```
 
-Ele pede a senha do AD. Enquanto esse terminal estiver aberto, o chat fica em `http://localhost:8080` e o editor do n8n em `http://localhost:5678`. Só o computador de quem abriu o túnel alcança esses endereços.
+Ele pede a senha do AD. Enquanto esse terminal estiver aberto, o editor do n8n fica em `http://localhost:3811` e o chat em `http://localhost:3812`. Só o computador de quem abriu o túnel alcança esses endereços. A porta local é a mesma do host, de propósito: na VM, `5678` e `8080` pertencem a outra instalação.
 
 ## Como funciona
 
@@ -51,14 +51,17 @@ A VM roda também instalações do usuário `petsaude`, que não são esta: `pet
 | 5432, 5678, 8080, 8081 | `infra-ia` |
 | 3801, 3802, 5534 | `petsaude-correlacao` |
 
-Por isso, o `.env` desta instalação define portas próprias:
+A VM é dividida entre os grupos do PET Saúde, cada um com um bloco de portas no host, sempre preso ao `127.0.0.1`. A regra está na própria VM, em `docs/REGRA_MULTIGRUPOS_VM082.md` e em `/srv/pet-saude/COMUM/Host-do-servidor/`. O chatbot é o grupo G1, e estes são os padrões do [docker-compose.vm082.yml](../docker-compose.vm082.yml):
 
-```ini
-N8N_PORTA=3811
-PWA_PORT=3812
-```
+| Porta | Serviço |
+|---|---|
+| 3810 | Gateway do WhatsApp |
+| 3811 | n8n |
+| 3812 | PWA |
+| 3813 a 3819 | reservadas ao G1 |
+| 5510 | Postgres do G1 |
 
-Antes de subir, confira que estão livres: `ss -tln | grep -E ':(3811|3812)\s'` não pode mostrar nada.
+Numa instalação nova, antes de subir, confira que estão livres: `ss -tln | grep -E ':(3810|3811|3812|5510)\s'` não pode mostrar nada.
 
 ## Migrar da máquina anterior
 
