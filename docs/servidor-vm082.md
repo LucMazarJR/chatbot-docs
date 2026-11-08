@@ -1,13 +1,13 @@
 # Servidor da prefeitura (VM082)
 
-A VM082 é a máquina da Prefeitura de Franca dedicada ao chatbot. Ela roda o n8n, o Redis e o túnel. O chat e o painel que as pessoas abrem ficam na Vercel. O que quebra em silêncio está em [armadilhas.md](armadilhas.md#servidor-vm082).
+A VM082 é a máquina da Prefeitura de Franca dedicada ao chatbot. Ela roda o n8n e o Redis. O chat e o painel que as pessoas abrem ficam na Vercel. O que quebra em silêncio está em [armadilhas.md](armadilhas.md#servidor-vm082).
 
 | | |
 |---|---|
 | Endereço | `172.21.31.182`, só dentro da rede da prefeitura |
 | SSH | porta `22022`, usuário e senha do AD, sem domínio |
 | Sistema | Ubuntu 24.04, 8 vCPU, 31 GB de RAM, 490 GB de disco, Docker com `docker compose` |
-| Pasta do projeto | `/srv/chatbot-petsaude` |
+| Pasta do projeto | `/home/lucianojunior/chatbot/chatbot-docs` |
 | Responsável no DTI | Ricardo David |
 
 O [docker-compose.franca.yml](../docker-compose.franca.yml) e o [mapa de portas](mapa-portas-172-21-31-167.md) são de **outro** servidor (`172.21.31.167`) e não valem aqui.
@@ -23,11 +23,21 @@ Host servidor-prefeitura
     User fulano.silva
 ```
 
-Os manuais do DTI trazem o IP `172.21.3.182`, que está errado. O n8n só escuta em `127.0.0.1` da VM. Para abrir o editor, use `ssh -L 5678:127.0.0.1:3811 servidor-prefeitura` (a `N8N_PORTA`) e acesse `http://localhost:5678`.
+`servidor-prefeitura` é só um apelido, e existe apenas para quem tem esse bloco no próprio `~/.ssh/config`. Sem ele, o `ssh` responde "could not resolve hostname". Os manuais do DTI trazem o IP `172.21.3.182`, que está errado.
+
+### Testar do seu computador
+
+O n8n e o PWA só escutam em `127.0.0.1` da VM. Para abrir os dois, com a VPN conectada, use um túnel SSH. O comando completo, que funciona sem o apelido:
+
+```bash
+ssh -p 22022 -L 3811:127.0.0.1:3811 -L 3812:127.0.0.1:3812 fulano.silva@172.21.31.182
+```
+
+Ele pede a senha do AD. Enquanto esse terminal estiver aberto, o editor do n8n fica em `http://localhost:3811` e o chat em `http://localhost:3812`. Só o computador de quem abriu o túnel alcança esses endereços. A porta local é a mesma do host, de propósito: na VM, `5678` e `8080` pertencem a outra instalação.
 
 ## Como funciona
 
-* **A entrada de fora é o túnel do Cloudflare.** O `cloudflared` só abre conexão de saída, e por isso funciona de dentro da rede da prefeitura sem regra no firewall. Nenhuma porta da VM fica aberta para a rede.
+* **Não há túnel do Cloudflare na VM.** A entrada de fora é o proxy do DTI ([Entrada pública](#entrada-pública)). Até ele ser ligado, o n8n só é alcançado pelo túnel SSH, e o chat da Vercel fica sem resposta.
 * **O [docker-compose.vm082.yml](../docker-compose.vm082.yml) se sobrepõe ao compose principal.** Ele fixa o nome do projeto e a versão do n8n e prende as portas ao `127.0.0.1`. A linha `COMPOSE_FILE=docker-compose.yml:docker-compose.vm082.yml` no `.env` faz o `docker compose` usá-lo sempre.
 * **O gateway do WhatsApp e o PWA não sobem por padrão.** O canal do WhatsApp está pausado, e o chat fica na Vercel. O PWA só precisa subir se os avisos push forem usados, porque o relógio que os envia roda nele ([notificacoes-push.md](notificacoes-push.md#o-relógio)).
 
@@ -41,14 +51,17 @@ A VM roda também instalações do usuário `petsaude`, que não são esta: `pet
 | 5432, 5678, 8080, 8081 | `infra-ia` |
 | 3801, 3802, 5534 | `petsaude-correlacao` |
 
-Por isso, o `.env` desta instalação define portas próprias:
+A VM é dividida entre os grupos do PET Saúde, cada um com um bloco de portas no host, sempre preso ao `127.0.0.1`. A regra está na própria VM, em `docs/REGRA_MULTIGRUPOS_VM082.md` e em `/srv/pet-saude/COMUM/Host-do-servidor/`. O chatbot é o grupo G1, e estes são os padrões do [docker-compose.vm082.yml](../docker-compose.vm082.yml):
 
-```ini
-N8N_PORTA=3811
-PWA_PORT=3812
-```
+| Porta | Serviço |
+|---|---|
+| 3810 | Gateway do WhatsApp |
+| 3811 | n8n |
+| 3812 | PWA |
+| 3813 a 3819 | reservadas ao G1 |
+| 5510 | Postgres do G1 |
 
-Antes de subir, confira que estão livres: `ss -tln | grep -E ':(3811|3812)\s'` não pode mostrar nada.
+Numa instalação nova, antes de subir, confira que estão livres: `ss -tln | grep -E ':(3810|3811|3812|5510)\s'` não pode mostrar nada.
 
 ## Migrar da máquina anterior
 
@@ -67,22 +80,22 @@ scp -r maquina-anterior:migracao-chatbot .
 scp -r migracao-chatbot servidor-prefeitura:
 ```
 
-**3. Na VM**, em `/srv/chatbot-petsaude`:
+**3. Na VM**, na pasta do projeto:
 
 ```bash
 scripts/vm082/importar-volumes.sh ~/migracao-chatbot
-docker compose up -d redis n8n cloudflared
+docker compose up -d redis n8n
 scripts/vm082/verificar.sh
 ```
 
-O importador cria os volumes, põe o `.env` com permissão 600 (só o dono lê) e acrescenta a `N8N_VERSAO` e o `COMPOSE_FILE`. O verificador confere os containers, o n8n, o fluxo do chat, o túnel e as portas, e cada falha diz onde olhar.
+O importador cria os volumes, põe o `.env` com permissão 600 (só o dono lê), esvazia as variáveis do túnel da máquina anterior e acrescenta a `N8N_VERSAO` e o `COMPOSE_FILE`. O verificador confere os containers, o n8n, o fluxo do chat, a entrada pública e as portas, e cada falha diz onde olhar.
 
 **4. Apague a pasta `migracao-chatbot`** nos três lugares. Ela tem os segredos e as perguntas guardadas nas execuções do n8n.
 
 ### Voltar para a máquina anterior
 
 ```bash
-docker compose stop cloudflared n8n          # na VM
+docker compose stop n8n                      # na VM
 ```
 
 ```powershell
@@ -92,21 +105,19 @@ docker compose start redis n8n cloudflared   # na máquina anterior, na pasta do
 ## Atualizar
 
 ```bash
-cd /srv/chatbot-petsaude
-git pull
-docker compose up -d redis n8n cloudflared
+cd ~/chatbot/chatbot-docs
+git pull --no-edit github main
+docker compose up -d redis n8n
 scripts/vm082/verificar.sh
 ```
 
-O n8n só muda de versão quando a `N8N_VERSAO` do `.env` muda. Antes de subir a versão, faça uma cópia do volume do n8n: a versão nova converte o banco, e ele não volta para a antiga.
+O `origin` dessa pasta é o Gitness da prefeitura, cujo certificado a VM não reconhece, e por isso a atualização vem do remoto `github`. O n8n só muda de versão quando a `N8N_VERSAO` do `.env` muda. Antes de subir a versão, faça uma cópia do volume do n8n: a versão nova converte o banco, e ele não volta para a antiga.
 
-## Trocar o túnel pela entrada da prefeitura
+## Entrada pública
 
-A entrada definitiva é um proxy do DTI, com domínio da prefeitura, que encaminha só os caminhos `/webhook/` para o n8n da VM. O editor não pode ficar público. As duas entradas funcionam juntas, então a troca não tira o chat do ar:
+A entrada é um proxy do DTI, com domínio da prefeitura, que encaminha só os caminhos `/webhook/` para o n8n da VM. O editor não pode ficar público. Para ligar:
 
-1. No `.env` da VM, `N8N_HOST_IP=172.21.31.182`, e depois `docker compose up -d n8n`. Assim o proxy, que está em outra máquina, alcança a porta 5678. Com o túnel, ela fica presa ao `127.0.0.1`.
+1. No `.env` da VM, `N8N_HOST_IP=172.21.31.182`, e depois `docker compose up -d n8n`. O proxy roda num container e não alcança o `127.0.0.1` do host.
 2. Com o proxy pronto, confira o endereço novo: `curl -X POST https://<domínio>/webhook/pwa-chat` precisa responder 403.
-3. Na Vercel, `N8N_PWA_WEBHOOK_URL` e `N8N_PWA_STAGING_WEBHOOK_URL` passam a usar o domínio novo, seguidos de um redeploy. No `.env` da VM, `CLOUDFLARE_URL` também recebe o domínio novo, porque o n8n monta as URLs dos webhooks com ele, e depois `docker compose up -d n8n`.
-4. Só então desligue o túnel: `docker compose stop cloudflared`. A partir daí, sobe-se só `redis n8n`, e o `verificar.sh` passa a acusar o `cloudflared` parado, o que é esperado.
-
-Para voltar, basta pôr as URLs antigas de novo na Vercel e subir o `cloudflared`.
+3. No `.env` da VM, `N8N_URL_PUBLICA=https://<domínio>`, e depois `docker compose up -d n8n`.
+4. Na Vercel, `N8N_PWA_WEBHOOK_URL` e `N8N_PWA_STAGING_WEBHOOK_URL` passam a usar o domínio, seguidos de um redeploy.
