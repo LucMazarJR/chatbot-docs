@@ -36,7 +36,7 @@ done
 
 echo "n8n"
 n8n="127.0.0.1:$(valor_env N8N_PORTA)"
-[[ "$n8n" == "127.0.0.1:" ]] && n8n=127.0.0.1:5678
+[[ "$n8n" == "127.0.0.1:" ]] && n8n=127.0.0.1:3811
 if curl -fsS -m 10 "http://$n8n/healthz" >/dev/null 2>&1; then
   ok "responde em $n8n"
 else
@@ -67,7 +67,7 @@ fi
 echo "Portas"
 # Nenhuma porta do chatbot pode ficar aberta a toda a rede da prefeitura: o
 # proxy alcança o n8n pelo IP da VM, nunca por 0.0.0.0.
-abertas=$(ss -tln | awk '{print $4}' | grep -E '^(0\.0\.0\.0|\[::\]|\*):(3000|5432|5678|6379|8080)$' || true)
+abertas=$(ss -tln | awk '{print $4}' | grep -E '^(0\.0\.0\.0|\[::\]|\*):(3810|3811|3812|5510)$' || true)
 if [[ -z "$abertas" ]]; then
   ok "nenhuma porta do chatbot aberta para a rede"
 else

@@ -23,22 +23,27 @@ services:
       # O compose principal tira este endereço do CLOUDFLARE_URL. Aqui não há
       # túnel, e um .env trazido de outra máquina faria o n8n se anunciar num
       # endereço morto: quem abre um link dele cai no erro 1033 da Cloudflare.
-      WEBHOOK_URL: ${N8N_URL_PUBLICA:-http://localhost:5678}
+      WEBHOOK_URL: ${N8N_URL_PUBLICA:-http://localhost:3811}
       # O editor só é alcançado pelo túnel SSH, e o proxy publica só os
       # /webhook/. Sem isto, com o domínio definido, os links do editor (e-mail
       # de licença, retorno de OAuth) levariam a uma página que não existe.
-      N8N_EDITOR_BASE_URL: http://localhost:5678
+      N8N_EDITOR_BASE_URL: http://localhost:3811
     # A entrada é o proxy do DTI (Nginx Proxy Manager, num container desta VM).
     # De dentro de um container, o 127.0.0.1 do host não é alcançável: quando o
     # proxy for ligado, N8N_HOST_IP recebe o IP da VM (172.21.31.182).
-    # A VM também roda outras instalações, e uma delas já ocupa a 5678 do host:
-    # N8N_PORTA escolhe outra. Dentro do compose ela continua 5678.
+    # A VM é dividida entre os grupos do PET, e cada um tem o seu bloco de portas
+    # no host. O chatbot é o G1: 3810 a 3819, e o Postgres na 5510. Dentro do
+    # compose as portas não mudam.
     ports: !override
-      - "${N8N_HOST_IP:-127.0.0.1}:${N8N_PORTA:-5678}:5678"
+      - "${N8N_HOST_IP:-127.0.0.1}:${N8N_PORTA:-3811}:5678"
 
   whatsapp-gateway:
     ports: !override
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${GATEWAY_HOST_PORT:-3810}:3000"
+
+  postgres:
+    ports: !override
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5510}:5432"
 
   # Na VM não há túnel. O profile impede que um `docker compose up -d` sem nomes
   # de serviço o suba.
@@ -49,4 +54,4 @@ services:
   # pelo túnel SSH.
   pwa:
     ports: !override
-      - "127.0.0.1:${PWA_PORT:-8080}:8080"
+      - "127.0.0.1:${PWA_PORT:-3812}:8080"
