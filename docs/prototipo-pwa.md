@@ -153,20 +153,20 @@ Descubra o IP da máquina com:
 
 ## Hospedar na Vercel
 
-É o arranjo recomendado para levar a campo, e o mesmo que o Dashboard-PetSaúde já usa. A página fica na Vercel (HTTPS de graça, instalável, sempre no ar) e **só a chamada ao n8n volta para a sua máquina**, pelo Cloudflare Tunnel que já existe:
+É o arranjo recomendado para levar a campo, e o mesmo que o Dashboard-PetSaúde já usa. A página fica na Vercel (HTTPS de graça, instalável, sempre no ar) e **só a chamada ao n8n vai para o servidor**, pelo endereço público dele:
 
 ```
   celular ──► Vercel  (páginas + route handlers)
                  │
                  ├──► MongoDB Atlas                       (nuvem, direto)
                  │
-                 └──► https://petbot.lucianomjr.dev/webhook/pwa-chat
-                              │  (Cloudflare Tunnel)
+                 └──► https://<endereço-público-do-n8n>/webhook/pwa-chat
+                              │
                               ▼
-                        n8n no seu PC ──► Gemini + Atlas
+                        n8n no servidor ──► Gemini + Atlas
 ```
 
-O túnel **já expõe** essa rota, autenticada: um POST sem o `X-Webhook-Token` devolve 403. Não há nada a configurar na Cloudflare.
+Essa rota é autenticada: um POST sem o `X-Webhook-Token` devolve 403. Como o endereço público é ligado está em [servidor-vm082.md](servidor-vm082.md#entrada-pública).
 
 ### Passos
 
@@ -178,7 +178,7 @@ O túnel **já expõe** essa rota, autenticada: um POST sem o `X-Webhook-Token` 
 |---|---|
 | `MONGODB_URI` | a mesma do `.env` (com o nome do banco no caminho) |
 | `PWA_MONGO_DB` | `pwa_prototipo` |
-| `N8N_PWA_WEBHOOK_URL` | `https://petbot.lucianomjr.dev/webhook/pwa-chat`: **a URL do túnel, não `http://n8n:5678`** |
+| `N8N_PWA_WEBHOOK_URL` | `https://<endereço-público-do-n8n>/webhook/pwa-chat`: **a URL pública, não `http://n8n:5678`** |
 | `N8N_PWA_WEBHOOK_TOKEN` | o mesmo do `.env` |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | opcionais, só para o login com Google no `/staging` ([contas-de-usuario.md](contas-de-usuario.md#criar-a-credencial)) |
 
@@ -318,7 +318,7 @@ A escolha fica no aparelho e vale na próxima pergunta; no `/`, que não tem Min
    Pelo mesmo motivo da `_2`, cada uma precisa ser de **outro projeto Google**: no projeto da `_2`, os testes da equipe no staging gastariam a cota de quem conversa no `/`.
 2. **Importar e ativar** [n8n/pwa-chatbot-staging.json](../n8n/pwa-chatbot-staging.json), como no [passo 3](#3-importar-e-ativar-o-fluxo). Ele usa o mesmo token do `/` (`PWA Webhook Token`). Depois de importar, abrir os nós do Gemini e conferir que nenhum ficou com a `Gemini PWA`.
 3. **Testar a rota** como no [passo 5](#5-testar-a-rota-isolada-sem-navegador), trocando `/webhook/pwa-chat` por `/webhook/pwa-chat-staging`.
-4. **Apontar o PWA:** `N8N_PWA_STAGING_WEBHOOK_URL=http://n8n:5678/webhook/pwa-chat-staging` no `.env` (e `docker compose up -d --build pwa`), e `https://petbot.lucianomjr.dev/webhook/pwa-chat-staging` na Vercel, seguido de um novo deploy.
+4. **Apontar o PWA:** `N8N_PWA_STAGING_WEBHOOK_URL=http://n8n:5678/webhook/pwa-chat-staging` no `.env` (e `docker compose up -d --build pwa`), e `https://<endereço-público-do-n8n>/webhook/pwa-chat-staging` na Vercel, seguido de um novo deploy.
 
 #### Testar antes de mexer no staging
 

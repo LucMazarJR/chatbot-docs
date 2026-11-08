@@ -1,6 +1,6 @@
 # Servidor da prefeitura (VM082)
 
-A VM082 é a máquina da Prefeitura de Franca dedicada ao chatbot. Ela roda o n8n, o Redis e o túnel. O chat e o painel que as pessoas abrem ficam na Vercel. O que quebra em silêncio está em [armadilhas.md](armadilhas.md#servidor-vm082).
+A VM082 é a máquina da Prefeitura de Franca dedicada ao chatbot. Ela roda o n8n e o Redis. O chat e o painel que as pessoas abrem ficam na Vercel. O que quebra em silêncio está em [armadilhas.md](armadilhas.md#servidor-vm082).
 
 | | |
 |---|---|
@@ -27,7 +27,7 @@ Os manuais do DTI trazem o IP `172.21.3.182`, que está errado. O n8n só escuta
 
 ## Como funciona
 
-* **A entrada de fora é o túnel do Cloudflare.** O `cloudflared` só abre conexão de saída, e por isso funciona de dentro da rede da prefeitura sem regra no firewall. Nenhuma porta da VM fica aberta para a rede.
+* **Não há túnel do Cloudflare na VM.** A entrada de fora é o proxy do DTI ([Entrada pública](#entrada-pública)). Até ele ser ligado, o n8n só é alcançado pelo túnel SSH, e o chat da Vercel fica sem resposta.
 * **O [docker-compose.vm082.yml](../docker-compose.vm082.yml) se sobrepõe ao compose principal.** Ele fixa o nome do projeto e a versão do n8n e prende as portas ao `127.0.0.1`. A linha `COMPOSE_FILE=docker-compose.yml:docker-compose.vm082.yml` no `.env` faz o `docker compose` usá-lo sempre.
 * **O gateway do WhatsApp e o PWA não sobem por padrão.** O canal do WhatsApp está pausado, e o chat fica na Vercel. O PWA só precisa subir se os avisos push forem usados, porque o relógio que os envia roda nele ([notificacoes-push.md](notificacoes-push.md#o-relógio)).
 
@@ -71,18 +71,18 @@ scp -r migracao-chatbot servidor-prefeitura:
 
 ```bash
 scripts/vm082/importar-volumes.sh ~/migracao-chatbot
-docker compose up -d redis n8n cloudflared
+docker compose up -d redis n8n
 scripts/vm082/verificar.sh
 ```
 
-O importador cria os volumes, põe o `.env` com permissão 600 (só o dono lê) e acrescenta a `N8N_VERSAO` e o `COMPOSE_FILE`. O verificador confere os containers, o n8n, o fluxo do chat, o túnel e as portas, e cada falha diz onde olhar.
+O importador cria os volumes, põe o `.env` com permissão 600 (só o dono lê), esvazia as variáveis do túnel da máquina anterior e acrescenta a `N8N_VERSAO` e o `COMPOSE_FILE`. O verificador confere os containers, o n8n, o fluxo do chat, a entrada pública e as portas, e cada falha diz onde olhar.
 
 **4. Apague a pasta `migracao-chatbot`** nos três lugares. Ela tem os segredos e as perguntas guardadas nas execuções do n8n.
 
 ### Voltar para a máquina anterior
 
 ```bash
-docker compose stop cloudflared n8n          # na VM
+docker compose stop n8n                      # na VM
 ```
 
 ```powershell
@@ -94,19 +94,17 @@ docker compose start redis n8n cloudflared   # na máquina anterior, na pasta do
 ```bash
 cd /srv/chatbot-petsaude
 git pull
-docker compose up -d redis n8n cloudflared
+docker compose up -d redis n8n
 scripts/vm082/verificar.sh
 ```
 
 O n8n só muda de versão quando a `N8N_VERSAO` do `.env` muda. Antes de subir a versão, faça uma cópia do volume do n8n: a versão nova converte o banco, e ele não volta para a antiga.
 
-## Trocar o túnel pela entrada da prefeitura
+## Entrada pública
 
-A entrada definitiva é um proxy do DTI, com domínio da prefeitura, que encaminha só os caminhos `/webhook/` para o n8n da VM. O editor não pode ficar público. As duas entradas funcionam juntas, então a troca não tira o chat do ar:
+A entrada é um proxy do DTI, com domínio da prefeitura, que encaminha só os caminhos `/webhook/` para o n8n da VM. O editor não pode ficar público. Para ligar:
 
-1. No `.env` da VM, `N8N_HOST_IP=172.21.31.182`, e depois `docker compose up -d n8n`. Assim o proxy, que está em outra máquina, alcança a porta 5678. Com o túnel, ela fica presa ao `127.0.0.1`.
+1. No `.env` da VM, `N8N_HOST_IP=172.21.31.182`, e depois `docker compose up -d n8n`. O proxy roda num container e não alcança o `127.0.0.1` do host.
 2. Com o proxy pronto, confira o endereço novo: `curl -X POST https://<domínio>/webhook/pwa-chat` precisa responder 403.
-3. Na Vercel, `N8N_PWA_WEBHOOK_URL` e `N8N_PWA_STAGING_WEBHOOK_URL` passam a usar o domínio novo, seguidos de um redeploy. No `.env` da VM, `CLOUDFLARE_URL` também recebe o domínio novo, porque o n8n monta as URLs dos webhooks com ele, e depois `docker compose up -d n8n`.
-4. Só então desligue o túnel: `docker compose stop cloudflared`. A partir daí, sobe-se só `redis n8n`, e o `verificar.sh` passa a acusar o `cloudflared` parado, o que é esperado.
-
-Para voltar, basta pôr as URLs antigas de novo na Vercel e subir o `cloudflared`.
+3. No `.env` da VM, `N8N_URL_PUBLICA=https://<domínio>`, e depois `docker compose up -d n8n`.
+4. Na Vercel, `N8N_PWA_WEBHOOK_URL` e `N8N_PWA_STAGING_WEBHOOK_URL` passam a usar o domínio, seguidos de um redeploy.

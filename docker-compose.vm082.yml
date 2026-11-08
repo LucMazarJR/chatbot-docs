@@ -19,11 +19,18 @@ services:
     # pode trazer uma versão nova, que migra o banco do n8n na primeira subida, e
     # aí não dá mais para voltar os dados para a máquina antiga.
     image: n8nio/n8n:${N8N_VERSAO:-latest}
-    # Com o túnel, a entrada fala com o n8n pela rede do compose, e o n8n fica
-    # fechado para a rede da prefeitura. A entrada definitiva é o proxy do DTI
-    # (Nginx Proxy Manager, num container desta VM), e de dentro de um container
-    # o 127.0.0.1 do host não é alcançável: aí N8N_HOST_IP recebe o IP da VM
-    # (172.21.31.182), e o proxy publica só os /webhook/.
+    environment:
+      # O compose principal tira este endereço do CLOUDFLARE_URL. Aqui não há
+      # túnel, e um .env trazido de outra máquina faria o n8n se anunciar num
+      # endereço morto: quem abre um link dele cai no erro 1033 da Cloudflare.
+      WEBHOOK_URL: ${N8N_URL_PUBLICA:-http://localhost:5678}
+      # O editor só é alcançado pelo túnel SSH, e o proxy publica só os
+      # /webhook/. Sem isto, com o domínio definido, os links do editor (e-mail
+      # de licença, retorno de OAuth) levariam a uma página que não existe.
+      N8N_EDITOR_BASE_URL: http://localhost:5678
+    # A entrada é o proxy do DTI (Nginx Proxy Manager, num container desta VM).
+    # De dentro de um container, o 127.0.0.1 do host não é alcançável: quando o
+    # proxy for ligado, N8N_HOST_IP recebe o IP da VM (172.21.31.182).
     # A VM também roda outras instalações, e uma delas já ocupa a 5678 do host:
     # N8N_PORTA escolhe outra. Dentro do compose ela continua 5678.
     ports: !override
@@ -32,6 +39,11 @@ services:
   whatsapp-gateway:
     ports: !override
       - "127.0.0.1:3000:3000"
+
+  # Na VM não há túnel. O profile impede que um `docker compose up -d` sem nomes
+  # de serviço o suba.
+  cloudflared:
+    profiles: ["cloudflare"]
 
   # Não sobe por padrão (o chat público fica na Vercel). Se subir, só para teste
   # pelo túnel SSH.
