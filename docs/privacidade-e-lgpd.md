@@ -58,6 +58,7 @@ Nos dois chats, o `/` e o `/staging` ([prototipo-pwa.md](prototipo-pwa.md#o-que-
 - **Com a voz "Do celular", a resposta é lida pelo próprio aparelho** (`speechSynthesis`), sem nada sair do celular. A mensagem guarda só a hora em que isso aconteceu (`ouvidaNoCelularEm`), para comparar o uso das duas vozes.
 - A página `/privacidade` descreve os caminhos. As preferências de voz (quem entende, voz escolhida, velocidade, leitura automática) e os bloqueios por limite ficam só no aparelho.
 - **O tutorial** grava na sessão o que a pessoa fez com ele (viu, pulou, recusou ou ignorou) e quando. Não é dado de saúde, e existe para medir se o tutorial serve. O aparelho guarda a mesma escolha, só para não oferecer de novo.
+- **A UBS** é guardada na sessão como a pessoa escreveu, e some junto com a conversa. O campo é livre, então o chat recusa o que tem cara de documento (cinco dígitos ou mais) e não guarda como UBS o que parece pergunta. No painel, só admin vê o texto. O que não é nome de unidade é apagado da sessão pelo botão *Não é UBS*, em vez de ir para uma lista de ignorados. Só as grafias que a equipe confirma como nome de unidade ficam na lista de UBS, e elas sobrevivem à exclusão da conversa por não identificarem ninguém. A auditoria guarda a unidade e nunca o texto.
 
 ---
 

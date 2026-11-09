@@ -739,6 +739,8 @@ export function Conversa({
     if (!sessaoId) return;
     void fetch(`/api/sessoes/${sessaoId}/ubs`, {
       method: 'POST',
+      // A pessoa pode fechar a aba logo depois de responder.
+      keepalive: true,
       headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ texto: textoDaUbs }),
     }).catch(() => {});

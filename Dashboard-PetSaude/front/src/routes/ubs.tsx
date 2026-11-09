@@ -366,7 +366,10 @@ function DialogoDaAcao({
               id="nome-ubs"
               value={nome}
               maxLength={60}
-              onChange={(e) => setNome(e.target.value)}
+              onChange={(e) => {
+                setNome(e.target.value);
+                setAviso("");
+              }}
             />
           </div>
         )}
@@ -378,7 +381,10 @@ function DialogoDaAcao({
               id="escolha-ubs"
               className="h-11 w-full rounded-md border border-input bg-background px-3 text-[15px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={ubsId}
-              onChange={(e) => setUbsId(e.target.value)}
+              onChange={(e) => {
+                setUbsId(e.target.value);
+                setAviso("");
+              }}
             >
               <option value="">Escolha uma UBS</option>
               {[...unidades]
