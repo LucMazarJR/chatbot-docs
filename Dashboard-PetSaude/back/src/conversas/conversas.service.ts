@@ -6,7 +6,8 @@ import { Sessao, SessaoDocument } from './schemas/sessao.schema';
 import { Mensagem, MensagemDocument } from './schemas/mensagem.schema';
 import { CONEXAO_PROTOTIPO } from './conexao';
 import { ActivityService } from '../activity/activity.service';
-import { inicioDoDia, intervaloDoDia } from '../comum/fuso';
+import { intervaloDoPeriodo } from './periodo';
+import { UbsService } from '../ubs/ubs.service';
 import { Rodada, RodadaDocument } from '../curadoria/schemas/rodada.schema';
 import { Sugestao, SugestaoDocument } from '../curadoria/schemas/sugestao.schema';
 import { Relatorio, RelatorioDocument } from '../relatorios/schemas/relatorio.schema';
@@ -58,27 +59,8 @@ export class ConversasService {
         @InjectModel(Relatorio.name)
         private readonly relatorioModel: Model<RelatorioDocument>,
         private readonly activityService: ActivityService,
+        private readonly ubsService: UbsService,
     ) { }
-
-    /**
-     * Condição sobre `iniciadaEm`, ou null quando o filtro é "tudo".
-     *
-     * "dia" é um dia do calendário, escolhido na tela para rever um teste
-     * presencial. Data inválida vale como "tudo", como os outros filtros.
-     */
-    private intervalo(periodo: Periodo, dia?: string): { $gte: Date; $lt?: Date } | null {
-        const agora = new Date();
-
-        // No fuso da equipe: o servidor roda em UTC (ver comum/fuso.ts).
-        if (periodo === 'hoje') return { $gte: inicioDoDia(agora) };
-        if (periodo === '7d') return { $gte: new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000) };
-        if (periodo === '30d') return { $gte: new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000) };
-        if (periodo === 'dia' && dia) {
-            const doDia = intervaloDoDia(dia);
-            if (doDia) return { $gte: doDia.inicio, $lt: doDia.fim };
-        }
-        return null;
-    }
 
     /**
      * Recorte de tempo e de interface.
@@ -89,7 +71,7 @@ export class ConversasService {
     private filtroDeSessao(periodo: Periodo, versao: FiltroVersao, dia?: string): Record<string, unknown> {
         const filtro: Record<string, unknown> = {};
 
-        const intervalo = this.intervalo(periodo, dia);
+        const intervalo = intervaloDoPeriodo(periodo, dia);
         if (intervalo) filtro.iniciadaEm = intervalo;
 
         if (versao === 'a') filtro.$or = [{ versao: 'a' }, { versao: { $exists: false } }];
@@ -270,11 +252,15 @@ export class ConversasService {
         // 200 mais recentes não continham as que interessam.
         pipeline.push({ $limit: limite });
 
-        return this.sessaoModel.aggregate(pipeline).exec();
+        const [linhas, nomeDaUbs] = await Promise.all([
+            this.sessaoModel.aggregate<Sessao>(pipeline).exec(),
+            this.ubsService.nomeador(),
+        ]);
+        return linhas.map((linha) => ({ ...linha, ubsNome: nomeDaUbs(linha.ubs) }));
     }
 
     /** Transcrição completa, com os metadados de cada resposta. */
-    async detalhar(id: string) {
+    async detalhar(id: string): Promise<{ sessao: Record<string, unknown>; mensagens: unknown[] } | null> {
         const sessao = await this.sessaoModel.findById(id).lean().exec();
         if (!sessao) return null;
 
@@ -284,7 +270,8 @@ export class ConversasService {
             .lean()
             .exec();
 
-        return { sessao, mensagens };
+        const nomeDaUbs = await this.ubsService.nomeador();
+        return { sessao: { ...sessao, ubsNome: nomeDaUbs(sessao.ubs) }, mensagens };
     }
 
     /**
