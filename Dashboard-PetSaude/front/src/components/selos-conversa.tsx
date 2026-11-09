@@ -1,4 +1,4 @@
-import { Lock } from "lucide-react";
+import { Building2, Lock } from "lucide-react";
 
 import { Selo } from "@/components/selo";
 
@@ -15,6 +15,23 @@ export function SeloConta({ usuarioId }: { usuarioId?: string }) {
   return (
     <Selo icone={<Lock aria-hidden="true" />} title="Conversa feita com conta">
       Com conta
+    </Selo>
+  );
+}
+
+/** De qual unidade veio a conversa. Quem não respondeu não ganha selo nenhum. */
+export function SeloUbs({ nome, texto }: { nome?: string | null; texto?: string | null }) {
+  if (nome) {
+    return (
+      <Selo tom="marca" icone={<Building2 aria-hidden="true" />}>
+        {nome}
+      </Selo>
+    );
+  }
+  if (!texto) return null;
+  return (
+    <Selo tom="atencao" icone={<Building2 aria-hidden="true" />} title="Identifique na tela UBS">
+      UBS a identificar
     </Selo>
   );
 }

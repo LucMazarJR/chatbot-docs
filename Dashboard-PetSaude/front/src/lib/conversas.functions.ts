@@ -108,6 +108,10 @@ export type ConversaResumida = {
   latenciaMaxima: number | null;
   /** Presente quando a conversa foi feita com conta. O painel só mostra que existe. */
   usuarioId?: string;
+  /** O que a pessoa escreveu na pergunta da UBS. Nulo em `texto`: tocou em Pular. */
+  ubs?: { texto: string | null };
+  /** A unidade reconhecida a partir do texto. */
+  ubsNome?: string | null;
 };
 
 export type EstatisticasConversas = {
