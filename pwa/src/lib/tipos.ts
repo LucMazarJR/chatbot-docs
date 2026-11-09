@@ -85,6 +85,14 @@ export type Sessao = {
 
   /** Staging: o que a pessoa fez com o tutorial. Ausente quando ele não foi oferecido. */
   tutorial?: { escolha: 'visto' | 'pulado' | 'recusado' | 'ignorado'; em: Date };
+
+  /**
+   * A UBS de onde a pessoa está falando, como ela escreveu.
+   *
+   * `texto` nulo quer dizer que tocou em Pular. Ausente, a pergunta não foi
+   * feita: é conversa anterior a ela. Quem reconhece a unidade é o painel.
+   */
+  ubs?: { texto: string | null; em: Date };
 };
 
 export type Avaliacao = {
