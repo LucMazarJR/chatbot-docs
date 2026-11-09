@@ -38,6 +38,7 @@ import { marcarChatNaHistoria } from '@/lib/navegacao';
 import { lerLimiteDeTempo } from '@/lib/limite-de-tempo';
 import { TEXTO_DA_ETAPA, type EtapaDaResposta } from '@/lib/etapas-da-resposta';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
+import { pareceNomeDeUbs } from '@/lib/ubs';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
 /**
@@ -120,6 +121,37 @@ const BOTAO_DE_ACEITE_DEPOIS: BotaoRapido[] = [{ rotulo: 'Aceitar', valor: 'acei
 
 /** A chave do pedido inicial e a da mensagem de recusa, que também aceita. */
 const CHAVES_DE_ACEITE = ['aceite', 'aceite-depois'];
+
+const PLACEHOLDER_UBS = 'Escreva o nome da UBS';
+
+/**
+ * De qual unidade vem a conversa.
+ *
+ * LÓGICA DO LUCIANO: o teste acontece com profissionais dentro das UBS, e a
+ * equipe precisa saber de onde veio cada conversa. É mensagem do assistente, e
+ * não formulário, porque é onde a pessoa já está olhando. Pular fica à vista: a
+ * pergunta serve à equipe, e não pode ser a porta de quem veio tirar uma dúvida.
+ */
+function pedidoDeUbs(quando?: Date): Item {
+  return {
+    chave: 'ubs-pedido',
+    papel: 'bot',
+    texto: `Em qual UBS você está? 🏥\n\nEscreva no campo *${PLACEHOLDER_UBS}*, ou toque em *Pular*.`,
+    hora: horaAgora(quando),
+    botoes: [{ rotulo: 'Pular', valor: 'pular' }],
+  };
+}
+
+/** Remonta a pergunta da UBS numa conversa retomada, como ela ficou. */
+function itensDaUbs(ubs: { texto: string | null } | null, faltaResponder: boolean, quando: Date): Item[] {
+  if (faltaResponder) return [pedidoDeUbs(quando)];
+  if (!ubs) return [];
+  if (ubs.texto === null) return [{ ...pedidoDeUbs(quando), escolhido: 'pular' }];
+  return [
+    { ...pedidoDeUbs(quando), botoes: undefined },
+    { chave: 'ubs-resposta', papel: 'user', texto: ubs.texto, hora: horaAgora(quando), lida: true },
+  ];
+}
 
 /**
  * O retorno depois do aceite.
@@ -324,6 +356,8 @@ export function Conversa({
   const [menuAberto, setMenuAberto] = useState(false);
   const [texto, setTexto] = useState('');
   const [aceitou, setAceitou] = useState(false);
+  /** A próxima mensagem da pessoa responde à pergunta da UBS. */
+  const [pedindoUbs, setPedindoUbs] = useState(false);
   /** Logo depois do aceite: o campo pisca em destaque para mostrar onde escrever. */
   const [destacarCampo, setDestacarCampo] = useState(false);
   const [tutorialAberto, setTutorialAberto] = useState(false);
@@ -521,6 +555,7 @@ export function Conversa({
         iniciadaEm: string;
         encerrada: boolean;
         consentimento: boolean;
+        ubs: { texto: string | null } | null;
         mensagens: {
           _id: string;
           papel: Papel;
@@ -542,6 +577,11 @@ export function Conversa({
       setAceitou(dados.consentimento);
       perguntasRef.current = dados.mensagens.filter((m) => m.papel === 'user').length;
 
+      // Quem já estava perguntando quando a pergunta da UBS passou a existir
+      // não é interrompido no meio da conversa.
+      const faltaUbs = dados.consentimento && !dados.ubs && perguntasRef.current === 0;
+      setPedindoUbs(faltaUbs);
+
       const inicio = new Date(dados.iniciadaEm);
       setIniciadaEm(inicio);
       setItens([
@@ -550,9 +590,13 @@ export function Conversa({
         // aceitou vê o pedido já respondido, e não recebe outro. Com conta, o
         // aceite foi no cadastro, e repeti-lo em cada conversa seria ruído.
         ...(comConta
-          ? [boasVindas(nome, comVoz, inicio)]
+          ? [boasVindas(nome, comVoz, inicio), ...itensDaUbs(dados.ubs, faltaUbs, inicio)]
           : dados.consentimento
-            ? [{ ...pedidoDeAceite(inicio), escolhido: 'aceitar' }, confirmacaoDoAceite(comVoz, inicio)]
+            ? [
+                { ...pedidoDeAceite(inicio), escolhido: 'aceitar' },
+                ...itensDaUbs(dados.ubs, faltaUbs, inicio),
+                ...(faltaUbs ? [] : [confirmacaoDoAceite(comVoz, inicio)]),
+              ]
             : [pedidoDeAceite(inicio)]),
         ...dados.mensagens.map((m) => ({
           chave: m._id,
@@ -597,11 +641,12 @@ export function Conversa({
   // primeira pergunta, e só no primeiro uso do aparelho. A espera curta deixa
   // a tela terminar de montar: o destaque mede o campo e o botão de verdade.
   useEffect(() => {
-    if (!comTutorial || !sessaoId || !aceitou || aberturaDoTutorialRef.current || tutorialJaOferecido()) return;
+    // Depois da pergunta da UBS: aberto antes, ele cobriria o balão que a faz.
+    if (!comTutorial || !sessaoId || !aceitou || pedindoUbs || aberturaDoTutorialRef.current || tutorialJaOferecido()) return;
     aberturaDoTutorialRef.current = true;
     const abrir = setTimeout(() => setTutorialAberto(true), 700);
     return () => clearTimeout(abrir);
-  }, [comTutorial, sessaoId, aceitou]);
+  }, [comTutorial, sessaoId, aceitou, pedindoUbs]);
 
   /** Lembra no aparelho e grava na sessão o que a pessoa fez com o tutorial. */
   function registrarTutorial(escolha: EscolhaDoTutorial) {
@@ -640,6 +685,12 @@ export function Conversa({
   async function escolherBotao(item: Item, botao: BotaoRapido) {
     marcarEscolha(item.chave, botao.valor);
 
+    if (item.chave === 'ubs-pedido') {
+      registrarUbs(null);
+      concluirPedidoDeUbs();
+      return;
+    }
+
     if (!CHAVES_DE_ACEITE.includes(item.chave)) {
       // Sugestão de assunto: vale como pergunta digitada.
       void enviarTexto(botao.valor);
@@ -659,14 +710,13 @@ export function Conversa({
       }).catch(() => {});
     }
 
-    // Aceitou: a frase diz que já pode perguntar, e o campo ganha foco e um
-    // destaque breve. O foco sai no efeito abaixo, e não aqui: neste instante
-    // o campo ainda está desativado, e focar um campo desativado não faz nada.
+    // Aceitou: vem a pergunta da UBS, e o campo ganha foco e um destaque breve.
+    // O foco sai no efeito abaixo, e não aqui: neste instante o campo ainda
+    // está desativado, e focar um campo desativado não faz nada.
     if (aceitando) {
+      setPedindoUbs(true);
       setItens((atuais) =>
-        atuais.some((item) => item.chave === 'aceite-pronto')
-          ? atuais
-          : [...atuais, confirmacaoDoAceite(comVoz)],
+        atuais.some((item) => item.chave === 'ubs-pedido') ? atuais : [...atuais, pedidoDeUbs()],
       );
       setDestacarCampo(true);
     } else
@@ -680,6 +730,64 @@ export function Conversa({
           botoes: BOTAO_DE_ACEITE_DEPOIS,
         },
       ]);
+  }
+
+  // --- Pergunta da UBS ------------------------------------------------------
+
+  /** Sem esperar e sem avisar se falhar: serve à equipe, e não pode travar a conversa. */
+  function registrarUbs(textoDaUbs: string | null) {
+    if (!sessaoId) return;
+    void fetch(`/api/sessoes/${sessaoId}/ubs`, {
+      method: 'POST',
+      // A pessoa pode fechar a aba logo depois de responder.
+      keepalive: true,
+      headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ texto: textoDaUbs }),
+    }).catch(() => {});
+  }
+
+  /** A frase que diz que já pode perguntar, agora que a da UBS foi respondida. */
+  function concluirPedidoDeUbs() {
+    setPedindoUbs(false);
+    setItens((atuais) =>
+      atuais.some((item) => item.chave === 'aceite-pronto')
+        ? atuais
+        : [...atuais, confirmacaoDoAceite(comVoz)],
+    );
+    setDestacarCampo(true);
+  }
+
+  /**
+   * A mensagem que chegou enquanto a pergunta da UBS estava aberta.
+   *
+   * Devolve `true` quando ela respondeu à pergunta. Se a pessoa já mandou a
+   * dúvida, a pergunta da UBS conta como pulada, e a dúvida segue o caminho
+   * normal: fazê-la repetir por causa de um campo da equipe seria o pior
+   * resultado possível.
+   */
+  function responderUbs(mensagem: string, chaveExistente?: string): boolean {
+    setPedindoUbs(false);
+
+    if (!pareceNomeDeUbs(mensagem)) {
+      marcarEscolha('ubs-pedido', 'pular');
+      registrarUbs(null);
+      return false;
+    }
+
+    setItens((atuais) => {
+      const semPular = atuais.map((item) => {
+        if (item.chave === 'ubs-pedido') return { ...item, botoes: undefined };
+        return item.chave === chaveExistente ? { ...item, lida: true } : item;
+      });
+      // Por áudio, o balão da pessoa já está na tela.
+      return chaveExistente
+        ? semPular
+        : [...semPular, { chave: crypto.randomUUID(), papel: 'user', texto: mensagem, hora: horaAgora(), lida: true }];
+    });
+    veioDaVozRef.current = false;
+    registrarUbs(mensagem);
+    concluirPedidoDeUbs();
+    return true;
   }
 
   // --- Envio ---------------------------------------------------------------
@@ -706,6 +814,8 @@ export function Conversa({
     // O aceite é a única porta: sem ele nada é enviado, nem por digitação nem
     // por botão.
     if (!sessaoId || !aceitou || digitando || encerrada) return;
+
+    if (pedindoUbs && responderUbs(pergunta, opcoes.chaveExistente)) return;
 
     // Esperar resposta não é estar parado. O relógio volta no `finally`,
     // quando a resposta chega.
@@ -1405,7 +1515,9 @@ export function Conversa({
                   encerrada
                     ? 'Conversa encerrada'
                     : aceitou
-                      ? 'Escreva sua pergunta'
+                      ? pedindoUbs
+                        ? PLACEHOLDER_UBS
+                        : 'Escreva sua pergunta'
                       : 'Aceite para começar'
                 }
                 enterKeyHint="send"
