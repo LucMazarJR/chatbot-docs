@@ -151,7 +151,8 @@ const GERAL_VAZIO: PainelUbs["geral"] = {
 
 const porcento = (valor: number) => `${valor.toLocaleString("pt-BR")}%`;
 
-const informaram = (n: number) => `${numero(n)} não ${n === 1 ? "informou" : "informaram"}`;
+const informaram = (n: number) =>
+  n === 0 ? "todas informaram" : `${numero(n)} não ${n === 1 ? "informou" : "informaram"}`;
 
 function Numeros({ dados }: { dados: PainelUbs }) {
   const participando = dados.porUbs.filter((u) => u.conversas > 0).length;
