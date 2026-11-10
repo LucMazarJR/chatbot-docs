@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { AlertTriangle, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Carregando } from "@/components/carregando";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { diaEHora } from "@/lib/datas";
 import { exigirAdmin } from "@/lib/guardas";
 import {
   corrigirGrafia,
@@ -88,7 +89,7 @@ function UbsPage() {
       <div className="space-y-6">
         <CabecalhoPagina
           titulo="UBS"
-          frase="De quais unidades vêm as conversas do chat, mesmo com o nome escrito de jeitos diferentes."
+          frase="De quais unidades vêm as conversas do chat, e como o assistente se sai em cada uma."
           acoes={
             <Button className="min-h-11" onClick={() => setAcao({ tipo: "nova" })}>
               <Plus aria-hidden="true" className="size-4" /> Nova UBS
@@ -107,8 +108,16 @@ function UbsPage() {
         ) : (
           <>
             <Numeros dados={painel.data} />
-            <Grafias grafias={painel.data.grafias} aoEscolher={setAcao} />
-            <PorUbs linhas={painel.data.porUbs} aoEscolher={setAcao} />
+            <ParaIdentificar
+              grafias={painel.data.grafias.filter((g) => g.como === null)}
+              aoEscolher={setAcao}
+            />
+            <Ranking dados={painel.data} />
+            <ComoFoiReconhecido
+              grafias={painel.data.grafias.filter((g) => g.como !== null)}
+              aoEscolher={setAcao}
+            />
+            <ListaDeUbs linhas={painel.data.porUbs} aoEscolher={setAcao} />
           </>
         )}
       </div>
@@ -124,9 +133,16 @@ function UbsPage() {
   );
 }
 
+const porcento = (valor: number) => `${valor.toLocaleString("pt-BR")}%`;
+
+const informaram = (n: number) => `${numero(n)} não ${n === 1 ? "informou" : "informaram"}`;
+
 function Numeros({ dados }: { dados: PainelUbs }) {
-  const responderam = dados.identificadas + dados.paraRevisar;
-  const reconhecidas = responderam ? Math.round((dados.identificadas / responderam) * 100) : null;
+  const participando = dados.porUbs.filter((u) => u.conversas > 0).length;
+  const cobertura = dados.conversas
+    ? Math.round((dados.identificadas / dados.conversas) * 100)
+    : null;
+  const semResposta = dados.geral.percentualSemResposta;
 
   return (
     <div className="space-y-2">
@@ -134,130 +150,295 @@ function Numeros({ dados }: { dados: PainelUbs }) {
         <CartaoNumero
           rotulo="Conversas"
           valor={numero(dados.conversas)}
-          contexto={plural(dados.identificadas, "com UBS reconhecida", "com UBS reconhecida")}
+          contexto={plural(dados.geral.perguntas, "pergunta feita", "perguntas feitas")}
         />
         <CartaoNumero
-          rotulo="Reconhecidas"
-          valor={reconhecidas != null ? `${reconhecidas}%` : "nenhuma"}
-          contexto="de quem escreveu o nome da UBS"
+          rotulo="UBS participando"
+          valor={`${numero(participando)} de ${numero(dados.porUbs.length)}`}
+          contexto="com ao menos uma conversa"
         />
         <CartaoNumero
-          rotulo="Para identificar"
-          valor={numero(dados.paraRevisar)}
+          rotulo="Com UBS conhecida"
+          valor={cobertura != null ? `${cobertura}%` : "sem conversas"}
           tom={dados.paraRevisar > 0 ? "warning" : undefined}
-          contexto="conversas com nome não reconhecido"
+          contexto={
+            dados.paraRevisar > 0
+              ? `${plural(dados.paraRevisar, "espera", "esperam")} identificação · ${informaram(dados.naoInformaram)}`
+              : `${informaram(dados.naoInformaram)} a UBS`
+          }
         />
         <CartaoNumero
-          rotulo="Não informaram"
-          valor={numero(dados.naoInformaram)}
-          contexto="tocaram em Pular ou já perguntaram"
+          rotulo="Sem resposta"
+          valor={semResposta != null ? porcento(semResposta) : "nenhuma"}
+          tom={(semResposta ?? 0) >= 30 ? "warning" : undefined}
+          contexto="das perguntas, em todas as UBS"
         />
       </div>
       {dados.anteriores > 0 && (
         <p className="text-sm text-muted-foreground">
           {plural(dados.anteriores, "conversa é anterior", "conversas são anteriores")} à pergunta
-          da UBS e {dados.anteriores === 1 ? "não entra" : "não entram"} nestas contas.
+          da UBS: {dados.anteriores === 1 ? "conta" : "contam"} no total, mas em nenhuma UBS.
         </p>
       )}
     </div>
   );
 }
 
-function Grafias({ grafias, aoEscolher }: { grafias: Grafia[]; aoEscolher: (acao: Acao) => void }) {
+/**
+ * Taxa de sem resposta que pede atenção: bem acima da geral, e com perguntas
+ * suficientes para não ser acaso. Duas perguntas sem resposta em três dão 67%,
+ * e isso não diz nada sobre a UBS.
+ */
+function acimaDaMedia(linha: LinhaUbs, geral: number | null) {
   return (
-    <section className="space-y-3" aria-labelledby="titulo-grafias">
+    linha.perguntas >= 5 &&
+    linha.percentualSemResposta != null &&
+    linha.percentualSemResposta >= (geral ?? 0) + 10
+  );
+}
+
+/**
+ * Uma série só, de magnitude: um tom, barra fina ancorada no zero e o valor
+ * escrito na linha. A lista já é a tabela, então nada depende só da cor.
+ */
+function Ranking({ dados }: { dados: PainelUbs }) {
+  const ativas = dados.porUbs.filter((u) => u.conversas > 0);
+  const paradas = dados.porUbs.filter((u) => u.conversas === 0);
+  const maior = Math.max(1, ...ativas.map((u) => u.conversas));
+  const geral = dados.geral.percentualSemResposta;
+
+  return (
+    <section className="space-y-3" aria-labelledby="titulo-ranking">
       <div>
-        <h2 id="titulo-grafias" className="text-lg font-semibold">
-          O que as pessoas escreveram
+        <h2 id="titulo-ranking" className="text-lg font-semibold">
+          Conversas por UBS
         </h2>
         <p className="text-sm text-muted-foreground">
-          Ao apontar a UBS certa, o sistema aprende aquela grafia, e as conversas antigas também
-          passam a contar.
+          Sem resposta é a parte das perguntas em que o assistente não achou o que responder. Em
+          todas as UBS, ficou em {geral != null ? porcento(geral) : "zero"}.
         </p>
       </div>
 
-      {grafias.length === 0 ? (
-        <EstadoVazio titulo="Ninguém escreveu o nome de uma UBS ainda">
-          Quando alguém responder à pergunta no começo do chat, o texto aparece aqui.
+      {ativas.length === 0 ? (
+        <EstadoVazio titulo="Nenhuma conversa com UBS identificada neste período">
+          Quando alguém informar a UBS e fizer uma pergunta, a unidade aparece aqui.
         </EstadoVazio>
       ) : (
-        <ul className="overflow-hidden rounded-xl border border-border bg-card">
-          {grafias.map((grafia) => {
-            const como = COMO[grafia.como ?? "revisar"];
+        <ol className="space-y-1 rounded-xl border border-border bg-card p-2 sm:p-3">
+          {ativas.map((ubs) => {
+            const alerta = acimaDaMedia(ubs, geral);
             return (
-              <li
-                key={grafia.chave}
-                className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0 sm:px-5"
-              >
-                <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <strong className="font-semibold break-words">{grafia.texto}</strong>
-                    <Selo tom={como.tom}>{como.rotulo}</Selo>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {grafia.ubsNome ? `${grafia.ubsNome} · ` : ""}
-                    {plural(grafia.vezes, "vez", "vezes")}
-                  </p>
+              <li key={ubs.id} className="space-y-1.5 rounded-lg px-2 py-2.5 sm:px-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <strong className="min-w-0 font-semibold">{ubs.nome}</strong>
+                  <span className="shrink-0 text-sm tabular-nums">
+                    <strong className="text-base font-semibold">{numero(ubs.conversas)}</strong>{" "}
+                    {ubs.conversas === 1 ? "conversa" : "conversas"}
+                    <span className="text-muted-foreground"> · {porcento(ubs.percentual)}</span>
+                  </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    className="min-h-11"
-                    onClick={() => aoEscolher({ tipo: "corrigir", grafia })}
-                  >
-                    {grafia.ubsId ? "Corrigir" : "Escolher UBS"}
-                  </Button>
-                  {grafia.como !== "nome" && (
-                    <Button
-                      variant="ghost"
-                      className="min-h-11"
-                      onClick={() => aoEscolher({ tipo: "descartar", grafia })}
-                    >
-                      Não é UBS
-                    </Button>
+                <div aria-hidden="true" className="h-2 rounded-full bg-muted">
+                  <div
+                    className="h-2 rounded-full bg-primary"
+                    style={{ width: `${Math.max(2, (ubs.conversas / maior) * 100)}%` }}
+                  />
+                </div>
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                  <span>{plural(ubs.perguntas, "pergunta", "perguntas")}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className={alerta ? "font-medium text-warning" : undefined}>
+                    {ubs.percentualSemResposta != null
+                      ? `${porcento(ubs.percentualSemResposta)} sem resposta`
+                      : "sem perguntas"}
+                  </span>
+                  {alerta && (
+                    <Selo tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>
+                      Acima da média
+                    </Selo>
                   )}
-                </div>
+                  {ubs.negativos > 0 && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{plural(ubs.negativos, "voto negativo", "votos negativos")}</span>
+                    </>
+                  )}
+                  {ubs.notaMedia != null && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        nota {ubs.notaMedia.toLocaleString("pt-BR")} em{" "}
+                        {plural(ubs.avaliacoes, "avaliação", "avaliações")}
+                      </span>
+                    </>
+                  )}
+                  {ubs.ultimaEm && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>última em {diaEHora(ubs.ultimaEm)}</span>
+                    </>
+                  )}
+                </p>
               </li>
             );
           })}
-        </ul>
+        </ol>
+      )}
+
+      {paradas.length > 0 && ativas.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">
+            Sem conversas no período ({numero(paradas.length)}):
+          </span>{" "}
+          {paradas.map((u) => u.nome).join(", ")}.
+        </p>
       )}
     </section>
   );
 }
 
-function PorUbs({ linhas, aoEscolher }: { linhas: LinhaUbs[]; aoEscolher: (acao: Acao) => void }) {
+function ParaIdentificar({
+  grafias,
+  aoEscolher,
+}: {
+  grafias: Grafia[];
+  aoEscolher: (acao: Acao) => void;
+}) {
+  // Sem pendência, a seção some: um "tudo certo" fixo empurraria o ranking para baixo.
+  if (grafias.length === 0) return null;
+  const conversas = grafias.reduce((total, g) => total + g.vezes, 0);
+
   return (
-    <section className="space-y-3" aria-labelledby="titulo-por-ubs">
+    <section
+      className="space-y-3 rounded-xl border border-border bg-warning-soft p-4 sm:p-5"
+      aria-labelledby="titulo-identificar"
+    >
       <div>
-        <h2 id="titulo-por-ubs" className="text-lg font-semibold">
-          Conversas por UBS
+        <h2 id="titulo-identificar" className="text-lg font-semibold">
+          Para identificar
         </h2>
         <p className="text-sm text-muted-foreground">
-          O percentual é sobre as conversas com UBS reconhecida.
+          O sistema não reconheceu {plural(grafias.length, "texto", "textos")}, de{" "}
+          {plural(conversas, "conversa", "conversas")}. Ao apontar a UBS, ele aprende aquela grafia,
+          e as conversas passam a contar.
         </p>
       </div>
+      <ul className="overflow-hidden rounded-lg border border-border bg-card">
+        {grafias.map((grafia) => (
+          <LinhaGrafia key={grafia.chave} grafia={grafia} aoEscolher={aoEscolher} />
+        ))}
+      </ul>
+    </section>
+  );
+}
 
-      {linhas.length === 0 ? (
-        <EstadoVazio titulo="A lista de UBS está vazia">
-          Use Nova UBS para cadastrar as unidades.
-        </EstadoVazio>
+function ComoFoiReconhecido({
+  grafias,
+  aoEscolher,
+}: {
+  grafias: Grafia[];
+  aoEscolher: (acao: Acao) => void;
+}) {
+  if (grafias.length === 0) return null;
+  const aproximadas = grafias.filter((g) => g.como === "aproximada").length;
+
+  return (
+    <details className="group rounded-xl border border-border bg-card">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5">
+        <span>
+          <span className="font-semibold">Como cada texto foi reconhecido</span>
+          <span className="block text-sm text-muted-foreground">
+            {plural(grafias.length, "jeito de escrever", "jeitos de escrever")}
+            {aproximadas > 0
+              ? `, ${numero(aproximadas)} por aproximação. Vale conferir esses.`
+              : ", todos pelo nome ou por correção."}
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+        />
+      </summary>
+      <ul className="border-t border-border">
+        {grafias.map((grafia) => (
+          <LinhaGrafia key={grafia.chave} grafia={grafia} aoEscolher={aoEscolher} />
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function LinhaGrafia({ grafia, aoEscolher }: { grafia: Grafia; aoEscolher: (acao: Acao) => void }) {
+  const como = COMO[grafia.como ?? "revisar"];
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0 sm:px-5">
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <strong className="font-semibold break-words">{grafia.texto}</strong>
+          <Selo tom={como.tom}>{como.rotulo}</Selo>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {grafia.ubsNome ? `${grafia.ubsNome} · ` : ""}
+          {plural(grafia.vezes, "conversa", "conversas")}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          className="min-h-11"
+          onClick={() => aoEscolher({ tipo: "corrigir", grafia })}
+        >
+          {grafia.ubsId ? "Corrigir" : "Escolher UBS"}
+        </Button>
+        {grafia.como !== "nome" && (
+          <Button
+            variant="ghost"
+            className="min-h-11"
+            onClick={() => aoEscolher({ tipo: "descartar", grafia })}
+          >
+            Não é UBS
+          </Button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function ListaDeUbs({
+  linhas,
+  aoEscolher,
+}: {
+  linhas: LinhaUbs[];
+  aoEscolher: (acao: Acao) => void;
+}) {
+  const emOrdem = [...linhas].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return (
+    <details className="group rounded-xl border border-border bg-card">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5">
+        <span>
+          <span className="font-semibold">Lista de UBS</span>
+          <span className="block text-sm text-muted-foreground">
+            {plural(linhas.length, "unidade reconhecida", "unidades reconhecidas")} pelo chat.
+            Renomeie ou remova aqui.
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+        />
+      </summary>
+      {emOrdem.length === 0 ? (
+        <p className="border-t border-border px-4 py-3 text-sm text-muted-foreground sm:px-5">
+          A lista está vazia. Use Nova UBS, no topo, para cadastrar as unidades.
+        </p>
       ) : (
-        <ul className="overflow-hidden rounded-xl border border-border bg-card">
-          {linhas.map((ubs) => (
+        <ul className="border-t border-border">
+          {emOrdem.map((ubs) => (
             <li
               key={ubs.id}
-              className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0 sm:px-5"
+              className="flex items-center justify-between gap-2 border-b border-border px-4 py-1 last:border-b-0 sm:px-5"
             >
-              <div className="min-w-0">
-                <strong className="font-semibold">{ubs.nome}</strong>
-                <p className="text-sm text-muted-foreground">
-                  {plural(ubs.conversas, "conversa", "conversas")} ·{" "}
-                  {plural(ubs.perguntas, "pergunta", "perguntas")} ·{" "}
-                  {ubs.percentual.toLocaleString("pt-BR")}%
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
+              <span className="min-w-0 truncate">{ubs.nome}</span>
+              <span className="flex shrink-0">
                 <Button
                   variant="ghost"
                   className="min-h-11"
@@ -274,12 +455,12 @@ function PorUbs({ linhas, aoEscolher }: { linhas: LinhaUbs[]; aoEscolher: (acao:
                 >
                   Remover
                 </Button>
-              </div>
+              </span>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </details>
   );
 }
 
