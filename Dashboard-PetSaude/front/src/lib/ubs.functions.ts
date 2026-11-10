@@ -5,14 +5,24 @@ import { apiFetch } from "./api.server";
 export type PeriodoUbs = "hoje" | "7d" | "30d" | "tudo";
 export type ComoIdentificou = "nome" | "corrigida" | "aproximada";
 
-export type LinhaUbs = {
-  id: string;
-  nome: string;
+/** Números de um recorte: uma UBS, ou todas as conversas do período. */
+export type Resumo = {
   conversas: number;
   perguntas: number;
+  /** Respostas em que o assistente não achou o que responder. */
+  semResposta: number;
+  negativos: number;
+  positivos: number;
+  avaliacoes: number;
+  notaMedia: number | null;
+  ultimaEm: string | null;
   /** Sobre as conversas com UBS reconhecida. */
   percentual: number;
+  /** Sobre as perguntas. Nulo sem perguntas. */
+  percentualSemResposta: number | null;
 };
+
+export type LinhaUbs = Resumo & { id: string; nome: string };
 
 export type Grafia = {
   chave: string;
@@ -31,6 +41,8 @@ export type PainelUbs = {
   paraRevisar: number;
   naoInformaram: number;
   anteriores: number;
+  /** Todas as conversas do período, como referência para ler cada UBS. */
+  geral: Resumo;
   porUbs: LinhaUbs[];
   grafias: Grafia[];
 };

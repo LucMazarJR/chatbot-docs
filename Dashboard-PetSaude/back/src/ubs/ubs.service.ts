@@ -21,6 +21,59 @@ import { UNIDADES_INICIAIS } from './unidades-iniciais';
 type Ator = { id?: string; name: string };
 type Unidade = UnidadeParaBusca & { nome: string };
 
+type ContagemDaSessao = { _id: string; perguntas: number; semResposta: number; negativos: number; positivos: number };
+
+type Acumulado = {
+    conversas: number;
+    perguntas: number;
+    semResposta: number;
+    negativos: number;
+    positivos: number;
+    somaNotas: number;
+    notas: number;
+    ultimaEm: Date | null;
+};
+
+const linhaVazia = (): Acumulado => ({
+    conversas: 0, perguntas: 0, semResposta: 0, negativos: 0, positivos: 0, somaNotas: 0, notas: 0, ultimaEm: null,
+});
+
+function somar(
+    linha: Acumulado,
+    contagem: ContagemDaSessao,
+    sessao: { iniciadaEm?: Date; avaliacao?: { estrelas?: number | null } | null },
+) {
+    linha.conversas++;
+    linha.perguntas += contagem.perguntas;
+    linha.semResposta += contagem.semResposta;
+    linha.negativos += contagem.negativos;
+    linha.positivos += contagem.positivos;
+    const estrelas = sessao.avaliacao?.estrelas;
+    if (typeof estrelas === 'number') {
+        linha.somaNotas += estrelas;
+        linha.notas++;
+    }
+    if (sessao.iniciadaEm && (!linha.ultimaEm || sessao.iniciadaEm > linha.ultimaEm)) linha.ultimaEm = sessao.iniciadaEm;
+}
+
+const umaCasa = (valor: number) => Math.round(valor * 10) / 10;
+
+/** Em percentual de uma casa: com dezenas de conversas, mais casas seriam ruído. */
+function resumir(linha: Acumulado, base: number) {
+    return {
+        conversas: linha.conversas,
+        perguntas: linha.perguntas,
+        semResposta: linha.semResposta,
+        negativos: linha.negativos,
+        positivos: linha.positivos,
+        avaliacoes: linha.notas,
+        notaMedia: linha.notas ? umaCasa(linha.somaNotas / linha.notas) : null,
+        ultimaEm: linha.ultimaEm,
+        percentual: base ? umaCasa((linha.conversas / base) * 100) : 0,
+        percentualSemResposta: linha.perguntas ? umaCasa((linha.semResposta / linha.perguntas) * 100) : null,
+    };
+}
+
 const NAO_ENCONTRADA = 'UBS não encontrada. Ela pode ter sido removida: atualize a página e tente de novo.';
 
 /**
@@ -85,19 +138,28 @@ export class UbsService {
 
         const noPeriodo = await this.sessaoModel
             .find(intervalo ? { iniciadaEm: intervalo } : {})
-            .select('_id ubs')
+            .select('_id ubs iniciadaEm avaliacao')
             .lean()
             .exec();
 
-        const contagem: { _id: string; perguntas: number }[] = await this.mensagemModel
+        const contagem: ContagemDaSessao[] = await this.mensagemModel
             .aggregate([
-                { $match: { sessaoId: { $in: noPeriodo.map((s) => s._id) }, papel: 'user' } },
-                { $group: { _id: '$sessaoId', perguntas: { $sum: 1 } } },
+                { $match: { sessaoId: { $in: noPeriodo.map((s) => s._id) } } },
+                {
+                    $group: {
+                        _id: '$sessaoId',
+                        perguntas: { $sum: { $cond: [{ $eq: ['$papel', 'user'] }, 1, 0] } },
+                        semResposta: { $sum: { $cond: [{ $eq: ['$semResposta', true] }, 1, 0] } },
+                        negativos: { $sum: { $cond: [{ $eq: ['$feedback', 'down'] }, 1, 0] } },
+                        positivos: { $sum: { $cond: [{ $eq: ['$feedback', 'up'] }, 1, 0] } },
+                    },
+                },
             ])
             .exec();
-        const perguntas = new Map(contagem.map((c) => [c._id, c.perguntas]));
+        const porSessao = new Map(contagem.map((c) => [c._id, c]));
 
-        const porUbs = new Map(unidades.map((u) => [u.id, { conversas: 0, perguntas: 0 }]));
+        const porUbs = new Map(unidades.map((u) => [u.id, linhaVazia()]));
+        const geral = linhaVazia();
         let conversas = 0;
         let identificadas = 0;
         let paraRevisar = 0;
@@ -107,9 +169,10 @@ export class UbsService {
         for (const sessao of noPeriodo) {
             // Sessão sem pergunta é visita, não conversa: a mesma regra das
             // estatísticas de Conversas, para os dois totais baterem.
-            const daSessao = perguntas.get(sessao._id);
-            if (!daSessao) continue;
+            const daSessao = porSessao.get(sessao._id);
+            if (!daSessao?.perguntas) continue;
             conversas++;
+            somar(geral, daSessao, sessao);
 
             if (!sessao.ubs) {
                 anteriores++;
@@ -120,8 +183,7 @@ export class UbsService {
                 const linha = achada && porUbs.get(achada.id);
                 if (linha) {
                     identificadas++;
-                    linha.conversas++;
-                    linha.perguntas += daSessao;
+                    somar(linha, daSessao, sessao);
                 } else {
                     paraRevisar++;
                 }
@@ -136,18 +198,11 @@ export class UbsService {
             // Conversas de antes de a pergunta existir: separadas para não
             // parecerem gente que se recusou a responder.
             anteriores,
+            // A referência para ler cada UBS: "20% sem resposta" só diz algo ao
+            // lado da taxa de todas as conversas do período.
+            geral: resumir(geral, conversas),
             porUbs: unidades
-                .map((u) => {
-                    const linha = porUbs.get(u.id) ?? { conversas: 0, perguntas: 0 };
-                    return {
-                        id: u.id,
-                        nome: u.nome,
-                        ...linha,
-                        // Sobre as identificadas: um número que dá para comparar
-                        // entre UBS mesmo com quantidades diferentes de não informadas.
-                        percentual: identificadas ? Math.round((linha.conversas / identificadas) * 1000) / 10 : 0,
-                    };
-                })
+                .map((u) => ({ id: u.id, nome: u.nome, ...resumir(porUbs.get(u.id) ?? linhaVazia(), identificadas) }))
                 .sort((a, b) => b.conversas - a.conversas || a.nome.localeCompare(b.nome, 'pt-BR')),
             grafias: await this.grafias(unidades),
         };
