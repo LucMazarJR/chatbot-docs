@@ -30,7 +30,11 @@ export function SeloUbs({ nome, texto }: { nome?: string | null; texto?: string 
   }
   if (!texto) return null;
   return (
-    <Selo tom="atencao" icone={<Building2 aria-hidden="true" />} title="Identifique na tela UBS">
+    <Selo
+      tom="atencao"
+      icone={<Building2 aria-hidden="true" />}
+      title="Identifique em Unidades de saúde"
+    >
       UBS a identificar
     </Selo>
   );

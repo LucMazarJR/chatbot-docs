@@ -307,7 +307,7 @@ Fica em `Dashboard-PetSaude/`. Já foi um repositório separado (`LucMazarJR/Das
 
 - **back**: NestJS na porta 3333. FAQs no mesmo Mongo do chatbot; identidade (usuários, papéis, sessões) no Postgres, banco separado.
 - **front**: TanStack Start na porta 5173.
-- **UBS de cada conversa**: o chat pergunta depois do aceite e grava o texto como veio (`sessoes.ubs`, ausente em conversa anterior à pergunta, `texto` nulo quando a pessoa pula). A identificação acontece na leitura, no painel ([identificar-ubs.ts](../Dashboard-PetSaude/back/src/ubs/identificar-ubs.ts)), para uma grafia corrigida valer também para trás. Compara letras, sem IA, e só decide quando há um vencedor: na dúvida, o texto fica para alguém apontar a unidade na tela UBS. A lista fica em `ubs_unidades`, no banco das FAQs, e nasce das unidades citadas na base.
+- **UBS de cada conversa**: o chat pergunta depois do aceite e grava o texto como veio (`sessoes.ubs`, ausente em conversa anterior à pergunta, `texto` nulo quando a pessoa pula). A identificação acontece na leitura, no painel ([identificar-ubs.ts](../Dashboard-PetSaude/back/src/ubs/identificar-ubs.ts)), para uma grafia corrigida valer também para trás. Compara letras, sem IA, e só decide quando há um vencedor: na dúvida, o texto fica para alguém apontar a unidade na tela Unidades de saúde. A lista fica em `ubs_unidades`, no banco das FAQs, e nasce das unidades citadas na base.
 - Login individual com JWT, três papéis: `admin` (gerencia usuários e FAQs), `editor` (cria/edita/exclui FAQs), `leitor` (só consulta). Sessões revogáveis: desativar um usuário ou trocar a senha derruba o acesso na hora.
 
 Estas telas nasceram dos testes com participantes, e cada uma resolve um problema concreto:

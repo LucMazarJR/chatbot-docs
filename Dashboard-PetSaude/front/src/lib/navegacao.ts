@@ -87,13 +87,13 @@ export const DESTINOS: Destino[] = [
   },
   // Mostra o que as pessoas escreveram, como Conversas: só admin.
   {
-    para: "/ubs",
-    rotulo: "UBS",
+    para: "/unidades",
+    rotulo: "Unidades de saúde",
     Icone: Building2,
     grupo: "chatbot",
     papeis: ["admin"],
     emTeste: true,
-    sinonimos: ["unidades", "postos", "unidade de saúde"],
+    sinonimos: ["ubs", "postos", "de onde vêm as conversas"],
   },
   {
     para: "/curadoria",
