@@ -129,26 +129,34 @@ const PLACEHOLDER_UBS = 'Escreva o nome da UBS';
  *
  * LÓGICA DO LUCIANO: o teste acontece com profissionais dentro das UBS, e a
  * equipe precisa saber de onde veio cada conversa. É mensagem do assistente, e
- * não formulário, porque é onde a pessoa já está olhando. Pular fica à vista: a
- * pergunta serve à equipe, e não pode ser a porta de quem veio tirar uma dúvida.
+ * não formulário, porque é onde a pessoa já está olhando.
+ *
+ * Pular é enviar com o campo vazio, e não um botão no balão: com o botão, no
+ * teste, pular ficava mais fácil do que escrever, e quase ninguém escrevia. Pular
+ * continua possível e dito na mensagem: a pergunta serve à equipe, e não pode ser
+ * a porta de quem veio tirar uma dúvida.
  */
 function pedidoDeUbs(quando?: Date): Item {
   return {
     chave: 'ubs-pedido',
     papel: 'bot',
-    texto: `Em qual UBS você está? 🏥\n\nEscreva no campo *${PLACEHOLDER_UBS}*, ou toque em *Pular*.`,
+    texto: [
+      'Em qual UBS você está? 🏥',
+      '',
+      `Escreva o nome no campo *${PLACEHOLDER_UBS}* e toque no botão de enviar, ao lado dele.`,
+      '',
+      'Se preferir não dizer, toque no botão de enviar com o campo vazio.',
+    ].join('\n'),
     hora: horaAgora(quando),
-    botoes: [{ rotulo: 'Pular', valor: 'pular' }],
   };
 }
 
 /** Remonta a pergunta da UBS numa conversa retomada, como ela ficou. */
 function itensDaUbs(ubs: { texto: string | null } | null, faltaResponder: boolean, quando: Date): Item[] {
-  if (faltaResponder) return [pedidoDeUbs(quando)];
-  if (!ubs) return [];
-  if (ubs.texto === null) return [{ ...pedidoDeUbs(quando), escolhido: 'pular' }];
+  if (faltaResponder || !ubs) return faltaResponder ? [pedidoDeUbs(quando)] : [];
+  if (ubs.texto === null) return [pedidoDeUbs(quando)];
   return [
-    { ...pedidoDeUbs(quando), botoes: undefined },
+    pedidoDeUbs(quando),
     { chave: 'ubs-resposta', papel: 'user', texto: ubs.texto, hora: horaAgora(quando), lida: true },
   ];
 }
@@ -685,12 +693,6 @@ export function Conversa({
   async function escolherBotao(item: Item, botao: BotaoRapido) {
     marcarEscolha(item.chave, botao.valor);
 
-    if (item.chave === 'ubs-pedido') {
-      registrarUbs(null);
-      concluirPedidoDeUbs();
-      return;
-    }
-
     if (!CHAVES_DE_ACEITE.includes(item.chave)) {
       // Sugestão de assunto: vale como pergunta digitada.
       void enviarTexto(botao.valor);
@@ -769,21 +771,16 @@ export function Conversa({
     setPedindoUbs(false);
 
     if (!pareceNomeDeUbs(mensagem)) {
-      marcarEscolha('ubs-pedido', 'pular');
       registrarUbs(null);
       return false;
     }
 
-    setItens((atuais) => {
-      const semPular = atuais.map((item) => {
-        if (item.chave === 'ubs-pedido') return { ...item, botoes: undefined };
-        return item.chave === chaveExistente ? { ...item, lida: true } : item;
-      });
-      // Por áudio, o balão da pessoa já está na tela.
-      return chaveExistente
-        ? semPular
-        : [...semPular, { chave: crypto.randomUUID(), papel: 'user', texto: mensagem, hora: horaAgora(), lida: true }];
-    });
+    // Por áudio, o balão da pessoa já está na tela.
+    setItens((atuais) =>
+      chaveExistente
+        ? atuais.map((item) => (item.chave === chaveExistente ? { ...item, lida: true } : item))
+        : [...atuais, { chave: crypto.randomUUID(), papel: 'user', texto: mensagem, hora: horaAgora(), lida: true }],
+    );
     veioDaVozRef.current = false;
     registrarUbs(mensagem);
     concluirPedidoDeUbs();
@@ -794,6 +791,12 @@ export function Conversa({
 
   function enviar() {
     const pergunta = texto.trim();
+    // Enviar vazio é o jeito de pular a pergunta da UBS.
+    if (!pergunta && pedindoUbs && sessaoId && aceitou && !encerrada) {
+      registrarUbs(null);
+      concluirPedidoDeUbs();
+      return;
+    }
     if (!pergunta) return;
 
     setTexto('');
@@ -1564,16 +1567,19 @@ export function Conversa({
                 ? 'A conversa foi encerrada. Não é possível enviar novas mensagens.'
                 : !aceitou
                   ? 'Para começar, aceite os termos na primeira mensagem da conversa.'
-                  : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
+                  : pedindoUbs
+                    ? 'Escreva o nome da UBS e envie. Enviar com o campo vazio pula a pergunta.'
+                    : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
             </p>
 
                 {/* Microfone enquanto não há texto, avião quando há: a troca do
                     WhatsApp. Os dois ao mesmo tempo deixariam três botões
-                    redondos lado a lado numa tela de 360px. */}
-                {texto.trim() && !ditado.ouvindo ? (
+                    redondos lado a lado numa tela de 360px. Durante a pergunta
+                    da UBS fica o avião mesmo vazio: enviar vazio é pular. */}
+                {(texto.trim() || pedindoUbs) && !ditado.ouvindo ? (
                   <button
                     className="enviar"
-                    aria-label="Enviar"
+                    aria-label={texto.trim() ? 'Enviar' : 'Pular a pergunta da UBS'}
                     disabled={digitando || encerrada || !sessaoId || !aceitou}
                     onClick={() => void enviar()}
                   >
