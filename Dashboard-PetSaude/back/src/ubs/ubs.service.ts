@@ -320,6 +320,10 @@ export class UbsService {
         const destino = await this.ubsModel.findById(ubsId).exec();
         if (!destino) throw new NotFoundException(NAO_ENCONTRADA);
 
+        // Apontar para a UBS que o texto já tem não muda nenhum número, e um
+        // registro de correção no histórico daria a entender que mudou.
+        if (identificarUbs(chave, await this.unidades())?.id === ubsId) return { ok: true, mudou: false };
+
         const donaDoNome = await this.ubsModel.findOne({ chave }).select('_id nome').lean().exec();
         if (donaDoNome && String(donaDoNome._id) !== ubsId) {
             throw new ConflictException(`Esse texto é o nome da ${donaDoNome.nome}. Para mudar, renomeie a unidade.`);

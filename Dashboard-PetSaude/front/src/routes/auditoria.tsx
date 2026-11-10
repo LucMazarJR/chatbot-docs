@@ -82,7 +82,7 @@ const TIPOS: { valor: TipoEntidade; rotulo: string }[] = [
   { valor: "faq", rotulo: "Perguntas" },
   { valor: "categoria", rotulo: "Categorias" },
   { valor: "conversa", rotulo: "Conversas" },
-  { valor: "ubs", rotulo: "UBS" },
+  { valor: "ubs", rotulo: "Unidades de saúde" },
   { valor: "notificacao", rotulo: "Avisos" },
   { valor: "usuario", rotulo: "Contas" },
   { valor: "sessao", rotulo: "Acessos" },

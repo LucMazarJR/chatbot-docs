@@ -16,11 +16,13 @@ A aplicação está totalmente separada e hospedada na nuvem nos seguintes servi
 
 Os dois publicam a partir da `main` do repositório `chatbot-docs`, cada um com a sua pasta como diretório raiz: `Dashboard-PetSaude/front` na Vercel e `Dashboard-PetSaude/back` no Render. O endereço sem "-seven" na Vercel é de outro projeto e não recebe os deploys.
 
-No mesmo repositório também está o chat, que tem o próprio projeto na Vercel. Sem filtro, cada push na `main` publicaria os dois projetos, e o plano grátis tem limite de deploys por dia. Por isso cada projeto da Vercel tem, em *Settings → Build and Deployment → Ignored Build Step*, o comando abaixo, que pula o deploy quando a pasta dele não mudou:
+No mesmo repositório também está o chat, que tem o próprio projeto na Vercel. Sem filtro, cada push na `main` publicaria os dois projetos, e o plano grátis tem limite de deploys por dia. Por isso cada projeto da Vercel tem, em *Settings → Build and Deployment → Ignored Build Step*, o comando abaixo, que pula o deploy quando a pasta dele não mudou desde o último deploy daquele projeto:
 
 ```bash
-git diff HEAD^ HEAD --quiet -- .
+[ -n "$VERCEL_GIT_PREVIOUS_SHA" ] && git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" HEAD -- .
 ```
+
+Comparar só com o commit anterior (`git diff HEAD^ HEAD`) não serve: num push com vários commits, se a mudança de uma pasta não estiver no último, o projeto dela é pulado. Na dúvida, o comando acima publica: sem o commit anterior à mão, ele termina com erro, e erro conta como "publicar".
 
 ## Stack de Tecnologia
 O projeto é dividido em dois serviços principais:

@@ -175,6 +175,12 @@ Ele não menciona `output` nem `standalone`, e leva a procurar no lugar errado. 
 
 ---
 
+## Vercel
+
+**O *Ignored Build Step* que compara só o último commit pula deploy de verdade.** Com `git diff HEAD^ HEAD -- .`, um push com dois merges, o do chat e depois o do painel, publicou só o painel: o último commit não mexia em `pwa/`, e a Vercel marcou o chat como "Canceled by Ignored Build Step". O chat ficou na versão antiga sem aviso nenhum. Comparar com o último deploy do projeto (`$VERCEL_GIT_PREVIOUS_SHA`) resolve: ver [Dashboard-PetSaude/README.md](../Dashboard-PetSaude/README.md#hospedagem-e-produção-links). Depois de um push, confira o status de cada projeto no commit (`gh api repos/<dono>/<repo>/commits/<sha>/statuses`).
+
+---
+
 ## Servidor (VM082)
 
 **Dois `cloudflared` com o mesmo token dividem as conversas.** A Cloudflare reparte o tráfego entre todas as máquinas conectadas ao túnel, sem aviso. Metade das perguntas cai num n8n e metade no outro, e cada um parece funcionar quando testado sozinho. Ao trocar de máquina, pare o túnel na antiga **antes** de subir o da nova. Antes de subir, um `curl -X POST <CLOUDFLARE_URL>/webhook/pwa-chat` precisa responder 530, que quer dizer túnel sem máquina conectada.

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ChevronDown, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Carregando } from "@/components/carregando";
@@ -38,9 +38,9 @@ import {
   type PeriodoUbs,
 } from "@/lib/ubs.functions";
 
-export const Route = createFileRoute("/ubs")({
+export const Route = createFileRoute("/unidades")({
   beforeLoad: () => exigirAdmin(),
-  head: () => ({ meta: [{ title: "UBS | Central de FAQs" }] }),
+  head: () => ({ meta: [{ title: "Unidades de saúde | Central de FAQs" }] }),
   component: UbsPage,
 });
 
@@ -52,10 +52,10 @@ const PERIODOS: { valor: PeriodoUbs; rotulo: string }[] = [
 ];
 
 const COMO: Record<"revisar" | ComoIdentificou, { rotulo: string; tom: TomDoSelo }> = {
-  revisar: { rotulo: "Não reconhecida", tom: "atencao" },
-  aproximada: { rotulo: "Aproximada", tom: "neutro" },
-  corrigida: { rotulo: "Corrigida", tom: "marca" },
-  nome: { rotulo: "Nome exato", tom: "sucesso" },
+  revisar: { rotulo: "Não reconhecido", tom: "atencao" },
+  aproximada: { rotulo: "Parecido", tom: "neutro" },
+  corrigida: { rotulo: "Ensinado pela equipe", tom: "marca" },
+  nome: { rotulo: "Nome certo", tom: "sucesso" },
 };
 
 /**
@@ -91,8 +91,8 @@ function UbsPage() {
     <GateShell>
       <div className="space-y-6">
         <CabecalhoPagina
-          titulo="UBS"
-          frase="De quais unidades vêm as conversas do chat, e como o assistente se sai em cada uma."
+          titulo="Unidades de saúde"
+          frase="O chat pergunta em qual UBS a pessoa está, e o sistema reconhece o nome sozinho, mesmo com erro de digitação. Você só precisa agir quando ele não reconhecer."
           acoes={
             <Button className="min-h-11" onClick={() => setAcao({ tipo: "nova" })}>
               <Plus aria-hidden="true" className="size-4" /> Nova UBS
@@ -319,8 +319,16 @@ function ParaIdentificar({
   grafias: Grafia[];
   aoEscolher: (acao: Acao) => void;
 }) {
-  // Sem pendência, a seção some: um "tudo certo" fixo empurraria o ranking para baixo.
-  if (grafias.length === 0) return null;
+  // Sem pendência, uma linha só: a caixa inteira empurraria o ranking para baixo,
+  // e não dizer nada deixava a dúvida se havia algo a fazer.
+  if (grafias.length === 0) {
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <CheckCircle2 aria-hidden="true" className="size-4 text-success" />
+        Nada para identificar: o sistema reconheceu todos os nomes que chegaram.
+      </p>
+    );
+  }
   const conversas = grafias.reduce((total, g) => total + g.vezes, 0);
 
   return (
@@ -333,9 +341,9 @@ function ParaIdentificar({
           Para identificar
         </h2>
         <p className="text-sm text-muted-foreground">
-          O sistema não reconheceu {plural(grafias.length, "texto", "textos")}, de{" "}
-          {plural(conversas, "conversa", "conversas")}. Ao apontar a UBS, ele aprende aquela grafia,
-          e as conversas passam a contar.
+          O sistema não reconheceu {plural(grafias.length, "nome", "nomes")}, de{" "}
+          {plural(conversas, "conversa", "conversas")}. Escolha a UBS certa e ele aprende aquele
+          jeito de escrever: as conversas passam a contar, inclusive as antigas.
         </p>
       </div>
       <ul className="overflow-hidden rounded-lg border border-border bg-card">
@@ -361,12 +369,12 @@ function ComoFoiReconhecido({
     <details className="group rounded-xl border border-border bg-card">
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5">
         <span>
-          <span className="font-semibold">Como cada texto foi reconhecido</span>
+          <span className="font-semibold">Nomes que o sistema reconheceu</span>
           <span className="block text-sm text-muted-foreground">
             {plural(grafias.length, "jeito de escrever", "jeitos de escrever")}
             {aproximadas > 0
-              ? `, ${numero(aproximadas)} por aproximação. Vale conferir esses.`
-              : ", todos pelo nome ou por correção."}
+              ? `, ${numero(aproximadas)} por semelhança. Se algum foi para a UBS errada, corrija aqui.`
+              : ". Se algum foi para a UBS errada, corrija aqui."}
           </span>
         </span>
         <ChevronDown
@@ -397,24 +405,25 @@ function LinhaGrafia({ grafia, aoEscolher }: { grafia: Grafia; aoEscolher: (acao
           {plural(grafia.vezes, "conversa", "conversas")}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          className="min-h-11"
-          onClick={() => aoEscolher({ tipo: "corrigir", grafia })}
-        >
-          {grafia.ubsId ? "Corrigir" : "Escolher UBS"}
-        </Button>
-        {grafia.como !== "nome" && (
+      {/* Nome certo não tem o que corrigir: é o nome oficial. Para mudar, renomeia-se a unidade. */}
+      {grafia.como !== "nome" && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className="min-h-11"
+            onClick={() => aoEscolher({ tipo: "corrigir", grafia })}
+          >
+            {grafia.ubsId ? "Corrigir" : "Escolher UBS"}
+          </Button>
           <Button
             variant="ghost"
             className="min-h-11"
             onClick={() => aoEscolher({ tipo: "descartar", grafia })}
           >
-            Não é UBS
+            Não é uma UBS
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </li>
   );
 }
@@ -484,7 +493,7 @@ const TITULOS: Record<Acao["tipo"], string> = {
   nova: "Nova UBS",
   renomear: "Renomear UBS",
   remover: "Remover UBS",
-  corrigir: "Qual é a UBS?",
+  corrigir: "Qual é a UBS certa?",
   descartar: "Isto não é uma UBS?",
 };
 
@@ -531,6 +540,11 @@ function DialogoDaAcao({
   function confirmar() {
     // O botão fica sempre ativo: dizer o que falta é melhor que apagá-lo.
     if (acao.tipo === "corrigir" && !ubsId) return setAviso("Escolha uma UBS da lista.");
+    if (acao.tipo === "corrigir" && ubsId === acao.grafia.ubsId) {
+      return setAviso(
+        `"${acao.grafia.texto}" já conta para a ${acao.grafia.ubsNome}. Para mudar, escolha outra UBS.`,
+      );
+    }
     if ((acao.tipo === "nova" || acao.tipo === "renomear") && nome.trim().length < 2) {
       return setAviso("Escreva o nome da UBS.");
     }
@@ -550,7 +564,10 @@ function DialogoDaAcao({
               "Quem escreveu o nome antigo continua contando nesta unidade."}
             {acao.tipo === "remover" &&
               `${acao.ubs.nome} sai da lista, e as conversas dela voltam para "Para identificar".`}
-            {acao.tipo === "corrigir" && `Alguém escreveu "${acao.grafia.texto}" no chat.`}
+            {acao.tipo === "corrigir" &&
+              (acao.grafia.ubsNome
+                ? `Alguém escreveu "${acao.grafia.texto}" no chat, e o sistema entendeu ${acao.grafia.ubsNome}. Escolha a UBS certa.`
+                : `Alguém escreveu "${acao.grafia.texto}" no chat. Escolha a UBS a que isso se refere.`)}
             {acao.tipo === "descartar" &&
               `"${acao.grafia.texto}" será apagado de ${plural(acao.grafia.vezes, "conversa", "conversas")}, que passam a contar como não informadas. Não dá para desfazer.`}
           </DialogDescription>
