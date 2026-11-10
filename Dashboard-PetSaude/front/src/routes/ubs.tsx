@@ -82,6 +82,9 @@ function UbsPage() {
   const painel = useQuery({
     queryKey: ["ubs-painel", periodo],
     queryFn: () => obterPainelUbs({ data: { periodo } }),
+    // O front publica antes do back: por alguns minutos o back antigo responde
+    // sem estes números, e a tela não pode quebrar por isso.
+    select: (dados): PainelUbs => ({ ...dados, geral: dados.geral ?? GERAL_VAZIO }),
   });
 
   return (
@@ -132,6 +135,19 @@ function UbsPage() {
     </GateShell>
   );
 }
+
+const GERAL_VAZIO: PainelUbs["geral"] = {
+  conversas: 0,
+  perguntas: 0,
+  semResposta: 0,
+  negativos: 0,
+  positivos: 0,
+  avaliacoes: 0,
+  notaMedia: null,
+  ultimaEm: null,
+  percentual: 0,
+  percentualSemResposta: null,
+};
 
 const porcento = (valor: number) => `${valor.toLocaleString("pt-BR")}%`;
 
