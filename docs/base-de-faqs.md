@@ -142,6 +142,7 @@ O caminho do dia a dia, para quem não mexe em script:
 
 - **Criar e editar FAQ**: o embedding é gerado na hora, e só quando o texto embedado realmente muda. Corrigir só a tag não gasta cota; corrigir a categoria gasta, porque ela entra no vetor.
 - **Importação em lote**: prévia antes de gravar, marcando duplicata exata (pelo `content_hash`), pergunta parecida já existente e assunto fora da lista oficial. Nada disso bloqueia o lote: a decisão é de quem está olhando a prévia.
+- **Tamanho do lote**: a importação aceita até 2.000 FAQs por arquivo. O backend aceita o JSON da prévia até 16 MB, para que documentos Word grandes não sejam barrados pelo limite padrão de 100 KB do Express. Acima de 2.000 FAQs, divida o documento em partes.
 - **Categorias**: a lista oficial de assuntos, com chave canônica (minúsculo, sem acento) e índice único. Renomear um assunto reescreve o `category` e o `text` de todas as FAQs dele, e devolve quantas precisam ser reindexadas.
 - **Saúde dos vetores**: quantas FAQs estão sem vetor, com dimensão errada, com modelo divergente ou com vetor desatualizado, e um backfill por modo, com limite e parada.
 - **Testar a busca**: roda a mesma busca do chatbot para uma pergunta digitada e mostra os scores, marcando quais passariam do corte.

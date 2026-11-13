@@ -34,6 +34,12 @@ async function bootstrap() {
   // sem isso cada página paga o tamanho do JSON cru na rede toda vez.
   app.use(compression());
 
+  // A prévia de importação envia as FAQs já extraídas em JSON. O limite padrão
+  // do Express é 100 KB, menor que um documento Word válido com algumas
+  // centenas de perguntas, e a tela recebia "Request too large" antes de o
+  // ValidationPipe conseguir aplicar o teto de 2.000 FAQs.
+  app.useBodyParser('json', { limit: '16mb' });
+
   // LÓGICA DO LUCIANO: `enableCors()` sem argumento libera QUALQUER origem.
   // A API usa Bearer token, então o risco é menor que com cookie, mas não há
   // motivo para um site qualquer conseguir chamá-la do navegador de quem está
