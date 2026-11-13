@@ -72,6 +72,7 @@ const ROTULO_ETAPA: Record<Job["etapa"], string> = {
 
 /** "1 pergunta", "3 perguntas": sem o "(s)", que se lê como formulário. */
 const perguntas = (n: number) => `${n} ${n === 1 ? "pergunta" : "perguntas"}`;
+const CHAVE_JOB_IMPORTACAO = "dashboard:importacao-faqs:job";
 
 function AreaDeArquivo({
   aoEscolher,
@@ -275,6 +276,15 @@ function PainelImportacao() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [assuntoLote, setAssuntoLote] = useState("");
 
+  // O job fica no backend enquanto a API estiver de pé. Guardar o id no
+  // navegador permite reencontrar também um lote que terminou enquanto a
+  // pessoa recarregava a página, em vez de devolver a prévia como se nada
+  // tivesse sido enviado.
+  useEffect(() => {
+    const salvo = window.localStorage.getItem(CHAVE_JOB_IMPORTACAO);
+    if (salvo) setJobId(salvo);
+  }, []);
+
   // Uma importação que já estava rodando quando a tela abriu, inclusive
   // iniciada em outro aparelho. Sem isto, a pessoa tentaria começar outra e
   // levaria um 409 sem entender por quê.
@@ -284,7 +294,10 @@ function PainelImportacao() {
   });
 
   useEffect(() => {
-    if (!jobId && emAndamento.data?.id) setJobId(emAndamento.data.id);
+    if (emAndamento.data?.id) {
+      setJobId(emAndamento.data.id);
+      window.localStorage.setItem(CHAVE_JOB_IMPORTACAO, emAndamento.data.id);
+    }
   }, [emAndamento.data, jobId]);
 
   const job = useQuery({
@@ -305,6 +318,10 @@ function PainelImportacao() {
       void queryClient.invalidateQueries({ queryKey: ["activity"] });
     }
   }, [estadoJob, queryClient]);
+
+  useEffect(() => {
+    if (jobId) window.localStorage.setItem(CHAVE_JOB_IMPORTACAO, jobId);
+  }, [jobId]);
 
   /**
    * @param preservarSelecao mantém o que a pessoa marcou ou desmarcou à mão.
@@ -455,6 +472,7 @@ function PainelImportacao() {
     onSuccess: (resultado) => {
       setConfirmando(false);
       setJobId(resultado.jobId);
+      window.localStorage.setItem(CHAVE_JOB_IMPORTACAO, resultado.jobId);
       setItens([]);
       setAvisos([]);
       setSelecionadas(new Set());
