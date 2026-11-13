@@ -166,7 +166,7 @@ export class FaqsService {
                 embedded_at: new Date(),
             };
         } catch (erro) {
-            const cota = GeminiService.ehErroDeCota(erro);
+            const cota = GeminiService.ehCotaDiaria(erro);
             this.logger.error(
                 `Falha ao gerar embedding${cota ? ' (cota da API)' : ''}: ` +
                 `${erro instanceof Error ? erro.message : String(erro)}`

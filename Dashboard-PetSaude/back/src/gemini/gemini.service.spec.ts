@@ -23,6 +23,7 @@ describe('GeminiService.gerarJsonComModelo', () => {
             if (proxima instanceof Error) throw proxima;
             return { text: proxima };
         });
+
         (service as any).genAI = { models: { generateContent } };
         // Sem esperar de verdade entre as tentativas.
         (service as any).esperar = jest.fn(async () => undefined);
@@ -36,6 +37,42 @@ describe('GeminiService.gerarJsonComModelo', () => {
 
         expect(resultado).toEqual({ dados: { ok: true }, modelo: 'gemini-3.1-flash-lite' });
         expect(modelos).toHaveLength(3);
+    });
+
+    describe('GeminiService.gerarEmbedding', () => {
+        function criarEmbedding(respostas: (Error | number[])[]) {
+            const config = { get: (chave: string) => (chave === 'GEMINI_API_KEY' ? 'chave-de-teste' : undefined) };
+            const service = new GeminiService(config as unknown as ConfigService);
+            const embedContent = jest.fn(async () => {
+                const proxima = respostas.shift();
+                if (proxima instanceof Error) throw proxima;
+                return { embeddings: [{ values: proxima }] };
+            });
+            (service as any).genAI = { models: { embedContent } };
+            (service as any).esperar = jest.fn(async () => undefined);
+            return { service, embedContent };
+        }
+
+        it('repete limite temporario e conclui sem marcar cota diaria', async () => {
+            const vetor = new Array(3072).fill(0);
+            const { service, embedContent } = criarEmbedding([
+                new Error('429 Too Many Requests: quota exceeded, retry after 60s'),
+                vetor,
+            ]);
+
+            await expect(service.gerarEmbedding('texto')).resolves.toHaveLength(3072);
+            expect(embedContent).toHaveBeenCalledTimes(2);
+        });
+
+        it('nao repete quando a API informa limite diario', async () => {
+            const { service, embedContent } = criarEmbedding([
+                new Error('429 RESOURCE_EXHAUSTED: EmbedContentRequestsPerDayPerUserPerProjectPerModel-FreeTier'),
+            ]);
+
+            await expect(service.gerarEmbedding('texto')).rejects.toThrow('PerDay');
+            expect(embedContent).toHaveBeenCalledTimes(1);
+            expect(GeminiService.ehCotaDiaria(new Error('requests per day exceeded'))).toBe(true);
+        });
     });
 
     it('depois de três sobrecargas, vai para a reserva e diz que foi ela', async () => {

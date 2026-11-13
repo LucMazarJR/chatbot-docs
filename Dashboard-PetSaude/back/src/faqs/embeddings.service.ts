@@ -268,7 +268,7 @@ export class EmbeddingsService {
                     similaridade: Number(this.cosseno(doc.embedding, novo).toFixed(4)),
                 });
             } catch (erro) {
-                if (GeminiService.ehErroDeCota(erro)) break;
+                if (GeminiService.ehCotaDiaria(erro)) break;
                 this.logger.warn(
                     `Amostra ignorada: ${erro instanceof Error ? erro.message : erro}`,
                 );
@@ -392,7 +392,7 @@ export class EmbeddingsService {
                     this.jobsService.incrementar(jobId, 'atualizadas');
                     this.jobsService.avancar(jobId);
                 } catch (erro) {
-                    if (GeminiService.ehErroDeCota(erro)) {
+                    if (GeminiService.ehCotaDiaria(erro)) {
                         this.jobsService.finalizar(
                             jobId,
                             'cota_esgotada',

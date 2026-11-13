@@ -29,6 +29,7 @@ export class GeminiService {
 
     /** Duas esperas: três tentativas no total, em pouco mais de 10 segundos. */
     private static readonly ESPERAS_ENTRE_TENTATIVAS_MS = [2_000, 8_000];
+    private static readonly ESPERAS_EMBEDDING_MS = [2_000, 8_000, 20_000];
 
     constructor(private configService: ConfigService) {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -98,6 +99,15 @@ export class GeminiService {
             .toLowerCase()
             .replace(/_/g, ' ');
         return ['rate limit', 'quota', 'resource exhausted', '429', 'limit exceeded'].some(
+            (termo) => texto.includes(termo),
+        );
+    }
+
+    static ehCotaDiaria(erro: unknown): boolean {
+        const texto = (erro instanceof Error ? erro.message : String(erro))
+            .toLowerCase()
+            .replace(/[_-]/g, ' ');
+        return ['per day', 'perday', 'requests per day', 'daily limit', 'daily quota'].some(
             (termo) => texto.includes(termo),
         );
     }
@@ -222,33 +232,45 @@ export class GeminiService {
             throw new Error('Text cannot be empty for embedding generation');
         }
 
-        try {
-            const result = await this.genAI.models.embedContent({
-                model: this.modelo,
-                contents: texto,
-                config: {
-                    taskType: this.taskType,
-                    outputDimensionality: GeminiService.DIMENSOES,
-                },
-            });
+        for (let tentativa = 0; ; tentativa++) {
+            try {
+                const result = await this.genAI.models.embedContent({
+                    model: this.modelo,
+                    contents: texto,
+                    config: {
+                        taskType: this.taskType,
+                        outputDimensionality: GeminiService.DIMENSOES,
+                    },
+                });
 
-            const embedding = result.embeddings?.[0]?.values || [];
+                const embedding = result.embeddings?.[0]?.values || [];
 
-            // Falha alto em vez de gravar um vetor de tamanho errado. O Mongo
-            // aceitaria o documento sem reclamar e a FAQ ficaria invisível para
-            // a busca: o tipo de defeito que só aparece semanas depois, quando
-            // alguém nota que uma pergunta nunca é encontrada.
-            if (embedding.length !== GeminiService.DIMENSOES) {
-                throw new Error(
-                    `Embedding com ${embedding.length} dimensões, esperado ${GeminiService.DIMENSOES}. ` +
-                    `Modelo em uso: ${this.modelo}.`,
+                // Falha alto em vez de gravar um vetor de tamanho errado. O Mongo
+                // aceitaria o documento sem reclamar e a FAQ ficaria invisível para
+                // a busca: o tipo de defeito que só aparece semanas depois, quando
+                // alguém nota que uma pergunta nunca é encontrada.
+                if (embedding.length !== GeminiService.DIMENSOES) {
+                    throw new Error(
+                        `Embedding com ${embedding.length} dimensões, esperado ${GeminiService.DIMENSOES}. ` +
+                        `Modelo em uso: ${this.modelo}.`,
+                    );
+                }
+
+                return embedding;
+            } catch (error) {
+                const espera = GeminiService.ESPERAS_EMBEDDING_MS[tentativa];
+                const limiteTemporario = GeminiService.ehErroDeCota(error) &&
+                    !GeminiService.ehCotaDiaria(error);
+                if (!limiteTemporario || espera === undefined) {
+                    this.logger.error(`Error generating embedding: ${error.message}`, error.stack);
+                    throw error;
+                }
+                this.logger.warn(
+                    `Limite temporario do embedding; nova tentativa em ${espera / 1000}s ` +
+                    `(tentativa ${tentativa + 2}).`,
                 );
+                await this.esperar(espera);
             }
-
-            return embedding;
-        } catch (error) {
-            this.logger.error(`Error generating embedding: ${error.message}`, error.stack);
-            throw error;
         }
     }
 }
