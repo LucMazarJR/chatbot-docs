@@ -1,6 +1,7 @@
 import type { LinkProps } from "@tanstack/react-router";
 import {
   BellRing,
+  Building2,
   FileBarChart,
   FolderOpen,
   History,
@@ -83,6 +84,16 @@ export const DESTINOS: Destino[] = [
     grupo: "chatbot",
     papeis: ["admin"],
     sinonimos: ["transcrições", "avaliações"],
+  },
+  // Mostra o que as pessoas escreveram, como Conversas: só admin.
+  {
+    para: "/unidades",
+    rotulo: "Unidades de saúde",
+    Icone: Building2,
+    grupo: "chatbot",
+    papeis: ["admin"],
+    emTeste: true,
+    sinonimos: ["ubs", "postos", "de onde vêm as conversas"],
   },
   {
     para: "/curadoria",

@@ -7,6 +7,7 @@ import { Sessao, SessaoSchema } from './schemas/sessao.schema';
 import { Mensagem, MensagemSchema } from './schemas/mensagem.schema';
 import { CONEXAO_PROTOTIPO } from './conexao';
 import { ActivityModule } from '../activity/activity.module';
+import { UbsModule } from '../ubs/ubs.module';
 import { Rodada, RodadaSchema } from '../curadoria/schemas/rodada.schema';
 import { Sugestao, SugestaoSchema } from '../curadoria/schemas/sugestao.schema';
 import { Relatorio, RelatorioSchema } from '../relatorios/schemas/relatorio.schema';
@@ -30,6 +31,7 @@ import { Relatorio, RelatorioSchema } from '../relatorios/schemas/relatorio.sche
             { name: Relatorio.name, schema: RelatorioSchema },
         ]),
         ActivityModule,
+        UbsModule,
     ],
     controllers: [ConversasController],
     providers: [ConversasService],

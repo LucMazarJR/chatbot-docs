@@ -67,6 +67,13 @@ export class Sessao {
     tutorial?: { escolha: 'visto' | 'pulado' | 'recusado' | 'ignorado'; em: Date };
 
     /**
+     * A UBS como a pessoa escreveu. `texto` nulo: tocou em Pular. Ausente: a
+     * conversa é anterior à pergunta. Quem reconhece a unidade é o UbsService.
+     */
+    @Prop({ type: Object, default: undefined })
+    ubs?: { texto: string | null; em: Date };
+
+    /**
      * A conta dona da conversa, quando a conversa foi feita com login.
      *
      * O painel mostra só que a conversa TEM conta, nunca de quem: quem analisa

@@ -60,6 +60,8 @@ export async function GET(requisicao: Request, { params }: Contexto) {
     encerrada: Boolean(sessao.encerradaEm),
     // Quem já aceitou não recebe o pedido de novo a cada recarga.
     consentimento: Boolean(sessao.consentimentoEm),
+    // Quem já respondeu, ou pulou, não recebe a pergunta da UBS de novo.
+    ubs: sessao.ubs ? { texto: sessao.ubs.texto } : null,
     // Uma resposta que ficou pendente de uma visita anterior não volta como
     // conversa: sem alguém esperando por ela, é ruído na transcrição.
     mensagens: lista.filter((m) => !m.pendente),

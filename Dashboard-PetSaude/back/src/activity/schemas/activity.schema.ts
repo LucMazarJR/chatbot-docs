@@ -14,6 +14,7 @@ export const TIPOS_ENTIDADE = [
     'faq',
     'categoria',
     'conversa',
+    'ubs',
     'notificacao',
     'usuario',
     'sessao',
@@ -41,6 +42,9 @@ export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
     // nenhum, só o id e as contagens: é a prova de que o pedido foi atendido, e
     // essa prova precisa durar o mesmo que o histórico de conteúdo.
     conversa: 730,
+    // Mexer na lista ou numa grafia muda de qual unidade cada conversa conta.
+    // O registro guarda a unidade, nunca o texto que a pessoa escreveu.
+    ubs: 730,
     // Aviso agendado ou cancelado pela equipe. O registro guarda o tipo e
     // quantas pessoas, nunca o texto nem quem recebeu: o texto de um lembrete
     // pode dizer qual exame a pessoa vai fazer.

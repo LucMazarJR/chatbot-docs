@@ -9,6 +9,7 @@ export const TIPOS_ENTIDADE = [
   "faq",
   "categoria",
   "conversa",
+  "ubs",
   "notificacao",
   "usuario",
   "sessao",

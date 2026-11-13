@@ -63,6 +63,7 @@ export default async function Privacidade({
           <ul>
             <li>O texto das mensagens que você envia e das respostas do assistente, com data e hora.</li>
             <li>O momento em que você aceitou, ou recusou, os termos no começo da conversa.</li>
+            <li>A UBS em que você está, se você informar.</li>
             <li>A avaliação, se você responder: nota, recomendação e comentário.</li>
             <li>O tipo de navegador e de aparelho, para a equipe investigar problemas de tela.</li>
             <li>

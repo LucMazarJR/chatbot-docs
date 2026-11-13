@@ -8,7 +8,7 @@ import { ApagarConversa } from "@/components/apagar-conversa";
 import { BaixarConversa } from "@/components/baixar-conversa";
 import { exigirAdmin } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
-import { SeloConta } from "@/components/selos-conversa";
+import { SeloConta, SeloUbs } from "@/components/selos-conversa";
 import { diaEHora, hora } from "@/lib/datas";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
@@ -80,7 +80,12 @@ function ConversaPage() {
             <CabecalhoPagina
               antes={voltar}
               titulo={sessao.nome}
-              selos={<SeloConta usuarioId={sessao.usuarioId} />}
+              selos={
+                <>
+                  <SeloConta usuarioId={sessao.usuarioId} />
+                  <SeloUbs nome={sessao.ubsNome} texto={sessao.ubs?.texto} />
+                </>
+              }
               frase={
                 <span className="text-sm sm:text-[15px]">
                   {diaEHora(sessao.iniciadaEm)} · {duracao(sessao.iniciadaEm, sessao.encerradaEm)}

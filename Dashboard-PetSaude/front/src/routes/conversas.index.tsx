@@ -19,7 +19,7 @@ import { CartaoNumero } from "@/components/cartao-numero";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { Segmentos } from "@/components/segmentos";
 import { Selo, type TomDoSelo } from "@/components/selo";
-import { SeloConta } from "@/components/selos-conversa";
+import { SeloConta, SeloUbs } from "@/components/selos-conversa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -232,6 +232,7 @@ function LinhaConversa({ conversa }: { conversa: ConversaResumida }) {
         <span className="flex min-w-0 flex-wrap items-center gap-2">
           <strong className="font-semibold">{conversa.nome}</strong>
           <SeloConta usuarioId={conversa.usuarioId} />
+          <SeloUbs nome={conversa.ubsNome} texto={conversa.ubs?.texto} />
         </span>
         <ChevronRight
           aria-hidden="true"
