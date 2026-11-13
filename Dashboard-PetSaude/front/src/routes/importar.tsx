@@ -61,6 +61,15 @@ const ROTULO_ESTADO: Record<Job["estado"], string> = {
   erro: "Não foi possível concluir",
 };
 
+const ROTULO_ETAPA: Record<Job["etapa"], string> = {
+  validando: "Conferindo as linhas do lote…",
+  gravando: "Salvando perguntas e preparando a busca…",
+  concluido: "Importação concluída",
+  parado: "Importação interrompida",
+  cota_esgotada: "Importação pausada pela cota da IA",
+  erro: "Importação encerrada com erro",
+};
+
 /** "1 pergunta", "3 perguntas": sem o "(s)", que se lê como formulário. */
 const perguntas = (n: number) => `${n} ${n === 1 ? "pergunta" : "perguntas"}`;
 
@@ -128,25 +137,62 @@ function AreaDeArquivo({
   );
 }
 
-function Andamento({ job, ehAdmin, aoParar }: { job: Job; ehAdmin: boolean; aoParar: () => void }) {
+function Andamento({
+  job,
+  nomeArquivo,
+  ehAdmin,
+  aoParar,
+}: {
+  job: Job;
+  nomeArquivo?: string;
+  ehAdmin: boolean;
+  aoParar: () => void;
+}) {
   const pct = job.total > 0 ? Math.round((job.processados / job.total) * 100) : 0;
   const semVetor = job.contadores.semEmbedding ?? 0;
+  const prontas = job.contadores.inseridas ?? 0;
+  const puladas = job.contadores.puladas ?? 0;
+  const comProblema = job.contadores.invalidas ?? 0;
+  const finalizadas = prontas + puladas + comProblema;
+  const linhaAtual = job.linhaAtual
+    ? `Linha ${job.linhaAtual} de ${job.total}`
+    : `${job.processados} de ${job.total}`;
 
   return (
     <section role="status" className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">{ROTULO_ESTADO[job.estado]}</h2>
+        <div>
+          <h2 className="text-lg font-semibold">{ROTULO_ESTADO[job.estado]}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{ROTULO_ETAPA[job.etapa]}</p>
+          {nomeArquivo && (
+            <p className="mt-1 break-all text-sm text-muted-foreground">{nomeArquivo}</p>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
-          {job.processados} de {job.total} · iniciado por {job.atorNome}
+          {linhaAtual} · iniciado por {job.atorNome}
         </p>
       </div>
 
       <Progress value={pct} className="mt-3" />
+      {job.estado === "rodando" && (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {finalizadas} de {job.total} linhas já conferidas. Esta tela atualiza sozinha.
+        </p>
+      )}
 
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-        <li>{job.contadores.inseridas ?? 0} inseridas</li>
-        <li>{job.contadores.puladas ?? 0} puladas</li>
-        <li>{job.contadores.invalidas ?? 0} com problema</li>
+      <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+        <li className="rounded-lg bg-success-soft p-3">
+          <strong className="block text-base">{prontas}</strong>
+          perguntas prontas
+        </li>
+        <li className="rounded-lg bg-muted p-3">
+          <strong className="block text-base">{job.total - finalizadas}</strong>
+          aguardando
+        </li>
+        <li className="rounded-lg bg-warning-soft p-3">
+          <strong className="block text-base">{puladas + comProblema}</strong>
+          puladas ou com problema
+        </li>
       </ul>
 
       {job.mensagem && <p className="mt-3 text-sm text-muted-foreground">{job.mensagem}</p>}
@@ -409,6 +455,9 @@ function PainelImportacao() {
     onSuccess: (resultado) => {
       setConfirmando(false);
       setJobId(resultado.jobId);
+      setItens([]);
+      setAvisos([]);
+      setSelecionadas(new Set());
       toast.success(`Salvando ${perguntas(resultado.total)}.`);
     },
     onError: (erro: Error) => {
@@ -550,7 +599,14 @@ function PainelImportacao() {
         </section>
       )}
 
-      {job.data && <Andamento job={job.data} ehAdmin={ehAdmin} aoParar={() => mutParar.mutate()} />}
+      {job.data && (
+        <Andamento
+          job={job.data}
+          nomeArquivo={arquivo?.name}
+          ehAdmin={ehAdmin}
+          aoParar={() => mutParar.mutate()}
+        />
+      )}
 
       <AlertDialog open={confirmando} onOpenChange={setConfirmando}>
         <AlertDialogContent>

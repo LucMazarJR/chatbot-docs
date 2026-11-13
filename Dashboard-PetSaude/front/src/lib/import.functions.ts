@@ -45,6 +45,8 @@ export type Job = {
   iniciadoEm: string;
   terminadoEm?: string;
   atorNome: string;
+  etapa: "validando" | "gravando" | "concluido" | "parado" | "cota_esgotada" | "erro";
+  linhaAtual?: number;
 };
 
 /**
