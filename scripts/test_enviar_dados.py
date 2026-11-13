@@ -97,8 +97,8 @@ def processar_faqs_drive():
             pergunta, resposta = None, None
 
             # Caso A: P e R na mesma linha
-            if re.search(r'\b(P|PERGUNTA):\s*', linha, re.IGNORECASE) and re.search(r'\b(R|RESPOSTA):\s*', linha, re.IGNORECASE):
-                partes = re.split(r'\s*\b(R|RESPOSTA):\s*', linha, flags=re.IGNORECASE)
+            if re.search(r'\b(P|PERGUNTA):\s*', linha, re.IGNORECASE) and re.search(r'\b(R|RESPOSTA)(?::\s*|\s+)', linha, re.IGNORECASE):
+                partes = re.split(r'\s*\b(R|RESPOSTA)(?::\s*|\s+)', linha, flags=re.IGNORECASE)
                 pergunta = re.sub(r'(\d+\.\s*)?\b(P|PERGUNTA):\s*', '', partes[0], flags=re.IGNORECASE).strip().lower()
                 resposta_bruta = partes[2].strip().lower()
                 resposta = re.split(r'tags:|fonte:|ref:|\(ref:', resposta_bruta, flags=re.IGNORECASE)[0].strip()
@@ -108,9 +108,9 @@ def processar_faqs_drive():
                 pergunta_pendente = re.sub(r'^(\d+\.\s*)?\b(P|PERGUNTA):\s*', '', linha, flags=re.IGNORECASE).strip().lower()
                 continue
 
-            elif re.search(r'^\b(R|RESPOSTA):\s*', linha, re.IGNORECASE) and pergunta_pendente:
+            elif re.search(r'^\b(R|RESPOSTA)(?::\s*|\s+)', linha, re.IGNORECASE) and pergunta_pendente:
                 pergunta = pergunta_pendente
-                resposta_bruta = re.sub(r'^\b(R|RESPOSTA):\s*', '', linha, flags=re.IGNORECASE).strip().lower()
+                resposta_bruta = re.sub(r'^\b(R|RESPOSTA)(?::\s*|\s+)', '', linha, flags=re.IGNORECASE).strip().lower()
                 resposta = re.split(r'tags:|fonte:|ref:|\(ref:', resposta_bruta, flags=re.IGNORECASE)[0].strip()
                 pergunta_pendente = ""
 

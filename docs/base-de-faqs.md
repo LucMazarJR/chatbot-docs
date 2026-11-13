@@ -118,6 +118,8 @@ R: Deve ser mantida em refrigeração entre 2°C e 8°C.
 TAGS: armazenamento, insulina. FONTE: Manual ABC.
 ```
 
+O marcador da resposta pode ser `R:` ou `R` seguido de espaço. O dashboard e a ingestão pelo Drive aceitam os dois formatos.
+
 Troca de assunto dentro do documento:
 
 ```
