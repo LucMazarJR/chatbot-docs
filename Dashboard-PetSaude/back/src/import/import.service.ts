@@ -344,6 +344,7 @@ export class ImportService {
             // poderia mandar qualquer coisa no commit, inclusive linhas que a
             // própria prévia tinha marcado como inválidas.
             const { itens } = await this.validar(dados.faqs);
+            this.jobsService.atualizarEtapa(jobId, 'gravando');
 
             for (let i = 0; i < itens.length; i += ImportService.TAMANHO_BLOCO) {
                 if (this.jobsService.foiPedidoParar(jobId)) {
@@ -358,6 +359,7 @@ export class ImportService {
                 const bloco = itens.slice(i, i + ImportService.TAMANHO_BLOCO);
 
                 for (const item of bloco) {
+                    this.jobsService.atualizarEtapa(jobId, 'gravando', item.linha);
                     if (item.estado !== 'ok') {
                         this.jobsService.incrementar(
                             jobId,

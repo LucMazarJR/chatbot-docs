@@ -2,6 +2,7 @@ import { ConflictException, Injectable, Logger, NotFoundException } from '@nestj
 import { randomUUID } from 'crypto';
 
 export type EstadoJob = 'rodando' | 'concluido' | 'parado' | 'cota_esgotada' | 'erro';
+export type EtapaJob = 'validando' | 'gravando' | 'concluido' | 'parado' | 'cota_esgotada' | 'erro';
 
 export type ErroDeLinha = { linha: number; mensagem: string };
 
@@ -22,6 +23,8 @@ export type Job = {
     terminadoEm?: Date;
     /** Quem pediu, para o log e para a tela dizer "iniciado por". */
     atorNome: string;
+    etapa: EtapaJob;
+    linhaAtual?: number;
 };
 
 /**
@@ -74,6 +77,7 @@ export class JobsService {
             errosOmitidos: 0,
             iniciadoEm: new Date(),
             atorNome,
+            etapa: 'validando',
         };
         this.jobs.set(job.id, job);
         this.logger.log(`Job ${tipo} ${job.id} iniciado por ${atorNome} (${total} itens).`);
@@ -126,6 +130,13 @@ export class JobsService {
         job.processados += quanto;
     }
 
+    atualizarEtapa(id: string, etapa: EtapaJob, linhaAtual?: number): void {
+        const job = this.jobs.get(id);
+        if (!job) return;
+        job.etapa = etapa;
+        job.linhaAtual = linhaAtual;
+    }
+
     registrarErro(id: string, erro: ErroDeLinha): void {
         const job = this.jobs.get(id);
         if (!job) return;
@@ -148,6 +159,7 @@ export class JobsService {
         const job = this.jobs.get(id);
         if (!job) return;
         job.estado = estado;
+        job.etapa = estado === 'rodando' ? 'gravando' : estado;
         job.mensagem = mensagem;
         job.terminadoEm = new Date();
         this.parada.delete(id);

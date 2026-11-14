@@ -125,6 +125,16 @@ describe('script padrão: Word', () => {
     expect(r.faqs[0].answer).toBe('Tem, 8 horas.');
   });
 
+  it('aceita resposta com R sem dois-pontos', () => {
+    const r = doDocx([
+      'P: Qual médico pode pedir o exame?',
+      'R Qualquer médico da atenção básica pode pedir.',
+    ]);
+
+    expect(r.faqs).toHaveLength(1);
+    expect(r.faqs[0].answer).toBe('Qualquer médico da atenção básica pode pedir.');
+  });
+
   it('aceita fonte escrita como Ref: e corta a resposta antes dela', () => {
     const r = doDocx(['P: Q? R: A. Ref: Cartilha X.']);
 

@@ -90,7 +90,9 @@ describe('EmbeddingsService: diagnostico por amostragem', () => {
     ];
     gerarEmbedding
       .mockResolvedValueOnce(vetor(0))
-      .mockRejectedValueOnce(new Error('429 quota exceeded'));
+      .mockRejectedValueOnce(
+        new Error('429 RESOURCE_EXHAUSTED: EmbedContentRequestsPerDayPerUserPerProjectPerModel-FreeTier'),
+      );
 
     const r = await service.diagnosticar(3);
 
@@ -212,7 +214,9 @@ describe('EmbeddingsService: backfill', () => {
     docs = [faq(1), faq(2), faq(3)];
     gerarEmbedding
       .mockResolvedValueOnce([0.1, 0.2, 0.3])
-      .mockRejectedValueOnce(new Error('RESOURCE_EXHAUSTED'));
+      .mockRejectedValueOnce(
+        new Error('RESOURCE_EXHAUSTED: EmbedContentRequestsPerDayPerUserPerProjectPerModel-FreeTier'),
+      );
 
     const { jobId } = await service.iniciarBackfill('tudo', 10, { name: 'Ana' });
     const job = await esperarFim(jobId);

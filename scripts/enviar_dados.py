@@ -247,8 +247,8 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                     pergunta, resposta = None, None
 
                     # 2. EXTRAÇÃO: Caso Pergunta e Resposta estejam na MESMA LINHA
-                    if re.search(r'\b(P|PERGUNTA):\s*', linha, re.IGNORECASE) and re.search(r'\b(R|RESPOSTA):\s*', linha, re.IGNORECASE):
-                        partes = re.split(r'\s*\b(R|RESPOSTA):\s*', linha, flags=re.IGNORECASE)
+                    if re.search(r'\b(P|PERGUNTA):\s*', linha, re.IGNORECASE) and re.search(r'\b(R|RESPOSTA)(?::\s*|\s+)', linha, re.IGNORECASE):
+                        partes = re.split(r'\s*\b(R|RESPOSTA)(?::\s*|\s+)', linha, flags=re.IGNORECASE)
                         pergunta = re.sub(r'(\d+\.\s*)?\b(P|PERGUNTA):\s*', '', partes[0], flags=re.IGNORECASE).strip()
                         # Extrai a resposta removendo possíveis tags/fontes que vierem na mesma linha
                         resposta = re.split(r'tags:|fonte:|ref:|\(ref:', partes[2], flags=re.IGNORECASE)[0].strip()
@@ -260,11 +260,11 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                         continue
 
                     # 4. EXTRAÇÃO: Caso seja a RESPOSTA (R:) para uma pergunta detectada anteriormente
-                    elif re.search(r'^\b(R|RESPOSTA):\s*', linha, re.IGNORECASE):
+                    elif re.search(r'^\b(R|RESPOSTA)(?::\s*|\s+)', linha, re.IGNORECASE):
                         if pergunta_pendente:
                             pergunta = pergunta_pendente
                             # Limpa o prefixo 'R:' e remove metadados do final
-                            corpo_res = re.sub(r'^\b(R|RESPOSTA):\s*', '', linha, flags=re.IGNORECASE)
+                            corpo_res = re.sub(r'^\b(R|RESPOSTA)(?::\s*|\s+)', '', linha, flags=re.IGNORECASE)
                             resposta = re.split(r'tags:|fonte:|ref:|\(ref:', corpo_res, flags=re.IGNORECASE)[0].strip()
                             pergunta_pendente = "" # Reseta para a próxima captura
                         else:

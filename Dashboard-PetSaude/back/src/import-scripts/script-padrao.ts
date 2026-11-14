@@ -69,7 +69,7 @@ export const modelo = {
   word: {
     instrucoes: [
       'Escreva uma pergunta por parágrafo, começando com P:',
-      'A resposta vem no parágrafo seguinte, começando com R:',
+      'A resposta vem no parágrafo seguinte, começando com R: (ou R seguido de espaço):',
       'ATENÇÃO: a resposta é lida de UM parágrafo só. Parágrafos soltos abaixo',
       'do R: são ignorados. Se a resposta tem vários itens, escreva todos na',
       'mesma linha, separados por ponto e vírgula.',
@@ -95,9 +95,9 @@ export const modelo = {
 
 var RE_ASSUNTO    = /\\[ASSUNTO:\\s*(.+?)\\]/i;
 var RE_P_QUALQUER = /\\b(?:P|PERGUNTA):\\s*/i;
-var RE_R_QUALQUER = /\\b(?:R|RESPOSTA):\\s*/i;
+var RE_R_QUALQUER = /\\b(?:R|RESPOSTA)(?::\\s*|\\s+)/i;
 var RE_P_INICIO   = /^(?:\\d+\\.\\s*)?\\b(?:P|PERGUNTA):\\s*/i;
-var RE_R_INICIO   = /^\\b(?:R|RESPOSTA):\\s*/i;
+var RE_R_INICIO   = /^\\b(?:R|RESPOSTA)(?::\\s*|\\s+)/i;
 var RE_P_EM_QUALQUER_LUGAR = /(?:\\d+\\.\\s*)?\\b(?:P|PERGUNTA):\\s*/i;
 
 // A ordem das alternativas importa e e a mesma do Python: 'ref:' casa antes de
