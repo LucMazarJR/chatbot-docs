@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
+  alvoDaBarra,
   ETAPAS,
   recadoDaEspera,
   TEXTO_DA_ETAPA,
@@ -16,17 +17,25 @@ const PASSO_MS = 400;
 
 /**
  * Quanto o trecho que termina leva para chegar ao fim antes de o seguinte
- * começar. Um pouco acima da transição de `.progresso-trecho i` (0,45 s), para
- * o seguinte só sair quando o anterior já parou.
+ * começar. A transição de `.progresso-trecho i` dura 0,45 s; a folga depois
+ * dela deixa ver um trecho parar cheio antes de o outro sair. Com 0,5 s, o
+ * fim de um e o começo do outro pareciam o mesmo movimento.
  */
-const CONCLUIR_MS = 500;
+const CONCLUIR_MS = 650;
 
 /**
- * Quanto o "Pronto" fica na tela antes de a resposta entrar. Sem ele, a barra
- * sumia pela metade, e a espera parecia cortada em vez de concluída. Perto
- * dos 20 a 40 s da espera, a pausa não pesa.
+ * Quanto o "Pronto" fica na tela, com a barra já cheia, antes de avisar que
+ * terminou. Sem ele, a barra sumia pela metade, e a espera parecia cortada em
+ * vez de concluída. Perto dos 20 a 40 s da espera, a pausa não pesa.
  */
-export const MOSTRAR_PRONTO_MS = 700;
+const MOSTRAR_PRONTO_MS = 700;
+
+/**
+ * O máximo que a resposta espera pela barra: alcançar as três etapas e o
+ * "Pronto" leva até 3 × 0,65 + 0,7 s. Se o aviso de fim se perder (a aba foi
+ * para o fundo e o relógio parou), a resposta entra mesmo assim.
+ */
+export const TETO_DO_FIM_MS = 3500;
 
 const VISTO = (
   <svg viewBox="0 0 16 15" aria-hidden="true">
@@ -45,8 +54,17 @@ const VISTO = (
  * parecer parada, e o trecho de uma etapa só completa quando chega o aviso da
  * seguinte.
  */
-export function ProgressoDaResposta({ etapa, pronta = false }: { etapa: EtapaDaResposta; pronta?: boolean }) {
-  const alvo = ETAPAS.indexOf(etapa);
+export function ProgressoDaResposta({
+  etapa,
+  pronta = false,
+  aoTerminar,
+}: {
+  etapa: EtapaDaResposta;
+  pronta?: boolean;
+  /** A barra encheu e o "Pronto" ficou à vista: a resposta pode entrar. */
+  aoTerminar?: () => void;
+}) {
+  const alvo = alvoDaBarra(etapa, pronta);
   const [relogio, setRelogio] = useState(() => {
     const agora = Date.now();
     return { comecouEm: agora, agora };
@@ -71,9 +89,20 @@ export function ProgressoDaResposta({ etapa, pronta = false }: { etapa: EtapaDaR
     return () => clearTimeout(espera);
   }, [concluindo, mostrada.indice]);
 
-  const nome = ETAPAS[mostrada.indice];
+  // A barra chegou ao fim da última etapa: mostra "Pronto" e, passado o tempo
+  // de ser visto, avisa. Em ref, para o aviso usar a função mais nova.
+  const terminou = mostrada.indice >= ETAPAS.length;
+  const aoTerminarRef = useRef(aoTerminar);
+  aoTerminarRef.current = aoTerminar;
+  useEffect(() => {
+    if (!terminou) return;
+    const aviso = setTimeout(() => aoTerminarRef.current?.(), MOSTRAR_PRONTO_MS);
+    return () => clearTimeout(aviso);
+  }, [terminou]);
+
+  const nome = ETAPAS[Math.min(mostrada.indice, ETAPAS.length - 1)];
   const esperou = relogio.agora - relogio.comecouEm;
-  const trechos = pronta
+  const trechos = terminou
     ? ETAPAS.map(() => 1)
     : trechosDaBarra(nome, Math.max(0, relogio.agora - mostrada.desde), concluindo);
   const recado = pronta ? null : recadoDaEspera(esperou);
@@ -86,7 +115,7 @@ export function ProgressoDaResposta({ etapa, pronta = false }: { etapa: EtapaDaR
             cada segundo. */}
         <div className="progresso-topo" aria-hidden="true">
           {/* A chave muda com a etapa: a frase nova entra deslizando, em vez de trocar seca. */}
-          {pronta ? (
+          {terminou ? (
             <span key="pronta" className="progresso-frase progresso-pronta">
               {VISTO}
               Pronto
@@ -102,7 +131,7 @@ export function ProgressoDaResposta({ etapa, pronta = false }: { etapa: EtapaDaR
           {ETAPAS.map((trecho, indice) => (
             <span
               key={trecho}
-              className={indice === mostrada.indice && !pronta ? 'progresso-trecho atual' : 'progresso-trecho'}
+              className={indice === mostrada.indice ? 'progresso-trecho atual' : 'progresso-trecho'}
             >
               <i style={{ width: `${trechos[indice] * 100}%` }} />
             </span>
