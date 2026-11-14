@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 
+import { AlturaVisivel } from '@/components/AlturaVisivel';
+
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -63,7 +65,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_DE_TEMA }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <AlturaVisivel />
+        {children}
+      </body>
     </html>
   );
 }

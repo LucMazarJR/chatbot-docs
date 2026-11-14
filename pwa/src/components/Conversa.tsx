@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import { aguardarResposta } from '@/lib/aguardar-resposta';
 import { Balao, Digitando } from '@/components/Balao';
-import { MOSTRAR_PRONTO_MS, ProgressoDaResposta } from '@/components/ProgressoDaResposta';
+import { ProgressoDaResposta, TETO_DO_FIM_MS } from '@/components/ProgressoDaResposta';
 import { BotoesRapidos, type BotaoRapido } from '@/components/BotoesRapidos';
 import { Feedback } from '@/components/Feedback';
 import { FolhaAvaliacao } from '@/components/FolhaAvaliacao';
@@ -395,6 +395,8 @@ export function Conversa({
   const [etapa, setEtapa] = useState<EtapaDaResposta | null>(null);
   /** A resposta chegou, e a caixa da espera mostra "Pronto" antes de ela entrar. */
   const [respostaPronta, setRespostaPronta] = useState(false);
+  /** Libera a resposta quando a caixa da espera termina de encher e mostra "Pronto". */
+  const fimDaBarraRef = useRef<(() => void) | null>(null);
 
   const listaRef = useRef<HTMLElement>(null);
   const campoRef = useRef<HTMLTextAreaElement>(null);
@@ -889,7 +891,13 @@ export function Conversa({
       // falha não: "Pronto" antes de um pedido de desculpas seria mentira.
       if (!pronta.erro) {
         setRespostaPronta(true);
-        await new Promise((resolver) => setTimeout(resolver, MOSTRAR_PRONTO_MS));
+        // Espera a barra terminar em sequência e mostrar "Pronto"; o teto
+        // garante que a resposta entra mesmo se o aviso não vier.
+        await new Promise<void>((resolver) => {
+          fimDaBarraRef.current = resolver;
+          setTimeout(resolver, TETO_DO_FIM_MS);
+        });
+        fimDaBarraRef.current = null;
       }
       adicionarBot(
         textoDaFalha(pronta.causa) ?? pronta.resposta,
@@ -1425,7 +1433,7 @@ export function Conversa({
           })}
 
           {digitando &&
-            (etapa ? <ProgressoDaResposta etapa={etapa} pronta={respostaPronta} /> : <Digitando />)}
+            (etapa ? <ProgressoDaResposta etapa={etapa} pronta={respostaPronta} aoTerminar={() => fimDaBarraRef.current?.()} /> : <Digitando />)}
 
           {/* `alert` e não `log`: o serviço fora do ar interrompe o que a pessoa
               veio fazer, e precisa ser dito na hora, não na vez dela. */}

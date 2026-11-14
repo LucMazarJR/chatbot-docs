@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { avancoDaEtapa, CALMA_MS, LENTO_MS, recadoDaEspera, TETO_DO_TRECHO, trechosDaBarra } from './etapas-da-resposta';
+import { alvoDaBarra, avancoDaEtapa, CALMA_MS, LENTO_MS, recadoDaEspera, TETO_DO_TRECHO, trechosDaBarra } from './etapas-da-resposta';
 
 describe('barra de progresso da resposta', () => {
   it('o trecho da etapa já nasce com um pouco de cor', () => {
@@ -31,6 +31,12 @@ describe('barra de progresso da resposta', () => {
     expect(procurando).toBeGreaterThan(0);
     expect(procurando).toBeLessThan(1);
     expect(escrevendo).toBe(0);
+  });
+
+  it('com a resposta pronta, a barra ainda passa por cada etapa que falta', () => {
+    expect(alvoDaBarra('buscando', false)).toBe(1);
+    // Depois da última, e não direto em todas: os trechos enchem em fila.
+    expect(alvoDaBarra('buscando', true)).toBe(3);
   });
 
   it('concluindo, o trecho atual vai até o fim e o seguinte ainda espera vazio', () => {

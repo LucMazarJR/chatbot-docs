@@ -81,3 +81,16 @@ export function trechosDaBarra(etapa: EtapaDaResposta, passouMs: number, conclui
     indice < atual ? 1 : indice === atual ? (concluindo ? 1 : avancoDaEtapa(etapa, passouMs)) : 0,
   );
 }
+
+/**
+ * Até onde a barra precisa chegar: a etapa que veio do fluxo, ou, com a
+ * resposta pronta, o fim da última (`ETAPAS.length`).
+ *
+ * "Pronta" é mais um passo da mesma fila, e não um salto: se a resposta chega
+ * enquanto a barra ainda alcança a etapa real (busca rápida, consulta que
+ * pulou uma etapa), os trechos que faltam enchem um de cada vez. Com o salto,
+ * eles enchiam juntos.
+ */
+export function alvoDaBarra(etapa: EtapaDaResposta, pronta: boolean): number {
+  return pronta ? ETAPAS.length : ETAPAS.indexOf(etapa);
+}
