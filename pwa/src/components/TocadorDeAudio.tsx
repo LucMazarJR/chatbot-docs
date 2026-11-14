@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { falar, pararDeFalar, taxaDeReproducao, vozSuportada } from '@/lib/leitura-em-voz';
+import { cabecalhosDaSessao } from '@/lib/sessao-local';
 import { aindaEAVez, soltarAVez, tomarAVez } from '@/lib/som-unico';
 import { formatarDuracao } from '@/lib/usar-gravador';
 import type { RecusaDaVoz } from '@/lib/usar-voz-ia';
@@ -27,15 +28,27 @@ type Estado = 'parado' | 'preparando' | 'tocando' | 'pausado' | 'aparelho';
  * que chega, e o toque em play que vem logo depois espera a mesma chamada em
  * vez de abrir outra. Cada chamada gasta uma das poucas falas gratuitas do dia.
  */
-const preparados = new Map<string, Promise<{ url: string } | ({ erro: string } & RecusaDaVoz)>>();
+const preparados = new Map<string, Promise<{ url: string; duracao: number | null } | ({ erro: string } & RecusaDaVoz)>>();
 
 function prepararResposta(mensagemId: string, voz: string) {
   const chave = `${mensagemId}:${voz}`;
   let pronto = preparados.get(chave);
   if (!pronto) {
-    pronto = fetch(`/api/mensagens/${mensagemId}/voz?voz=${encodeURIComponent(voz)}`)
+    // Com a chave da conversa: sem ela, a conversa sem conta (o `/`) recebe
+    // 404, e toda resposta caía na voz do celular sem a natural ser tentada.
+    pronto = fetch(`/api/mensagens/${mensagemId}/voz?voz=${encodeURIComponent(voz)}`, {
+      headers: cabecalhosDaSessao(),
+    })
       .then(async (resposta) => {
-        if (resposta.ok) return { url: URL.createObjectURL(await resposta.blob()) };
+        if (resposta.ok) {
+          // A duração que o servidor mediu: no iPhone, o MP3 em blob chega com
+          // `duration` infinita, e sem ela o tocador ficava sem barra e sem tempo.
+          const duracao = Number(resposta.headers.get('X-Duracao'));
+          return {
+            url: URL.createObjectURL(await resposta.blob()),
+            duracao: Number.isFinite(duracao) && duracao > 0 ? duracao : null,
+          };
+        }
         const dados = (await resposta.json().catch(() => ({}))) as { erro?: string } & RecusaDaVoz;
         return {
           erro: dados.erro ?? 'Não consegui gerar a voz natural agora. Uso a voz do celular.',
@@ -90,6 +103,8 @@ export function TocadorDeAudio({
   const [estado, setEstado] = useState<Estado>('parado');
   const [tempo, setTempo] = useState(0);
   const [total, setTotal] = useState(duracao ?? 0);
+  /** Quanto da resposta a voz do celular já leu, de 0 a 1, ou nulo se o navegador não diz. */
+  const [andamento, setAndamento] = useState<number | null>(null);
   // O MP3 da voz natural já carregado, com a voz em que foi gerado: trocar a
   // voz em Acessibilidade faz o próximo play buscar a voz nova.
   const urlRef = useRef<{ voz: string; url: string } | null>(null);
@@ -151,10 +166,16 @@ export function TocadorDeAudio({
       return;
     }
     setEstado('aparelho');
-    const conseguiu = await falar(fonte.texto, () => {
-      soltarAVez(vez);
-      setEstado('parado');
-    });
+    setAndamento(null);
+    const conseguiu = await falar(
+      fonte.texto,
+      () => {
+        soltarAVez(vez);
+        setEstado('parado');
+        setAndamento(null);
+      },
+      setAndamento,
+    );
     if (!conseguiu) {
       setEstado('parado');
       aoAvisar('Este aparelho não tem voz em português instalada. Dá para instalar nas configurações de voz do celular.');
@@ -171,6 +192,7 @@ export function TocadorDeAudio({
     const resultado = await prepararResposta(fonte.mensagemId, fonte.voz);
     if ('url' in resultado) {
       urlRef.current = { voz: fonte.voz, url: resultado.url };
+      if (resultado.duracao) setTotal((atual) => atual || resultado.duracao || 0);
       elemento(resultado.url);
       return resultado.url;
     }
@@ -301,7 +323,11 @@ export function TocadorDeAudio({
             }}
           />
         ) : (
-          <span className="tocador-onda" aria-hidden="true" />
+          // Na voz do celular, a onda enche conforme a leitura anda. Sem
+          // arrastar: a voz do celular não volta nem avança.
+          <span className="tocador-onda" aria-hidden="true">
+            {estado === 'aparelho' && andamento !== null && <i style={{ width: `${Math.round(andamento * 100)}%` }} />}
+          </span>
         )}
         <span className="tocador-tempo" role={estado === 'preparando' ? 'status' : undefined}>
           {estado === 'preparando'

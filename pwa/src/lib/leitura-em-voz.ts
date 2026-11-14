@@ -120,15 +120,25 @@ export function taxaDeReproducao(): number {
  *
  * Devolve falso quando não há voz em português: ler português com a voz em
  * inglês do sistema sai incompreensível, e é melhor dizer que não dá.
+ *
+ * `aoAndar` recebe quanto do texto já foi lido, de 0 a 1, a cada palavra. A
+ * voz do celular não diz a duração, e é a posição na frase que dá a barra do
+ * tocador. Navegador que não manda o evento simplesmente não chama.
  */
-export async function falar(texto: string, aoTerminar?: () => void): Promise<boolean> {
+export async function falar(
+  texto: string,
+  aoTerminar?: () => void,
+  aoAndar?: (fracao: number) => void,
+): Promise<boolean> {
   const voz = await aguardarVozes();
   if (!voz) return false;
   window.speechSynthesis.cancel();
-  const fala = new SpeechSynthesisUtterance(textoParaFala(texto));
+  const lido = textoParaFala(texto);
+  const fala = new SpeechSynthesisUtterance(lido);
   fala.voice = voz;
   fala.lang = voz.lang;
   fala.rate = lerVelocidade() === 'devagar' ? 0.8 : 1;
+  if (aoAndar && lido.length) fala.onboundary = (evento) => aoAndar(Math.min(1, evento.charIndex / lido.length));
   fala.onend = () => aoTerminar?.();
   fala.onerror = () => aoTerminar?.();
   window.speechSynthesis.speak(fala);

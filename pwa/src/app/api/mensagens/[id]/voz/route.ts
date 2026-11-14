@@ -64,6 +64,12 @@ export async function GET(requisicao: Request, { params }: Contexto) {
     .catch(() => {});
 
   return new Response(new Blob([resultado.mp3], { type: 'audio/mpeg' }), {
-    headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'private, max-age=86400' },
+    headers: {
+      'Content-Type': 'audio/mpeg',
+      'Cache-Control': 'private, max-age=86400',
+      // O iPhone não acha a duração de um MP3 sem cabeçalho de tempo, e o
+      // tocador ficaria sem barra: quem gerou o áudio sabe quanto ele dura.
+      'X-Duracao': resultado.segundos.toFixed(2),
+    },
   });
 }
