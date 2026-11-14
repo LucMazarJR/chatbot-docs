@@ -113,6 +113,8 @@ Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só
 
 ## Protótipo PWA
 
+**Com a pasta aberta como `c:\` (drive em minúscula), o vitest falha em todos os testes.** O erro é `Cannot read properties of undefined (reading 'config')` na linha do `describe`, em todo arquivo, e nenhum teste roda. No Windows, o vitest carrega o próprio módulo duas vezes quando a letra do drive chega diferente, e as duas cópias não se enxergam. Não é dependência quebrada (`npm ci` não resolve): rodar de `C:\Projetos\...`, com o `C` maiúsculo.
+
 **`output: 'standalone'` derruba o build na Vercel.** Ele é obrigatório para a imagem Docker não passar de 1 GB, e proibido na Vercel: o build de lá termina com um passo próprio que procura arquivos de rastreio que o modo standalone não produz. O erro é
 
 ```
