@@ -17,8 +17,14 @@
  */
 .st {
   display: flex;
+  position: fixed;
+  top: var(--topo-visivel, 0px);
+  right: 0;
+  left: 0;
   flex-direction: column;
-  height: 100dvh;
+  /* Preso à área visível, como o chat do `/` (ver `AlturaVisivel.tsx`): as
+     telas daqui rolam por dentro, em `.st-conteudo`. */
+  height: var(--altura-visivel, 100dvh);
   background: var(--fundo-chat);
   color: var(--texto);
 }

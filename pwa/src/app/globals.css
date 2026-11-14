@@ -229,6 +229,10 @@ body {
   background: var(--fundo-chat);
   /* Evita o "pinch zoom" acidental e o realce azul do toque no Android. */
   -webkit-tap-highlight-color: transparent;
+  /* No iPhone, o duplo toque para selecionar e copiar uma mensagem também dava
+     zoom na tela. `manipulation` tira só o zoom do duplo toque: a pinça
+     continua, para quem precisa ampliar. */
+  touch-action: manipulation;
   overscroll-behavior-y: none;
 }
 
@@ -246,6 +250,26 @@ button {
   /* `dvh` acompanha a barra de endereço do navegador móvel ao encolher; `vh`
      sozinho deixa a barra de digitação escondida atrás dela no iOS. */
   height: 100dvh;
+}
+
+/*
+ * O chat preso à área visível (ver `AlturaVisivel.tsx`), e o documento sem
+ * rolagem. No iPhone, o teclado fazia o Safari rolar a página inteira, e o
+ * cabeçalho saía da vista; a barra de endereço, ao aparecer e sumir, fazia a
+ * tela encolher e crescer no meio da conversa. Quem rola é só a lista de
+ * mensagens. Vale onde há chat: a página de privacidade continua rolando.
+ */
+html:has(body > #app),
+html:has(body > #app) body {
+  overflow: hidden;
+}
+
+body > #app {
+  position: fixed;
+  top: var(--topo-visivel, 0px);
+  right: 0;
+  left: 0;
+  height: var(--altura-visivel, 100dvh);
 }
 
 .tela {
@@ -443,6 +467,8 @@ button {
   flex: 1;
   padding: 12px 5% 8px;
   overflow-y: auto;
+  /* O puxão no fim da lista não arrasta a página junto. */
+  overscroll-behavior: contain;
   background-color: var(--fundo-chat);
   /* Padrão abstrato próprio, em SVG embutido: nenhum arquivo da Meta.
      A cor do traço fica FIXA dentro do SVG: um `data:` URI é renderizado em
@@ -921,6 +947,15 @@ button {
   outline: none;
 }
 
+/* No iPhone, campo com letra menor que 16 px faz o Safari dar zoom ao tocar,
+   e a tela aumentava e diminuía a cada pergunta. Fora do iPhone, a letra
+   continua a do chat. */
+@supports (-webkit-touch-callout: none) {
+  .barra-envio textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
 .barra-envio .campo:focus-within {
   outline: 3px solid var(--acento);
   outline-offset: 2px;
@@ -1178,6 +1213,15 @@ button {
   background: var(--borda);
 }
 
+/* O andamento da voz do celular, que avança a cada palavra lida. */
+.tocador-onda i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--acento);
+  transition: width 0.3s linear;
+}
+
 .tocador-tempo {
   color: var(--texto-fraco);
   font-size: 0.8em;
@@ -1366,7 +1410,7 @@ button {
 }
 
 .folha {
-  max-height: 92dvh;
+  max-height: calc(var(--altura-visivel, 100dvh) * 0.92);
   padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
   border-radius: 16px 16px 0 0;
   background: var(--painel);
@@ -1541,7 +1585,7 @@ button {
   right: 0;
   flex-direction: column;
   width: min(26rem, 100%);
-  height: 100dvh;
+  height: var(--altura-visivel, 100dvh);
   background: var(--painel);
   color: var(--texto);
   animation: entrar-lateral 0.18s ease-out;

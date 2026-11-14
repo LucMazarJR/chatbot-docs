@@ -303,7 +303,7 @@ export async function transcrever(audio: Uint8Array, mime: string): Promise<Tran
 }
 
 export type Fala =
-  | { ok: true; mp3: Uint8Array<ArrayBuffer>; modelo: string; ms: number; caracteres: number }
+  | { ok: true; mp3: Uint8Array<ArrayBuffer>; modelo: string; ms: number; caracteres: number; segundos: number }
   | { ok: false; falha: Falha | Indisponivel | 'longa' };
 
 /**
@@ -342,7 +342,14 @@ export async function falarComVozNatural(texto: string, voz: NomeDaVoz): Promise
 
   const pcm = lerPcmDoGemini(new Uint8Array(Buffer.from(audio.data, 'base64')), audio.mimeType);
   if (!pcm.amostras.length) return { ok: false, falha: 'vazia' };
-  return { ok: true, mp3: paraMp3(pcm), modelo: resultado.modelo, ms: Date.now() - inicio, caracteres: falado.length };
+  return {
+    ok: true,
+    mp3: paraMp3(pcm),
+    modelo: resultado.modelo,
+    ms: Date.now() - inicio,
+    caracteres: falado.length,
+    segundos: pcm.amostras.length / pcm.taxa,
+  };
 }
 
 /** A frase que a tela mostra quando a transcrição do áudio não deu certo. */
