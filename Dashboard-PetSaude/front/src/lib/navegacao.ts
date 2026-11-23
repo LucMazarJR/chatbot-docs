@@ -8,6 +8,7 @@ import {
   ListChecks,
   MessagesSquare,
   Settings,
+  ShieldCheck,
   Sparkles,
   Upload,
   Users,
@@ -24,17 +25,27 @@ export const GRUPOS: { id: IdGrupo; rotulo: string }[] = [
   { id: "administracao", rotulo: "Administração" },
 ];
 
-export type Destino = {
+/**
+ * Quem vê o item: quem tem a área no grupo, ou só o master. A tela de grupos não
+ * é de área nenhuma, porque muda o acesso de todo mundo.
+ */
+type Acesso =
+  | {
+      /**
+       * A área do grupo que abre esta tela. É também a linha da tela de grupos:
+       * o que o master marca lá é, item por item, este menu.
+       */
+      area: Area;
+      soMaster?: never;
+    }
+  | { soMaster: true; area?: never };
+
+export type Destino = Acesso & {
   /** Tipado pelas rotas que existem: um destino para rota inexistente não compila. */
   para: LinkProps["to"];
   rotulo: string;
   Icone: LucideIcon;
   grupo: IdGrupo;
-  /**
-   * A área do grupo que abre esta tela. É também a linha da tela de grupos: o
-   * que o master marca lá é, item por item, este menu.
-   */
-  area: Area;
   /**
    * Funcionalidade em validação: aparece no menu real com um selo "teste".
    * Promover ou tirar do menu é mudar esta linha.
@@ -132,6 +143,14 @@ export const DESTINOS: Destino[] = [
     sinonimos: ["contas", "acesso"],
   },
   {
+    para: "/grupos",
+    soMaster: true,
+    rotulo: "Grupos",
+    Icone: ShieldCheck,
+    grupo: "administracao",
+    sinonimos: ["permissões", "acesso", "papéis", "master"],
+  },
+  {
     para: "/auditoria",
     area: "historico",
     rotulo: "Histórico",
@@ -149,8 +168,15 @@ export const DESTINOS: Destino[] = [
   },
 ];
 
+/** O nome da área como aparece no menu: "curadoria" é "Sem resposta" na tela. */
+export function rotuloDaArea(area: Area): string {
+  return DESTINOS.find((destino) => destino.area === area)?.rotulo ?? area;
+}
+
 export function destinosDe(usuario: ComAcesso): Destino[] {
-  return DESTINOS.filter((destino) => pode(usuario, destino.area));
+  return DESTINOS.filter((destino) =>
+    destino.soMaster ? Boolean(usuario?.master) : pode(usuario, destino.area),
+  );
 }
 
 /** Os grupos do menu com ao menos um destino visível: grupo vazio não aparece. */
