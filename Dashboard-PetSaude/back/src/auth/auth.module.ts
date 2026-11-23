@@ -10,7 +10,7 @@ import { UserSession } from '../users/entities/user-session.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RolesGuard } from './guards/roles.guard';
+import { PermissoesGuard } from './guards/permissoes.guard';
 
 /** Tamanho mínimo do segredo. 32 hex = os 16 bytes que o .env.example manda gerar. */
 const TAMANHO_MINIMO_SEGREDO = 32;
@@ -80,14 +80,14 @@ export function exigirSegredoJwt(config: ConfigService): string {
     controllers: [AuthController],
     providers: [
         AuthService,
-        // A ORDEM IMPORTA: o RolesGuard lê request.user, que só existe depois
+        // A ORDEM IMPORTA: o PermissoesGuard lê request.user, que só existe depois
         // que o JwtAuthGuard rodou. Inverter faz toda checagem de papel
         // acontecer contra undefined. O ThrottlerGuard roda antes dos dois
         // (ele nem olha para request.user), mas por ordem de registro dos
         // APP_GUARD ele entra depois; NestJS aplica todos, a ordem entre um
         // rate-limit e uma checagem de token não importa aqui.
         { provide: APP_GUARD, useClass: JwtAuthGuard },
-        { provide: APP_GUARD, useClass: RolesGuard },
+        { provide: APP_GUARD, useClass: PermissoesGuard },
         { provide: APP_GUARD, useClass: ThrottlerGuard },
     ],
     exports: [AuthService],

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permite } from '../auth/decorators/permite.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { CategoriasService } from './categorias.service';
 import { AtualizarCategoriaDto } from './dto/atualizar-categoria.dto';
@@ -10,10 +10,10 @@ import { CriarCategoriaDto } from './dto/criar-categoria.dto';
 /**
  * A lista oficial de assuntos.
  *
- * LER é para quem escreve FAQ: o formulário precisa das opções, e editor
- * cadastra FAQ. DEFINIR a taxonomia é de admin: mudar um nome aqui reescreve o
- * campo `category` de todas as perguntas daquele assunto e muda o que o chatbot
- * enxerga como tema.
+ * LER também é de quem edita FAQ, mesmo sem a área Categorias: o formulário
+ * precisa das opções. DEFINIR a taxonomia é o editar de Categorias: mudar um
+ * nome aqui reescreve o campo `category` de todas as perguntas daquele assunto
+ * e muda o que o chatbot enxerga como tema.
  */
 @Controller('categorias')
 export class CategoriasController {
@@ -22,13 +22,13 @@ export class CategoriasController {
     // Declarada ANTES de qualquer rota com parâmetro: senão o Nest casaria
     // "revisao" como se fosse um id.
     @Get('revisao')
-    @Roles('admin', 'editor')
+    @Permite('categorias:ver', 'faqs:editar')
     revisao() {
         return this.categorias.revisao();
     }
 
     @Get()
-    @Roles('admin', 'editor')
+    @Permite('categorias:ver', 'faqs:editar')
     listar(@Query('incluirInativas') incluirInativas?: string) {
         // Comparação com a string porque o ValidationPipe roda com
         // enableImplicitConversion: false, então query param chega sempre como texto.
@@ -36,20 +36,20 @@ export class CategoriasController {
     }
 
     @Post()
-    @Roles('admin')
+    @Permite('categorias:editar')
     criar(@Body() body: CriarCategoriaDto, @CurrentUser() user: AuthenticatedUser) {
         return this.categorias.criar(body, { id: user.id, name: user.name });
     }
 
     /** Reescreve as variantes de grafia deste assunto para o nome oficial. */
     @Post(':id/normalizar')
-    @Roles('admin')
+    @Permite('categorias:editar')
     normalizar(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
         return this.categorias.normalizarGrafia(id, { id: user.id, name: user.name });
     }
 
     @Put(':id')
-    @Roles('admin')
+    @Permite('categorias:editar')
     atualizar(
         @Param('id') id: string,
         @Body() body: AtualizarCategoriaDto,
@@ -59,7 +59,7 @@ export class CategoriasController {
     }
 
     @Delete(':id')
-    @Roles('admin')
+    @Permite('categorias:editar')
     remover(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
         return this.categorias.remover(id, { id: user.id, name: user.name });
     }

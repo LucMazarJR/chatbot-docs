@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Query, Param, NotFoundException } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permite } from '../auth/decorators/permite.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { BuscaSemanticaService } from './busca.service';
 import { TestarBuscaDto } from './dto/testar-busca.dto';
@@ -22,11 +22,11 @@ export class FaqsController {
      * Roda a busca do chatbot para uma pergunta digitada, e devolve os scores.
      *
      * POST porque gasta: é um embedding por teste, na mesma cota diária que a
-     * ingestão e o chatbot dividem. De editor para cima: é quem escreve FAQ que
+     * ingestão e o chatbot dividem. Fica com quem edita FAQ: é quem escreve que
      * precisa saber se a que escreveu vai ser encontrada.
      */
     @Post('testar-busca')
-    @Roles('admin', 'editor')
+    @Permite('faqs:editar')
     testarBusca(@Body() body: TestarBuscaDto) {
         return this.buscaSemantica.testar(body.pergunta, body.topK);
     }
@@ -60,19 +60,19 @@ export class FaqsController {
     // digitado na tela do cadeado: qualquer pessoa podia escrever qualquer
     // nome. Agora vem do JWT, verificado pelo guard.
     @Post()
-    @Roles('admin', 'editor')
+    @Permite('faqs:editar')
     createFaq(@Body() body: CreateFaqDto, @CurrentUser() user: AuthenticatedUser) {
         return this.faqsService.createFaq(body, { id: user.id, name: user.name });
     }
 
     @Put()
-    @Roles('admin', 'editor')
+    @Permite('faqs:editar')
     updateFaq(@Body() body: UpdateFaqDto, @CurrentUser() user: AuthenticatedUser) {
         return this.faqsService.updateFaq(body.id, body, { id: user.id, name: user.name });
     }
 
     @Delete()
-    @Roles('admin', 'editor')
+    @Permite('faqs:editar')
     deleteFaq(@Body() body: DeleteFaqDto, @CurrentUser() user: AuthenticatedUser) {
         return this.faqsService.deleteFaq(body.id, { id: user.id, name: user.name });
     }

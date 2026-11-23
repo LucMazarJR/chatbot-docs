@@ -1,21 +1,18 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permite } from '../auth/decorators/permite.decorator';
 import { ActivityService } from './activity.service';
 import { ListActivityQueryDto } from './dto/list-activity-query.dto';
 
 /**
  * Histórico de alterações.
  *
- * LÓGICA DO LUCIANO: este controller estava sem @Roles, e o RolesGuard deixa
- * passar quem só está autenticado. Ou seja: um usuário `leitor` (que por
- * definição "apenas consulta" e não pode criar nem editar nada) paginava o
- * histórico inteiro e lia quem editou o quê, com o nome completo de cada colega
- * e o texto das perguntas. Era o único endpoint com dado de pessoa identificável
- * aberto a qualquer sessão.
+ * Área própria, e não aberta a qualquer sessão: o histórico mostra quem editou
+ * o quê, com o nome completo de cada colega e o texto das perguntas. Já foi uma
+ * rota sem restrição nenhuma, e qualquer conta de só consulta paginava tudo.
  */
 @Controller('activity')
-@Roles('admin')
+@Permite('historico:ver')
 export class ActivityController {
     constructor(private activityService: ActivityService) { }
 

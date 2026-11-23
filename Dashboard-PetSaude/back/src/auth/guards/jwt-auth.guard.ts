@@ -68,13 +68,16 @@ export class JwtAuthGuard implements CanActivate {
             throw new UnauthorizedException('Usuário desativado');
         }
 
-        // O papel vem do banco, não do token: promover ou rebaixar alguém passa
-        // a valer na requisição seguinte, sem precisar deslogar.
+        // O grupo vem do banco, não do token (o `eager` da entidade traz junto):
+        // mudar alguém de grupo, ou mudar o que um grupo libera, passa a valer
+        // na requisição seguinte, sem ninguém precisar sair e entrar.
         const autenticado: AuthenticatedUser = {
             id: usuario.id,
             name: usuario.name,
             email: usuario.email,
-            role: usuario.role,
+            master: usuario.master,
+            grupoId: usuario.grupoId,
+            permissoes: usuario.grupo?.permissoes ?? {},
             jti: payload.jti,
         };
         request.user = autenticado;

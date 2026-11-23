@@ -1,14 +1,14 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permite } from '../auth/decorators/permite.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { JobsService } from '../jobs/jobs.service';
 import { CommitImportacaoDto, ValidarImportacaoDto } from './dto/importar.dto';
 import { ImportService, JOB_IMPORTACAO } from './import.service';
 
 @Controller('import')
-@Roles('admin', 'editor')
+@Permite('importar:editar')
 export class ImportController {
     constructor(
         private readonly importService: ImportService,
