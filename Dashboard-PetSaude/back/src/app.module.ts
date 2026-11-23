@@ -11,6 +11,7 @@ import { ActivityModule } from './activity/activity.module';
 import { GeminiModule } from './gemini/gemini.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { GruposModule } from './grupos/grupos.module';
 import { ImportScriptsModule } from './import-scripts/import-scripts.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ImportModule } from './import/import.module';
@@ -101,6 +102,7 @@ import { UserSession } from './users/entities/user-session.entity';
     ActivityModule,
     AuthModule,
     UsersModule,
+    GruposModule,
     ImportScriptsModule,
     ImportModule,
     ConversasModule,

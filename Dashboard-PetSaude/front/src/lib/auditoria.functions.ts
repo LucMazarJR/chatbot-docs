@@ -12,6 +12,7 @@ export const TIPOS_ENTIDADE = [
   "ubs",
   "notificacao",
   "usuario",
+  "grupo",
   "sessao",
   "regra_importacao",
   "sistema",
