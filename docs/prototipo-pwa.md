@@ -63,7 +63,7 @@ O canal em produção continua igual. O isolamento é de ponta a ponta:
       consultando)                 ▲
                                    │
   Equipe ──► Dashboard-PetSaúde ───┘
-             /conversas (login + papel admin)
+             /conversas (login + área Conversas)
 ```
 
 Nenhuma requisição fica aberta esperando: o fluxo responde ao **receber**, e devolve o resultado quando termina. É o que permite uma resposta levar três minutos sem bater em teto de plataforma nenhum.
@@ -185,8 +185,8 @@ Essa rota é autenticada: um POST sem o `X-Webhook-Token` devolve 403. Como o en
 4. Deploy.
 
 > O PWA publicado tem **só o chat**. O painel de conversas mora no
-> Dashboard-PetSaúde, em `/conversas`, atrás do login e do papel de admin que já
-> existem lá: ver [O painel de conversas](#o-painel-de-conversas).
+> Dashboard-PetSaúde, em `/conversas`, atrás do login e da área Conversas do grupo,
+> que já existem lá: ver [O painel de conversas](#o-painel-de-conversas).
 
 ### O que muda em relação ao Docker
 
@@ -334,7 +334,7 @@ Rode `node n8n/testar-codigo-staging.mjs` (os nós de código) e `node n8n/testa
 
 ### O painel de conversas
 
-**Não fica mais no PWA.** Migrou para o Dashboard-PetSaúde, em **`/conversas`**, e só abre para quem tem papel `admin`: o conteúdo é relato de sintoma e pedido de atendimento escritos por cidadãos identificáveis pelo que contam, e a senha única de antes não tinha identidade nem registro de quem leu o quê.
+**Não fica mais no PWA.** Migrou para o Dashboard-PetSaúde, em **`/conversas`**, e só abre para quem está num grupo com a área Conversas: o conteúdo é relato de sintoma e pedido de atendimento escritos por cidadãos identificáveis pelo que contam, e a senha única de antes não tinha identidade nem registro de quem leu o quê.
 
 Cartões no topo agrupados por assunto (uso, qualidade, desempenho), filtros de período, interface e situação, e a transcrição de cada conversa.
 

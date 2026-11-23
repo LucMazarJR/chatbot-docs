@@ -149,7 +149,7 @@ O chat do `/` está em teste de campo e não pode mudar. Por isso o staging tem 
 
 **No chat, `/staging/avisos`**: diagnóstico do aparelho (conexão segura, suporte a push, app instalado, permissão, inscrição ativa), com uma frase dizendo o que fazer quando algo impede; **Ativar avisos neste aparelho**, que precisa de um toque porque o navegador só pede permissão a partir de um gesto; **Enviar um teste para mim**, limitado a 10 a cada 10 minutos; e a lista dos avisos recebidos. Tocar num aviso abre `/staging/avisos/:id`, com o texto completo.
 
-**No dashboard, `/notificacoes`** (só admin, marcada "em teste" no menu) (o formulário, com a prévia do que aparece na tela bloqueada, e a lista dos envios: quantos na fila, enviados, exibidos, abertos, não saíram e cancelados. Cada envio abre por plataforma e por pessoa. O histórico registra quem agendou e cancelou, o tipo e quantas pessoas) **nunca o texto nem quem recebeu**.
+**No dashboard, `/notificacoes`** (área Avisos; enviar e cancelar só com Avisos para editar; marcada "em teste" no menu) (o formulário, com a prévia do que aparece na tela bloqueada, e a lista dos envios: quantos na fila, enviados, exibidos, abertos, não saíram e cancelados. Cada envio abre por plataforma e por pessoa. O histórico registra quem agendou e cancelou, o tipo e quantas pessoas) **nunca o texto nem quem recebeu**.
 
 ---
 
