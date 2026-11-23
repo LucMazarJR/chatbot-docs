@@ -3,9 +3,14 @@ import {
     CreateDateColumn,
     Entity,
     Index,
+    JoinColumn,
+    ManyToOne,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
 } from 'typeorm';
+
+import type { Permissoes } from '../../grupos/areas';
+import { Grupo } from '../../grupos/entities/grupo.entity';
 
 export type UserRole = 'admin' | 'editor' | 'leitor';
 
@@ -44,6 +49,20 @@ export class User {
     @Column({ name: 'role', type: 'varchar', length: 20, default: 'leitor' })
     role: UserRole;
 
+    @Column({ name: 'grupo_id', type: 'uuid' })
+    grupoId: string;
+
+    // `eager`: toda leitura de usuário precisa das permissões, a começar pelo
+    // guard, que relê a conta a cada requisição. Query builder não respeita
+    // eager: quem usa precisa do leftJoinAndSelect.
+    @ManyToOne(() => Grupo, { eager: true, onDelete: 'RESTRICT' })
+    @JoinColumn({ name: 'grupo_id' })
+    grupo: Grupo;
+
+    /** Cria e edita os grupos, e passa o master adiante. Vale por cima do grupo. */
+    @Column({ name: 'master', type: 'boolean', default: false })
+    master: boolean;
+
     // Desativar é sempre isto, nunca DELETE: o log de atividades referencia o
     // usuário, e apagar a linha deixaria o histórico órfão.
     @Column({ name: 'is_active', type: 'boolean', default: true })
@@ -70,6 +89,9 @@ export type PublicUser = {
     id: string;
     name: string;
     email: string;
+    grupo: { id: string; nome: string };
+    permissoes: Permissoes;
+    master: boolean;
     role: UserRole;
     isActive: boolean;
     mustChangePassword: boolean;
@@ -78,10 +100,14 @@ export type PublicUser = {
 };
 
 export function toPublicUser(user: User): PublicUser {
+    const permissoes = user.grupo?.permissoes ?? {};
     return {
         id: user.id,
         name: user.name,
         email: user.email,
+        grupo: { id: user.grupoId, nome: user.grupo?.nome ?? '' },
+        permissoes,
+        master: user.master,
         role: user.role,
         isActive: user.isActive,
         mustChangePassword: user.mustChangePassword,

@@ -40,6 +40,10 @@ export class AuthService {
         const usuario = await this.usersRepo
             .createQueryBuilder('user')
             .addSelect('user.passwordHash')
+            // O query builder ignora o `eager` da entidade: sem o join, a
+            // resposta do login sairia sem grupo e sem permissões, e o menu
+            // nasceria vazio até a primeira consulta a /auth/me.
+            .leftJoinAndSelect('user.grupo', 'grupo')
             .where('user.email = :email', { email: email.trim().toLowerCase() })
             .getOne();
 

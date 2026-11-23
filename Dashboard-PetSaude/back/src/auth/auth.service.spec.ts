@@ -29,6 +29,7 @@ describe('AuthService: login', () => {
   function comUsuario(usuario: unknown) {
     usersRepo.createQueryBuilder.mockReturnValue({
       addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       getOne: jest.fn().mockResolvedValue(usuario),
     });
