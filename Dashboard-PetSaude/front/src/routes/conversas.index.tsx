@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Star } from "lucide-react";
 
-import { GateShell } from "@/components/gate";
+import { GateShell, usePode } from "@/components/gate";
 import { getFilaCuradoria } from "@/lib/curadoria.functions";
 import { exigirPermissao } from "@/lib/guardas";
 import {
@@ -275,8 +275,15 @@ function LinhaConversa({ conversa }: { conversa: ConversaResumida }) {
  * linha de baixo o que dá sentido ao número. Só o que pede atenção ganha cor.
  */
 function Numeros({ dados }: { dados: EstatisticasConversas }) {
-  const fila = useQuery({ queryKey: ["curadoria-fila"], queryFn: () => getFilaCuradoria() });
-  const pendentes = fila.data?.pendentes ?? 0;
+  // O atalho para a fila só para quem abre Sem resposta: para os outros, a
+  // consulta voltaria 403 e o link levaria a uma tela que não abre.
+  const podeVerFila = usePode("curadoria");
+  const fila = useQuery({
+    queryKey: ["curadoria-fila"],
+    queryFn: () => getFilaCuradoria(),
+    enabled: podeVerFila,
+  });
+  const pendentes = podeVerFila ? (fila.data?.pendentes ?? 0) : 0;
   const semResposta = dados.percentualSemResposta;
   const segundos = (ms: number) => `${(ms / 1000).toFixed(1).replace(".", ",")} s`;
 

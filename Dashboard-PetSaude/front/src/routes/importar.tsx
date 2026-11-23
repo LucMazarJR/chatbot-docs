@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileUp, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { GateShell, usePode, usePodeEscrever } from "@/components/gate";
+import { GateShell, usePode } from "@/components/gate";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoVazio } from "@/components/estado";
@@ -143,12 +143,12 @@ function AreaDeArquivo({
 function Andamento({
   job,
   nomeArquivo,
-  ehAdmin,
+  podeGerarVetores,
   aoParar,
 }: {
   job: Job;
   nomeArquivo?: string;
-  ehAdmin: boolean;
+  podeGerarVetores: boolean;
   aoParar: () => void;
 }) {
   const pct = job.total > 0 ? Math.round((job.processados / job.total) * 100) : 0;
@@ -207,8 +207,8 @@ function Andamento({
         <p className="mt-3 rounded-lg bg-warning-soft p-3 text-[15px]">
           {semVetor === 1 ? "1 pergunta foi salva" : `${semVetor} perguntas foram salvas`}, mas{" "}
           <strong>o chatbot ainda não consegue encontrá-las</strong>.{" "}
-          {ehAdmin ? "" : "Avise um administrador para concluir. "}
-          {ehAdmin ? (
+          {podeGerarVetores ? "" : "Avise quem cuida das Configurações do painel para concluir. "}
+          {podeGerarVetores ? (
             <Link
               to="/configuracoes"
               className="font-semibold text-primary underline underline-offset-2"
@@ -257,10 +257,10 @@ function Andamento({
 }
 
 function PainelImportacao() {
-  const podeEscrever = usePodeEscrever();
-  // O link para /configuracoes so aparece para quem consegue abrir a tela:
-  // quem clicasse sem acesso era jogado na home sem explicacao.
-  const ehAdmin = usePode("configuracoes");
+  const podeImportar = usePode("importar", "editar");
+  // O link para /configuracoes so aparece para quem consegue gerar os vetores
+  // la: quem clicasse sem acesso era jogado na home sem explicacao.
+  const podeGerarVetores = usePode("configuracoes", "editar");
   const queryClient = useQueryClient();
 
   const validar = useServerFn(validarImportacao);
@@ -499,10 +499,10 @@ function PainelImportacao() {
     [itens, selecionadas],
   );
 
-  if (!podeEscrever) {
+  if (!podeImportar) {
     return (
-      <EstadoVazio titulo="Seu perfil é só de leitura">
-        Peça a um editor ou administrador para importar perguntas.
+      <EstadoVazio titulo="O seu grupo não inclui Importar">
+        Peça ao master do painel para incluir, ou a alguém que importa perguntas.
       </EstadoVazio>
     );
   }
@@ -623,7 +623,7 @@ function PainelImportacao() {
         <Andamento
           job={job.data}
           nomeArquivo={arquivo?.name}
-          ehAdmin={ehAdmin}
+          podeGerarVetores={podeGerarVetores}
           aoParar={() => mutParar.mutate()}
         />
       )}

@@ -8,7 +8,7 @@ import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { CartaoNumero } from "@/components/cartao-numero";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
-import { GateShell } from "@/components/gate";
+import { GateShell, usePode } from "@/components/gate";
 import { Segmentos } from "@/components/segmentos";
 import { Selo, type TomDoSelo } from "@/components/selo";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,10 @@ const plural = (n: number, um: string, varios: string) => `${numero(n)} ${n === 
 function UbsPage() {
   const [periodo, setPeriodo] = useState<PeriodoUbs>("tudo");
   const [acao, setAcao] = useState<Acao | null>(null);
+  // Quem só vê acompanha os números: sem `aoEscolher`, as listas saem sem os
+  // botões de corrigir, renomear e remover.
+  const podeEditar = usePode("unidades", "editar");
+  const escolher = podeEditar ? setAcao : undefined;
 
   const painel = useQuery({
     queryKey: ["ubs-painel", periodo],
@@ -94,9 +98,11 @@ function UbsPage() {
           titulo="Unidades de saúde"
           frase="O chat pergunta em qual UBS a pessoa está, e o sistema reconhece o nome sozinho, mesmo com erro de digitação. Você só precisa agir quando ele não reconhecer."
           acoes={
-            <Button className="min-h-11" onClick={() => setAcao({ tipo: "nova" })}>
-              <Plus aria-hidden="true" className="size-4" /> Nova UBS
-            </Button>
+            podeEditar && (
+              <Button className="min-h-11" onClick={() => setAcao({ tipo: "nova" })}>
+                <Plus aria-hidden="true" className="size-4" /> Nova UBS
+              </Button>
+            )
           }
         />
 
@@ -113,14 +119,14 @@ function UbsPage() {
             <Numeros dados={painel.data} />
             <ParaIdentificar
               grafias={painel.data.grafias.filter((g) => g.como === null)}
-              aoEscolher={setAcao}
+              aoEscolher={escolher}
             />
             <Ranking dados={painel.data} />
             <ComoFoiReconhecido
               grafias={painel.data.grafias.filter((g) => g.como !== null)}
-              aoEscolher={setAcao}
+              aoEscolher={escolher}
             />
-            <ListaDeUbs linhas={painel.data.porUbs} aoEscolher={setAcao} />
+            <ListaDeUbs linhas={painel.data.porUbs} aoEscolher={escolher} />
           </>
         )}
       </div>
@@ -318,7 +324,7 @@ function ParaIdentificar({
   aoEscolher,
 }: {
   grafias: Grafia[];
-  aoEscolher: (acao: Acao) => void;
+  aoEscolher?: (acao: Acao) => void;
 }) {
   // Sem pendência, uma linha só: a caixa inteira empurraria o ranking para baixo,
   // e não dizer nada deixava a dúvida se havia algo a fazer.
@@ -343,8 +349,10 @@ function ParaIdentificar({
         </h2>
         <p className="text-sm text-muted-foreground">
           O sistema não reconheceu {plural(grafias.length, "nome", "nomes")}, de{" "}
-          {plural(conversas, "conversa", "conversas")}. Escolha a UBS certa e ele aprende aquele
-          jeito de escrever: as conversas passam a contar, inclusive as antigas.
+          {plural(conversas, "conversa", "conversas")}.{" "}
+          {aoEscolher
+            ? "Escolha a UBS certa e ele aprende aquele jeito de escrever: as conversas passam a contar, inclusive as antigas."
+            : "Quem tem Unidades para editar no grupo escolhe a UBS certa, e o sistema aprende aquele jeito de escrever."}
         </p>
       </div>
       <ul className="overflow-hidden rounded-lg border border-border bg-card">
@@ -361,7 +369,7 @@ function ComoFoiReconhecido({
   aoEscolher,
 }: {
   grafias: Grafia[];
-  aoEscolher: (acao: Acao) => void;
+  aoEscolher?: (acao: Acao) => void;
 }) {
   if (grafias.length === 0) return null;
   const aproximadas = grafias.filter((g) => g.como === "aproximada").length;
@@ -373,9 +381,8 @@ function ComoFoiReconhecido({
           <span className="font-semibold">Nomes que o sistema reconheceu</span>
           <span className="block text-sm text-muted-foreground">
             {plural(grafias.length, "jeito de escrever", "jeitos de escrever")}
-            {aproximadas > 0
-              ? `, ${numero(aproximadas)} por semelhança. Se algum foi para a UBS errada, corrija aqui.`
-              : ". Se algum foi para a UBS errada, corrija aqui."}
+            {aproximadas > 0 ? `, ${numero(aproximadas)} por semelhança.` : "."}
+            {aoEscolher && " Se algum foi para a UBS errada, corrija aqui."}
           </span>
         </span>
         <ChevronDown
@@ -392,7 +399,13 @@ function ComoFoiReconhecido({
   );
 }
 
-function LinhaGrafia({ grafia, aoEscolher }: { grafia: Grafia; aoEscolher: (acao: Acao) => void }) {
+function LinhaGrafia({
+  grafia,
+  aoEscolher,
+}: {
+  grafia: Grafia;
+  aoEscolher?: (acao: Acao) => void;
+}) {
   const como = COMO[grafia.como ?? "revisar"];
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0 sm:px-5">
@@ -407,7 +420,7 @@ function LinhaGrafia({ grafia, aoEscolher }: { grafia: Grafia; aoEscolher: (acao
         </p>
       </div>
       {/* Nome certo não tem o que corrigir: é o nome oficial. Para mudar, renomeia-se a unidade. */}
-      {grafia.como !== "nome" && (
+      {aoEscolher && grafia.como !== "nome" && (
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -434,7 +447,7 @@ function ListaDeUbs({
   aoEscolher,
 }: {
   linhas: LinhaUbs[];
-  aoEscolher: (acao: Acao) => void;
+  aoEscolher?: (acao: Acao) => void;
 }) {
   const emOrdem = [...linhas].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   return (
@@ -444,7 +457,7 @@ function ListaDeUbs({
           <span className="font-semibold">Lista de UBS</span>
           <span className="block text-sm text-muted-foreground">
             {plural(linhas.length, "unidade reconhecida", "unidades reconhecidas")} pelo chat.
-            Renomeie ou remova aqui.
+            {aoEscolher && " Renomeie ou remova aqui."}
           </span>
         </span>
         <ChevronDown
@@ -454,7 +467,9 @@ function ListaDeUbs({
       </summary>
       {emOrdem.length === 0 ? (
         <p className="border-t border-border px-4 py-3 text-sm text-muted-foreground sm:px-5">
-          A lista está vazia. Use Nova UBS, no topo, para cadastrar as unidades.
+          {aoEscolher
+            ? "A lista está vazia. Use Nova UBS, no topo, para cadastrar as unidades."
+            : "A lista está vazia."}
         </p>
       ) : (
         <ul className="border-t border-border">
@@ -464,24 +479,26 @@ function ListaDeUbs({
               className="flex items-center justify-between gap-2 border-b border-border px-4 py-1 last:border-b-0 sm:px-5"
             >
               <span className="min-w-0 truncate">{ubs.nome}</span>
-              <span className="flex shrink-0">
-                <Button
-                  variant="ghost"
-                  className="min-h-11"
-                  aria-label={`Renomear ${ubs.nome}`}
-                  onClick={() => aoEscolher({ tipo: "renomear", ubs })}
-                >
-                  Renomear
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="min-h-11"
-                  aria-label={`Remover ${ubs.nome}`}
-                  onClick={() => aoEscolher({ tipo: "remover", ubs })}
-                >
-                  Remover
-                </Button>
-              </span>
+              {aoEscolher && (
+                <span className="flex shrink-0">
+                  <Button
+                    variant="ghost"
+                    className="min-h-11"
+                    aria-label={`Renomear ${ubs.nome}`}
+                    onClick={() => aoEscolher({ tipo: "renomear", ubs })}
+                  >
+                    Renomear
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="min-h-11"
+                    aria-label={`Remover ${ubs.nome}`}
+                    onClick={() => aoEscolher({ tipo: "remover", ubs })}
+                  >
+                    Remover
+                  </Button>
+                </span>
+              )}
             </li>
           ))}
         </ul>

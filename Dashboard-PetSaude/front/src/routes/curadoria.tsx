@@ -25,7 +25,7 @@ import {
   type Sugestao,
 } from "@/lib/curadoria.functions";
 import { listarCategorias } from "@/lib/categorias.functions";
-import { GateShell } from "@/components/gate";
+import { GateShell, usePode } from "@/components/gate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,6 +92,9 @@ export const Route = createFileRoute("/curadoria")({
 function CuradoriaPage() {
   const queryClient = useQueryClient();
   const analisar = useServerFn(analisarLacunas);
+  // Analisar gasta cota da API, e aprovar grava FAQ: os dois são o editar da
+  // área. Quem só vê acompanha a fila e as sugestões.
+  const podeDecidir = usePode("curadoria", "editar");
 
   const fila = useQuery({ queryKey: ["curadoria-fila"], queryFn: () => getFilaCuradoria() });
   const sugestoes = useQuery({
@@ -150,20 +153,22 @@ function CuradoriaPage() {
               : "As perguntas que o chatbot não soube responder, a caminho de virar FAQ."
           }
           acoes={
-            <Button
-              onClick={() => {
-                // Fila vazia: o toque explica, em vez de um botão apagado.
-                if (fila.data && pendentes === 0) {
-                  toast.info("Não há perguntas na fila para analisar agora.");
-                  return;
-                }
-                disparar.mutate();
-              }}
-              disabled={rodando || disparar.isPending}
-            >
-              <Sparkles />
-              {rodando ? "Analisando…" : "Analisar agora"}
-            </Button>
+            podeDecidir && (
+              <Button
+                onClick={() => {
+                  // Fila vazia: o toque explica, em vez de um botão apagado.
+                  if (fila.data && pendentes === 0) {
+                    toast.info("Não há perguntas na fila para analisar agora.");
+                    return;
+                  }
+                  disparar.mutate();
+                }}
+                disabled={rodando || disparar.isPending}
+              >
+                <Sparkles />
+                {rodando ? "Analisando…" : "Analisar agora"}
+              </Button>
+            )
           }
         />
 
@@ -176,7 +181,7 @@ function CuradoriaPage() {
 
         {job.data && <Andamento job={job.data} />}
 
-        {!fila.isLoading && pendentes > 0 && !fila.data?.prontoParaRodar && (
+        {podeDecidir && !fila.isLoading && pendentes > 0 && !fila.data?.prontoParaRodar && (
           <p className="flex items-start gap-2.5 rounded-xl border border-border bg-card p-4 text-[15px] text-muted-foreground">
             <AlertTriangle className="mt-0.5 size-[18px] shrink-0" />
             <span>
@@ -435,6 +440,7 @@ function Andamento({ job }: { job: NonNullable<Awaited<ReturnType<typeof getJobC
 
 function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
   const queryClient = useQueryClient();
+  const podeDecidir = usePode("curadoria", "editar");
   const aprovar = useServerFn(aprovarSugestao);
   const descartar = useServerFn(descartarSugestao);
 
@@ -446,6 +452,8 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
   const categoriasQuery = useQuery({
     queryKey: ["categorias", false],
     queryFn: () => listarCategorias({ data: { incluirInativas: false } }),
+    // Só quem decide escolhe a categoria; para quem só vê, o campo é leitura.
+    enabled: podeDecidir,
   });
   const oficiais = categoriasQuery.data?.categorias ?? [];
 
@@ -573,6 +581,7 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
           <Label htmlFor={`pergunta-${sugestao.id}`}>Pergunta</Label>
           <Input
             id={`pergunta-${sugestao.id}`}
+            readOnly={!podeDecidir}
             value={pergunta}
             maxLength={300}
             onChange={(e) => {
@@ -586,6 +595,7 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
           <Label htmlFor={`resposta-${sugestao.id}`}>Resposta</Label>
           <Textarea
             id={`resposta-${sugestao.id}`}
+            readOnly={!podeDecidir}
             value={resposta}
             rows={5}
             maxLength={4000}
@@ -650,25 +660,31 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
           Sugerido por {sugestao.modelo ?? "modelo"}
           {sugestao.criadaPor ? ` · disparado por ${sugestao.criadaPor}` : ""}
         </span>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => mutDescartar.mutate()}
-            disabled={mutDescartar.isPending || mutAprovar.isPending}
-          >
-            Descartar
-          </Button>
-          <Button
-            onClick={() => {
-              const motivo = oQueFalta();
-              setFalta(motivo);
-              if (!motivo) mutAprovar.mutate();
-            }}
-            disabled={mutAprovar.isPending || mutDescartar.isPending}
-          >
-            {mutAprovar.isPending ? "Criando…" : "Aprovar e criar FAQ"}
-          </Button>
-        </div>
+        {podeDecidir ? (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => mutDescartar.mutate()}
+              disabled={mutDescartar.isPending || mutAprovar.isPending}
+            >
+              Descartar
+            </Button>
+            <Button
+              onClick={() => {
+                const motivo = oQueFalta();
+                setFalta(motivo);
+                if (!motivo) mutAprovar.mutate();
+              }}
+              disabled={mutAprovar.isPending || mutDescartar.isPending}
+            >
+              {mutAprovar.isPending ? "Criando…" : "Aprovar e criar FAQ"}
+            </Button>
+          </div>
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            Aprovar e descartar ficam com quem tem Sem resposta para editar no grupo.
+          </span>
+        )}
       </div>
     </li>
   );
