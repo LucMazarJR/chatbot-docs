@@ -173,7 +173,9 @@ function FormularioGrupo({
       aoTerminar(
         grupo
           ? grupo.membros > 0
-            ? `Grupo salvo. Vale para ${grupo.membros === 1 ? "a pessoa" : `as ${grupo.membros} pessoas`} do grupo na próxima tela que abrirem.`
+            ? grupo.membros === 1
+              ? "Grupo salvo. Vale para a pessoa do grupo na próxima tela que ela abrir."
+              : `Grupo salvo. Vale para as ${grupo.membros} pessoas do grupo na próxima tela que abrirem.`
             : "Grupo salvo."
           : "Grupo criado. Na tela de Usuários, ponha as pessoas nele.",
       ),
@@ -207,7 +209,9 @@ function FormularioGrupo({
         frase={
           grupo
             ? grupo.membros > 0
-              ? `Mudar aqui muda o acesso ${grupo.membros === 1 ? "da pessoa" : `das ${grupo.membros} pessoas`} do grupo, na próxima tela que abrirem.`
+              ? grupo.membros === 1
+                ? "Mudar aqui muda o acesso da pessoa deste grupo, na próxima tela que ela abrir."
+                : `Mudar aqui muda o acesso das ${grupo.membros} pessoas deste grupo, na próxima tela que abrirem.`
               : "Ninguém está neste grupo ainda."
             : "Marque o que os membros veem e mudam em cada item do menu."
         }
