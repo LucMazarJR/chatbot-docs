@@ -41,7 +41,7 @@ Precisa de política de backup para três volumes:
 |---|---|
 | `wa_sessions` | Credenciais do WhatsApp. Exige parear de novo |
 | `n8n_data` | Fluxos e credenciais. Significa reconfigurar tudo do zero |
-| `postgres_data` | Usuários e papéis do dashboard |
+| `postgres_data` | Usuários e grupos do dashboard |
 
 A base de FAQs fica no Atlas, fora desses volumes, e tem backup próprio pelo [backup_faqs.py](../scripts/backup_faqs.py).
 

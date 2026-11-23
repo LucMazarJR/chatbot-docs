@@ -8,13 +8,14 @@ import {
   ListChecks,
   MessagesSquare,
   Settings,
+  ShieldCheck,
   Sparkles,
   Upload,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
-import type { UserRole } from "@/lib/auth.functions";
+import { pode, type Area, type ComAcesso } from "@/lib/permissoes";
 
 export type IdGrupo = "conteudo" | "chatbot" | "administracao";
 
@@ -24,14 +25,27 @@ export const GRUPOS: { id: IdGrupo; rotulo: string }[] = [
   { id: "administracao", rotulo: "Administração" },
 ];
 
-export type Destino = {
+/**
+ * Quem vê o item: quem tem a área no grupo, ou só o master. A tela de grupos não
+ * é de área nenhuma, porque muda o acesso de todo mundo.
+ */
+type Acesso =
+  | {
+      /**
+       * A área do grupo que abre esta tela. É também a linha da tela de grupos:
+       * o que o master marca lá é, item por item, este menu.
+       */
+      area: Area;
+      soMaster?: never;
+    }
+  | { soMaster: true; area?: never };
+
+export type Destino = Acesso & {
   /** Tipado pelas rotas que existem: um destino para rota inexistente não compila. */
   para: LinkProps["to"];
   rotulo: string;
   Icone: LucideIcon;
   grupo: IdGrupo;
-  /** Quem vê. Ausente = todo mundo autenticado. */
-  papeis?: UserRole[];
   /**
    * Funcionalidade em validação: aparece no menu real com um selo "teste".
    * Promover ou tirar do menu é mudar esta linha.
@@ -49,12 +63,13 @@ export type Destino = {
  * nova exigia editar também uma união de strings com as rotas. Agora a barra
  * lateral, a gaveta do celular e o "Ir para…" leem daqui. Tela nova é uma linha.
  *
- * A visibilidade por papel é conveniência, não segurança: quem barra de verdade é
- * o `@Roles` do backend, e o `beforeLoad` de cada rota.
+ * A visibilidade pelo grupo é conveniência, não segurança: quem barra de verdade
+ * é o `@Permite` do backend, e o `beforeLoad` de cada rota.
  */
 export const DESTINOS: Destino[] = [
   {
     para: "/",
+    area: "faqs",
     rotulo: "FAQs",
     Icone: ListChecks,
     grupo: "conteudo",
@@ -62,6 +77,7 @@ export const DESTINOS: Destino[] = [
   },
   {
     para: "/categorias",
+    area: "categorias",
     rotulo: "Categorias",
     Icone: FolderOpen,
     grupo: "conteudo",
@@ -69,92 +85,103 @@ export const DESTINOS: Destino[] = [
   },
   {
     para: "/importar",
+    area: "importar",
     rotulo: "Importar",
     Icone: Upload,
     grupo: "conteudo",
-    papeis: ["admin", "editor"],
     sinonimos: ["planilha", "lote"],
   },
-  // Conversas e a fila de sem resposta expõem o que cidadãos escreveram no chat.
-  // Só admin, como Histórico e Usuários.
   {
     para: "/conversas",
+    area: "conversas",
     rotulo: "Conversas",
     Icone: MessagesSquare,
     grupo: "chatbot",
-    papeis: ["admin"],
     sinonimos: ["transcrições", "avaliações"],
   },
-  // Mostra o que as pessoas escreveram, como Conversas: só admin.
   {
     para: "/unidades",
+    area: "unidades",
     rotulo: "Unidades de saúde",
     Icone: Building2,
     grupo: "chatbot",
-    papeis: ["admin"],
     emTeste: true,
     sinonimos: ["ubs", "postos", "de onde vêm as conversas"],
   },
   {
     para: "/curadoria",
+    area: "curadoria",
     rotulo: "Sem resposta",
     Icone: Sparkles,
     grupo: "chatbot",
-    papeis: ["admin"],
     sinonimos: ["curadoria", "sugestões", "lacunas"],
   },
   {
     para: "/relatorios",
+    area: "relatorios",
     rotulo: "Relatório do dia",
     Icone: FileBarChart,
     grupo: "chatbot",
-    papeis: ["admin"],
     emTeste: true,
     sinonimos: ["relatório", "resumo", "pdf", "análise"],
   },
   {
     para: "/notificacoes",
+    area: "avisos",
     rotulo: "Avisos",
     Icone: BellRing,
     grupo: "chatbot",
-    papeis: ["admin"],
     emTeste: true,
     sinonimos: ["notificações", "push", "lembretes"],
   },
   {
     para: "/usuarios",
+    area: "usuarios",
     rotulo: "Usuários",
     Icone: Users,
     grupo: "administracao",
-    papeis: ["admin"],
     sinonimos: ["contas", "acesso"],
   },
   {
+    para: "/grupos",
+    soMaster: true,
+    rotulo: "Grupos",
+    Icone: ShieldCheck,
+    grupo: "administracao",
+    sinonimos: ["permissões", "acesso", "papéis", "master"],
+  },
+  {
     para: "/auditoria",
+    area: "historico",
     rotulo: "Histórico",
     Icone: History,
     grupo: "administracao",
-    papeis: ["admin"],
     sinonimos: ["auditoria", "registro"],
   },
   {
     para: "/configuracoes",
+    area: "configuracoes",
     rotulo: "Configurações",
     Icone: Settings,
     grupo: "administracao",
-    papeis: ["admin"],
     sinonimos: ["embeddings", "vetores", "scripts"],
   },
 ];
 
-export function destinosDe(papel: UserRole | undefined): Destino[] {
-  if (!papel) return [];
-  return DESTINOS.filter((destino) => !destino.papeis || destino.papeis.includes(papel));
+/** O nome da área como aparece no menu: "curadoria" é "Sem resposta" na tela. */
+export function rotuloDaArea(area: Area): string {
+  return DESTINOS.find((destino) => destino.area === area)?.rotulo ?? area;
 }
 
-/** Os grupos com ao menos um destino visível para o papel: grupo vazio não aparece. */
-export function gruposDe(papel: UserRole | undefined) {
-  const visiveis = destinosDe(papel);
+export function destinosDe(usuario: ComAcesso): Destino[] {
+  return DESTINOS.filter((destino) =>
+    destino.soMaster ? Boolean(usuario?.master) : pode(usuario, destino.area),
+  );
+}
+
+/** Os grupos do menu com ao menos um destino visível: grupo vazio não aparece. */
+export function gruposDe(usuario: ComAcesso) {
+  const visiveis = destinosDe(usuario);
   return GRUPOS.map((grupo) => ({
     ...grupo,
     destinos: visiveis.filter((destino) => destino.grupo === grupo.id),

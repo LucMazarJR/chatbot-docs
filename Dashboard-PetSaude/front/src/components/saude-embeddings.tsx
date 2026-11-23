@@ -22,6 +22,7 @@ import {
 } from "@/lib/embeddings.functions";
 import type { Job } from "@/lib/import.functions";
 import { listarRevisaoCategorias } from "@/lib/categorias.functions";
+import { usePode } from "@/components/gate";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -141,9 +142,14 @@ function ResultadoDiagnostico({ dados }: { dados: Diagnostico }) {
  * aqui: a correção é decisão de conteúdo, e o lugar dela é onde a lista vive.
  */
 function AssuntosParaRevisar() {
+  // A revisão é dado de Categorias: para quem não tem a área (nem edita FAQ,
+  // que também lê a lista), a consulta voltaria 403 e o link não abriria.
+  const podeVerCategorias = usePode("categorias");
+  const podeEditarFaqs = usePode("faqs", "editar");
   const revisao = useQuery({
     queryKey: ["categorias-revisao"],
     queryFn: () => listarRevisaoCategorias(),
+    enabled: podeVerCategorias || podeEditarFaqs,
   });
 
   const dados = revisao.data;
@@ -169,19 +175,24 @@ function AssuntosParaRevisar() {
         </ul>
       )}
 
-      <Link
-        to="/categorias"
-        className="mt-3 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary hover:underline"
-      >
-        Revisar em Categorias
-        <ChevronRight className="size-4" />
-      </Link>
+      {podeVerCategorias && (
+        <Link
+          to="/categorias"
+          className="mt-3 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary hover:underline"
+        >
+          Revisar em Categorias
+          <ChevronRight className="size-4" />
+        </Link>
+      )}
     </div>
   );
 }
 
 export function SaudeEmbeddings() {
   const queryClient = useQueryClient();
+  // Conferir e preparar gastam cota da API: são o editar de Configurações.
+  // Quem só vê acompanha os números e o andamento.
+  const podeMudar = usePode("configuracoes", "editar");
   const [modo, setModo] = useState<ModoBackfill>("faltantes");
   const [limite, setLimite] = useState(200);
   const [diagnostico, setDiagnostico] = useState<Diagnostico | null>(null);
@@ -295,87 +306,98 @@ export function SaudeEmbeddings() {
 
           <AssuntosParaRevisar />
 
-          <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="text-sm font-semibold">
-              As perguntas antigas foram preparadas do mesmo jeito?
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              A base não guarda esse registro para as perguntas mais antigas, e não dá para deduzir
-              olhando os dados. O jeito de descobrir é preparar de novo algumas perguntas e comparar
-              com o que está salvo. São cerca de 10 perguntas, e não altera nada.
+          {!podeMudar && (
+            <p className="text-sm text-muted-foreground">
+              Conferir e preparar as perguntas fica com quem tem Configurações para editar no grupo.
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              disabled={mutDiagnostico.isPending}
-              onClick={() => mutDiagnostico.mutate()}
-            >
-              <Activity className="size-4" />
-              {mutDiagnostico.isPending ? "Conferindo…" : "Conferir por amostragem"}
-            </Button>
-            {diagnostico && <ResultadoDiagnostico dados={diagnostico} />}
-          </div>
+          )}
+          {!podeMudar && job.data && <AndamentoBackfill job={job.data} />}
 
-          <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="text-sm font-semibold">Preparar perguntas para a busca</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              A preparação usa um serviço externo com limite diário. Preparar a base inteira leva
-              alguns dias, e não tem problema: o trabalho retoma de onde parou a cada vez que você
-              começa de novo.
-            </p>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="min-w-0 space-y-1.5">
-                <label htmlFor="preparar-modo" className="text-sm font-semibold">
-                  O que preparar
-                </label>
-                <Select value={modo} onValueChange={(v) => setModo(v as ModoBackfill)}>
-                  <SelectTrigger id="preparar-modo" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MODOS.map((m) => (
-                      <SelectItem key={m.valor} value={m.valor}>
-                        {m.rotulo}, {m.descricao}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="min-w-0 space-y-1.5">
-                <label htmlFor="preparar-limite" className="text-sm font-semibold">
-                  Máximo desta vez
-                </label>
-                <Select value={String(limite)} onValueChange={(v) => setLimite(Number(v))}>
-                  <SelectTrigger id="preparar-limite" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LIMITES.map((n) => (
-                      <SelectItem key={n} value={String(n)}>
-                        {n} FAQs
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {podeMudar && (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="text-sm font-semibold">
+                As perguntas antigas foram preparadas do mesmo jeito?
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A base não guarda esse registro para as perguntas mais antigas, e não dá para
+                deduzir olhando os dados. O jeito de descobrir é preparar de novo algumas perguntas
+                e comparar com o que está salvo. São cerca de 10 perguntas, e não altera nada.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                disabled={mutDiagnostico.isPending}
+                onClick={() => mutDiagnostico.mutate()}
+              >
+                <Activity className="size-4" />
+                {mutDiagnostico.isPending ? "Conferindo…" : "Conferir por amostragem"}
+              </Button>
+              {diagnostico && <ResultadoDiagnostico dados={diagnostico} />}
             </div>
+          )}
 
-            <Button
-              type="button"
-              className="mt-3"
-              disabled={emAndamento || mutBackfill.isPending}
-              onClick={() => mutBackfill.mutate()}
-            >
-              <Play className="size-4" />
-              {emAndamento ? "Já há um trabalho em andamento" : "Começar"}
-            </Button>
+          {podeMudar && (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h3 className="text-sm font-semibold">Preparar perguntas para a busca</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A preparação usa um serviço externo com limite diário. Preparar a base inteira leva
+                alguns dias, e não tem problema: o trabalho retoma de onde parou a cada vez que você
+                começa de novo.
+              </p>
 
-            {job.data && <AndamentoBackfill job={job.data} />}
-          </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="min-w-0 space-y-1.5">
+                  <label htmlFor="preparar-modo" className="text-sm font-semibold">
+                    O que preparar
+                  </label>
+                  <Select value={modo} onValueChange={(v) => setModo(v as ModoBackfill)}>
+                    <SelectTrigger id="preparar-modo" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MODOS.map((m) => (
+                        <SelectItem key={m.valor} value={m.valor}>
+                          {m.rotulo}, {m.descricao}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="min-w-0 space-y-1.5">
+                  <label htmlFor="preparar-limite" className="text-sm font-semibold">
+                    Máximo desta vez
+                  </label>
+                  <Select value={String(limite)} onValueChange={(v) => setLimite(Number(v))}>
+                    <SelectTrigger id="preparar-limite" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LIMITES.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n} FAQs
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                className="mt-3"
+                disabled={emAndamento || mutBackfill.isPending}
+                onClick={() => mutBackfill.mutate()}
+              >
+                <Play className="size-4" />
+                {emAndamento ? "Já há um trabalho em andamento" : "Começar"}
+              </Button>
+
+              {job.data && <AndamentoBackfill job={job.data} />}
+            </div>
+          )}
         </>
       )}
     </section>

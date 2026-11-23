@@ -11,7 +11,7 @@ import {
   type Origem,
   type Situacao,
 } from "@/lib/faq.functions";
-import { GateShell, usePodeEscrever } from "@/components/gate";
+import { GateShell, usePode, usePodeEscrever } from "@/components/gate";
 import { FaqPagination } from "@/components/faq-pagination";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
@@ -130,6 +130,9 @@ function BrowsePanel() {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [testeAberto, setTesteAberto] = useState(false);
   const podeEscrever = usePodeEscrever();
+  // O atalho para Categorias só para quem abre a tela: para os outros, o toque
+  // voltaria para cá sem explicação.
+  const podeVerCategorias = usePode("categorias");
 
   const valores: ValoresFiltro = {
     category: busca.category ?? "",
@@ -231,11 +234,13 @@ function BrowsePanel() {
         }
         acoes={
           <>
-            <Button asChild variant="outline">
-              <Link to="/categorias">
-                <FolderOpen /> Assuntos
-              </Link>
-            </Button>
+            {podeVerCategorias && (
+              <Button asChild variant="outline">
+                <Link to="/categorias">
+                  <FolderOpen /> Assuntos
+                </Link>
+              </Button>
+            )}
             <InsertFaqButton label="Inserir pergunta" />
           </>
         }

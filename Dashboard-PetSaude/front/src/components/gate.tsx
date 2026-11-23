@@ -5,6 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { getSession, logout } from "@/lib/auth.functions";
+import { pode, type Area, type Nivel } from "@/lib/permissoes";
 import { barraAbertaGuardada } from "@/lib/preferencia-barra";
 import { Toaster } from "@/components/ui/sonner";
 import { TrocarSenhaObrigatoria } from "@/components/trocar-senha";
@@ -29,10 +30,20 @@ export function useSession() {
   };
 }
 
-/** True quando o papel permite criar, editar e excluir FAQs. */
-export function usePodeEscrever() {
+/**
+ * True quando o grupo da pessoa libera a área no nível pedido.
+ *
+ * Serve para esconder o que só devolveria 403, como o botão de apagar para
+ * quem só vê. Quem barra de verdade é o backend.
+ */
+export function usePode(area: Area, nivel: Nivel = "ver") {
   const { usuario } = useSession();
-  return usuario?.role === "admin" || usuario?.role === "editor";
+  return pode(usuario, area, nivel);
+}
+
+/** True quando o grupo permite criar, editar e excluir FAQs. */
+export function usePodeEscrever() {
+  return usePode("faqs", "editar");
 }
 
 /**
@@ -101,8 +112,8 @@ export function GateShell({ children }: { children: React.ReactNode }) {
               {/* 44px: alvo de toque confortável; o padrão do componente é 28px. */}
               <SidebarTrigger className="size-11" />
               <span className="truncate text-sm font-semibold md:hidden">Central de FAQs</span>
-              <Caminho papel={usuario.role} />
-              <IrPara papel={usuario.role} />
+              <Caminho usuario={usuario} />
+              <IrPara usuario={usuario} />
             </>
           )}
           <BotaoTema />

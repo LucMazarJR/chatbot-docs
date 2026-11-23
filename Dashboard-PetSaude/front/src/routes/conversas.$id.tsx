@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Clock, Mic } from "lucide-react";
 import { Fragment, useState, type ReactNode } from "react";
 
-import { GateShell } from "@/components/gate";
+import { GateShell, usePode } from "@/components/gate";
 import { ApagarConversa } from "@/components/apagar-conversa";
 import { BaixarConversa } from "@/components/baixar-conversa";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
 import { SeloConta, SeloUbs } from "@/components/selos-conversa";
 import { diaEHora, hora } from "@/lib/datas";
@@ -18,13 +18,15 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/conversas/$id")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("conversas"),
   head: () => ({ meta: [{ title: "Conversa | Central de FAQs" }] }),
   component: ConversaPage,
 });
 
 function ConversaPage() {
   const { id } = Route.useParams();
+  // Apagar é o editar de Conversas; quem só vê lê e baixa.
+  const podeApagar = usePode("conversas", "editar");
 
   const conversa = useQuery({
     queryKey: ["conversa", id],
@@ -97,7 +99,7 @@ function ConversaPage() {
               acoes={
                 <>
                   <BaixarConversa sessao={sessao} mensagens={mensagens} />
-                  <ApagarConversa id={id} />
+                  {podeApagar && <ApagarConversa id={id} />}
                 </>
               }
             />

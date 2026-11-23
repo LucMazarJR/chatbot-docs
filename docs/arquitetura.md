@@ -40,7 +40,7 @@ Este documento explica **como o sistema funciona e por que é assim**. Para subi
 
 Dashboard-PetSaude (repositório separado)
    front (TanStack Start) ──> back (NestJS) ──> MongoDB Atlas  (mesma base de FAQs)
-                                            └──> PostgreSQL     (usuários, papéis, sessões)
+                                            └──> PostgreSQL     (usuários, grupos, sessões)
 ```
 
 ### Serviços
@@ -51,7 +51,7 @@ Dashboard-PetSaude (repositório separado)
 | n8n | `n8nio/n8n` | 5678 | Orquestra o fluxo de resposta |
 | redis | `redis:7-alpine` | interna | Deduplicação (db 1) e memória de conversa do n8n (db 0) |
 | cloudflared | `cloudflare/cloudflared` | nenhuma | Expõe o webhook do n8n para a internet |
-| postgres | `postgres:17-alpine` | configurável | Identidade do dashboard: usuários, papéis, sessões. **Não guarda FAQ** |
+| postgres | `postgres:17-alpine` | configurável | Identidade do dashboard: usuários, grupos, sessões. **Não guarda FAQ** |
 | pwa | build de `./pwa` | 8080 | Protótipo de validação |
 | dashboard-api / dashboard-front | build de `./Dashboard-PetSaude` | 3333 / 5173 | Opcionais, atrás do profile `dashboard` |
 
@@ -305,20 +305,20 @@ O staging usa uma chave para cada papel, nenhuma delas a do `/`: a triagem e os 
 
 Fica em `Dashboard-PetSaude/`. Já foi um repositório separado (`LucMazarJR/Dashboard-PetSaude`, fork de `marinanevesa/Dashboard-PetSaude`), e a história dele veio junto: `git log` e `git blame` nessa pasta mostram os commits originais.
 
-- **back**: NestJS na porta 3333. FAQs no mesmo Mongo do chatbot; identidade (usuários, papéis, sessões) no Postgres, banco separado.
+- **back**: NestJS na porta 3333. FAQs no mesmo Mongo do chatbot; identidade (usuários, grupos, sessões) no Postgres, banco separado.
 - **front**: TanStack Start na porta 5173.
 - **UBS de cada conversa**: o chat pergunta depois do aceite e grava o texto como veio (`sessoes.ubs`, ausente em conversa anterior à pergunta, `texto` nulo quando a pessoa pula). A identificação acontece na leitura, no painel ([identificar-ubs.ts](../Dashboard-PetSaude/back/src/ubs/identificar-ubs.ts)), para uma grafia corrigida valer também para trás. Compara letras, sem IA, e só decide quando há um vencedor: na dúvida, o texto fica para alguém apontar a unidade na tela Unidades de saúde. A lista fica em `ubs_unidades`, no banco das FAQs, e nasce das unidades citadas na base.
-- Login individual com JWT, três papéis: `admin` (gerencia usuários e FAQs), `editor` (cria/edita/exclui FAQs), `leitor` (só consulta). Sessões revogáveis: desativar um usuário ou trocar a senha derruba o acesso na hora.
+- Login individual com JWT. O acesso vem do **grupo** da conta: para cada item do menu, sem acesso, ver ou editar. Cada rota do back declara a área e o nível que exige (`@Permite('conversas:ver')`), e o guard confere nas permissões do grupo, relidas do banco a cada requisição. O **master** cria e muda os grupos (`/grupos`). Detalhes no [README do painel](../Dashboard-PetSaude/README.md#segurança-e-modelos-de-acesso). Sessões revogáveis: desativar um usuário ou trocar a senha derruba o acesso na hora.
 
 Estas telas nasceram dos testes com participantes, e cada uma resolve um problema concreto:
 
 | Tela | O que resolve |
 |---|---|
-| **Conversas** (`/conversas`, admin) | As conversas do protótipo, com os trechos que geraram cada resposta e o score de cada um. Clicar num trecho abre a FAQ que o produziu: é o caminho da resposta ruim até o documento que precisa de conserto. Cada conversa baixa em PDF, do jeito que a pessoa viu, para quem acompanha o teste sem usar o painel; quem baixou fica no histórico, sem conteúdo |
+| **Conversas** (`/conversas`, área Conversas) | As conversas do protótipo, com os trechos que geraram cada resposta e o score de cada um. Clicar num trecho abre a FAQ que o produziu: é o caminho da resposta ruim até o documento que precisa de conserto. Cada conversa baixa em PDF, do jeito que a pessoa viu, para quem acompanha o teste sem usar o painel; quem baixou fica no histórico, sem conteúdo |
 | **Categorias** (`/categorias`) | A lista oficial de assuntos e a fila do que está fora dela |
-| **Sem resposta** (`/curadoria`, admin) | As perguntas que o chatbot não soube responder, agrupadas por um modelo em sugestões de FAQ |
+| **Sem resposta** (`/curadoria`, área Sem resposta) | As perguntas que o chatbot não soube responder, agrupadas por um modelo em sugestões de FAQ |
 | **Testar a busca** (na home das FAQs) | Roda a busca do chatbot para uma pergunta digitada e mostra os scores, sem passar pelo chatbot |
-| **Relatório do dia** (`/relatorios`, admin) | O resumo de um dia de uso, com PDF para quem não usa o painel: números, áreas mais afetadas, pontos para revisar na base e a análise de cada pergunta |
+| **Relatório do dia** (`/relatorios`, área Relatório do dia) | O resumo de um dia de uso, com PDF para quem não usa o painel: números, áreas mais afetadas, pontos para revisar na base e a análise de cada pergunta |
 
 **Por que categorias viraram entidade.** Categoria era um agregado derivado: o resultado de um `$group` sobre o campo `category`. Quem "criava" uma categoria era quem digitava um nome novo no formulário. O resultado foram **236 categorias distintas para ~2500 FAQs**, boa parte a mesma coisa escrita de outro jeito: a criação manual gravava o que foi digitado e a importação forçava minúsculo, então "Exames" e "exames" viraram dois assuntos. Como a categoria entra no texto embedado (`Assunto: …`), para a busca isso são dois temas diferentes. A lista agora tem chave canônica e índice único, e começa **vazia**: quem decide quais assuntos existem é a área de saúde.
 

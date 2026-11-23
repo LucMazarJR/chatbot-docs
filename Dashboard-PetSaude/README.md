@@ -13,6 +13,7 @@ A aplicação está totalmente separada e hospedada na nuvem nos seguintes servi
 * **Front-end (Painel de Acesso):** Hospedado na Vercel.
   * Acesso: https://dashboard-pet-saude-seven.vercel.app/
 * **Back-end (API / Banco de Dados):** Hospedado no Render.
+* **Postgres (contas, grupos e sessões):** no Neon. O Render não roda migração ao subir (`DB_RUN_MIGRATIONS` desligado), e a migração nova é aplicada à mão no editor SQL do Neon **antes** do deploy do back. O back novo sem a migração derruba o login do painel inteiro.
 
 Os dois publicam a partir da `main` do repositório `chatbot-docs`, cada um com a sua pasta como diretório raiz: `Dashboard-PetSaude/front` na Vercel e `Dashboard-PetSaude/back` no Render. O endereço sem "-seven" na Vercel é de outro projeto e não recebe os deploys.
 
@@ -36,7 +37,7 @@ O projeto é dividido em dois serviços principais:
 * **Framework:** NestJS (Node.js).
 * **Bancos de dados:** dois, com donos bem definidos.
   * **MongoDB** (Mongoose): as FAQs. É contrato compartilhado com a ingestão em Python e com o fluxo do n8n.
-  * **PostgreSQL** (TypeORM): usuários, papéis e sessões. Nenhum conteúdo de FAQ entra aqui.
+  * **PostgreSQL** (TypeORM): usuários, grupos e sessões. Nenhum conteúdo de FAQ entra aqui.
 * **Inteligência Artificial:** Integração server-side com Google Gemini para embeddings.
 
 ## Segurança e Modelos de Acesso
@@ -44,10 +45,11 @@ O projeto é dividido em dois serviços principais:
 Cada pessoa tem a própria conta. Não existe senha compartilhada.
 
 * **Login individual:** e-mail e senha, com o hash guardado em bcrypt. A senha definida por um administrador é sempre provisória: a troca é exigida no primeiro acesso.
-* **Três papéis:**
-  * `admin`: gerencia usuários e FAQs
-  * `editor`: cria, edita e exclui FAQs
-  * `leitor`: apenas consulta
+* **Grupos, com permissão por item do menu.** Cada conta fica num grupo, e o grupo diz, para cada item do menu, se dá *sem acesso*, *ver* ou *editar*. Mudar um grupo vale para todos os membros na requisição seguinte, sem sair da conta: o back relê o grupo a cada chamada. Os grupos de partida são Administrador (tudo), Editor (escreve e importa FAQs) e Leitor (consulta FAQs e categorias), com o acesso dos antigos papéis de mesmo nome.
+  * **FAQs para ver** vale para todo grupo: é a tela inicial.
+  * **O master** cria, muda e apaga os grupos, em `/grupos`, e passa o master adiante. Vale por cima do grupo. O painel nunca fica sem master ativo.
+  * **Quem cuida das contas sem ser master** (Usuários para editar) só mexe em conta e só atribui grupo que não passem do próprio acesso, e não muda o próprio grupo. Sem isso, redefinir a senha de quem tem mais acesso seria entrar como ele.
+  * As áreas que mostram o que cidadãos escreveram (Conversas, Unidades de saúde, Sem resposta, Relatório do dia e Avisos) só o Administrador recebe de partida. Dar uma delas a outro grupo é decisão do master, e fica no Histórico.
 * **Sessões revogáveis:** o JWT é sem estado, então cada sessão emitida fica registrada no Postgres. Desativar um usuário ou trocar uma senha derruba as sessões **na hora**, em vez de esperar o token expirar, o que daria até 8 horas de acesso a quem o administrador acabou de revogar.
 * **Logs de histórico:** toda alteração grava quem fez, com o id e o nome vindos do token verificado. Antes o nome vinha de um cabeçalho preenchido pelo front, ou seja, qualquer pessoa podia escrever qualquer nome; o histórico registrava ficção.
 
@@ -73,7 +75,7 @@ O Postgres pode vir do `docker-compose.yml` do repositório do chatbot (serviço
 
 ## Importação de FAQs em lote
 
-Editores e administradores podem subir uma planilha `.xlsx` ou um documento
+Quem tem Importar no grupo pode subir uma planilha `.xlsx` ou um documento
 `.docx` em **/importar**: o arquivo é lido no navegador, passa pelo script de
 geração e vira uma prévia: nada é gravado antes de alguém conferir. Linhas que
 já existem na base são detectadas pelo `content_hash`, o mesmo MD5 da ingestão
@@ -81,7 +83,7 @@ Python, então reenviar o mesmo arquivo depois de uma interrupção retoma de on
 parou em vez de duplicar.
 
 O **script de geração** é um módulo JavaScript guardado no banco e editável em
-**/configuracoes** (só admin). Ele exporta duas coisas: `gerarFaqs`, que
+**/configuracoes** (Configurações para editar). Ele exporta duas coisas: `gerarFaqs`, que
 transforma o documento em pares pergunta/resposta, e `modelo`, de onde saem os
 arquivos de modelo vazios. As duas pontas no mesmo lugar de propósito: trocar o
 script troca o parser e o modelo baixado ao mesmo tempo, e não há como ficarem

@@ -24,6 +24,8 @@ import { Route as CategoriasCategoriaRouteImport } from './routes/categorias.$ca
 import { Route as ConversasIndexRouteImport } from './routes/conversas.index'
 import { Route as ConversasIdRouteImport } from './routes/conversas.$id'
 import { Route as FaqsIdRouteImport } from './routes/faqs.$id'
+import { Route as GruposIndexRouteImport } from './routes/grupos.index'
+import { Route as GruposIdRouteImport } from './routes/grupos.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -100,6 +102,16 @@ const FaqsIdRoute = FaqsIdRouteImport.update({
   path: '/faqs/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GruposIndexRoute = GruposIndexRouteImport.update({
+  id: '/grupos/',
+  path: '/grupos/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GruposIdRoute = GruposIdRouteImport.update({
+  id: '/grupos/$id',
+  path: '/grupos/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,8 +127,10 @@ export interface FileRoutesByFullPath {
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
   '/faqs/$id': typeof FaqsIdRoute
+  '/grupos/$id': typeof GruposIdRoute
   '/categorias/': typeof CategoriasIndexRoute
   '/conversas/': typeof ConversasIndexRoute
+  '/grupos/': typeof GruposIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -132,8 +146,10 @@ export interface FileRoutesByTo {
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
   '/faqs/$id': typeof FaqsIdRoute
+  '/grupos/$id': typeof GruposIdRoute
   '/categorias': typeof CategoriasIndexRoute
   '/conversas': typeof ConversasIndexRoute
+  '/grupos': typeof GruposIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -150,8 +166,10 @@ export interface FileRoutesById {
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
   '/conversas/$id': typeof ConversasIdRoute
   '/faqs/$id': typeof FaqsIdRoute
+  '/grupos/$id': typeof GruposIdRoute
   '/categorias/': typeof CategoriasIndexRoute
   '/conversas/': typeof ConversasIndexRoute
+  '/grupos/': typeof GruposIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,8 +187,10 @@ export interface FileRouteTypes {
     | '/categorias/$categoria'
     | '/conversas/$id'
     | '/faqs/$id'
+    | '/grupos/$id'
     | '/categorias/'
     | '/conversas/'
+    | '/grupos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -186,8 +206,10 @@ export interface FileRouteTypes {
     | '/categorias/$categoria'
     | '/conversas/$id'
     | '/faqs/$id'
+    | '/grupos/$id'
     | '/categorias'
     | '/conversas'
+    | '/grupos'
   id:
     | '__root__'
     | '/'
@@ -203,8 +225,10 @@ export interface FileRouteTypes {
     | '/categorias/$categoria'
     | '/conversas/$id'
     | '/faqs/$id'
+    | '/grupos/$id'
     | '/categorias/'
     | '/conversas/'
+    | '/grupos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -221,8 +245,10 @@ export interface RootRouteChildren {
   CategoriasCategoriaRoute: typeof CategoriasCategoriaRoute
   ConversasIdRoute: typeof ConversasIdRoute
   FaqsIdRoute: typeof FaqsIdRoute
+  GruposIdRoute: typeof GruposIdRoute
   CategoriasIndexRoute: typeof CategoriasIndexRoute
   ConversasIndexRoute: typeof ConversasIndexRoute
+  GruposIndexRoute: typeof GruposIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -332,6 +358,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/grupos/': {
+      id: '/grupos/'
+      path: '/grupos'
+      fullPath: '/grupos/'
+      preLoaderRoute: typeof GruposIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/grupos/$id': {
+      id: '/grupos/$id'
+      path: '/grupos/$id'
+      fullPath: '/grupos/$id'
+      preLoaderRoute: typeof GruposIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -349,8 +389,10 @@ const rootRouteChildren: RootRouteChildren = {
   CategoriasCategoriaRoute: CategoriasCategoriaRoute,
   ConversasIdRoute: ConversasIdRoute,
   FaqsIdRoute: FaqsIdRoute,
+  GruposIdRoute: GruposIdRoute,
   CategoriasIndexRoute: CategoriasIndexRoute,
   ConversasIndexRoute: ConversasIndexRoute,
+  GruposIndexRoute: GruposIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

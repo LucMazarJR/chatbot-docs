@@ -6,12 +6,13 @@ O que é específico daqui:
 
 ## Antes de mexer
 
-O painel é a ferramenta de trabalho da equipe, e grava na mesma base de FAQs que o chatbot lê. Mudança aqui se verifica antes do push, com login de verdade nos três papéis quando a tela muda.
+O painel é a ferramenta de trabalho da equipe, e grava na mesma base de FAQs que o chatbot lê. Mudança aqui se verifica antes do push, com login de verdade quando a tela muda: numa conta de grupo com a área para editar e numa só para ver, porque cada tela esconde o que grava de quem só vê.
 
 ## Estrutura que precisa ser respeitada
 
 * **Três bancos, com donos claros.** Mongo `ministerio_saude` para as FAQs, Postgres para identidade, e a segunda conexão Mongo (`CONEXAO_PROTOTIPO`) para o banco do protótipo PWA. Nenhum service mistura os dois primeiros.
 * **Tela nova é uma linha** em `front/src/lib/navegacao.ts`, mais a rota com a guarda no `beforeLoad` e o conteúdo dentro de `GateShell`. Ver `front/src/routes/README.md`.
+* **Toda rota do back declara a área e o nível** com `@Permite('area:ver' | 'area:editar')`, ou `@SoMaster()`. Sem decorator, a rota fica aberta a qualquer conta logada. Ação que grava fica no `editar`, e a tela esconde o botão de quem só vê (`usePode`).
 * **Coisa em validação entra com `emTeste: true`**, que mostra o selo "teste" no menu. Promover é apagar essa linha.
 * **Toda escrita registra auditoria** pelo `ActivityService`, com quem, o quê e o alcance, nunca com conteúdo escrito por cidadão.
 * O que o PWA escreve é contrato: os schemas daqui espelham `pwa/src/lib/**`, e mudar um lado exige mudar o outro na mesma alteração.

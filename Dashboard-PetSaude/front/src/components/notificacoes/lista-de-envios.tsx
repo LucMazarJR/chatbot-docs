@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, Lock, X } from "lucide-react";
 
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
+import { usePode } from "@/components/gate";
 import { Selo, type TomDoSelo } from "@/components/selo";
 import { diaEHora } from "@/lib/datas";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,7 @@ export function ListaDeEnvios() {
   const queryClient = useQueryClient();
   const cancelar = useServerFn(cancelarEnvio);
   const [cancelando, setCancelando] = useState<Envio | null>(null);
+  const podeCancelar = usePode("avisos", "editar");
 
   const envios = useQuery({
     queryKey: ["notificacoes", "envios"],
@@ -108,7 +110,7 @@ export function ListaDeEnvios() {
             <LinhaDeEnvio
               key={envio.loteId}
               envio={envio}
-              aoCancelar={() => setCancelando(envio)}
+              aoCancelar={podeCancelar ? () => setCancelando(envio) : undefined}
             />
           ))}
         </ul>
@@ -164,7 +166,8 @@ function estadoDoLote(envio: Envio): { texto: string; tom: TomDoSelo } | null {
  * apareceram no aparelho e quantos foram abertos, sobre os que saíram. Os
  * seis números e as tabelas ficam no detalhe, que abre na própria linha.
  */
-function LinhaDeEnvio({ envio, aoCancelar }: { envio: Envio; aoCancelar: () => void }) {
+// Sem `aoCancelar` (quem só vê a área), a linha sai sem o botão de cancelar.
+function LinhaDeEnvio({ envio, aoCancelar }: { envio: Envio; aoCancelar?: () => void }) {
   const [aberto, setAberto] = useState(false);
   const { estados } = envio;
   const naFila = estados.pendente + estados.enviando;
@@ -269,7 +272,7 @@ function LinhaDeEnvio({ envio, aoCancelar }: { envio: Envio; aoCancelar: () => v
             ))}
           </dl>
 
-          {estados.pendente > 0 && (
+          {aoCancelar && estados.pendente > 0 && (
             <Button type="button" variant="perigo" onClick={aoCancelar}>
               <X />
               Cancelar {estados.pendente === 1 ? "o pendente" : `os ${estados.pendente} pendentes`}

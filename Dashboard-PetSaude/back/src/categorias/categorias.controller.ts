@@ -10,8 +10,8 @@ import { CriarCategoriaDto } from './dto/criar-categoria.dto';
 /**
  * A lista oficial de assuntos.
  *
- * LER também é de quem edita FAQ, mesmo sem a área Categorias: o formulário
- * precisa das opções. DEFINIR a taxonomia é o editar de Categorias: mudar um
+ * LER também é de quem edita FAQ ou aprova sugestão da curadoria, mesmo sem a
+ * área Categorias: os dois formulários precisam das opções. DEFINIR a taxonomia é o editar de Categorias: mudar um
  * nome aqui reescreve o campo `category` de todas as perguntas daquele assunto
  * e muda o que o chatbot enxerga como tema.
  */
@@ -22,13 +22,13 @@ export class CategoriasController {
     // Declarada ANTES de qualquer rota com parâmetro: senão o Nest casaria
     // "revisao" como se fosse um id.
     @Get('revisao')
-    @Permite('categorias:ver', 'faqs:editar')
+    @Permite('categorias:ver', 'faqs:editar', 'curadoria:editar')
     revisao() {
         return this.categorias.revisao();
     }
 
     @Get()
-    @Permite('categorias:ver', 'faqs:editar')
+    @Permite('categorias:ver', 'faqs:editar', 'curadoria:editar')
     listar(@Query('incluirInativas') incluirInativas?: string) {
         // Comparação com a string porque o ValidationPipe roda com
         // enableImplicitConversion: false, então query param chega sempre como texto.

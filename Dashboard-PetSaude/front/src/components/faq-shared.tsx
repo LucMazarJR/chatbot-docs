@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { usePodeEscrever } from "@/components/gate";
+import { usePode, usePodeEscrever } from "@/components/gate";
 import { Selo } from "@/components/selo";
 import { dataCurta } from "@/lib/datas";
 import { cn } from "@/lib/utils";
@@ -175,6 +175,9 @@ function CampoCategoria({
     queryKey: ["categorias", false],
     queryFn: () => listarCategorias({ data: { incluirInativas: false } }),
   });
+  // Definir a lista é o editar de Categorias: quem não tem, recebe a frase de
+  // a quem pedir, e não um link para uma tela onde não pode mudar nada.
+  const podeDefinir = usePode("categorias", "editar");
 
   const oficiais = categoriasQuery.data?.categorias ?? [];
   const listaVazia = !categoriasQuery.isLoading && oficiais.length === 0;
@@ -193,10 +196,16 @@ function CampoCategoria({
         />
         <p className="text-xs text-muted-foreground">
           Nenhuma categoria cadastrada ainda.{" "}
-          <Link to="/categorias" className="underline underline-offset-2">
-            Defina a lista de assuntos
-          </Link>{" "}
-          para escolher em vez de digitar.
+          {podeDefinir ? (
+            <>
+              <Link to="/categorias" className="underline underline-offset-2">
+                Defina a lista de assuntos
+              </Link>{" "}
+              para escolher em vez de digitar.
+            </>
+          ) : (
+            "Quem cuida das Categorias define a lista, e aí dá para escolher em vez de digitar."
+          )}
         </p>
       </div>
     );

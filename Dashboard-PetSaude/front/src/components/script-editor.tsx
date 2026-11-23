@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { usePode } from "@/components/gate";
 import { ModeloBotoes } from "@/components/modelo-botoes";
 import {
   AlertDialog,
@@ -211,6 +212,9 @@ function PainelTeste({ codigo }: { codigo: string }) {
 
 export function ScriptEditor() {
   const queryClient = useQueryClient();
+  // Trocar a regra muda como toda importação seguinte é lida: é o editar de
+  // Configurações. Quem só vê lê a regra, testa com um texto e baixa os modelos.
+  const podeMudar = usePode("configuracoes", "editar");
   const inputArquivo = useRef<HTMLInputElement>(null);
 
   const salvar = useServerFn(salvarScript);
@@ -335,36 +339,39 @@ export function ScriptEditor() {
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label htmlFor="codigo-script">Regra de leitura</Label>
-          <div className="flex flex-wrap gap-2">
-            <input
-              ref={inputArquivo}
-              type="file"
-              accept=".js,text/javascript"
-              className="hidden"
-              onChange={(e) => void carregarDeArquivo(e.target.files?.[0])}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => inputArquivo.current?.click()}
-            >
-              <Upload className="size-4" /> Carregar de um arquivo
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setConfirmandoRestauro(true)}
-            >
-              <RotateCcw className="size-4" /> Restaurar o padrão
-            </Button>
-          </div>
+          {podeMudar && (
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={inputArquivo}
+                type="file"
+                accept=".js,text/javascript"
+                className="hidden"
+                onChange={(e) => void carregarDeArquivo(e.target.files?.[0])}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => inputArquivo.current?.click()}
+              >
+                <Upload className="size-4" /> Carregar de um arquivo
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmandoRestauro(true)}
+              >
+                <RotateCcw className="size-4" /> Restaurar o padrão
+              </Button>
+            </div>
+          )}
         </div>
 
         <Textarea
           id="codigo-script"
           value={codigo}
+          readOnly={!podeMudar}
           onChange={(e) => setCodigo(e.target.value)}
           rows={18}
           spellCheck={false}
@@ -383,54 +390,64 @@ export function ScriptEditor() {
         <ModeloBotoes codigo={codigo} />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="nome-script">Nome desta versão</Label>
-          <Input
-            id="nome-script"
-            value={nome}
-            maxLength={120}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: formato com marcador PERG:"
-          />
+      {!podeMudar && (
+        <p className="text-sm text-muted-foreground">
+          Mudar a regra fica com quem tem Configurações para editar no grupo.
+        </p>
+      )}
+
+      {podeMudar && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="nome-script">Nome desta versão</Label>
+            <Input
+              id="nome-script"
+              value={nome}
+              maxLength={120}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: formato com marcador PERG:"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="notas-script">O que mudou</Label>
+            <Input
+              id="notas-script"
+              value={notas}
+              maxLength={500}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Ex.: passou a aceitar PERG: além de P:"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="notas-script">O que mudou</Label>
-          <Input
-            id="notas-script"
-            value={notas}
-            maxLength={500}
-            onChange={(e) => setNotas(e.target.value)}
-            placeholder="Ex.: passou a aceitar PERG: além de P:"
-          />
-        </div>
-      </div>
+      )}
 
       {/* O botão aceita o toque e diz o que falta: apagado, "Sem alterações"
           não explicava que o nome curto também impedia salvar. */}
-      <div className="space-y-2">
-        <Button
-          type="button"
-          disabled={mutSalvar.isPending}
-          onClick={() => {
-            if (!alterado) {
-              toast.info("Nada mudou desde a versão em uso.");
-              return;
-            }
-            if (nome.trim().length < 3) {
-              toast.error("Dê um nome à versão, com ao menos 3 letras.");
-              return;
-            }
-            mutSalvar.mutate();
-          }}
-        >
-          <Save />
-          {mutSalvar.isPending ? "Salvando…" : "Salvar nova versão"}
-        </Button>
-        {!alterado && (
-          <p className="text-sm text-muted-foreground">Nada mudou desde a versão em uso.</p>
-        )}
-      </div>
+      {podeMudar && (
+        <div className="space-y-2">
+          <Button
+            type="button"
+            disabled={mutSalvar.isPending}
+            onClick={() => {
+              if (!alterado) {
+                toast.info("Nada mudou desde a versão em uso.");
+                return;
+              }
+              if (nome.trim().length < 3) {
+                toast.error("Dê um nome à versão, com ao menos 3 letras.");
+                return;
+              }
+              mutSalvar.mutate();
+            }}
+          >
+            <Save />
+            {mutSalvar.isPending ? "Salvando…" : "Salvar nova versão"}
+          </Button>
+          {!alterado && (
+            <p className="text-sm text-muted-foreground">Nada mudou desde a versão em uso.</p>
+          )}
+        </div>
+      )}
 
       <div className="rounded-xl border border-border bg-card p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
@@ -454,15 +471,17 @@ export function ScriptEditor() {
               {v.isActive ? (
                 <Selo tom="marca">Em uso</Selo>
               ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={mutAtivar.isPending}
-                  onClick={() => mutAtivar.mutate(v.id)}
-                >
-                  Reativar
-                </Button>
+                podeMudar && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={mutAtivar.isPending}
+                    onClick={() => mutAtivar.mutate(v.id)}
+                  >
+                    Reativar
+                  </Button>
+                )
               )}
             </li>
           ))}

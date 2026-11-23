@@ -29,7 +29,7 @@ O gateway também **mascara segredos no log**: falha de entrega ao n8n registra 
 - **Prazo de retenção aplicado pelo banco.** As conversas se apagam sozinhas em `PWA_RETENCAO_DIAS` (180 por padrão), por índice TTL do Mongo. Prazo que depende de alguém lembrar de rodar um script não é prazo.
 - **Exclusão a pedido, por duas portas.** A própria pessoa, no menu do chat (*Apagar minha conversa*; no staging, em *Minha conta*, conversa por conversa), ou a equipe, pela transcrição em `/conversas`, para quem não tem mais a conversa no aparelho. A exclusão pela equipe fica registrada no histórico: quem apagou, quando e quantos registros, sem nenhum conteúdo.
 - **Minimização no que não é texto.** O arquivo nunca sai do aparelho: fica registrado só o tipo e o tamanho da tentativa. O nome do arquivo não é guardado, porque "exame_maria_silva.pdf" é exatamente o dado que o aviso pede para ninguém mandar. O áudio sai só para virar texto, e não é gravado (ver [Reescrita, voz e tutorial](#reescrita-voz-e-tutorial)).
-- **Acesso restrito.** As conversas só abrem para quem tem papel `admin` no dashboard, com login individual.
+- **Acesso restrito.** As conversas só abrem para quem está num grupo com a área Conversas, com login individual. De partida, só o grupo Administrador tem essa área e as outras que mostram o que cidadãos escreveram (Unidades de saúde, Sem resposta, Relatório do dia e Avisos). Quem decide dar uma delas a outro grupo é o master do painel, e a mudança fica no Histórico, área por área.
 
 ### A exclusão alcança as cópias
 
@@ -58,7 +58,7 @@ Nos dois chats, o `/` e o `/staging` ([prototipo-pwa.md](prototipo-pwa.md#o-que-
 - **Com a voz "Do celular", a resposta é lida pelo próprio aparelho** (`speechSynthesis`), sem nada sair do celular. A mensagem guarda só a hora em que isso aconteceu (`ouvidaNoCelularEm`), para comparar o uso das duas vozes.
 - A página `/privacidade` descreve os caminhos. As preferências de voz (quem entende, voz escolhida, velocidade, leitura automática) e os bloqueios por limite ficam só no aparelho.
 - **O tutorial** grava na sessão o que a pessoa fez com ele (viu, pulou, recusou ou ignorou) e quando. Não é dado de saúde, e existe para medir se o tutorial serve. O aparelho guarda a mesma escolha, só para não oferecer de novo.
-- **A UBS** é guardada na sessão como a pessoa escreveu, e some junto com a conversa. O campo é livre, então o chat recusa o que tem cara de documento (cinco dígitos ou mais) e não guarda como UBS o que parece pergunta. No painel, só admin vê o texto. O que não é nome de unidade é apagado da sessão pelo botão *Não é UBS*, em vez de ir para uma lista de ignorados. Só as grafias que a equipe confirma como nome de unidade ficam na lista de UBS, e elas sobrevivem à exclusão da conversa por não identificarem ninguém. A auditoria guarda a unidade e nunca o texto.
+- **A UBS** é guardada na sessão como a pessoa escreveu, e some junto com a conversa. O campo é livre, então o chat recusa o que tem cara de documento (cinco dígitos ou mais) e não guarda como UBS o que parece pergunta. No painel, só quem tem a área Unidades de saúde vê o texto. O que não é nome de unidade é apagado da sessão pelo botão *Não é UBS*, em vez de ir para uma lista de ignorados. Só as grafias que a equipe confirma como nome de unidade ficam na lista de UBS, e elas sobrevivem à exclusão da conversa por não identificarem ninguém. A auditoria guarda a unidade e nunca o texto.
 
 ---
 
@@ -79,7 +79,7 @@ Só existem na rota de validação: ver [contas-de-usuario.md](contas-de-usuario
 - **Quem mais recebe:**
   - Os **serviços de push** do Google, da Apple ou da Mozilla, conforme o navegador, entregam o aviso ao aparelho. O conteúdo vai cifrado de ponta a ponta até o aparelho (RFC 8291); o serviço vê só que houve uma entrega, quando e de que tamanho.
   - O **Google**, se a pessoa entrar com ele: fica sabendo que ela entrou neste app, e o app recebe o nome, o e-mail e o id da conta Google. Nada das conversas vai para o Google por esse caminho.
-- **Na equipe**, `/conversas` mostra só que a conversa tem conta, nunca o e-mail. Os e-mails aparecem apenas em `/notificacoes`, para quem tem papel `admin` escolher quem recebe. O histórico registra quem agendou ou cancelou um aviso, o tipo e quantas pessoas, nunca o texto nem quem recebeu.
+- **Na equipe**, `/conversas` mostra só que a conversa tem conta, nunca o e-mail. Os e-mails aparecem apenas em `/notificacoes`, para quem tem a área Avisos: a lista de quem pode receber, só com Avisos para editar, que é quem envia. O histórico registra quem agendou ou cancelou um aviso, o tipo e quantas pessoas, nunca o texto nem quem recebeu.
 - **Apagar a conta** leva as conversas (com as cópias da curadoria, pelo mesmo caminho da exclusão de conversa), os avisos, os aparelhos e as sessões, e a conta por último.
 - **Senha**: guardada só como hash `scrypt`. As sessões guardam o hash do token, nunca o token.
 

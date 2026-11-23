@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronRight, Download, FileBarChart } from "lucide-react";
 import { toast } from "sonner";
 
-import { GateShell } from "@/components/gate";
+import { GateShell, usePode } from "@/components/gate";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { CartaoNumero } from "@/components/cartao-numero";
 import { Carregando } from "@/components/carregando";
@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import { dataEHora, dataPorExtenso, hora } from "@/lib/datas";
 import {
   COR_DA_BARRA,
@@ -40,7 +40,7 @@ import {
 type Busca = { id?: string };
 
 export const Route = createFileRoute("/relatorios")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("relatorios"),
   validateSearch: (search: Record<string, unknown>): Busca =>
     typeof search.id === "string" && search.id ? { id: search.id } : {},
   head: () => ({
@@ -76,6 +76,8 @@ function RelatoriosPage() {
   const queryClient = useQueryClient();
   const gerar = useServerFn(gerarRelatorio);
   const [dia, setDia] = useState(hojeEmBrasilia);
+  // Gerar gasta cota da API: é o editar da área. Quem só vê lê os prontos.
+  const podeGerar = usePode("relatorios", "editar");
 
   const lista = useQuery({ queryKey: ["relatorios"], queryFn: () => listarRelatorios() });
 
@@ -122,35 +124,37 @@ function RelatoriosPage() {
           titulo="Relatório do dia"
           frase="Números do chatbot num dia e a análise de cada pergunta, feita por IA."
           acoes={
-            <form
-              className="flex flex-wrap items-end gap-2.5"
-              onSubmit={(evento) => {
-                evento.preventDefault();
-                if (!dia) {
-                  toast.info("Escolha o dia do relatório.");
-                  return;
-                }
-                disparar.mutate(dia);
-              }}
-            >
-              <div className="grid gap-1">
-                <Label htmlFor="dia-do-relatorio" className="text-sm text-muted-foreground">
-                  Dia
-                </Label>
-                <Input
-                  id="dia-do-relatorio"
-                  type="date"
-                  value={dia}
-                  max={hojeEmBrasilia()}
-                  onChange={(evento) => setDia(evento.target.value)}
-                  className="min-h-11 w-[170px] sm:min-h-9"
-                />
-              </div>
-              <Button type="submit" disabled={rodando} className="min-h-11 sm:min-h-9">
-                <FileBarChart />
-                {rodando ? "Gerando…" : "Gerar relatório"}
-              </Button>
-            </form>
+            podeGerar && (
+              <form
+                className="flex flex-wrap items-end gap-2.5"
+                onSubmit={(evento) => {
+                  evento.preventDefault();
+                  if (!dia) {
+                    toast.info("Escolha o dia do relatório.");
+                    return;
+                  }
+                  disparar.mutate(dia);
+                }}
+              >
+                <div className="grid gap-1">
+                  <Label htmlFor="dia-do-relatorio" className="text-sm text-muted-foreground">
+                    Dia
+                  </Label>
+                  <Input
+                    id="dia-do-relatorio"
+                    type="date"
+                    value={dia}
+                    max={hojeEmBrasilia()}
+                    onChange={(evento) => setDia(evento.target.value)}
+                    className="min-h-11 w-[170px] sm:min-h-9"
+                  />
+                </div>
+                <Button type="submit" disabled={rodando} className="min-h-11 sm:min-h-9">
+                  <FileBarChart />
+                  {rodando ? "Gerando…" : "Gerar relatório"}
+                </Button>
+              </form>
+            )
           }
         />
 
@@ -162,7 +166,9 @@ function RelatoriosPage() {
           <Carregando texto="Carregando os relatórios…" />
         ) : !selecionadoId ? (
           <EstadoVazio titulo="Nenhum relatório gerado ainda">
-            Escolha o dia e toque em Gerar relatório. A análise leva de meio minuto a dois minutos.
+            {podeGerar
+              ? "Escolha o dia e toque em Gerar relatório. A análise leva de meio minuto a dois minutos."
+              : "Quando alguém do painel gerar um relatório, ele aparece aqui."}
           </EstadoVazio>
         ) : detalhe.isError ? (
           <EstadoFalha onTentarDeNovo={() => detalhe.refetch()} tentando={detalhe.isFetching}>
@@ -175,7 +181,7 @@ function RelatoriosPage() {
         ) : (
           <VisaoDoRelatorio
             relatorio={detalhe.data}
-            aoGerarDeNovo={() => disparar.mutate(detalhe.data!.data)}
+            aoGerarDeNovo={podeGerar ? () => disparar.mutate(detalhe.data!.data) : undefined}
             gerando={disparar.isPending}
           />
         )}
@@ -198,7 +204,8 @@ function VisaoDoRelatorio({
   gerando,
 }: {
   relatorio: RelatorioDoDia;
-  aoGerarDeNovo: () => void;
+  /** Ausente para quem só vê: a falha aparece sem o botão de tentar de novo. */
+  aoGerarDeNovo?: () => void;
   gerando: boolean;
 }) {
   const [baixando, setBaixando] = useState(false);

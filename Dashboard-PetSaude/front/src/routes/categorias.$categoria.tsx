@@ -11,7 +11,7 @@ import { FaqLinha, InsertFaqButton, SearchField } from "@/components/faq-shared"
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { Button } from "@/components/ui/button";
-import { exigirSessao } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
 
 const POR_PAGINA = 20;
@@ -19,7 +19,7 @@ const POR_PAGINA = 20;
 type Busca = { page?: number; search?: string };
 
 export const Route = createFileRoute("/categorias/$categoria")({
-  beforeLoad: () => exigirSessao(),
+  beforeLoad: () => exigirPermissao("categorias"),
   validateSearch: (search: Record<string, unknown>): Busca => {
     const page = Number(search.page ?? 1) || 1;
     const termo = typeof search.search === "string" ? search.search : "";
