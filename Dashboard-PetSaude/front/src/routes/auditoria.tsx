@@ -29,6 +29,8 @@ import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { Selo } from "@/components/selo";
 import { dataEHora } from "@/lib/datas";
+import { rotuloDaArea } from "@/lib/navegacao";
+import { AREAS } from "@/lib/permissoes";
 
 const POR_PAGINA = 25;
 const TODOS = "__todos__";
@@ -68,6 +70,9 @@ const ACOES: Record<string, { rotulo: string; verbo: string }> = {
   editar_usuario: { rotulo: "Conta alterada", verbo: "alterou" },
   desativar_usuario: { rotulo: "Conta desativada", verbo: "desativou" },
   redefinir_senha: { rotulo: "Senha redefinida", verbo: "redefiniu a senha de" },
+  criar_grupo: { rotulo: "Grupo criado", verbo: "criou o grupo" },
+  editar_grupo: { rotulo: "Grupo alterado", verbo: "alterou o grupo" },
+  apagar_grupo: { rotulo: "Grupo apagado", verbo: "apagou o grupo" },
   login: { rotulo: "Entrada", verbo: "entrou" },
   logout: { rotulo: "Saída", verbo: "saiu" },
   login_recusado: { rotulo: "Entrada recusada", verbo: "tentou entrar" },
@@ -85,6 +90,7 @@ const TIPOS: { valor: TipoEntidade; rotulo: string }[] = [
   { valor: "ubs", rotulo: "Unidades de saúde" },
   { valor: "notificacao", rotulo: "Avisos" },
   { valor: "usuario", rotulo: "Contas" },
+  { valor: "grupo", rotulo: "Grupos" },
   { valor: "sessao", rotulo: "Acessos" },
   { valor: "regra_importacao", rotulo: "Regra de leitura" },
   { valor: "sistema", rotulo: "Sistema" },
@@ -98,7 +104,14 @@ const NOME_CAMPO: Record<string, string> = {
   source: "Fonte",
   name: "Nome",
   email: "E-mail",
+  // Registros de antes dos grupos ainda trazem o papel.
   role: "Papel",
+  grupo: "Grupo",
+  master: "Master",
+  descricao: "Descrição",
+  // A mudança de um grupo vem área por área, com a chave da área: o nome que
+  // aparece é o do item do menu.
+  ...Object.fromEntries(AREAS.map((area) => [area, rotuloDaArea(area)])),
   isActive: "Ativa",
   perguntas_ajustadas: "Perguntas ajustadas",
   mensagens: "Mensagens apagadas",
