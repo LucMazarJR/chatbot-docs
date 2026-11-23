@@ -103,7 +103,9 @@ describe('AuthService: login', () => {
       id: 'u-1',
       name: 'Alguem',
       email: 'a@b.com',
-      role: 'editor',
+      grupoId: 'g-1',
+      grupo: { id: 'g-1', nome: 'Editor', permissoes: { faqs: 'editar' } },
+      master: false,
       passwordHash: hash,
       isActive: true,
     });
@@ -123,7 +125,9 @@ describe('AuthService: login', () => {
       id: 'u-1',
       name: 'Alguem',
       email: 'a@b.com',
-      role: 'admin',
+      grupoId: 'g-1',
+      grupo: { id: 'g-1', nome: 'Administrador', permissoes: { faqs: 'editar' } },
+      master: true,
       passwordHash: hash,
       isActive: true,
     });

@@ -106,7 +106,6 @@ export class AuthService {
             sub: usuario.id,
             name: usuario.name,
             email: usuario.email,
-            role: usuario.role,
             jti,
         });
 

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import * as bcrypt from 'bcryptjs';
 
 import dataSource from '../data-source';
+import { Grupo } from '../../grupos/entities/grupo.entity';
 import { User } from '../../users/entities/user.entity';
 
 /**
@@ -42,11 +43,20 @@ async function main() {
         return;
     }
 
+    // A migração cria o Administrador com acesso a tudo. Quem instala também é
+    // o master: é o único que cria e muda grupos, e sem ele ninguém faria isso.
+    const grupo = await dataSource.getRepository(Grupo).findOne({ where: { nome: 'Administrador' } });
+    if (!grupo) {
+        console.error('O grupo Administrador não existe. Rode as migrations antes: pnpm run migration:run');
+        process.exit(1);
+    }
+
     const admin = repo.create({
         name: nome,
         email,
         passwordHash: await bcrypt.hash(senha, 10),
-        role: 'admin',
+        grupoId: grupo.id,
+        master: true,
         isActive: true,
         mustChangePassword: true,
     });

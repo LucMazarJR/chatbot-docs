@@ -20,7 +20,7 @@ export class UsersController {
     @Post()
     @Permite('usuarios:editar')
     criar(@Body() body: CreateUserDto, @CurrentUser() user: AuthenticatedUser) {
-        return this.usersService.criar(body, { id: user.id, name: user.name });
+        return this.usersService.criar(body, user);
     }
 
     @Patch(':id')
@@ -40,10 +40,7 @@ export class UsersController {
         @Body() body: SetPasswordDto,
         @CurrentUser() user: AuthenticatedUser,
     ) {
-        return this.usersService.definirSenha(id, body.newPassword, {
-            id: user.id,
-            name: user.name,
-        });
+        return this.usersService.definirSenha(id, body.newPassword, user);
     }
 
     @Patch(':id/deactivate')

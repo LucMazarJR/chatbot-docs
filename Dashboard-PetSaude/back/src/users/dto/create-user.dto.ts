@@ -1,5 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { USER_ROLES, type UserRole } from '../entities/user.entity';
+import { IsEmail, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class CreateUserDto {
     @IsString()
@@ -15,7 +14,6 @@ export class CreateUserDto {
     @MinLength(8, { message: 'A senha precisa ter ao menos 8 caracteres' })
     password: string;
 
-    @IsOptional()
-    @IsIn(USER_ROLES, { message: 'Papel inválido' })
-    role?: UserRole;
+    @IsUUID('all', { message: 'Escolha o grupo da pessoa.' })
+    grupoId: string;
 }

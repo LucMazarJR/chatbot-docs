@@ -10,16 +10,19 @@ import * as bcrypt from 'bcryptjs';
 
 import { AuthService } from '../auth/auth.service';
 import { ActivityService } from '../activity/activity.service';
-import { PublicUser, toPublicUser, User, UserRole } from './entities/user.entity';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user';
+import { cabeEm } from '../grupos/areas';
+import { Grupo } from '../grupos/entities/grupo.entity';
+import { PublicUser, toPublicUser, User } from './entities/user.entity';
 
-/** Quem executou a acao. O nome vai junto porque o historico precisa ser
- *  legivel sem consultar a tabela de usuarios. */
-export type Ator = { id: string; name: string };
+/** Quem pede a mudança, com o acesso que tem: as travas comparam com ele. */
+export type Solicitante = Pick<AuthenticatedUser, 'id' | 'name' | 'master' | 'permissoes'>;
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectRepository(User) private readonly usersRepo: Repository<User>,
+        @InjectRepository(Grupo) private readonly gruposRepo: Repository<Grupo>,
         private readonly authService: AuthService,
         private readonly activityService: ActivityService,
     ) { }
@@ -36,34 +39,37 @@ export class UsersService {
         name: string;
         email: string;
         password: string;
-        role?: UserRole;
-    }, criadoPor?: Ator): Promise<PublicUser> {
+        grupoId: string;
+    }, solicitante: Solicitante): Promise<PublicUser> {
         const email = dados.email.trim().toLowerCase();
+        const grupo = await this.grupoParaAtribuir(dados.grupoId, solicitante);
 
         const usuario = this.usersRepo.create({
             name: dados.name.trim(),
             email,
             passwordHash: await bcrypt.hash(dados.password, 10),
-            role: dados.role ?? 'leitor',
+            grupoId: grupo.id,
+            grupo,
+            master: false,
             isActive: true,
-            // Senha definida por um admin é provisória por natureza.
+            // Senha definida por outra pessoa é provisória por natureza.
             mustChangePassword: true,
-            createdById: criadoPor?.id ?? null,
+            createdById: solicitante.id,
         });
 
         try {
             const salvo = await this.usersRepo.save(usuario);
 
             await this.activityService.registrar({
-                actor_name: criadoPor?.name ?? 'sistema',
-                actor_id: criadoPor?.id,
+                actor_name: solicitante.name,
+                actor_id: solicitante.id,
                 action: 'criar_usuario',
                 entity_type: 'usuario',
                 entity_id: salvo.id,
                 target: salvo.name,
                 // Sem senha nem hash: o registro diz o que foi feito, nao
                 // guarda credencial.
-                after: { email: salvo.email, role: salvo.role },
+                after: { email: salvo.email, grupo: grupo.nome },
             });
 
             return toPublicUser(salvo);
@@ -78,39 +84,57 @@ export class UsersService {
 
     async atualizar(
         id: string,
-        dados: { name?: string; email?: string; role?: UserRole; isActive?: boolean },
-        solicitante: Ator,
+        dados: { name?: string; email?: string; grupoId?: string; isActive?: boolean; master?: boolean },
+        solicitante: Solicitante,
     ): Promise<PublicUser> {
         const usuario = await this.usersRepo.findOne({ where: { id } });
         if (!usuario) throw new NotFoundException('Usuário não encontrado');
 
-        const seRebaixando = dados.role !== undefined && dados.role !== 'admin';
-        const seDesativando = dados.isActive === false;
+        const ehVoce = usuario.id === solicitante.id;
+        this.exigirQueGerencie(usuario, solicitante);
 
-        // Um admin não pode se rebaixar nem se desativar: um clique errado
-        // deixaria o sistema sem ninguém capaz de administrar.
-        if (usuario.id === solicitante.id && (seRebaixando || seDesativando)) {
+        if (dados.master !== undefined && dados.master !== usuario.master && !solicitante.master) {
+            throw new ForbiddenException('Só o master passa o master para outra pessoa.');
+        }
+
+        // Mudar o próprio grupo seria o caminho mais curto para se promover, e
+        // rebaixar a si mesmo tira o acesso a esta tela sem ninguém por perto
+        // para desfazer. O master pode: o acesso dele não vem do grupo.
+        const trocaGrupo = dados.grupoId !== undefined && dados.grupoId !== usuario.grupoId;
+        if (ehVoce && trocaGrupo && !solicitante.master) {
             throw new ForbiddenException(
-                'Você não pode rebaixar nem desativar a própria conta',
+                'Você não pode mudar o seu próprio grupo. Peça a outra pessoa que cuida das contas.',
             );
         }
-
-        if (usuario.role === 'admin' && (seRebaixando || seDesativando)) {
-            await this.garantirQueSobraAdmin(usuario.id);
+        if (ehVoce && dados.isActive === false) {
+            throw new ForbiddenException('Você não pode desativar a própria conta.');
         }
 
+        const perdeMaster =
+            usuario.master && (dados.master === false || dados.isActive === false);
+        if (perdeMaster) await this.garantirQueSobraMaster(usuario.id);
+
+        const novoGrupo = trocaGrupo
+            ? await this.grupoParaAtribuir(dados.grupoId as string, solicitante)
+            : null;
+
         // O estado de antes, para o historico guardar a diferenca. So os
-        // quatro campos que esta operacao consegue mudar.
+        // campos que esta operacao consegue mudar.
         const antes = {
             name: usuario.name,
             email: usuario.email,
-            role: usuario.role,
+            grupo: usuario.grupo?.nome ?? '',
+            master: usuario.master,
             isActive: usuario.isActive,
         };
 
         if (dados.name !== undefined) usuario.name = dados.name.trim();
         if (dados.email !== undefined) usuario.email = dados.email.trim().toLowerCase();
-        if (dados.role !== undefined) usuario.role = dados.role;
+        if (novoGrupo) {
+            usuario.grupoId = novoGrupo.id;
+            usuario.grupo = novoGrupo;
+        }
+        if (dados.master !== undefined) usuario.master = dados.master;
         if (dados.isActive !== undefined) usuario.isActive = dados.isActive;
 
         try {
@@ -123,7 +147,8 @@ export class UsersService {
             const depois = {
                 name: salvo.name,
                 email: salvo.email,
-                role: salvo.role,
+                grupo: salvo.grupo?.nome ?? '',
+                master: salvo.master,
                 isActive: salvo.isActive,
             };
             const mudou = (Object.keys(antes) as (keyof typeof antes)[]).filter(
@@ -154,13 +179,16 @@ export class UsersService {
         }
     }
 
-    async desativar(id: string, solicitante: Ator): Promise<PublicUser> {
+    async desativar(id: string, solicitante: Solicitante): Promise<PublicUser> {
         return this.atualizar(id, { isActive: false }, solicitante);
     }
 
-    async definirSenha(id: string, novaSenha: string, solicitante: Ator): Promise<{ ok: true }> {
+    async definirSenha(id: string, novaSenha: string, solicitante: Solicitante): Promise<{ ok: true }> {
         const usuario = await this.usersRepo.findOne({ where: { id } });
         if (!usuario) throw new NotFoundException('Usuário não encontrado');
+        // Redefinir a senha de alguém é entrar na conta dele: com mais acesso
+        // que o seu, seria se promover por outro caminho.
+        this.exigirQueGerencie(usuario, solicitante);
 
         usuario.passwordHash = await bcrypt.hash(novaSenha, 10);
         usuario.mustChangePassword = true;
@@ -182,14 +210,47 @@ export class UsersService {
         return { ok: true };
     }
 
-    /** Impede que o último admin ativo perca o papel ou seja desativado. */
-    private async garantirQueSobraAdmin(idExcluido: string): Promise<void> {
+    /**
+     * Quem cuida das contas sem ser master só mexe em conta com acesso igual ou
+     * menor que o dele. Sem isto, alguém com a área Usuários e pouco mais
+     * redefiniria a senha de um administrador e entraria como ele.
+     */
+    private exigirQueGerencie(alvo: User, solicitante: Solicitante): void {
+        if (solicitante.master || alvo.id === solicitante.id) return;
+        if (alvo.master) {
+            throw new ForbiddenException('Só o master muda a conta do master.');
+        }
+        if (!cabeEm(alvo.grupo?.permissoes ?? {}, solicitante.permissoes)) {
+            throw new ForbiddenException(
+                `${alvo.name} está num grupo com mais acesso que o seu. Peça ao master do painel.`,
+            );
+        }
+    }
+
+    /** O grupo existe e cabe no acesso de quem está atribuindo. */
+    private async grupoParaAtribuir(grupoId: string, solicitante: Solicitante): Promise<Grupo> {
+        const grupo = await this.gruposRepo.findOne({ where: { id: grupoId } });
+        if (!grupo) {
+            throw new NotFoundException(
+                'Este grupo não existe mais. Recarregue a página e escolha outro.',
+            );
+        }
+        if (!solicitante.master && !cabeEm(grupo.permissoes, solicitante.permissoes)) {
+            throw new ForbiddenException(
+                `O grupo ${grupo.nome} dá mais acesso que o seu. Escolha outro, ou peça ao master do painel.`,
+            );
+        }
+        return grupo;
+    }
+
+    /** Impede que a instalação fique sem master ativo: só o banco resolveria. */
+    private async garantirQueSobraMaster(idExcluido: string): Promise<void> {
         const outros = await this.usersRepo.count({
-            where: { role: 'admin', isActive: true, id: Not(idExcluido) },
+            where: { master: true, isActive: true, id: Not(idExcluido) },
         });
         if (outros === 0) {
             throw new ForbiddenException(
-                'Este é o único administrador ativo. Promova outra pessoa antes.',
+                'Esta é a única conta master ativa. Passe o master para outra pessoa antes.',
             );
         }
     }

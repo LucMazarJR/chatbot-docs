@@ -9,12 +9,8 @@ import {
     UpdateDateColumn,
 } from 'typeorm';
 
-import type { Permissoes } from '../../grupos/areas';
+import { papelLegado, type Permissoes } from '../../grupos/areas';
 import { Grupo } from '../../grupos/entities/grupo.entity';
-
-export type UserRole = 'admin' | 'editor' | 'leitor';
-
-export const USER_ROLES: UserRole[] = ['admin', 'editor', 'leitor'];
 
 /**
  * Usuário do dashboard.
@@ -46,8 +42,8 @@ export class User {
     @Column({ name: 'password_hash', type: 'varchar', length: 100, select: false })
     passwordHash: string;
 
-    @Column({ name: 'role', type: 'varchar', length: 20, default: 'leitor' })
-    role: UserRole;
+    // A coluna `role` do banco não é mais lida: o acesso vem do grupo. Ela fica
+    // até uma migração própria apagá-la (ver 1795400000000-CreateGrupos).
 
     @Column({ name: 'grupo_id', type: 'uuid' })
     grupoId: string;
@@ -92,7 +88,8 @@ export type PublicUser = {
     grupo: { id: string; nome: string };
     permissoes: Permissoes;
     master: boolean;
-    role: UserRole;
+    /** Só para o front anterior aos grupos: ver `papelLegado`. */
+    role: 'admin' | 'editor' | 'leitor';
     isActive: boolean;
     mustChangePassword: boolean;
     lastLoginAt: Date | null;
@@ -108,7 +105,7 @@ export function toPublicUser(user: User): PublicUser {
         grupo: { id: user.grupoId, nome: user.grupo?.nome ?? '' },
         permissoes,
         master: user.master,
-        role: user.role,
+        role: papelLegado(user.master, permissoes),
         isActive: user.isActive,
         mustChangePassword: user.mustChangePassword,
         lastLoginAt: user.lastLoginAt ?? null,
