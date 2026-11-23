@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permite } from '../auth/decorators/permite.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { JobsService } from '../jobs/jobs.service';
 import { CuradoriaAutomaticaService } from './curadoria-automatica.service';
@@ -11,12 +11,13 @@ import { AprovarSugestaoDto, ListarSugestoesQueryDto } from './dto/aprovar-suges
 /**
  * As perguntas que o chatbot não soube responder, a caminho de virar FAQ.
  *
- * `@Roles('admin')` na classe: a fila expõe o que cidadãos escreveram no chat,
- * com o id da conversa de origem: é o mesmo material de ConversasController, e
- * vale a mesma regra. Rodar a análise também gasta cota da API.
+ * A fila expõe o que cidadãos escreveram no chat, com o id da conversa de
+ * origem: é o mesmo material de ConversasController, e por isso ver já é uma
+ * permissão dada de propósito. Analisar, aprovar e descartar ficam no editar:
+ * analisar gasta cota da API, e aprovar grava FAQ que o chatbot passa a usar.
  */
 @Controller('curadoria')
-@Roles('admin')
+@Permite('curadoria:ver')
 export class CuradoriaController {
     constructor(
         private readonly curadoria: CuradoriaService,
@@ -65,11 +66,13 @@ export class CuradoriaController {
     }
 
     @Post('analisar')
+    @Permite('curadoria:editar')
     analisar(@CurrentUser() user: AuthenticatedUser) {
         return this.curadoria.iniciarRodada({ id: user.id, name: user.name });
     }
 
     @Post('sugestoes/:id/aprovar')
+    @Permite('curadoria:editar')
     aprovar(
         @Param('id') id: string,
         @Body() body: AprovarSugestaoDto,
@@ -79,6 +82,7 @@ export class CuradoriaController {
     }
 
     @Post('sugestoes/:id/descartar')
+    @Permite('curadoria:editar')
     descartar(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
         return this.curadoria.descartar(id, { id: user.id, name: user.name });
     }

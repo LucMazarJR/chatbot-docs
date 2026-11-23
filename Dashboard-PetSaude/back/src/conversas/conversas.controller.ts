@@ -1,7 +1,7 @@
 import { Controller, Delete, Get, Header, Param, Post, Query } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permite } from '../auth/decorators/permite.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { ConversasService } from './conversas.service';
 import { ListarConversasQueryDto } from './dto/listar-conversas-query.dto';
@@ -9,14 +9,13 @@ import { ListarConversasQueryDto } from './dto/listar-conversas-query.dto';
 /**
  * Conversas do protótipo PWA.
  *
- * `@Roles('admin')` na classe inteira, como em ActivityController e
- * EmbeddingsController: aqui há relato de sintoma e pedido de atendimento
- * escritos por cidadãos identificáveis pelo que contam. Antes desta rota, o
- * painel vivia no próprio PWA atrás de uma senha única, sem identidade e sem
- * trilha de quem leu o quê.
+ * Área própria, que nenhum grupo recebe por padrão a não ser o Administrador:
+ * aqui há relato de sintoma e pedido de atendimento escritos por cidadãos
+ * identificáveis pelo que contam. Antes desta rota, o painel vivia no próprio
+ * PWA atrás de uma senha única, sem identidade e sem trilha de quem leu o quê.
  */
 @Controller('conversas')
-@Roles('admin')
+@Permite('conversas:ver')
 export class ConversasController {
     constructor(private readonly conversas: ConversasService) { }
 
@@ -27,7 +26,10 @@ export class ConversasController {
         return this.conversas.estatisticas(query.periodo ?? 'tudo', query.versao ?? 'todas', query.dia);
     }
 
+    // Todas as conversas de uma vez, para fora do painel: pesa mais que ler uma
+    // por uma, e fica com quem pode apagar.
     @Get('exportar')
+    @Permite('conversas:editar')
     @Header('Content-Type', 'text/csv; charset=utf-8')
     @Header('Content-Disposition', 'attachment; filename="conversas.csv"')
     exportar() {
@@ -57,6 +59,7 @@ export class ConversasController {
 
     /** Pedido de exclusão que chegou à equipe por fora do chat. */
     @Delete(':id')
+    @Permite('conversas:editar')
     apagar(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
         return this.conversas.apagar(id, { id: user.id, name: user.name });
     }

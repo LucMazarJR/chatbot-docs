@@ -17,6 +17,7 @@ export const TIPOS_ENTIDADE = [
     'ubs',
     'notificacao',
     'usuario',
+    'grupo',
     'sessao',
     'regra_importacao',
     'sistema',
@@ -49,9 +50,12 @@ export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
     // quantas pessoas, nunca o texto nem quem recebeu: o texto de um lembrete
     // pode dizer qual exame a pessoa vai fazer.
     notificacao: 365,
-    // Criar conta, trocar papel, redefinir senha de terceiro. Fica entre os
+    // Criar conta, trocar grupo, redefinir senha de terceiro. Fica entre os
     // dois: é ato administrativo, mas identifica pessoas.
     usuario: 365,
+    // Mudar o que um grupo libera muda o acesso de todos os membros de uma vez,
+    // inclusive a dado de cidadão. Dura o mesmo que o histórico de conteúdo.
+    grupo: 730,
     sistema: 365,
 };
 

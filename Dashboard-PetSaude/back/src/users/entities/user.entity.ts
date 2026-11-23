@@ -3,13 +3,14 @@ import {
     CreateDateColumn,
     Entity,
     Index,
+    JoinColumn,
+    ManyToOne,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
 } from 'typeorm';
 
-export type UserRole = 'admin' | 'editor' | 'leitor';
-
-export const USER_ROLES: UserRole[] = ['admin', 'editor', 'leitor'];
+import { papelLegado, type Permissoes } from '../../grupos/areas';
+import { Grupo } from '../../grupos/entities/grupo.entity';
 
 /**
  * Usuário do dashboard.
@@ -41,8 +42,22 @@ export class User {
     @Column({ name: 'password_hash', type: 'varchar', length: 100, select: false })
     passwordHash: string;
 
-    @Column({ name: 'role', type: 'varchar', length: 20, default: 'leitor' })
-    role: UserRole;
+    // A coluna `role` do banco não é mais lida: o acesso vem do grupo. Ela fica
+    // até uma migração própria apagá-la (ver 1795400000000-CreateGrupos).
+
+    @Column({ name: 'grupo_id', type: 'uuid' })
+    grupoId: string;
+
+    // `eager`: toda leitura de usuário precisa das permissões, a começar pelo
+    // guard, que relê a conta a cada requisição. Query builder não respeita
+    // eager: quem usa precisa do leftJoinAndSelect.
+    @ManyToOne(() => Grupo, { eager: true, onDelete: 'RESTRICT' })
+    @JoinColumn({ name: 'grupo_id' })
+    grupo: Grupo;
+
+    /** Cria e edita os grupos, e passa o master adiante. Vale por cima do grupo. */
+    @Column({ name: 'master', type: 'boolean', default: false })
+    master: boolean;
 
     // Desativar é sempre isto, nunca DELETE: o log de atividades referencia o
     // usuário, e apagar a linha deixaria o histórico órfão.
@@ -70,7 +85,11 @@ export type PublicUser = {
     id: string;
     name: string;
     email: string;
-    role: UserRole;
+    grupo: { id: string; nome: string };
+    permissoes: Permissoes;
+    master: boolean;
+    /** Só para o front anterior aos grupos: ver `papelLegado`. */
+    role: 'admin' | 'editor' | 'leitor';
     isActive: boolean;
     mustChangePassword: boolean;
     lastLoginAt: Date | null;
@@ -78,11 +97,15 @@ export type PublicUser = {
 };
 
 export function toPublicUser(user: User): PublicUser {
+    const permissoes = user.grupo?.permissoes ?? {};
     return {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        grupo: { id: user.grupoId, nome: user.grupo?.nome ?? '' },
+        permissoes,
+        master: user.master,
+        role: papelLegado(user.master, permissoes),
         isActive: user.isActive,
         mustChangePassword: user.mustChangePassword,
         lastLoginAt: user.lastLoginAt ?? null,

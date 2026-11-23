@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { UserSession } from '../users/entities/user-session.entity';
 import { ImportScript } from '../import-scripts/entities/import-script.entity';
+import { Grupo } from '../grupos/entities/grupo.entity';
 
 /**
  * DataSource usado apenas pela CLI do TypeORM (migrations e seed).
@@ -14,7 +15,7 @@ import { ImportScript } from '../import-scripts/entities/import-script.entity';
 export default new DataSource({
     type: 'postgres',
     url: process.env.DATABASE_URL,
-    entities: [User, UserSession, ImportScript],
+    entities: [User, UserSession, Grupo, ImportScript],
     migrations: [__dirname + '/migrations/*.{ts,js}'],
     synchronize: false,
     ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,

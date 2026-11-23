@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permite } from '../auth/decorators/permite.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { GerarRelatorioDto } from './dto/gerar-relatorio.dto';
 import { RelatoriosService } from './relatorios.service';
@@ -9,16 +9,17 @@ import { RelatoriosService } from './relatorios.service';
 /**
  * O relatório do dia do chatbot.
  *
- * `@Roles('admin')` pelo mesmo motivo de ConversasController: o relatório lista
- * as perguntas que cidadãos escreveram, uma por uma. Gerar também gasta cota da
- * API do Gemini.
+ * Ver é permissão dada de propósito, como Conversas: o relatório lista as
+ * perguntas que cidadãos escreveram, uma por uma. Gerar fica no editar porque
+ * gasta cota da API do Gemini.
  */
 @Controller('relatorios')
-@Roles('admin')
+@Permite('relatorios:ver')
 export class RelatoriosController {
     constructor(private readonly relatorios: RelatoriosService) { }
 
     @Post()
+    @Permite('relatorios:editar')
     gerar(@Body() body: GerarRelatorioDto, @CurrentUser() user: AuthenticatedUser) {
         return this.relatorios.iniciar(body.data, { id: user.id, name: user.name });
     }

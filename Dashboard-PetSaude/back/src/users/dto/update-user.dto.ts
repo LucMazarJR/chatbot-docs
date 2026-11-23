@@ -1,5 +1,4 @@
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { USER_ROLES, type UserRole } from '../entities/user.entity';
+import { IsBoolean, IsEmail, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateUserDto {
     @IsOptional()
@@ -14,8 +13,12 @@ export class UpdateUserDto {
     email?: string;
 
     @IsOptional()
-    @IsIn(USER_ROLES, { message: 'Papel inválido' })
-    role?: UserRole;
+    @IsUUID('all', { message: 'Escolha um grupo da lista.' })
+    grupoId?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    master?: boolean;
 
     @IsOptional()
     @IsBoolean()

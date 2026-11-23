@@ -11,6 +11,7 @@ import { ActivityModule } from './activity/activity.module';
 import { GeminiModule } from './gemini/gemini.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { GruposModule } from './grupos/grupos.module';
 import { ImportScriptsModule } from './import-scripts/import-scripts.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ImportModule } from './import/import.module';
@@ -20,6 +21,7 @@ import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { RelatoriosModule } from './relatorios/relatorios.module';
 import { UbsModule } from './ubs/ubs.module';
 import { CONEXAO_PROTOTIPO } from './conversas/conexao';
+import { Grupo } from './grupos/entities/grupo.entity';
 import { ImportScript } from './import-scripts/entities/import-script.entity';
 import { User } from './users/entities/user.entity';
 import { UserSession } from './users/entities/user-session.entity';
@@ -66,7 +68,7 @@ import { UserSession } from './users/entities/user-session.entity';
       useFactory: (config: ConfigService) => ({
         type: 'postgres' as const,
         url: config.get<string>('DATABASE_URL'),
-        entities: [User, UserSession, ImportScript],
+        entities: [User, UserSession, Grupo, ImportScript],
         migrations: [__dirname + '/database/migrations/*.js'],
         // Nunca true: o schema vem das migrations, versionado. synchronize
         // altera tabela em produção sem ninguém revisar.
@@ -100,6 +102,7 @@ import { UserSession } from './users/entities/user-session.entity';
     ActivityModule,
     AuthModule,
     UsersModule,
+    GruposModule,
     ImportScriptsModule,
     ImportModule,
     ConversasModule,
