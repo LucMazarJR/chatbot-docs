@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import { dataEHora, dataPorExtenso, hora } from "@/lib/datas";
 import {
   COR_DA_BARRA,
@@ -40,7 +40,7 @@ import {
 type Busca = { id?: string };
 
 export const Route = createFileRoute("/relatorios")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("relatorios"),
   validateSearch: (search: Record<string, unknown>): Busca =>
     typeof search.id === "string" && search.id ? { id: search.id } : {},
   head: () => ({

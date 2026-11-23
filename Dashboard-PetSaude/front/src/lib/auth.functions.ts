@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { ApiError, apiFetch } from "./api.server";
 import { authSession } from "./auth.server";
+import type { Permissoes } from "./permissoes";
 
 export type UserRole = "admin" | "editor" | "leitor";
 
@@ -10,6 +11,10 @@ export type SessionUser = {
   id: string;
   name: string;
   email: string;
+  grupo: { id: string; nome: string };
+  permissoes: Permissoes;
+  /** Cria e muda os grupos. Vale por cima das permissões do grupo. */
+  master: boolean;
   role: UserRole;
   isActive: boolean;
   mustChangePassword: boolean;
@@ -19,7 +24,7 @@ export type SessionUser = {
 
 export type SessionStatus = {
   authenticated: boolean;
-  user: Pick<SessionUser, "id" | "name" | "email" | "role"> | null;
+  user: Pick<SessionUser, "id" | "name" | "email" | "grupo" | "permissoes" | "master"> | null;
   mustChangePassword: boolean;
 };
 
@@ -49,7 +54,6 @@ export const login = createServerFn({ method: "POST" })
       userId: resposta.user.id,
       name: resposta.user.name,
       email: resposta.user.email,
-      role: resposta.user.role,
       mustChangePassword: resposta.user.mustChangePassword,
     });
 
@@ -89,8 +93,8 @@ export const getSession = createServerFn({ method: "POST" }).handler(
       return { authenticated: false, user: null, mustChangePassword: false };
     }
 
-    // Confirma no backend em vez de confiar no cookie: se o admin desativou a
-    // conta ou trocou o papel, a UI precisa refletir isso agora.
+    // Confirma no backend em vez de confiar no cookie: se a conta foi
+    // desativada, mudou de grupo ou o grupo mudou, a UI precisa refletir agora.
     try {
       const usuario = await apiFetch<SessionUser>("/auth/me");
       return {
@@ -99,7 +103,9 @@ export const getSession = createServerFn({ method: "POST" }).handler(
           id: usuario.id,
           name: usuario.name,
           email: usuario.email,
-          role: usuario.role,
+          grupo: usuario.grupo,
+          permissoes: usuario.permissoes ?? {},
+          master: usuario.master ?? false,
         },
         mustChangePassword: usuario.mustChangePassword,
       };

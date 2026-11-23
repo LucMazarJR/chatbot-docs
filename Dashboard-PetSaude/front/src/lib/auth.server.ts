@@ -6,7 +6,6 @@ export type AuthSession = {
   userId?: string;
   name?: string;
   email?: string;
-  role?: "admin" | "editor" | "leitor";
   mustChangePassword?: boolean;
 };
 

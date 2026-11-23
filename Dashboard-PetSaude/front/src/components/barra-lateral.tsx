@@ -3,9 +3,9 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, Moon, Search, Sun } from "lucide-react";
 
-import type { UserRole } from "@/lib/auth.functions";
 import { getFilaCuradoria } from "@/lib/curadoria.functions";
 import { gruposDe } from "@/lib/navegacao";
+import { pode, type Permissoes } from "@/lib/permissoes";
 import { aplicarTema, temaAtual, type Tema } from "@/lib/tema";
 import {
   Sidebar,
@@ -32,10 +32,12 @@ import {
 } from "@/components/ui/command";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
-const ROTULO_PAPEL: Record<UserRole, string> = {
-  admin: "Administrador",
-  editor: "Editor",
-  leitor: "Leitor",
+/** O que a barra precisa saber de quem está logado. */
+type UsuarioDaBarra = {
+  name: string;
+  grupo: { nome: string };
+  master: boolean;
+  permissoes: Permissoes;
 };
 
 /** Duas letras do nome, para o círculo do rodapé do menu. */
@@ -58,24 +60,18 @@ function ativo(caminho: string, para: string): boolean {
  * No desktop recolhe para só os ícones (com o nome ao passar o mouse) e lembra a
  * escolha; no celular vira gaveta. Os grupos e os itens vêm de `lib/navegacao.ts`.
  */
-export function BarraLateral({
-  usuario,
-  onSair,
-}: {
-  usuario: { name: string; role: UserRole };
-  onSair: () => void;
-}) {
+export function BarraLateral({ usuario, onSair }: { usuario: UsuarioDaBarra; onSair: () => void }) {
   const caminho = useRouterState({ select: (estado) => estado.location.pathname });
   const { isMobile, setOpenMobile } = useSidebar();
-  const grupos = gruposDe(usuario.role);
+  const grupos = gruposDe(usuario);
 
-  // O número ao lado de "Sem resposta" é o trabalho esperando. Só admin vê a
-  // tela, e só para admin a consulta roda. Enquanto não chega, nada aparece:
+  // O número ao lado de "Sem resposta" é o trabalho esperando. A consulta só
+  // roda para quem abre a tela: para os outros, o backend responderia 403. Enquanto não chega, nada aparece:
   // um zero provisório diria que não há nada para fazer.
   const fila = useQuery({
     queryKey: ["curadoria-fila"],
     queryFn: () => getFilaCuradoria(),
-    enabled: usuario.role === "admin",
+    enabled: pode(usuario, "curadoria"),
     staleTime: 60_000,
   });
   const pendentes = fila.data?.pendentes ?? 0;
@@ -161,7 +157,10 @@ export function BarraLateral({
               </span>
               <span className="min-w-0 text-sm leading-tight">
                 <span className="block truncate font-semibold">{usuario.name}</span>
-                <span className="text-sidebar-muted">{ROTULO_PAPEL[usuario.role]}</span>
+                <span className="block truncate text-sidebar-muted">
+                  {usuario.grupo.nome}
+                  {usuario.master && " · master"}
+                </span>
               </span>
             </div>
           </SidebarMenuItem>
@@ -186,10 +185,10 @@ export function BarraLateral({
  * ela está. Ctrl+K (⌘K no Mac) abre de qualquer tela; no celular, o botão da
  * barra do topo. Lê o mesmo registro da barra lateral, então não há o que manter.
  */
-export function IrPara({ papel }: { papel: UserRole }) {
+export function IrPara({ usuario }: { usuario: UsuarioDaBarra }) {
   const [aberto, setAberto] = useState(false);
   const navigate = useNavigate();
-  const grupos = gruposDe(papel);
+  const grupos = gruposDe(usuario);
 
   useEffect(() => {
     const aoTeclar = (evento: KeyboardEvent) => {
@@ -289,9 +288,9 @@ export function BotaoTema() {
  *
  * Lê o mesmo registro do menu, então tela nova aparece aqui sem editar nada.
  */
-export function Caminho({ papel }: { papel: UserRole }) {
+export function Caminho({ usuario }: { usuario: UsuarioDaBarra }) {
   const caminho = useRouterState({ select: (estado) => estado.location.pathname });
-  for (const grupo of gruposDe(papel)) {
+  for (const grupo of gruposDe(usuario)) {
     const destino = grupo.destinos.find((d) => ativo(caminho, d.para as string));
     if (destino) {
       const noDetalhe = caminho !== destino.para;

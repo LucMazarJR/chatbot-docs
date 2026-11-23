@@ -4,7 +4,7 @@ import { ChevronRight, Star } from "lucide-react";
 
 import { GateShell } from "@/components/gate";
 import { getFilaCuradoria } from "@/lib/curadoria.functions";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import {
   getEstatisticasConversas,
   listarConversas,
@@ -30,7 +30,7 @@ type Busca = { periodo?: Periodo; dia?: string; situacao?: Situacao };
 const FORMATO_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 export const Route = createFileRoute("/conversas/")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("conversas"),
   // Só devolve o que difere do padrão: devolvendo tudo, o router responde 307
   // em toda visita.
   validateSearch: (search: Record<string, unknown>): Busca => ({

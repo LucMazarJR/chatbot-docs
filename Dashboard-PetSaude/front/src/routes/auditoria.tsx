@@ -23,7 +23,7 @@ import {
   type ValorAuditado,
 } from "@/lib/auditoria.functions";
 import { fimDoDia, inicioDoDia } from "@/components/filtros-faq";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
@@ -115,7 +115,7 @@ const NOME_CAMPO: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/auditoria")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("historico"),
   head: () => ({ meta: [{ title: "Histórico | Central de FAQs" }] }),
   component: AuditoriaPage,
 });

@@ -40,14 +40,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { exigirSessao } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
+import { pode } from "@/lib/permissoes";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { Selo, type TomDoSelo } from "@/components/selo";
 
 export const Route = createFileRoute("/categorias/")({
-  beforeLoad: () => exigirSessao(),
+  beforeLoad: () => exigirPermissao("categorias"),
   head: () => ({
     meta: [
       { title: "Categorias de FAQs | Central de FAQs" },
@@ -103,7 +104,7 @@ const MOTIVOS: Record<MotivoRevisao, { rotulo: string; explicacao: string; tom: 
 
 function CategoriasPage() {
   const { usuario } = useSession();
-  const podeDefinir = usuario?.role === "admin";
+  const podeDefinir = pode(usuario, "categorias", "editar");
 
   const listaQuery = useQuery({
     queryKey: ["categorias", true],

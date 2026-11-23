@@ -3,12 +3,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { GateShell } from "@/components/gate";
 import { FormularioAviso } from "@/components/notificacoes/formulario-aviso";
 import { ListaDeEnvios } from "@/components/notificacoes/lista-de-envios";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { Selo } from "@/components/selo";
 
 export const Route = createFileRoute("/notificacoes")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("avisos"),
   head: () => ({ meta: [{ title: "Avisos | Central de FAQs" }] }),
   component: NotificacoesPage,
 });

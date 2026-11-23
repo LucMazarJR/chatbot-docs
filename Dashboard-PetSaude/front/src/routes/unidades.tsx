@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { diaEHora } from "@/lib/datas";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import {
   corrigirGrafia,
   criarUbs,
@@ -39,7 +39,7 @@ import {
 } from "@/lib/ubs.functions";
 
 export const Route = createFileRoute("/unidades")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("unidades"),
   head: () => ({ meta: [{ title: "Unidades de saúde | Central de FAQs" }] }),
   component: UbsPage,
 });

@@ -6,7 +6,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import { GateShell } from "@/components/gate";
 import { ApagarConversa } from "@/components/apagar-conversa";
 import { BaixarConversa } from "@/components/baixar-conversa";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import { detalharConversa, type MensagemConversa } from "@/lib/conversas.functions";
 import { SeloConta, SeloUbs } from "@/components/selos-conversa";
 import { diaEHora, hora } from "@/lib/datas";
@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/conversas/$id")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("conversas"),
   head: () => ({ meta: [{ title: "Conversa | Central de FAQs" }] }),
   component: ConversaPage,
 });

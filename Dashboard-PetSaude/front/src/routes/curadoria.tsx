@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
@@ -76,7 +76,7 @@ function PerguntaComContexto({
 }
 
 export const Route = createFileRoute("/curadoria")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("curadoria"),
   head: () => ({
     meta: [
       { title: "Perguntas sem resposta | Central de FAQs" },

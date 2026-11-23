@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileUp, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { GateShell, usePodeEscrever, useSession } from "@/components/gate";
+import { GateShell, usePode, usePodeEscrever } from "@/components/gate";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoVazio } from "@/components/estado";
@@ -37,10 +37,12 @@ import {
   type LinhaValidada,
 } from "@/lib/import.functions";
 import { ErroDeScript, rodarScript, type AvisoScript } from "@/lib/sandbox";
-import { exigirSessao } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
 
 export const Route = createFileRoute("/importar")({
-  beforeLoad: () => exigirSessao(),
+  // Só quem grava: o menu já escondia o item, mas o endereço digitado abria a
+  // tela e cada ação voltava 403.
+  beforeLoad: () => exigirPermissao("importar", "editar"),
   head: () => ({ meta: [{ title: "Importar FAQs | Central de FAQs" }] }),
   component: ImportarPage,
 });
@@ -256,9 +258,9 @@ function Andamento({
 
 function PainelImportacao() {
   const podeEscrever = usePodeEscrever();
-  // O link para /configuracoes so aparece para quem consegue abrir a tela: ela
-  // exige admin, e um editor que clicasse era jogado na home sem explicacao.
-  const ehAdmin = useSession().usuario?.role === "admin";
+  // O link para /configuracoes so aparece para quem consegue abrir a tela:
+  // quem clicasse sem acesso era jogado na home sem explicacao.
+  const ehAdmin = usePode("configuracoes");
   const queryClient = useQueryClient();
 
   const validar = useServerFn(validarImportacao);

@@ -1,6 +1,7 @@
 import { redirect } from "@tanstack/react-router";
 
 import { getSession, type SessionStatus } from "./auth.functions";
+import { pode, type Area, type Nivel } from "./permissoes";
 
 /**
  * Guardas de rota executadas no `beforeLoad`.
@@ -28,11 +29,27 @@ export async function exigirSessao(): Promise<SessionStatus> {
   return sessao;
 }
 
-/** Além da sessão, exige o papel de administrador. */
-export async function exigirAdmin(): Promise<SessionStatus> {
+/**
+ * Além da sessão, exige que o grupo da pessoa libere a área.
+ *
+ * Sem acesso, volta para as FAQs, que todo grupo abre. O menu já não mostra o
+ * item: só chega aqui quem digitou o endereço ou seguiu um link velho.
+ */
+export async function exigirPermissao(area: Area, nivel: Nivel = "ver"): Promise<SessionStatus> {
   const sessao = await exigirSessao();
 
-  if (sessao.user?.role !== "admin") {
+  if (!pode(sessao.user, area, nivel)) {
+    throw redirect({ to: "/" });
+  }
+
+  return sessao;
+}
+
+/** Só o master: a tela de grupos muda o acesso de todo mundo. */
+export async function exigirMaster(): Promise<SessionStatus> {
+  const sessao = await exigirSessao();
+
+  if (!sessao.user?.master) {
     throw redirect({ to: "/" });
   }
 

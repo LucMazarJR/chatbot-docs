@@ -17,7 +17,8 @@ import type { SessionUser, UserRole } from "@/lib/auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { exigirAdmin } from "@/lib/guardas";
+import { exigirPermissao } from "@/lib/guardas";
+import { pode } from "@/lib/permissoes";
 import {
   Select,
   SelectContent,
@@ -61,7 +62,7 @@ const ROTULO_PAPEL: Record<UserRole, string> = {
 };
 
 export const Route = createFileRoute("/usuarios")({
-  beforeLoad: () => exigirAdmin(),
+  beforeLoad: () => exigirPermissao("usuarios"),
   head: () => ({ meta: [{ title: "Usuários | Central de FAQs" }] }),
   component: UsuariosPage,
 });
@@ -133,7 +134,7 @@ function PainelUsuarios() {
   // A tela só existe para admin, mas o backend é quem garante: a rota inteira
   // é anotada com Roles('admin'). Isto aqui evita mostrar uma página que só
   // devolveria 403.
-  if (usuario && usuario.role !== "admin") {
+  if (usuario && !pode(usuario, "usuarios")) {
     return (
       <EstadoVazio titulo="Só administradores gerenciam usuários">
         Peça a um administrador para criar ou mudar uma conta.
