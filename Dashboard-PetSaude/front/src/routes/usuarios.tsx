@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { KeyRound, ShieldCheck, UserCog, UserPlus } from "lucide-react";
+import { KeyRound, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 
-import { GateShell, useSession } from "@/components/gate";
+import { GateShell, usePode, useSession } from "@/components/gate";
 import {
   createUser,
   deactivateUser,
@@ -13,12 +13,15 @@ import {
   setUserPassword,
   updateUser,
 } from "@/lib/users.functions";
-import type { SessionUser, UserRole } from "@/lib/auth.functions";
+import { listarGrupos, type Grupo } from "@/lib/grupos.functions";
+import type { SessionUser } from "@/lib/auth.functions";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { exigirPermissao } from "@/lib/guardas";
-import { pode } from "@/lib/permissoes";
+import { rotuloDaArea } from "@/lib/navegacao";
+import { AREAS, cabeEm, type Permissoes } from "@/lib/permissoes";
 import {
   Select,
   SelectContent,
@@ -46,20 +49,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
-import { EstadoFalha, EstadoVazio } from "@/components/estado";
+import { EstadoFalha } from "@/components/estado";
 import { Selo } from "@/components/selo";
-
-const PAPEIS: { valor: UserRole; rotulo: string; descricao: string }[] = [
-  { valor: "admin", rotulo: "Administrador", descricao: "Gerencia usuários e FAQs" },
-  { valor: "editor", rotulo: "Editor", descricao: "Cria e edita FAQs" },
-  { valor: "leitor", rotulo: "Leitor", descricao: "Apenas consulta" },
-];
-
-const ROTULO_PAPEL: Record<UserRole, string> = {
-  admin: "Administrador",
-  editor: "Editor",
-  leitor: "Leitor",
-};
 
 export const Route = createFileRoute("/usuarios")({
   beforeLoad: () => exigirPermissao("usuarios"),
@@ -75,20 +66,63 @@ function UsuariosPage() {
   );
 }
 
-type NovoUsuario = { name: string; email: string; password: string; role: UserRole };
+/** Quem está usando a tela: as travas comparam com ele. */
+type Eu = { id: string; master: boolean; permissoes: Permissoes };
+
+type NovoUsuario = { name: string; email: string; password: string; grupoId: string };
 
 /** Qual caixa de diálogo está aberta, e para quem. */
 type Acao =
-  | { tipo: "papel"; alvo: SessionUser }
+  | { tipo: "grupo"; alvo: SessionUser }
   | { tipo: "senha"; alvo: SessionUser }
   | { tipo: "desativar"; alvo: SessionUser }
   | null;
 
+/**
+ * Por que esta pessoa não pode mexer na conta, ou null se pode.
+ *
+ * Espelha a trava do back (`exigirQueGerencie`): sem ser master, só se mexe em
+ * conta com acesso igual ou menor que o seu. Redefinir a senha de quem tem mais
+ * acesso seria entrar como ele.
+ */
+function motivoParaNaoMexer(alvo: SessionUser, eu: Eu): string | null {
+  if (eu.master || alvo.id === eu.id) return null;
+  if (alvo.master) return "Conta do master: só o master muda.";
+  if (!cabeEm(alvo.permissoes, eu.permissoes)) {
+    return "Esta conta tem mais acesso que a sua: só o master muda.";
+  }
+  return null;
+}
+
+/** Os grupos que esta pessoa pode atribuir: o master, todos; os outros, os que cabem no seu acesso. */
+function gruposAtribuiveis(grupos: Grupo[], eu: Eu): Grupo[] {
+  return eu.master ? grupos : grupos.filter((g) => cabeEm(g.permissoes, eu.permissoes));
+}
+
+/** "FAQs (editar), Sem resposta (ver)": o que o grupo abre, na ordem do menu. */
+function resumo(permissoes: Permissoes): string {
+  return AREAS.filter((area) => permissoes[area])
+    .map((area) => `${rotuloDaArea(area)} (${permissoes[area]})`)
+    .join(", ");
+}
+
+/** O grupo com menos acesso: é o ponto de partida mais seguro para uma conta nova. */
+function menorGrupo(grupos: Grupo[]): Grupo | undefined {
+  const peso = (g: Grupo) =>
+    AREAS.reduce(
+      (total, a) => total + (g.permissoes[a] === "editar" ? 2 : g.permissoes[a] ? 1 : 0),
+      0,
+    );
+  return [...grupos].sort((a, b) => peso(a) - peso(b))[0];
+}
+
 function PainelUsuarios() {
   const { usuario } = useSession();
+  const podeEditar = usePode("usuarios", "editar");
   const queryClient = useQueryClient();
 
   const usuariosQuery = useQuery({ queryKey: ["users"], queryFn: () => listUsers() });
+  const gruposQuery = useQuery({ queryKey: ["grupos"], queryFn: () => listarGrupos() });
 
   const criar = useServerFn(createUser);
   const atualizar = useServerFn(updateUser);
@@ -98,7 +132,9 @@ function PainelUsuarios() {
   const [acao, setAcao] = useState<Acao>(null);
 
   const aoConcluir = (mensagem: string) => {
+    // O número de membros de cada grupo muda junto com as contas.
     queryClient.invalidateQueries({ queryKey: ["users"] });
+    queryClient.invalidateQueries({ queryKey: ["grupos"] });
     setAcao(null);
     toast.success(mensagem);
   };
@@ -113,9 +149,14 @@ function PainelUsuarios() {
   });
 
   const mutAtualizar = useMutation({
-    mutationFn: (dados: { id: string; role?: UserRole; isActive?: boolean }) =>
+    mutationFn: (dados: { id: string; grupoId?: string; master?: boolean; isActive?: boolean }) =>
       atualizar({ data: dados }),
-    onSuccess: () => aoConcluir("Usuário atualizado"),
+    onSuccess: (_resposta, dados) => {
+      aoConcluir("Usuário atualizado");
+      // Mudar a própria conta (o master trocando de grupo ou passando o master)
+      // muda o menu: a sessão precisa ser relida.
+      if (dados.id === usuario?.id) queryClient.invalidateQueries({ queryKey: ["session"] });
+    },
     onError: avisar("Não foi possível salvar a mudança."),
   });
 
@@ -131,18 +172,12 @@ function PainelUsuarios() {
     onError: avisar("Não foi possível redefinir a senha."),
   });
 
-  // A tela só existe para admin, mas o backend é quem garante: a rota inteira
-  // é anotada com Roles('admin'). Isto aqui evita mostrar uma página que só
-  // devolveria 403.
-  if (usuario && !pode(usuario, "usuarios")) {
-    return (
-      <EstadoVazio titulo="Só administradores gerenciam usuários">
-        Peça a um administrador para criar ou mudar uma conta.
-      </EstadoVazio>
-    );
-  }
+  if (!usuario) return null;
+  const eu: Eu = usuario;
 
   const usuarios = usuariosQuery.data ?? [];
+  const grupos = gruposQuery.data ?? [];
+  const atribuiveis = gruposAtribuiveis(grupos, eu);
 
   return (
     <div className="space-y-6">
@@ -152,12 +187,38 @@ function PainelUsuarios() {
           // O total só com a resposta: "0 contas" durante a espera diria que
           // ninguém tem acesso ao painel.
           usuariosQuery.data
-            ? `${usuarios.length === 1 ? "1 conta" : `${usuarios.length} contas`} com acesso ao painel, e o que cada uma pode fazer.`
-            : "Quem tem acesso ao painel, e o que cada conta pode fazer."
+            ? `${usuarios.length === 1 ? "1 conta" : `${usuarios.length} contas`} com acesso ao painel, e o grupo de cada uma.`
+            : "Quem tem acesso ao painel, e o grupo de cada conta."
+        }
+        acoes={
+          eu.master && (
+            <Button asChild variant="outline">
+              <Link to="/grupos">
+                <Users /> Grupos e permissões
+              </Link>
+            </Button>
+          )
         }
       />
 
-      <FormularioNovoUsuario aoCriar={(dados) => mutCriar.mutateAsync(dados)} />
+      {podeEditar &&
+        (gruposQuery.isError ? (
+          <EstadoFalha
+            onTentarDeNovo={() => gruposQuery.refetch()}
+            tentando={gruposQuery.isFetching}
+          >
+            Não foi possível carregar os grupos, e sem eles não dá para criar conta. Confira a
+            internet e tente de novo.
+          </EstadoFalha>
+        ) : gruposQuery.isLoading ? (
+          <Carregando texto="Carregando os grupos…" />
+        ) : (
+          <FormularioNovoUsuario
+            grupos={atribuiveis}
+            escondidos={grupos.length - atribuiveis.length}
+            aoCriar={(dados) => mutCriar.mutateAsync(dados)}
+          />
+        ))}
 
       {usuariosQuery.isError ? (
         <EstadoFalha
@@ -174,7 +235,8 @@ function PainelUsuarios() {
             <LinhaUsuario
               key={u.id}
               usuario={u}
-              ehVoce={u.id === usuario?.id}
+              eu={eu}
+              podeEditar={podeEditar}
               aoAgir={setAcao}
               aoReativar={() => mutAtualizar.mutate({ id: u.id, isActive: true })}
             />
@@ -195,18 +257,19 @@ function PainelUsuarios() {
         desfazia. Com um diálogo só, montado sob demanda, não há camadas irmãs
         disputando.
 
-        A `key` pelo id importa: os dois diálogos guardam estado próprio (o papel
+        A `key` pelo id importa: os dois diálogos guardam estado próprio (o grupo
         escolhido, a senha digitada) e não são remontados sozinhos. Sem ela,
-        abrir para uma segunda pessoa mostraria o papel da primeira, e a senha
+        abrir para uma segunda pessoa mostraria o grupo da primeira, e a senha
         digitada vazaria de um cadastro para o outro.
       */}
-      <DialogoPapel
-        key={"papel-" + (acao?.alvo.id ?? "nenhum")}
+      <DialogoGrupo
+        key={"grupo-" + (acao?.alvo.id ?? "nenhum")}
         acao={acao}
-        ehVoce={acao?.alvo.id === usuario?.id}
+        eu={eu}
+        grupos={atribuiveis}
         salvando={mutAtualizar.isPending}
         aoFechar={() => setAcao(null)}
-        aoConfirmar={(papel) => acao && mutAtualizar.mutate({ id: acao.alvo.id, role: papel })}
+        aoConfirmar={(mudancas) => acao && mutAtualizar.mutate({ id: acao.alvo.id, ...mudancas })}
       />
 
       <DialogoSenha
@@ -247,121 +310,172 @@ function PainelUsuarios() {
 
 function LinhaUsuario({
   usuario,
-  ehVoce,
+  eu,
+  podeEditar,
   aoAgir,
   aoReativar,
 }: {
   usuario: SessionUser;
-  ehVoce: boolean;
+  eu: Eu;
+  podeEditar: boolean;
   aoAgir: (acao: Acao) => void;
   aoReativar: () => void;
 }) {
+  const ehVoce = usuario.id === eu.id;
+  const motivo = podeEditar ? motivoParaNaoMexer(usuario, eu) : null;
+  // A própria conta: sem ser master, o grupo fica com outra pessoa (mudar o
+  // próprio seria se promover), e desativar a si mesmo ninguém pode.
+  const mudaGrupo = !ehVoce || eu.master;
+
   return (
     <li className="flex flex-col gap-3 border-b border-border px-4 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:px-5">
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
           {usuario.name}
           {ehVoce && <Selo tom="marca">Você</Selo>}
+          {usuario.master && <Selo tom="atencao">Master</Selo>}
           {!usuario.isActive && <Selo tom="erro">Desativada</Selo>}
         </p>
         <p className="truncate text-sm text-muted-foreground">
-          {usuario.email} · {ROTULO_PAPEL[usuario.role]}
+          {usuario.email} · {usuario.grupo.nome}
         </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => aoAgir({ tipo: "papel", alvo: usuario })}
-        >
-          <UserCog /> Papel
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => aoAgir({ tipo: "senha", alvo: usuario })}
-        >
-          <KeyRound /> Senha
-        </Button>
-
-        {usuario.isActive ? (
-          <Button
-            variant="perigo"
-            size="sm"
-            onClick={() => aoAgir({ tipo: "desativar", alvo: usuario })}
-          >
-            Desativar
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" onClick={aoReativar}>
-            <ShieldCheck /> Reativar
-          </Button>
+        {motivo && <p className="mt-1 text-sm text-muted-foreground">{motivo}</p>}
+        {podeEditar && ehVoce && !eu.master && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            O seu grupo só outra pessoa que cuida das contas pode mudar.
+          </p>
         )}
       </div>
+
+      {podeEditar && !motivo && (
+        <div className="flex flex-wrap gap-2">
+          {mudaGrupo && (
+            <Button variant="outline" onClick={() => aoAgir({ tipo: "grupo", alvo: usuario })}>
+              <Users /> Grupo
+            </Button>
+          )}
+
+          <Button variant="outline" onClick={() => aoAgir({ tipo: "senha", alvo: usuario })}>
+            <KeyRound /> Senha
+          </Button>
+
+          {!ehVoce &&
+            (usuario.isActive ? (
+              <Button variant="perigo" onClick={() => aoAgir({ tipo: "desativar", alvo: usuario })}>
+                Desativar
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={aoReativar}>
+                <ShieldCheck /> Reativar
+              </Button>
+            ))}
+        </div>
+      )}
     </li>
   );
 }
 
-function DialogoPapel({
+function DialogoGrupo({
   acao,
-  ehVoce,
+  eu,
+  grupos,
   salvando,
   aoFechar,
   aoConfirmar,
 }: {
   acao: Acao;
-  ehVoce: boolean;
+  eu: Eu;
+  grupos: Grupo[];
   salvando: boolean;
   aoFechar: () => void;
-  aoConfirmar: (papel: UserRole) => void;
+  aoConfirmar: (mudancas: { grupoId?: string; master?: boolean }) => void;
 }) {
-  const aberto = acao?.tipo === "papel";
-  const [papel, setPapel] = useState<UserRole>(acao?.alvo.role ?? "leitor");
+  const aberto = acao?.tipo === "grupo";
+  const alvo = acao?.alvo;
+  const [grupoId, setGrupoId] = useState(alvo?.grupo.id ?? "");
+  const [master, setMaster] = useState(alvo?.master ?? false);
+  const ehVoce = alvo?.id === eu.id;
+  const escolhido = grupos.find((g) => g.id === grupoId);
+
+  const confirmar = () => {
+    if (!alvo) return;
+    const mudancas: { grupoId?: string; master?: boolean } = {};
+    if (grupoId !== alvo.grupo.id) mudancas.grupoId = grupoId;
+    if (master !== alvo.master) mudancas.master = master;
+    if (Object.keys(mudancas).length === 0) {
+      aoFechar();
+      return;
+    }
+    aoConfirmar(mudancas);
+  };
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => !v && aoFechar()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Papel de {acao?.alvo.name}</DialogTitle>
-          <DialogDescription>O papel define o que a pessoa pode fazer no painel.</DialogDescription>
+          <DialogTitle>Grupo de {alvo?.name}</DialogTitle>
+          <DialogDescription>
+            O grupo define o que a pessoa vê e muda no painel. A mudança vale na próxima tela que
+            ela abrir.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="papel-usuario">Novo papel</Label>
-          <Select value={papel} onValueChange={(v) => setPapel(v as UserRole)}>
-            <SelectTrigger id="papel-usuario" className="w-full">
-              <SelectValue />
+          <Label htmlFor="grupo-usuario">Grupo</Label>
+          <Select value={grupoId} onValueChange={setGrupoId}>
+            <SelectTrigger id="grupo-usuario" className="h-11 w-full">
+              <SelectValue placeholder="Escolha o grupo" />
             </SelectTrigger>
             <SelectContent>
-              {PAPEIS.map((p) => (
-                <SelectItem key={p.valor} value={p.valor}>
-                  {p.rotulo} ({p.descricao})
+              {grupos.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.nome}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {escolhido && (
+            <p className="text-sm text-muted-foreground">Abre: {resumo(escolhido.permissoes)}.</p>
+          )}
         </div>
 
         {/*
-          Rebaixar a si mesmo é um clique que tira o próprio acesso a esta tela,
-          e só outro administrador consegue desfazer. Antes não havia aviso
-          nenhum: o Select trocava o papel direto no onValueChange.
+          O master vale por cima do grupo: cria e muda os grupos, e passa o master
+          adiante. Só o master vê esta caixa, porque só ele pode dar o master.
         */}
-        {ehVoce && papel !== "admin" && (
-          <p className="rounded-lg bg-destructive-soft p-3 text-sm font-semibold text-destructive">
-            Esta é a sua conta. Ao sair de administrador você perde o acesso a esta tela, e só outro
-            administrador pode devolvê-lo.
-          </p>
+        {eu.master && (
+          <div className="space-y-2">
+            <Label
+              htmlFor="master-usuario"
+              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-border px-3"
+            >
+              <Checkbox
+                id="master-usuario"
+                checked={master}
+                onCheckedChange={(v) => setMaster(v === true)}
+              />
+              <span>
+                <span className="block font-semibold">Master</span>
+                <span className="block text-sm font-normal text-muted-foreground">
+                  Cria e muda os grupos, e vê tudo, seja qual for o grupo.
+                </span>
+              </span>
+            </Label>
+            {ehVoce && !master && (
+              <p className="rounded-lg bg-destructive-soft p-3 text-sm font-semibold text-destructive">
+                Esta é a sua conta. Sem o master você deixa de mudar os grupos, e só outro master
+                pode devolvê-lo. Se você for o único, o painel recusa.
+              </p>
+            )}
+          </div>
         )}
 
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={aoFechar}>
             Cancelar
           </Button>
-          <Button type="button" disabled={salvando} onClick={() => aoConfirmar(papel)}>
-            {salvando ? "Salvando…" : "Alterar papel"}
+          <Button type="button" disabled={salvando} onClick={confirmar}>
+            {salvando ? "Salvando…" : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -441,12 +555,23 @@ function DialogoSenha({
   );
 }
 
-function FormularioNovoUsuario({ aoCriar }: { aoCriar: (dados: NovoUsuario) => Promise<unknown> }) {
+function FormularioNovoUsuario({
+  grupos,
+  escondidos,
+  aoCriar,
+}: {
+  grupos: Grupo[];
+  /** Quantos grupos ficaram fora da lista por darem mais acesso que o seu. */
+  escondidos: number;
+  aoCriar: (dados: NovoUsuario) => Promise<unknown>;
+}) {
+  const padrao = menorGrupo(grupos)?.id ?? "";
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [papel, setPapel] = useState<UserRole>("leitor");
+  const [grupoId, setGrupoId] = useState(padrao);
   const [salvando, setSalvando] = useState(false);
+  const escolhido = grupos.find((g) => g.id === grupoId);
 
   /**
    * LÓGICA DO LUCIANO: os campos só são limpos DEPOIS que o backend aceitou.
@@ -456,13 +581,17 @@ function FormularioNovoUsuario({ aoCriar }: { aoCriar: (dados: NovoUsuario) => P
    */
   const enviar = async (evento: React.FormEvent) => {
     evento.preventDefault();
+    if (!grupoId) {
+      toast.error("Escolha o grupo da pessoa antes de criar a conta.");
+      return;
+    }
     setSalvando(true);
     try {
-      await aoCriar({ name: nome, email, password: senha, role: papel });
+      await aoCriar({ name: nome, email, password: senha, grupoId });
       setNome("");
       setEmail("");
       setSenha("");
-      setPapel("leitor");
+      setGrupoId(padrao);
     } catch {
       // O onError da mutação já mostrou o motivo. Aqui só não se apaga nada.
     } finally {
@@ -496,7 +625,7 @@ function FormularioNovoUsuario({ aoCriar }: { aoCriar: (dados: NovoUsuario) => P
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <UserPlus className="size-4" /> Novo usuário
         </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           A senha definida aqui é provisória: a troca será exigida no primeiro acesso.
         </p>
       </div>
@@ -542,19 +671,29 @@ function FormularioNovoUsuario({ aoCriar }: { aoCriar: (dados: NovoUsuario) => P
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="novo-papel">Papel</Label>
-        <Select value={papel} onValueChange={(v) => setPapel(v as UserRole)}>
-          <SelectTrigger id="novo-papel">
-            <SelectValue />
+        <Label htmlFor="novo-grupo">Grupo</Label>
+        <Select value={grupoId} onValueChange={setGrupoId}>
+          <SelectTrigger id="novo-grupo" className="h-11">
+            <SelectValue placeholder="Escolha o grupo" />
           </SelectTrigger>
           <SelectContent>
-            {PAPEIS.map((p) => (
-              <SelectItem key={p.valor} value={p.valor}>
-                {p.rotulo} ({p.descricao})
+            {grupos.map((g) => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.nome}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {escolhido && (
+          <p className="text-sm text-muted-foreground">Abre: {resumo(escolhido.permissoes)}.</p>
+        )}
+        {escondidos > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {escondidos === 1
+              ? "1 grupo dá mais acesso que o seu e não aparece aqui: só o master põe pessoas nele."
+              : `${escondidos} grupos dão mais acesso que o seu e não aparecem aqui: só o master põe pessoas neles.`}
+          </p>
+        )}
       </div>
 
       <div className="sm:col-span-2">

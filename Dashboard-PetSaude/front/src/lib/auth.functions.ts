@@ -5,8 +5,6 @@ import { ApiError, apiFetch } from "./api.server";
 import { authSession } from "./auth.server";
 import type { Permissoes } from "./permissoes";
 
-export type UserRole = "admin" | "editor" | "leitor";
-
 export type SessionUser = {
   id: string;
   name: string;
@@ -15,7 +13,6 @@ export type SessionUser = {
   permissoes: Permissoes;
   /** Cria e muda os grupos. Vale por cima das permissões do grupo. */
   master: boolean;
-  role: UserRole;
   isActive: boolean;
   mustChangePassword: boolean;
   lastLoginAt: string | null;

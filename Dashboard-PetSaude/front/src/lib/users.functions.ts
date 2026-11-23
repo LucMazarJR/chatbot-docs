@@ -2,9 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { apiFetch } from "./api.server";
-import type { SessionUser, UserRole } from "./auth.functions";
-
-const papeis = z.enum(["admin", "editor", "leitor"]);
+import type { SessionUser } from "./auth.functions";
 
 export const listUsers = createServerFn({ method: "GET" }).handler(
   async (): Promise<SessionUser[]> => apiFetch<SessionUser[]>("/users"),
@@ -17,13 +15,16 @@ export const createUser = createServerFn({ method: "POST" })
         name: z.string().trim().min(2, "Informe o nome").max(120),
         email: z.string().trim().email("Informe um e-mail válido"),
         password: z.string().min(8, "A senha precisa ter ao menos 8 caracteres"),
-        role: papeis.default("leitor"),
+        grupoId: z.string().uuid("Escolha o grupo da pessoa"),
       })
       .parse(data),
   )
   .handler(
-    async ({ data }: { data: { name: string; email: string; password: string; role: UserRole } }) =>
-      apiFetch<SessionUser>("/users", { method: "POST", body: JSON.stringify(data) }),
+    async ({
+      data,
+    }: {
+      data: { name: string; email: string; password: string; grupoId: string };
+    }) => apiFetch<SessionUser>("/users", { method: "POST", body: JSON.stringify(data) }),
   );
 
 export const updateUser = createServerFn({ method: "POST" })
@@ -33,7 +34,8 @@ export const updateUser = createServerFn({ method: "POST" })
         id: z.string().min(1),
         name: z.string().trim().min(2).max(120).optional(),
         email: z.string().trim().email().optional(),
-        role: papeis.optional(),
+        grupoId: z.string().uuid().optional(),
+        master: z.boolean().optional(),
         isActive: z.boolean().optional(),
       })
       .parse(data),
