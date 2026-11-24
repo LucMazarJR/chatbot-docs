@@ -84,4 +84,15 @@ export class CommitImportacaoDto {
     @IsString()
     @MaxLength(20)
     tipoArquivo?: string;
+
+    // A mesma revisão para o lote inteiro: um material de campanha vence junto.
+    // Conferida antes de começar, para não gravar metade e recusar o resto.
+    @IsOptional()
+    @IsString()
+    revisar_em?: string | null;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(200, { message: 'O motivo da revisão pode ter até 200 caracteres.' })
+    revisao_nota?: string | null;
 }

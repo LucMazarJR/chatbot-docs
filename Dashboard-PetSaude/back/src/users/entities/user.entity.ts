@@ -67,6 +67,14 @@ export class User {
     @Column({ name: 'must_change_password', type: 'boolean', default: false })
     mustChangePassword: boolean;
 
+    /**
+     * Minha conta: toda FAQ que a pessoa criar já vem com revisão em N dias.
+     * Null é sem padrão. A tela usa para pré-marcar o formulário; o back não
+     * aplica sozinho, para a pessoa sempre ver a data antes de salvar.
+     */
+    @Column({ name: 'revisao_padrao_dias', type: 'integer', nullable: true })
+    revisaoPadraoDias: number | null;
+
     @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
     lastLoginAt: Date | null;
 
@@ -92,6 +100,7 @@ export type PublicUser = {
     role: 'admin' | 'editor' | 'leitor';
     isActive: boolean;
     mustChangePassword: boolean;
+    revisaoPadraoDias: number | null;
     lastLoginAt: Date | null;
     createdAt: Date;
 };
@@ -108,6 +117,7 @@ export function toPublicUser(user: User): PublicUser {
         role: papelLegado(user.master, permissoes),
         isActive: user.isActive,
         mustChangePassword: user.mustChangePassword,
+        revisaoPadraoDias: user.revisaoPadraoDias ?? null,
         lastLoginAt: user.lastLoginAt ?? null,
         createdAt: user.createdAt,
     };

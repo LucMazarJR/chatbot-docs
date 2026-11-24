@@ -50,7 +50,7 @@ export const RETENCAO_DIAS: Record<TipoEntidade, number> = {
     // quantas pessoas, nunca o texto nem quem recebeu: o texto de um lembrete
     // pode dizer qual exame a pessoa vai fazer.
     notificacao: 365,
-    // Criar conta, trocar grupo, redefinir senha de terceiro. Fica entre os
+    // Criar conta, trocar grupo, redefinir senha, mudar o próprio nome de terceiro. Fica entre os
     // dois: é ato administrativo, mas identifica pessoas.
     usuario: 365,
     // Mudar o que um grupo libera muda o acesso de todos os membros de uma vez,

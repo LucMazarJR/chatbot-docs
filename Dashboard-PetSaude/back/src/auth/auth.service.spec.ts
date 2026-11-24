@@ -155,4 +155,37 @@ describe('AuthService: login', () => {
 
     expect(usersRepo.save).not.toHaveBeenCalled();
   });
+
+  describe('Minha conta', () => {
+    const conta = () => ({ id: 'u-1', name: 'Ana', revisaoPadraoDias: null, grupo: null });
+
+    it('muda o nome e o padrão, e o histórico guarda só o que mudou', async () => {
+      usersRepo.findOne.mockResolvedValue(conta());
+      const registrar = (service as any).activityService.registrar as jest.Mock;
+
+      const r = await service.atualizarPerfil('u-1', { name: ' Ana Souza ', revisaoPadraoDias: 90 });
+
+      expect(r.name).toBe('Ana Souza');
+      expect(r.revisaoPadraoDias).toBe(90);
+      expect(registrar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'editar_perfil',
+          before: { name: 'Ana', revisaoPadraoDias: null },
+          after: { name: 'Ana Souza', revisaoPadraoDias: 90 },
+        }),
+      );
+    });
+
+    it('salvar sem mudar nada não grava nem enche o histórico', async () => {
+      usersRepo.findOne.mockResolvedValue(conta());
+      await service.atualizarPerfil('u-1', { name: 'Ana' });
+      expect(usersRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('null desliga o padrão de revisão', async () => {
+      usersRepo.findOne.mockResolvedValue({ ...conta(), revisaoPadraoDias: 30 });
+      const r = await service.atualizarPerfil('u-1', { revisaoPadraoDias: null });
+      expect(r.revisaoPadraoDias).toBeNull();
+    });
+  });
 });

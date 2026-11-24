@@ -58,6 +58,26 @@ export class Faq {
     @Prop()
     updated_by_id?: string;
 
+    /**
+     * Quando alguém precisa conferir se a FAQ continua valendo (ver
+     * faqs/revisao.ts). Ausente ou null: a FAQ não tem prazo.
+     *
+     * `type: Date` explícito: a ingestão Python copia este campo de uma versão
+     * para a outra da FAQ pelo content_hash, e o n8n não o lê.
+     */
+    @Prop({ type: Date, default: null, index: true })
+    revisar_em?: Date | null;
+
+    /** Por que precisa de revisão ("surto de Hepatite A"), para quem revisa. */
+    @Prop({ type: String, default: null })
+    revisao_nota?: string | null;
+
+    @Prop({ type: Date })
+    revisada_em?: Date;
+
+    @Prop({ type: String })
+    revisada_por?: string;
+
     @Prop({ type: [Number], default: [] })
     embedding: number[];
 

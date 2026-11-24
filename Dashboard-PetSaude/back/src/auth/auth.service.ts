@@ -203,4 +203,41 @@ export class AuthService {
         if (!usuario) throw new UnauthorizedException('Usuário não encontrado');
         return toPublicUser(usuario);
     }
+
+    /**
+     * Minha conta: o nome e as preferências da própria pessoa.
+     *
+     * O histórico registra só o que mudou. O nome importa ali porque é ele que
+     * aparece como autor nas FAQs e no próprio histórico.
+     */
+    async atualizarPerfil(
+        userId: string,
+        dados: { name?: string; revisaoPadraoDias?: number | null },
+    ): Promise<PublicUser> {
+        const usuario = await this.usersRepo.findOne({ where: { id: userId } });
+        if (!usuario) throw new UnauthorizedException('Usuário não encontrado');
+
+        const antes = { name: usuario.name, revisaoPadraoDias: usuario.revisaoPadraoDias ?? null };
+        if (dados.name !== undefined) usuario.name = dados.name.trim();
+        if (dados.revisaoPadraoDias !== undefined) usuario.revisaoPadraoDias = dados.revisaoPadraoDias;
+        const depois = { name: usuario.name, revisaoPadraoDias: usuario.revisaoPadraoDias ?? null };
+
+        const mudou = (Object.keys(antes) as (keyof typeof antes)[]).filter(
+            (campo) => antes[campo] !== depois[campo],
+        );
+        if (mudou.length === 0) return toPublicUser(usuario);
+
+        const salvo = await this.usersRepo.save(usuario);
+        await this.activityService.registrar({
+            actor_name: salvo.name,
+            actor_id: salvo.id,
+            action: 'editar_perfil',
+            entity_type: 'usuario',
+            entity_id: salvo.id,
+            target: salvo.name,
+            before: Object.fromEntries(mudou.map((campo) => [campo, antes[campo]])),
+            after: Object.fromEntries(mudou.map((campo) => [campo, depois[campo]])),
+        });
+        return toPublicUser(salvo);
+    }
 }

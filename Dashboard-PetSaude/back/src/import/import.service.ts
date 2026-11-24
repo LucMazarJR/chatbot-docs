@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 import { CategoriasService } from '../categorias/categorias.service';
 import { chaveDeCategoria } from '../categorias/chave';
 import { FaqsService } from '../faqs/faqs.service';
+import { conferirQueNaoPassou, lerDataDeRevisao } from '../faqs/revisao';
 import { JobsService } from '../jobs/jobs.service';
 import { CommitImportacaoDto, FaqImportadaDto } from './dto/importar.dto';
 
@@ -314,6 +315,14 @@ export class ImportService {
      * qualquer limite de tempo de requisição da Vercel ou do Render.
      */
     iniciarImportacao(dados: CommitImportacaoDto, actor: { id?: string; name: string }) {
+        // A data vai para cada linha e o createFaq confere de novo, mas aqui a
+        // recusa chega antes do job: uma data ruim não pode virar 300 erros.
+        try {
+            const data = lerDataDeRevisao(dados.revisar_em);
+            if (data) conferirQueNaoPassou(data, new Date());
+        } catch (erro) {
+            throw new BadRequestException((erro as Error).message);
+        }
         const job = this.jobsService.criar(JOB_IMPORTACAO, dados.faqs.length, actor.name);
 
         // Sem await: o laço avisa o progresso pelo próprio job.
@@ -383,6 +392,8 @@ export class ImportService {
                                 category: item.faq.category,
                                 tags: item.faq.tags,
                                 source: item.faq.source,
+                                revisar_em: dados.revisar_em,
+                                revisao_nota: dados.revisao_nota,
                             },
                             actor,
                             { ...origemBase, line_reference: item.linha },

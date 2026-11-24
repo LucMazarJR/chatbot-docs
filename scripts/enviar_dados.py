@@ -119,6 +119,28 @@ def carregar_embeddings_existentes(collection, file_id: str) -> Dict[str, List[f
         cache[doc["content_hash"]] = doc["embedding"]
     return cache
 
+# Campos que o painel grava numa FAQ e que o Drive não conhece. Este script
+# apaga e regrava o arquivo inteiro quando ele muda; sem copiar estes campos, a
+# data de revisão marcada no painel sumiria sem aviso na próxima sincronização.
+CAMPOS_DE_REVISAO = ("revisar_em", "revisao_nota", "revisada_em", "revisada_por")
+
+def carregar_revisoes_existentes(collection, file_id: str) -> Dict[str, dict]:
+    """Revisões marcadas no painel, indexadas pelo hash do conteúdo.
+
+    Pelo hash, como os vetores: FAQ que não mudou de texto mantém a revisão.
+    A que mudou perde, e é o esperado, porque alguém mexeu nela no Drive.
+    """
+    cache = {}
+    docs = collection.find(
+        {"file_id": file_id, "content_hash": {"$exists": True}, "revisar_em": {"$type": "date"}},
+        {"content_hash": 1, **{campo: 1 for campo in CAMPOS_DE_REVISAO}}
+    )
+    for doc in docs:
+        cache[doc["content_hash"]] = {
+            campo: doc[campo] for campo in CAMPOS_DE_REVISAO if doc.get(campo) is not None
+        }
+    return cache
+
 # ============================================================================
 # 3. CONFIGURAÇÃO DO ÍNDICE VETORIAL ATLAS
 # ============================================================================
@@ -208,6 +230,7 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
         try:
             # Carregar cache de embeddings existentes antes de deletar
             cache_embeddings = carregar_embeddings_existentes(col_dados, file_id)
+            cache_revisoes = carregar_revisoes_existentes(col_dados, file_id)
             embeddings_reutilizados = 0
             embeddings_gerados = 0
             
@@ -344,6 +367,7 @@ def processar_faqs_drive(db) -> Tuple[int, int]:
                             # Marca qual modelo gerou o vetor: e o que permite ao
                             # reindexar_embeddings.py saber o que ja esta em dia.
                             "embedding_model": MODELO_EMBEDDING if embedding_vector else None,
+                            **cache_revisoes.get(content_hash, {}),
                         })
 
                 except Exception as line_error:

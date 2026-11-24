@@ -1,10 +1,33 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    Logger,
+    NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import * as crypto from 'crypto';
 import { ActivityService } from '../activity/activity.service';
 import { GeminiService } from '../gemini/gemini.service';
+import { permite, type Permissoes } from '../grupos/areas';
+import {
+    conferirQueNaoPassou,
+    dataComoDia,
+    filtroDaRevisao,
+    lerDataDeRevisao,
+    situacaoDaRevisao,
+    type FiltroRevisao,
+} from './revisao';
 import { Faq, FaqDocument } from './schemas/faq.schema';
+
+/** Quem pede, com o acesso que tem: decide o alcance na tela de Revisões. */
+export type AcessoRevisao = {
+    id: string;
+    name: string;
+    master: boolean;
+    permissoes: Permissoes;
+};
 
 /** Vetor gerado e a procedência dele, ou o motivo de não ter saído vetor. */
 export type VetorGerado = {
@@ -377,6 +400,13 @@ export class FaqsService {
             updatedAt: doc.updatedAt,
             created_by: doc.created_by || null,
             updated_by: doc.updated_by || null,
+            revisar_em: doc.revisar_em ? new Date(doc.revisar_em).toISOString() : null,
+            revisao_nota: doc.revisao_nota || null,
+            revisada_em: doc.revisada_em ? new Date(doc.revisada_em).toISOString() : null,
+            revisada_por: doc.revisada_por || null,
+            situacao_revisao: doc.revisar_em
+                ? situacaoDaRevisao(new Date(doc.revisar_em), new Date())
+                : null,
         };
     }
 
@@ -465,6 +495,7 @@ export class FaqsService {
         const answer = data.answer || "";
         this.assertConteudoValido(question, answer);
         const contentHash = this.generateHash(question, answer);
+        const revisarEm = this.dataDeRevisaoNova(data.revisar_em) ?? null;
 
         const texto = this.montarTexto(cat, question, answer);
         const vetor = await this.gerarVetor(texto);
@@ -494,6 +525,8 @@ export class FaqsService {
             updated_by: actor.name,
             created_by_id: actor.id,
             updated_by_id: actor.id,
+            revisar_em: revisarEm,
+            revisao_nota: revisarEm ? this.notaDeRevisao(data.revisao_nota) : null,
             ...(origem ?? {})
         });
 
@@ -516,9 +549,15 @@ export class FaqsService {
         };
     }
 
-    async updateFaq(id: string, data: any, actor: { id?: string; name: string }) {
+    async updateFaq(
+        id: string,
+        data: any,
+        actor: { id?: string; name: string },
+        acesso?: AcessoRevisao,
+    ) {
         const faq = await this.faqModel.findById(id).exec();
         if (!faq) throw new NotFoundException('Not found');
+        if (acesso) this.exigirQuePossaEditar(faq, acesso);
 
         const newQuestion = data.question !== undefined ? data.question : faq.question;
         const newAnswer = data.answer !== undefined ? data.answer : faq.answer;
@@ -541,7 +580,10 @@ export class FaqsService {
             category: faq.category,
             tags: [...(faq.tags ?? [])],
             source: faq.source,
+            revisar_em: dataComoDia(faq.revisar_em),
+            revisao_nota: faq.revisao_nota ?? '',
         };
+        const revisao = this.mudancaDeRevisao(faq, data);
 
         this.assertConteudoValido(newQuestion, newAnswer);
         const newContentHash = this.generateHash(newQuestion, newAnswer);
@@ -587,6 +629,7 @@ export class FaqsService {
         faq.updatedAt = new Date();
         faq.updated_by = actor.name;
         faq.updated_by_id = actor.id;
+        this.aplicarRevisao(faq, revisao, actor);
 
         await faq.save();
 
@@ -599,6 +642,8 @@ export class FaqsService {
             category: cat,
             tags: newTags,
             source: newSource,
+            revisar_em: dataComoDia(faq.revisar_em),
+            revisao_nota: faq.revisao_nota ?? '',
         };
         const mudou = (Object.keys(antes) as (keyof typeof antes)[]).filter(
             (c) => JSON.stringify(antes[c]) !== JSON.stringify(depois[c]),
@@ -616,6 +661,218 @@ export class FaqsService {
         });
 
         return { ok: true };
+    }
+
+    /**
+     * As FAQs com data de revisão, no alcance de quem pede.
+     *
+     * Com o nível ver da área, só as que a pessoa criou: pedir `todas` não
+     * amplia nada. O id de quem criou existe desde que o painel tem login; nas
+     * FAQs mais antigas só há o nome, e ele serve de reserva.
+     */
+    async listarRevisoes(
+        params: { situacao?: FiltroRevisao; escopo?: 'minhas' | 'todas'; page?: number; limit?: number },
+        acesso: AcessoRevisao,
+    ) {
+        const alcance = this.alcanceDeRevisao(acesso);
+        if (!alcance) throw new ForbiddenException('O seu grupo não inclui Revisões.');
+        const escopo = alcance === 'todas' && params.escopo !== 'minhas' ? 'todas' : 'minhas';
+
+        const agora = new Date();
+        const base: Record<string, unknown> = {
+            isActive: true,
+            ...(escopo === 'minhas' ? this.filtroMinhas(acesso) : {}),
+        };
+        const filtro = { ...base, ...filtroDaRevisao(params.situacao ?? 'vencidas', agora) };
+
+        const page = Math.max(1, params.page ?? 1);
+        const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+
+        const [docs, total, vencidas, proximas, todas] = await Promise.all([
+            this.faqModel
+                .find(filtro)
+                .select('-embedding -text')
+                // A mais urgente primeiro, e _id para a paginação não oscilar
+                // entre FAQs com o mesmo dia.
+                .sort({ revisar_em: 1, _id: 1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .exec(),
+            this.faqModel.countDocuments(filtro).exec(),
+            this.faqModel.countDocuments({ ...base, ...filtroDaRevisao('vencidas', agora) }).exec(),
+            this.faqModel.countDocuments({ ...base, ...filtroDaRevisao('proximas', agora) }).exec(),
+            this.faqModel.countDocuments({ ...base, ...filtroDaRevisao('todas', agora) }).exec(),
+        ]);
+
+        return {
+            items: docs.map((d) => this.mapearFaq(d.toObject())),
+            total,
+            page,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+            contagem: { vencidas, proximas, todas },
+            escopo,
+            podeVerTodas: alcance === 'todas',
+        };
+    }
+
+    /** Quantas venceram no alcance máximo de quem pede: é o número do menu. */
+    async contarRevisoesVencidas(acesso: AcessoRevisao): Promise<{ vencidas: number }> {
+        const alcance = this.alcanceDeRevisao(acesso);
+        if (!alcance) return { vencidas: 0 };
+        const vencidas = await this.faqModel
+            .countDocuments({
+                isActive: true,
+                ...(alcance === 'minhas' ? this.filtroMinhas(acesso) : {}),
+                ...filtroDaRevisao('vencidas', new Date()),
+            })
+            .exec();
+        return { vencidas };
+    }
+
+    /**
+     * "Continua valendo": a pessoa conferiu e marca a próxima data, ou tira a
+     * revisão. Não mexe no texto, então não gera vetor novo.
+     */
+    async revisar(
+        id: string,
+        dados: { revisar_em?: string | null; revisao_nota?: string | null },
+        acesso: AcessoRevisao,
+    ) {
+        if (!isValidObjectId(id)) throw new NotFoundException('Pergunta não encontrada. Ela pode ter sido excluída.');
+        const faq = await this.faqModel.findById(id).exec();
+        if (!faq) throw new NotFoundException('Pergunta não encontrada. Ela pode ter sido excluída.');
+        this.exigirQuePossaEditar(faq, acesso);
+        if (dados.revisar_em === undefined) {
+            throw new BadRequestException('Escolha a próxima data de revisão, ou marque que não precisa mais.');
+        }
+
+        const antes = { revisar_em: dataComoDia(faq.revisar_em), revisao_nota: faq.revisao_nota ?? '' };
+        // Aqui a data é sempre conferida, mesmo igual à atual: confirmar uma
+        // FAQ vencida repetindo a data vencida a deixaria vencida.
+        this.dataDeRevisaoNova(dados.revisar_em);
+        const revisao = this.mudancaDeRevisao(faq, dados);
+        this.aplicarRevisao(faq, { ...revisao, conferida: true }, acesso);
+        await faq.save();
+
+        void this.activityService.registrar({
+            actor_name: acesso.name,
+            actor_id: acesso.id,
+            action: 'revisar',
+            entity_type: 'faq',
+            entity_id: id,
+            target: faq.question,
+            before: antes,
+            after: { revisar_em: dataComoDia(faq.revisar_em), revisao_nota: faq.revisao_nota ?? '' },
+        });
+
+        return this.mapearFaq(faq.toObject());
+    }
+
+    /** Até onde a pessoa revisa: todas, as que criou, ou nada. */
+    private alcanceDeRevisao(acesso: AcessoRevisao): 'todas' | 'minhas' | null {
+        if (acesso.master || permite(acesso.permissoes, 'revisoes', 'editar')) return 'todas';
+        if (permite(acesso.permissoes, 'revisoes', 'ver')) return 'minhas';
+        return null;
+    }
+
+    private filtroMinhas(acesso: AcessoRevisao): Record<string, unknown> {
+        return {
+            $or: [
+                { created_by_id: acesso.id },
+                { created_by_id: { $exists: false }, created_by: acesso.name },
+            ],
+        };
+    }
+
+    /**
+     * Quem tem FAQs para editar edita qualquer uma, como sempre. Quem só tem
+     * Revisões edita as FAQs com data de revisão dentro do seu alcance: é o que
+     * deixa um grupo de revisores corrigir o texto vencido sem poder mexer na
+     * base inteira.
+     */
+    private exigirQuePossaEditar(faq: FaqDocument, acesso: AcessoRevisao): void {
+        if (acesso.master || permite(acesso.permissoes, 'faqs', 'editar')) return;
+
+        const alcance = this.alcanceDeRevisao(acesso);
+        const emRevisao = Boolean(faq.revisar_em);
+        const criouEla =
+            faq.created_by_id === acesso.id || (!faq.created_by_id && faq.created_by === acesso.name);
+
+        if (alcance && emRevisao && (alcance === 'todas' || criouEla)) return;
+        throw new ForbiddenException(
+            emRevisao
+                ? 'Esta FAQ é de outra pessoa, e o seu grupo revisa só as suas. Peça a quem revisa todas.'
+                : 'Esta FAQ não tem data de revisão, e o seu grupo só edita as que têm. Peça a quem edita FAQs.',
+        );
+    }
+
+    /** Data nova vinda do formulário: lida, e recusada se já passou. */
+    private dataDeRevisaoNova(entrada: unknown): Date | null | undefined {
+        try {
+            const data = lerDataDeRevisao(entrada);
+            if (data) conferirQueNaoPassou(data, new Date());
+            return data;
+        } catch (erro) {
+            throw new BadRequestException((erro as Error).message);
+        }
+    }
+
+    private notaDeRevisao(entrada: unknown): string | null {
+        if (typeof entrada !== 'string') return null;
+        const nota = entrada.trim().slice(0, 200);
+        return nota || null;
+    }
+
+    /**
+     * O que muda na revisão. A data só é conferida contra o passado quando
+     * mudou: editar o texto de uma FAQ vencida reenviando a mesma data não pode
+     * ser recusado por ela ter vencido.
+     */
+    private mudancaDeRevisao(
+        faq: FaqDocument,
+        data: { revisar_em?: unknown; revisao_nota?: unknown },
+    ): { data?: Date | null; nota?: string | null; mudouData: boolean } {
+        let lida: Date | null | undefined;
+        try {
+            lida = lerDataDeRevisao(data.revisar_em);
+        } catch (erro) {
+            throw new BadRequestException((erro as Error).message);
+        }
+        const atual = faq.revisar_em ? new Date(faq.revisar_em).getTime() : null;
+        const mudouData = lida !== undefined && (lida?.getTime() ?? null) !== atual;
+        if (mudouData && lida) {
+            try {
+                conferirQueNaoPassou(lida, new Date());
+            } catch (erro) {
+                throw new BadRequestException((erro as Error).message);
+            }
+        }
+        return {
+            data: lida,
+            nota: data.revisao_nota === undefined ? undefined : this.notaDeRevisao(data.revisao_nota),
+            mudouData,
+        };
+    }
+
+    /**
+     * Grava a revisão. Conta como revisada quando a FAQ tinha data e a data
+     * mudou (alguém olhou e marcou a próxima), ou quando veio do "Continua
+     * valendo", mesmo repetindo a data.
+     */
+    private aplicarRevisao(
+        faq: FaqDocument,
+        revisao: { data?: Date | null; nota?: string | null; mudouData: boolean; conferida?: boolean },
+        actor: { name: string },
+    ): void {
+        const tinhaData = Boolean(faq.revisar_em);
+        if (revisao.data !== undefined) faq.revisar_em = revisao.data;
+        if (revisao.nota !== undefined) faq.revisao_nota = revisao.nota;
+        // Sem data, o motivo não diz respeito a nada.
+        if (!faq.revisar_em) faq.revisao_nota = null;
+        if (revisao.conferida || (tinhaData && revisao.mudouData)) {
+            faq.revisada_em = new Date();
+            faq.revisada_por = actor.name;
+        }
     }
 
     async deleteFaq(id: string, actor: { id?: string; name: string }) {

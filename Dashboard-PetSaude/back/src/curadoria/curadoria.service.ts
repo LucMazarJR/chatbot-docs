@@ -802,6 +802,8 @@ export class CuradoriaService {
             category?: string;
             tags?: string[];
             source?: string;
+            revisar_em?: string | null;
+            revisao_nota?: string | null;
         },
         actor: { id?: string; name: string },
     ) {
@@ -827,6 +829,8 @@ export class CuradoriaService {
                 // resposta", que diz de onde veio a ideia, e não em que documento
                 // a orientação se apoia. A origem continua no file_id abaixo.
                 source: dados.source?.trim() ?? '',
+                revisar_em: dados.revisar_em,
+                revisao_nota: dados.revisao_nota,
             },
             actor,
             // Fecha o rastro do outro lado: a sugestão aponta para a FAQ criada,
