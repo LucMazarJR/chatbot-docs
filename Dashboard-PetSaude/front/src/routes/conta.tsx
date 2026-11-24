@@ -9,13 +9,13 @@ import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { Carregando } from "@/components/carregando";
 import { Selo } from "@/components/selo";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { atualizarPerfil, type SessionStatus } from "@/lib/auth.functions";
 import { exigirSessao } from "@/lib/guardas";
 import { DESTINOS, GRUPOS } from "@/lib/navegacao";
-import { pode, rotuloDoNivel } from "@/lib/permissoes";
+import { INFO_AREA, pode, rotuloDoNivel } from "@/lib/permissoes";
 import { PRAZOS, textoDoPrazo } from "@/lib/revisao";
 
 export const Route = createFileRoute("/conta")({
@@ -142,11 +142,15 @@ function Formularios({ usuario }: { usuario: Usuario }) {
                 <dd className="text-muted-foreground">
                   {itens
                     .map((d) => {
-                      const nivel = usuario.master
-                        ? "editar"
-                        : d.area
-                          ? usuario.permissoes[d.area]
-                          : undefined;
+                      // O master tem o nível mais alto de cada área: Histórico só tem ver.
+                      const nivel =
+                        usuario.master && d.area
+                          ? INFO_AREA[d.area].niveis.editar
+                            ? "editar"
+                            : "ver"
+                          : d.area
+                            ? usuario.permissoes[d.area]
+                            : undefined;
                       return `${d.rotulo}${d.area && nivel ? ` (${rotuloDoNivel(d.area, nivel)})` : ""}`;
                     })
                     .join(", ")}
@@ -159,24 +163,23 @@ function Formularios({ usuario }: { usuario: Usuario }) {
 
       <section className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 className="text-base font-semibold">Revisão das FAQs que você criar</h2>
-        <Label
-          htmlFor="conta-com-padrao"
-          className="flex min-h-11 cursor-pointer items-start gap-3"
-        >
-          <Checkbox
+        <div className="flex items-start justify-between gap-4">
+          <Label htmlFor="conta-com-padrao" className="min-h-11 flex-1 cursor-pointer">
+            <span className="block text-[15px] font-semibold">
+              Toda FAQ que eu criar já vem com revisão
+            </span>
+            <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
+              O formulário já abre com a data marcada, e você muda ou desliga em cada FAQ. Útil para
+              quem escreve sobre campanhas e surtos.
+            </span>
+          </Label>
+          <Switch
             id="conta-com-padrao"
             checked={comPadrao}
-            onCheckedChange={(v) => setComPadrao(v === true)}
-            className="mt-0.5"
+            onCheckedChange={setComPadrao}
+            className="mt-1"
           />
-          <span>
-            <span className="block font-semibold">Toda FAQ que eu criar já vem com revisão</span>
-            <span className="block text-sm font-normal text-muted-foreground">
-              O formulário já abre com a data marcada, e você muda ou desmarca em cada FAQ. Útil
-              para quem escreve sobre campanhas e surtos.
-            </span>
-          </span>
-        </Label>
+        </div>
 
         {comPadrao && (
           <fieldset className="space-y-2">

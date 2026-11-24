@@ -63,6 +63,21 @@ export function textoDaRevisao(revisarEm: string): string {
   return `Revisar em ${diaPorExtenso(dia)}`;
 }
 
+/**
+ * Para o formulário, ao lado do campo de data: "Daqui a 89 dias, cerca de 3
+ * meses." O campo já mostra a data; aqui vai a distância, que é o que se decide.
+ */
+export function textoAteARevisao(dia: string): string {
+  const faltam = diasEntre(hoje(), diaDaRevisao(dia));
+  if (faltam < -1) return `Essa data passou há ${-faltam} dias.`;
+  if (faltam === -1) return "Essa data foi ontem.";
+  if (faltam === 0) return "Hoje: a FAQ já entra nas vencidas.";
+  if (faltam === 1) return "Amanhã.";
+  if (faltam < 45) return `Daqui a ${faltam} dias.`;
+  const meses = Math.round(faltam / 30.4);
+  return `Daqui a ${faltam} dias, cerca de ${meses === 12 ? "1 ano" : `${meses} meses`}.`;
+}
+
 /** O padrão de Minha conta, em palavras: "3 meses", "45 dias". */
 export function textoDoPrazo(dias: number): string {
   return PRAZOS.find((p) => p.dias === dias)?.rotulo ?? `${dias} dias`;
