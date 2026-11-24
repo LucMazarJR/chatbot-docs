@@ -10,6 +10,7 @@ import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
 import { DeleteFaqDto } from './dto/delete-faq.dto';
 import { ListFaqsQueryDto } from './dto/list-faqs-query.dto';
+import { ListarRevisoesQueryDto, RevisarFaqDto } from './dto/revisao.dto';
 
 @Controller('faqs')
 export class FaqsController {
@@ -47,6 +48,20 @@ export class FaqsController {
         });
     }
 
+    /** As FAQs com data de revisão, no alcance de quem pede (só as suas, ou todas). */
+    @Get('revisoes')
+    @Permite('revisoes:ver')
+    listarRevisoes(@Query() query: ListarRevisoesQueryDto, @CurrentUser() user: AuthenticatedUser) {
+        return this.faqsService.listarRevisoes(query, user);
+    }
+
+    /** O número ao lado de Revisões no menu. */
+    @Get('revisoes/contagem')
+    @Permite('revisoes:ver')
+    contarRevisoes(@CurrentUser() user: AuthenticatedUser) {
+        return this.faqsService.contarRevisoesVencidas(user);
+    }
+
     // Declarada por ultimo entre os GET: qualquer rota fixa nova precisa vir
     // ANTES desta, senao o Nest casa o nome dela como se fosse um id.
     @Get(':id')
@@ -65,10 +80,22 @@ export class FaqsController {
         return this.faqsService.createFaq(body, { id: user.id, name: user.name });
     }
 
+    /**
+     * Revisões também edita: quem revisa corrige o texto das FAQs com data de
+     * revisão no seu alcance, mesmo sem FAQs para editar. O service confere
+     * qual FAQ é (exigirQuePossaEditar).
+     */
     @Put()
-    @Permite('faqs:editar')
+    @Permite('faqs:editar', 'revisoes:ver')
     updateFaq(@Body() body: UpdateFaqDto, @CurrentUser() user: AuthenticatedUser) {
-        return this.faqsService.updateFaq(body.id, body, { id: user.id, name: user.name });
+        return this.faqsService.updateFaq(body.id, body, { id: user.id, name: user.name }, user);
+    }
+
+    /** "Continua valendo": a próxima data de revisão, ou nenhuma. */
+    @Post(':id/revisao')
+    @Permite('revisoes:ver', 'faqs:editar')
+    revisar(@Param('id') id: string, @Body() body: RevisarFaqDto, @CurrentUser() user: AuthenticatedUser) {
+        return this.faqsService.revisar(id, body, user);
     }
 
     @Delete()
