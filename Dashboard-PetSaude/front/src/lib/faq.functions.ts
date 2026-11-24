@@ -13,7 +13,17 @@ export type Faq = {
   updated_by: string | null;
   updatedAt: string;
   source?: string;
+  /** Data (ISO) em que alguém precisa conferir se a FAQ continua valendo. */
+  revisar_em?: string | null;
+  /** Por que precisa de revisão, para quem revisa. */
+  revisao_nota?: string | null;
+  revisada_em?: string | null;
+  revisada_por?: string | null;
+  /** Calculada no back, no fuso de Brasília. */
+  situacao_revisao?: SituacaoRevisao | null;
 };
+
+export type SituacaoRevisao = "vencida" | "proxima" | "futura";
 
 /** Envelope devolvido pelos endpoints paginados do backend. */
 export type Paginated<T> = {
@@ -57,6 +67,10 @@ const faqInput = z.object({
     .array(z.string().trim().min(2, "Cada tag precisa ter ao menos 2 caracteres").max(30))
     .min(3, "Informe ao menos 3 tags"),
   source: z.string().optional(),
+  // "AAAA-MM-DD", ou null para tirar a revisão. Quem confere se a data existe
+  // e se não passou é o back, que devolve a frase.
+  revisar_em: z.string().trim().max(30).nullable().optional(),
+  revisao_nota: z.string().trim().max(200).nullable().optional(),
 });
 
 export const ORIGENS = ["manual", "importada", "drive"] as const;
@@ -184,6 +198,69 @@ export const updateFaq = createServerFn({ method: "POST" })
       body: JSON.stringify(data),
     });
   });
+
+export type FiltroRevisao = "vencidas" | "proximas" | "todas";
+
+export type ListaDeRevisoes = Paginated<Faq> & {
+  contagem: { vencidas: number; proximas: number; todas: number };
+  escopo: "minhas" | "todas";
+  /** False quando o grupo revisa só as FAQs que a pessoa criou. */
+  podeVerTodas: boolean;
+};
+
+/** As FAQs com data de revisão, no alcance de quem pede. */
+export const listarRevisoes = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        situacao: z.enum(["vencidas", "proximas", "todas"]).default("vencidas"),
+        escopo: z.enum(["minhas", "todas"]).optional(),
+        page: z.number().int().min(1).default(1),
+      })
+      .parse(data ?? {}),
+  )
+  .handler(
+    async ({
+      data,
+    }: {
+      data: { situacao: FiltroRevisao; escopo?: "minhas" | "todas"; page: number };
+    }): Promise<ListaDeRevisoes> => {
+      const busca = new URLSearchParams({ situacao: data.situacao, page: String(data.page) });
+      if (data.escopo) busca.set("escopo", data.escopo);
+      return apiFetch<ListaDeRevisoes>(`/faqs/revisoes?${busca}`);
+    },
+  );
+
+/** Quantas venceram: o número ao lado de Revisões no menu. */
+export const contarRevisoesVencidas = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ vencidas: number }> =>
+    apiFetch<{ vencidas: number }>("/faqs/revisoes/contagem"),
+);
+
+/** "Continua valendo": a próxima data, ou null para não revisar mais. */
+export const revisarFaq = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        id: z.string().min(1),
+        revisar_em: z.string().trim().max(30).nullable(),
+        revisao_nota: z.string().trim().max(200).nullable().optional(),
+      })
+      .parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }: {
+      data: { id: string; revisar_em: string | null; revisao_nota?: string | null };
+    }) => {
+      const { id, ...corpo } = data;
+      return apiFetch<Faq>(`/faqs/${encodeURIComponent(id)}/revisao`, {
+        method: "POST",
+        body: JSON.stringify(corpo),
+      });
+    },
+  );
 
 export const deleteFaq = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ id: z.string() }).parse(data))
