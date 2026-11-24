@@ -71,6 +71,8 @@ const ACOES: Record<string, { rotulo: string; verbo: string }> = {
   desativar_usuario: { rotulo: "Conta desativada", verbo: "desativou" },
   redefinir_senha: { rotulo: "Senha redefinida", verbo: "redefiniu a senha de" },
   criar_grupo: { rotulo: "Grupo criado", verbo: "criou o grupo" },
+  "faq:revisar": { rotulo: "FAQ revisada", verbo: "revisou" },
+  editar_perfil: { rotulo: "Perfil alterado", verbo: "alterou o próprio perfil:" },
   editar_grupo: { rotulo: "Grupo alterado", verbo: "alterou o grupo" },
   apagar_grupo: { rotulo: "Grupo apagado", verbo: "apagou o grupo" },
   login: { rotulo: "Entrada", verbo: "entrou" },
@@ -109,6 +111,9 @@ const NOME_CAMPO: Record<string, string> = {
   grupo: "Grupo",
   master: "Master",
   descricao: "Descrição",
+  revisar_em: "Revisar em",
+  revisao_nota: "Motivo da revisão",
+  revisaoPadraoDias: "Revisão padrão (dias)",
   // A mudança de um grupo vem área por área, com a chave da área: o nome que
   // aparece é o do item do menu.
   ...Object.fromEntries(AREAS.map((area) => [area, rotuloDaArea(area)])),
