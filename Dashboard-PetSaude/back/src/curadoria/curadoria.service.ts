@@ -796,7 +796,13 @@ export class CuradoriaService {
      */
     async aprovar(
         id: string,
-        dados: { question: string; answer: string; category?: string; tags?: string[] },
+        dados: {
+            question: string;
+            answer: string;
+            category?: string;
+            tags?: string[];
+            source?: string;
+        },
         actor: { id?: string; name: string },
     ) {
         const sugestao = await this.buscar(id);
@@ -816,7 +822,11 @@ export class CuradoriaService {
                 answer: dados.answer,
                 category: dados.category,
                 tags: dados.tags,
-                source: 'Curadoria de perguntas sem resposta',
+                // A referência que a pessoa escreveu ao revisar, como no
+                // formulário de FAQ. Antes ia fixo "Curadoria de perguntas sem
+                // resposta", que diz de onde veio a ideia, e não em que documento
+                // a orientação se apoia. A origem continua no file_id abaixo.
+                source: dados.source?.trim() ?? '',
             },
             actor,
             // Fecha o rastro do outro lado: a sugestão aponta para a FAQ criada,

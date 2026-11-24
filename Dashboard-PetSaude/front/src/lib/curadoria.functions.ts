@@ -29,7 +29,12 @@ export type LacunaNaFila = ContextoDaPergunta & {
   pergunta: string;
   /** Qual parte da pergunta ficou sem resposta, contando de 1, na resposta parcial. */
   parte: number | null;
-  vizinhas: { faqId: string | null; question: string | null; score: number; previa: string | null }[];
+  vizinhas: {
+    faqId: string | null;
+    question: string | null;
+    score: number;
+    previa: string | null;
+  }[];
 };
 
 export type OrigemSugestao = ContextoDaPergunta & {
@@ -118,9 +123,8 @@ export const listarRodadas = createServerFn({ method: "GET" }).handler(
 
 export const detalharRodada = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
-  .handler(
-    async ({ data }: { data: { id: string } }): Promise<RodadaDetalhada> =>
-      apiFetch<RodadaDetalhada>(`/curadoria/rodadas/${encodeURIComponent(data.id)}`),
+  .handler(async ({ data }: { data: { id: string } }): Promise<RodadaDetalhada> =>
+    apiFetch<RodadaDetalhada>(`/curadoria/rodadas/${encodeURIComponent(data.id)}`),
   );
 
 export const getJobCuradoria = createServerFn({ method: "GET" }).handler(
@@ -128,8 +132,7 @@ export const getJobCuradoria = createServerFn({ method: "GET" }).handler(
 );
 
 export const analisarLacunas = createServerFn({ method: "POST" }).handler(
-  async (): Promise<{ jobId: string }> =>
-    apiFetch("/curadoria/analisar", { method: "POST" }),
+  async (): Promise<{ jobId: string }> => apiFetch("/curadoria/analisar", { method: "POST" }),
 );
 
 export const aprovarSugestao = createServerFn({ method: "POST" })
@@ -141,11 +144,16 @@ export const aprovarSugestao = createServerFn({ method: "POST" })
         answer: z.string().trim().min(5, "Escreva a resposta antes de aprovar").max(4000),
         category: z.string().trim().max(60).optional(),
         tags: z.array(z.string().trim().min(2).max(30)).optional(),
+        source: z.string().trim().max(300).optional(),
       })
       .parse(data),
   )
   .handler(
-    async ({ data }: { data: { id: string } & Record<string, unknown> }): Promise<{
+    async ({
+      data,
+    }: {
+      data: { id: string } & Record<string, unknown>;
+    }): Promise<{
       ok: true;
       faqId: string;
       semEmbedding: boolean;

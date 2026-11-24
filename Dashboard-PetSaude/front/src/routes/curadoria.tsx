@@ -24,20 +24,10 @@ import {
   listarSugestoes,
   type Sugestao,
 } from "@/lib/curadoria.functions";
-import { listarCategorias } from "@/lib/categorias.functions";
+import { FaqFormDialog } from "@/components/faq-shared";
 import { GateShell, usePode } from "@/components/gate";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { exigirPermissao } from "@/lib/guardas";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
@@ -95,6 +85,9 @@ function CuradoriaPage() {
   // Analisar gasta cota da API, e aprovar grava FAQ: os dois são o editar da
   // área. Quem só vê acompanha a fila e as sugestões.
   const podeDecidir = usePode("curadoria", "editar");
+  const aprovar = useServerFn(aprovarSugestao);
+  // A sugestão aberta no formulário de FAQ. Um formulário só para a página.
+  const [revisando, setRevisando] = useState<Sugestao | null>(null);
 
   const fila = useQuery({ queryKey: ["curadoria-fila"], queryFn: () => getFilaCuradoria() });
   const sugestoes = useQuery({
@@ -211,7 +204,11 @@ function CuradoriaPage() {
           ) : (
             <ul className="space-y-4">
               {lista.map((sugestao) => (
-                <CartaoSugestao key={sugestao.id} sugestao={sugestao} />
+                <CartaoSugestao
+                  key={sugestao.id}
+                  sugestao={sugestao}
+                  aoRevisar={podeDecidir ? () => setRevisando(sugestao) : undefined}
+                />
               ))}
             </ul>
           )}
@@ -221,6 +218,35 @@ function CuradoriaPage() {
 
         <HistoricoDeRodadas />
       </div>
+
+      {podeDecidir && (
+        <FaqFormDialog
+          // A sugestão pela chave: abrir outra recomeça o formulário do rascunho dela.
+          key={revisando?.id ?? "nenhuma"}
+          mode="create"
+          open={revisando !== null}
+          onOpenChange={(aberto) => {
+            if (!aberto) setRevisando(null);
+          }}
+          aprovacao={
+            revisando
+              ? {
+                  inicial: {
+                    question: revisando.pergunta,
+                    answer: revisando.rascunhoResposta,
+                    category: revisando.categoriaSugerida ?? "",
+                    tags: revisando.tagsSugeridas ?? [],
+                    source: "",
+                  },
+                  salvar: (dados) =>
+                    aprovar({
+                      data: { id: revisando.id, ...dados, category: dados.category || undefined },
+                    }),
+                }
+              : undefined
+          }
+        />
+      )}
     </GateShell>
   );
 }
@@ -438,63 +464,31 @@ function Andamento({ job }: { job: NonNullable<Awaited<ReturnType<typeof getJobC
   );
 }
 
-function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
+/**
+ * Uma sugestão do modelo, para decidir.
+ *
+ * O cartão só mostra: o rascunho, o que sugeriu de categoria e tags, e de quais
+ * conversas saiu. Revisar abre o formulário de FAQ de sempre, um para a página
+ * inteira. Com um formulário por cartão havia um seletor de categoria do Radix
+ * por sugestão, e seletores irmãos travam o clique da tela inteira (ver
+ * usuarios.tsx); e era outro formulário, sem Referência, que deixava a FAQ
+ * aprovada mais pobre que a criada à mão.
+ */
+function CartaoSugestao({
+  sugestao,
+  aoRevisar,
+}: {
+  sugestao: Sugestao;
+  /** Ausente para quem só vê: o cartão sai sem os botões de decidir. */
+  aoRevisar?: () => void;
+}) {
   const queryClient = useQueryClient();
-  const podeDecidir = usePode("curadoria", "editar");
-  const aprovar = useServerFn(aprovarSugestao);
   const descartar = useServerFn(descartarSugestao);
-
-  const [pergunta, setPergunta] = useState(sugestao.pergunta);
-  const [resposta, setResposta] = useState(sugestao.rascunhoResposta);
-  const [categoria, setCategoria] = useState(sugestao.categoriaSugerida ?? "");
-  const [tags, setTags] = useState((sugestao.tagsSugeridas ?? []).join(", "));
-
-  const categoriasQuery = useQuery({
-    queryKey: ["categorias", false],
-    queryFn: () => listarCategorias({ data: { incluirInativas: false } }),
-    // Só quem decide escolhe a categoria; para quem só vê, o campo é leitura.
-    enabled: podeDecidir,
-  });
-  const oficiais = categoriasQuery.data?.categorias ?? [];
-
-  const invalidar = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["curadoria-sugestoes"] });
-    await queryClient.invalidateQueries({ queryKey: ["faqs"] });
-    await queryClient.invalidateQueries({ queryKey: ["faq-categories"] });
-  };
-
-  const mutAprovar = useMutation({
-    mutationFn: () =>
-      aprovar({
-        data: {
-          id: sugestao.id,
-          question: pergunta.trim(),
-          answer: resposta.trim(),
-          category: categoria.trim() || undefined,
-          tags: tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
-        },
-      }),
-    onSuccess: async (r) => {
-      await invalidar();
-      toast.success(
-        r.semEmbedding
-          ? "FAQ criada, mas sem preparo para a busca: reindexe em Configurações."
-          : "FAQ criada",
-      );
-    },
-    onError: (erro: Error) =>
-      toast.error(
-        erro.message || "Não foi possível criar a FAQ. Confira a internet e tente de novo.",
-      ),
-  });
 
   const mutDescartar = useMutation({
     mutationFn: () => descartar({ data: { id: sugestao.id } }),
     onSuccess: async () => {
-      await invalidar();
+      await queryClient.invalidateQueries({ queryKey: ["curadoria-sugestoes"] });
       toast.success("Sugestão descartada");
     },
     onError: (erro: Error) =>
@@ -504,14 +498,7 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
   });
 
   const semRascunho = !sugestao.rascunhoResposta.trim();
-  const [falta, setFalta] = useState<string | null>(null);
-  /** O botão de aprovar aceita o toque e diz o que falta: apagado, não explicava nada. */
-  const oQueFalta = () =>
-    pergunta.trim().length < 5
-      ? "Escreva a pergunta, com ao menos 5 letras."
-      : resposta.trim().length < 5
-        ? "Escreva a resposta antes de aprovar."
-        : null;
+  const tags = (sugestao.tagsSugeridas ?? []).filter(Boolean);
 
   return (
     <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
@@ -565,7 +552,7 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
         </ul>
       </div>
 
-      {semRascunho && (
+      {semRascunho ? (
         <p className="mt-3 flex items-start gap-2.5 rounded-lg bg-warning-soft p-3 text-[15px] text-foreground">
           <AlertTriangle className="mt-0.5 size-[18px] shrink-0 text-warning" />
           <span>
@@ -574,85 +561,20 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
             equipe.
           </span>
         </p>
+      ) : (
+        <div className="mt-3 space-y-1">
+          <p className="text-sm font-semibold text-muted-foreground">Rascunho da resposta</p>
+          <p className="whitespace-pre-line text-[15px]">{sugestao.rascunhoResposta}</p>
+        </div>
       )}
 
-      <div className="mt-4 space-y-3">
-        <div className="space-y-1">
-          <Label htmlFor={`pergunta-${sugestao.id}`}>Pergunta</Label>
-          <Input
-            id={`pergunta-${sugestao.id}`}
-            readOnly={!podeDecidir}
-            value={pergunta}
-            maxLength={300}
-            onChange={(e) => {
-              setPergunta(e.target.value);
-              setFalta(null);
-            }}
-          />
+      {(sugestao.categoriaSugerida || tags.length > 0) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {sugestao.categoriaSugerida && <Selo tom="marca">{sugestao.categoriaSugerida}</Selo>}
+          {tags.map((tag) => (
+            <Selo key={tag}>{tag}</Selo>
+          ))}
         </div>
-
-        <div className="space-y-1">
-          <Label htmlFor={`resposta-${sugestao.id}`}>Resposta</Label>
-          <Textarea
-            id={`resposta-${sugestao.id}`}
-            readOnly={!podeDecidir}
-            value={resposta}
-            rows={5}
-            maxLength={4000}
-            onChange={(e) => {
-              setResposta(e.target.value);
-              setFalta(null);
-            }}
-            placeholder="Escreva a orientação completa…"
-          />
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <Label htmlFor={`categoria-${sugestao.id}`}>Categoria</Label>
-            {oficiais.length === 0 ? (
-              <Input
-                id={`categoria-${sugestao.id}`}
-                value={categoria}
-                maxLength={60}
-                onChange={(e) => setCategoria(e.target.value)}
-                placeholder="Ex.: Exames"
-              />
-            ) : (
-              <Select value={categoria || undefined} onValueChange={setCategoria}>
-                <SelectTrigger id={`categoria-${sugestao.id}`} className="w-full">
-                  <SelectValue placeholder="Escolha o assunto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoria && !oficiais.some((c) => c.nome === categoria) && (
-                    <SelectItem value={categoria}>{categoria} (fora da lista)</SelectItem>
-                  )}
-                  {oficiais.map((c) => (
-                    <SelectItem key={c.id} value={c.nome}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor={`tags-${sugestao.id}`}>Tags</Label>
-            <Input
-              id={`tags-${sugestao.id}`}
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="separadas por vírgula"
-            />
-          </div>
-        </div>
-      </div>
-
-      {falta && (
-        <p role="alert" className="mt-3 text-[15px] font-semibold text-destructive">
-          {falta}
-        </p>
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
@@ -660,24 +582,17 @@ function CartaoSugestao({ sugestao }: { sugestao: Sugestao }) {
           Sugerido por {sugestao.modelo ?? "modelo"}
           {sugestao.criadaPor ? ` · disparado por ${sugestao.criadaPor}` : ""}
         </span>
-        {podeDecidir ? (
-          <div className="flex gap-2">
+        {aoRevisar ? (
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="ghost"
               onClick={() => mutDescartar.mutate()}
-              disabled={mutDescartar.isPending || mutAprovar.isPending}
+              disabled={mutDescartar.isPending}
             >
-              Descartar
+              {mutDescartar.isPending ? "Descartando…" : "Descartar"}
             </Button>
-            <Button
-              onClick={() => {
-                const motivo = oQueFalta();
-                setFalta(motivo);
-                if (!motivo) mutAprovar.mutate();
-              }}
-              disabled={mutAprovar.isPending || mutDescartar.isPending}
-            >
-              {mutAprovar.isPending ? "Criando…" : "Aprovar e criar FAQ"}
+            <Button onClick={aoRevisar} disabled={mutDescartar.isPending}>
+              Revisar e criar FAQ
             </Button>
           </div>
         ) : (

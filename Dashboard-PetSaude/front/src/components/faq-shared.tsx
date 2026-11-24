@@ -238,18 +238,39 @@ function CampoCategoria({
   );
 }
 
+/** O que o formulário de FAQ grava. */
+export type DadosFaq = {
+  question: string;
+  answer: string;
+  category: string;
+  tags: string[];
+  source: string;
+};
+
 export function FaqFormDialog({
   mode,
   faq,
   open,
   onOpenChange,
   defaultCategory,
+  aprovacao,
 }: {
   mode: "create" | "edit";
   faq?: Faq;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCategory?: string;
+  /**
+   * O mesmo formulário para aprovar uma sugestão da curadoria. Começa com o
+   * rascunho do modelo, e quem grava é a rota de aprovar, que também fecha a
+   * sugestão e guarda o rastro até as conversas de origem. Era um formulário à
+   * parte, sem Referência e com as tags num campo só, e a FAQ aprovada saía
+   * diferente da criada à mão.
+   */
+  aprovacao?: {
+    inicial: Partial<DadosFaq>;
+    salvar: (dados: DadosFaq) => Promise<{ semEmbedding?: boolean }>;
+  };
 }) {
   const queryClient = useQueryClient();
   const create = useServerFn(createFaq);
@@ -269,12 +290,24 @@ export function FaqFormDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (aprovacao) {
+      setQuestion(aprovacao.inicial.question ?? "");
+      setAnswer(aprovacao.inicial.answer ?? "");
+      setCategory(aprovacao.inicial.category ?? "");
+      const sugeridas = aprovacao.inicial.tags ?? [];
+      setTags(sugeridas.length >= 3 ? sugeridas : [...sugeridas, "", "", ""].slice(0, 3));
+      setSource(aprovacao.inicial.source ?? "");
+      return;
+    }
     setQuestion(faq?.question ?? "");
     setAnswer(faq?.answer ?? "");
     setCategory(faq ? (faqCategories(faq)[0] ?? "") : (defaultCategory ?? ""));
     const initialTags = faq?.tags ?? [];
     setTags(initialTags.length >= 3 ? initialTags : [...initialTags, "", "", ""].slice(0, 3));
     setSource(faq?.source ?? "");
+    // `aprovacao` fica de fora de propósito: é um objeto novo a cada render da
+    // tela, e o formulário recomeçaria do rascunho enquanto a pessoa digita.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, faq, defaultCategory]);
 
   const cleanCategory = category.trim();
@@ -286,7 +319,7 @@ export function FaqFormDialog({
     cleanTags.length >= 3;
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<{ semEmbedding?: boolean } | unknown> => {
       const payload = {
         question,
         answer,
@@ -294,17 +327,30 @@ export function FaqFormDialog({
         tags: cleanTags,
         source: source.trim(),
       };
+      if (aprovacao) return aprovacao.salvar(payload);
       if (mode === "edit" && faq) return update({ data: { ...payload, id: faq.id } });
       return create({ data: payload });
     },
-    onSuccess: async () => {
+    onSuccess: async (resultado) => {
+      if (aprovacao) {
+        await queryClient.invalidateQueries({ queryKey: ["curadoria-sugestoes"] });
+      }
       await queryClient.invalidateQueries({ queryKey: ["faqs"] });
       await queryClient.invalidateQueries({ queryKey: ["activity"] });
       // As duas telas de categoria contam FAQs, e a de revisão classifica por
       // assunto: criar ou recategorizar uma pergunta muda as duas.
       await queryClient.invalidateQueries({ queryKey: ["faq-categories"] });
       await queryClient.invalidateQueries({ queryKey: ["categorias-revisao"] });
-      toast.success(mode === "edit" ? "Pergunta atualizada" : "Pergunta criada");
+      const semEmbedding = (resultado as { semEmbedding?: boolean } | undefined)?.semEmbedding;
+      toast.success(
+        aprovacao
+          ? semEmbedding
+            ? "FAQ criada, mas sem preparo para a busca: reindexe em Configurações."
+            : "FAQ criada a partir da sugestão"
+          : mode === "edit"
+            ? "Pergunta atualizada"
+            : "Pergunta criada",
+      );
       onOpenChange(false);
     },
     onError: (error: Error) => toast.error(error.message || "Não foi possível salvar"),
@@ -315,9 +361,13 @@ export function FaqFormDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{mode === "edit" ? "Editar FAQ" : "Nova FAQ"}</DialogTitle>
+            <DialogTitle>
+              {aprovacao ? "Revisar e criar FAQ" : mode === "edit" ? "Editar FAQ" : "Nova FAQ"}
+            </DialogTitle>
             <DialogDescription>
-              Uma categoria e ao menos 3 tags.
+              {aprovacao
+                ? "Confira o rascunho antes de aprovar: quem assina a FAQ é você. Uma categoria e ao menos 3 tags."
+                : "Uma categoria e ao menos 3 tags."}
             </DialogDescription>
           </DialogHeader>
 
@@ -393,9 +443,11 @@ export function FaqFormDialog({
             <Button type="submit" form={idDe("form")} disabled={mutation.isPending || !valid}>
               {mutation.isPending
                 ? "Salvando…"
-                : mode === "edit"
-                  ? "Salvar alterações"
-                  : "Criar pergunta"}
+                : aprovacao
+                  ? "Aprovar e criar FAQ"
+                  : mode === "edit"
+                    ? "Salvar alterações"
+                    : "Criar pergunta"}
             </Button>
           </DialogFooter>
         </DialogContent>

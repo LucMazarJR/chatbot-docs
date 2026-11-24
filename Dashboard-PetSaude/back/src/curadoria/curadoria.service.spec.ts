@@ -695,6 +695,29 @@ describe('CuradoriaService', () => {
       expect(doc.estado).toBe('aprovada');
       expect(doc.save).toHaveBeenCalled();
     });
+
+    it('grava a referência que a pessoa escreveu, e não um texto fixo', async () => {
+      const doc = pendente();
+      (service as any).sugestaoModel.findById = jest.fn(() => ({
+        exec: jest.fn(async () => doc),
+      }));
+
+      await service.aprovar(
+        '507f1f77bcf86cd799439011',
+        {
+          question: 'Onde fica a UBS?',
+          answer: 'Fica na rua X.',
+          source: '  Cartilha da Atenção Básica  ',
+        },
+        { name: 'Ana', id: 'u-1' },
+      );
+
+      expect(createFaq.mock.calls[0][0].source).toBe('Cartilha da Atenção Básica');
+      // A origem na curadoria continua rastreável, só que no lugar certo.
+      expect(createFaq.mock.calls[0][2]).toEqual(
+        expect.objectContaining({ file_id: 'dashboard_curadoria' }),
+      );
+    });
   });
 
   describe('descartar', () => {
