@@ -10,13 +10,10 @@ import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { Carregando } from "@/components/carregando";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { FaqPagination } from "@/components/faq-pagination";
-import { FaqFormDialog, SeloRevisao, faqCategories } from "@/components/faq-shared";
+import { CampoRevisao, FaqFormDialog, SeloRevisao, faqCategories } from "@/components/faq-shared";
 import { Segmentos } from "@/components/segmentos";
 import { Selo } from "@/components/selo";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +25,7 @@ import {
 import { dataCurta } from "@/lib/datas";
 import { listarRevisoes, revisarFaq, type Faq, type FiltroRevisao } from "@/lib/faq.functions";
 import { exigirPermissao } from "@/lib/guardas";
-import { PRAZOS, diaPorExtenso, hoje, somarDias, textoDaRevisao } from "@/lib/revisao";
+import { diaPorExtenso, hoje, somarDias } from "@/lib/revisao";
 
 export const Route = createFileRoute("/revisoes")({
   beforeLoad: () => exigirPermissao("revisoes"),
@@ -310,63 +307,19 @@ function DialogoContinuaValendo({
           <p className="rounded-lg bg-warning-soft p-3 text-[15px] text-foreground">{aviso}</p>
         )}
 
-        <Label
-          htmlFor="sem-revisao"
-          className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-border px-3"
-        >
-          <Checkbox
-            id="sem-revisao"
-            checked={semRevisao}
-            onCheckedChange={(v) => setSemRevisao(v === true)}
-          />
-          <span className="font-normal">Não precisa mais de revisão</span>
-        </Label>
-
-        {!semRevisao && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="proxima-revisao">Próxima revisão</Label>
-              <Input
-                id="proxima-revisao"
-                type="date"
-                value={data}
-                min={hoje()}
-                onChange={(e) => setData(e.target.value)}
-                className="w-auto"
-                aria-invalid={tentou && faltaData}
-              />
-              <div className="flex flex-wrap gap-2">
-                {PRAZOS.map((prazo) => (
-                  <Button
-                    key={prazo.dias}
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setData(somarDias(hoje(), prazo.dias))}
-                  >
-                    {prazo.rotulo}
-                  </Button>
-                ))}
-              </div>
-              {tentou && faltaData ? (
-                <p className="text-sm font-semibold text-destructive">
-                  Escolha a data da próxima revisão, ou marque que não precisa mais.
-                </p>
-              ) : (
-                data && <p className="text-sm text-muted-foreground">{textoDaRevisao(data)}.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="motivo-revisao">Motivo (opcional)</Label>
-              <Input
-                id="motivo-revisao"
-                value={nota}
-                maxLength={200}
-                onChange={(e) => setNota(e.target.value)}
-                placeholder="Ex.: surto de Hepatite A em Franca"
-              />
-            </div>
-          </>
-        )}
+        {/* O mesmo bloco do formulário de FAQ: desligar é "não precisa mais". */}
+        <CampoRevisao
+          id="continua-valendo"
+          ativo={!semRevisao}
+          aoAtivar={(ativo) => setSemRevisao(!ativo)}
+          data={data}
+          aoMudarData={setData}
+          nota={nota}
+          aoMudarNota={setNota}
+          titulo="Marcar a próxima revisão"
+          descricao="Desligue se a FAQ não precisa mais ser revisada."
+          invalido={tentou}
+        />
 
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={aoFechar}>

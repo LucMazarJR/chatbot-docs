@@ -314,12 +314,7 @@ export function CampoRevisao({
             {descricao}
           </span>
         </Label>
-        <Switch
-          id={`${id}-ativo`}
-          checked={ativo}
-          onCheckedChange={aoAtivar}
-          className="mt-1"
-        />
+        <Switch id={`${id}-ativo`} checked={ativo} onCheckedChange={aoAtivar} className="mt-1" />
       </div>
 
       {ativo && (
@@ -663,7 +658,10 @@ export function FaqFormDialog({
           </div>
 
           <div className="flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <p role="alert" className="text-sm font-semibold text-destructive empty:hidden sm:flex-1">
+            <p
+              role="alert"
+              className="text-sm font-semibold text-destructive empty:hidden sm:flex-1"
+            >
               {tentou && !valid ? `Falta: ${textoDaFalta}.` : ""}
             </p>
             {/* Lado a lado também no celular: empilhados, os dois botões e a
