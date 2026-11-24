@@ -18,7 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { usePode, usePodeEscrever } from "@/components/gate";
+import { usePode, usePodeEscrever, useSession } from "@/components/gate";
+import { Checkbox } from "@/components/ui/checkbox";
+import { diaIso } from "@/lib/datas";
+import { PRAZOS, hoje, somarDias, textoDaRevisao } from "@/lib/revisao";
 import { Selo } from "@/components/selo";
 import { dataCurta } from "@/lib/datas";
 import { cn } from "@/lib/utils";
@@ -238,6 +241,102 @@ function CampoCategoria({
   );
 }
 
+/**
+ * "Precisa de revisão": a data em que alguém confere se a FAQ continua valendo.
+ *
+ * Para o que vale por um tempo (um surto, uma campanha, um horário de férias).
+ * O chatbot continua respondendo depois da data: ela põe a FAQ na lista de
+ * Revisões, e não tira do ar.
+ */
+function CampoRevisao({
+  id,
+  ativo,
+  aoAtivar,
+  data,
+  aoMudarData,
+  nota,
+  aoMudarNota,
+}: {
+  id: string;
+  ativo: boolean;
+  aoAtivar: (ativo: boolean) => void;
+  data: string;
+  aoMudarData: (data: string) => void;
+  nota: string;
+  aoMudarNota: (nota: string) => void;
+}) {
+  const passou = ativo && data !== "" && data < hoje();
+  return (
+    <div className="space-y-3 rounded-lg border border-border p-3">
+      <Label htmlFor={`${id}-ativo`} className="flex min-h-11 cursor-pointer items-start gap-3">
+        <Checkbox
+          id={`${id}-ativo`}
+          checked={ativo}
+          onCheckedChange={(v) => aoAtivar(v === true)}
+          className="mt-0.5"
+        />
+        <span>
+          <span className="block font-semibold">Precisa de revisão em uma data</span>
+          <span className="block text-sm font-normal text-muted-foreground">
+            Para o que vale por um tempo, como um surto ou uma campanha. O chatbot continua
+            respondendo depois da data; a FAQ entra na lista de Revisões.
+          </span>
+        </span>
+      </Label>
+
+      {ativo && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor={`${id}-data`}>Revisar em</Label>
+            <Input
+              id={`${id}-data`}
+              type="date"
+              value={data}
+              min={passou ? undefined : hoje()}
+              onChange={(e) => aoMudarData(e.target.value)}
+              className="w-auto"
+            />
+            <div className="flex flex-wrap gap-2">
+              {PRAZOS.map((prazo) => (
+                <Button
+                  key={prazo.dias}
+                  type="button"
+                  variant="secondary"
+                  onClick={() => aoMudarData(somarDias(hoje(), prazo.dias))}
+                >
+                  {prazo.rotulo}
+                </Button>
+              ))}
+            </div>
+            {data === "" ? (
+              <p className="text-sm font-semibold text-destructive">
+                Escolha a data da revisão, ou desmarque se a FAQ não precisa.
+              </p>
+            ) : passou ? (
+              <p className="text-sm font-semibold text-warning">
+                {textoDaRevisao(data)}. Marque a próxima data, ou desmarque se não precisa mais.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{textoDaRevisao(data)}.</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${id}-nota`}>Motivo (opcional)</Label>
+            <Input
+              id={`${id}-nota`}
+              value={nota}
+              maxLength={200}
+              onChange={(e) => aoMudarNota(e.target.value)}
+              placeholder="Ex.: surto de Hepatite A em Franca"
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /** O que o formulário de FAQ grava. */
 export type DadosFaq = {
   question: string;
@@ -245,6 +344,9 @@ export type DadosFaq = {
   category: string;
   tags: string[];
   source: string;
+  /** "AAAA-MM-DD", ou null quando não precisa de revisão. */
+  revisar_em: string | null;
+  revisao_nota: string | null;
 };
 
 export function FaqFormDialog({
@@ -280,6 +382,11 @@ export function FaqFormDialog({
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState<string[]>(["", "", ""]);
   const [source, setSource] = useState("");
+  const [revisar, setRevisar] = useState(false);
+  const [revisarEm, setRevisarEm] = useState("");
+  const [revisaoNota, setRevisaoNota] = useState("");
+  // O padrão de Minha conta: FAQ nova já vem com a revisão marcada.
+  const padraoDias = useSession().usuario?.revisaoPadraoDias ?? null;
 
   // LÓGICA DO LUCIANO: os ids eram estáticos ("faq-question"), e este diálogo é
   // renderizado uma vez POR CARD da lista. Numa página de 20 FAQs havia 20
@@ -290,6 +397,12 @@ export function FaqFormDialog({
 
   useEffect(() => {
     if (!open) return;
+    // Revisão: a da FAQ, quando editando; o padrão da pessoa, quando é nova.
+    const dataAtual = faq?.revisar_em ? diaIso(faq.revisar_em) : "";
+    const comPadrao = mode === "create" && padraoDias !== null;
+    setRevisar(Boolean(dataAtual) || comPadrao);
+    setRevisarEm(dataAtual || (comPadrao ? somarDias(hoje(), padraoDias) : ""));
+    setRevisaoNota(faq?.revisao_nota ?? "");
     if (aprovacao) {
       setQuestion(aprovacao.inicial.question ?? "");
       setAnswer(aprovacao.inicial.answer ?? "");
@@ -316,7 +429,8 @@ export function FaqFormDialog({
     question.trim().length >= 5 &&
     answer.trim().length >= 5 &&
     cleanCategory.length >= 2 &&
-    cleanTags.length >= 3;
+    cleanTags.length >= 3 &&
+    (!revisar || revisarEm !== "");
 
   const mutation = useMutation({
     mutationFn: async (): Promise<{ semEmbedding?: boolean } | unknown> => {
@@ -326,6 +440,8 @@ export function FaqFormDialog({
         category: cleanCategory,
         tags: cleanTags,
         source: source.trim(),
+        revisar_em: revisar ? revisarEm : null,
+        revisao_nota: revisar ? revisaoNota.trim() || null : null,
       };
       if (aprovacao) return aprovacao.salvar(payload);
       if (mode === "edit" && faq) return update({ data: { ...payload, id: faq.id } });
@@ -336,6 +452,8 @@ export function FaqFormDialog({
         await queryClient.invalidateQueries({ queryKey: ["curadoria-sugestoes"] });
       }
       await queryClient.invalidateQueries({ queryKey: ["faqs"] });
+      await queryClient.invalidateQueries({ queryKey: ["revisoes"] });
+      await queryClient.invalidateQueries({ queryKey: ["revisoes-contagem"] });
       await queryClient.invalidateQueries({ queryKey: ["activity"] });
       // As duas telas de categoria contam FAQs, e a de revisão classifica por
       // assunto: criar ou recategorizar uma pergunta muda as duas.
@@ -367,7 +485,7 @@ export function FaqFormDialog({
             <DialogDescription>
               {aprovacao
                 ? "Confira o rascunho antes de aprovar: quem assina a FAQ é você. Uma categoria e ao menos 3 tags."
-                : "Uma categoria e ao menos 3 tags."}
+                : "Uma categoria e ao menos 3 tags. A revisão por data é opcional."}
             </DialogDescription>
           </DialogHeader>
 
@@ -433,6 +551,20 @@ export function FaqFormDialog({
               minCount={3}
               maxLength={30}
               placeholder="Tag"
+            />
+
+            <CampoRevisao
+              id={idDe("revisao")}
+              ativo={revisar}
+              aoAtivar={(ativo) => {
+                setRevisar(ativo);
+                // Ao marcar, já sugere uma data: o padrão da pessoa, ou 3 meses.
+                if (ativo && !revisarEm) setRevisarEm(somarDias(hoje(), padraoDias ?? 90));
+              }}
+              data={revisarEm}
+              aoMudarData={setRevisarEm}
+              nota={revisaoNota}
+              aoMudarNota={setRevisaoNota}
             />
           </form>
 
@@ -540,6 +672,22 @@ export function AcoesDaFaq({ faq, className }: { faq: Faq; className?: string })
 }
 
 /** A pergunta inteira: resposta, fonte, tags e quem mexeu. */
+/**
+ * A revisão da FAQ, quando tem: "Vence em 12 dias", em amarelo depois de vencer.
+ * O motivo vai no title, e por extenso no cartão da pergunta.
+ */
+export function SeloRevisao({ faq }: { faq: Faq }) {
+  if (!faq.revisar_em) return null;
+  return (
+    <Selo
+      tom={faq.situacao_revisao === "vencida" ? "atencao" : "neutro"}
+      title={faq.revisao_nota ?? undefined}
+    >
+      {textoDaRevisao(faq.revisar_em)}
+    </Selo>
+  );
+}
+
 export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean }) {
   const categories = faqCategories(faq);
 
@@ -547,13 +695,14 @@ export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean 
     <li className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          {categories.length > 0 && (
+          {(categories.length > 0 || faq.revisar_em) && (
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
                 <Selo key={category} tom="marca">
                   {category}
                 </Selo>
               ))}
+              <SeloRevisao faq={faq} />
             </div>
           )}
           <h3 className="mt-2 break-words text-base font-semibold">{faq.question}</h3>
@@ -572,6 +721,15 @@ export function FaqCard({ faq, compact = false }: { faq: Faq; compact?: boolean 
             </p>
           )}
           <TagRow tags={faq.tags} />
+          {faq.revisar_em && (faq.revisao_nota || faq.revisada_por) && (
+            <p className="mt-2 break-words text-sm text-muted-foreground">
+              {faq.revisao_nota ? `Revisão: ${faq.revisao_nota}` : ""}
+              {faq.revisao_nota && faq.revisada_por ? " · " : ""}
+              {faq.revisada_por && faq.revisada_em
+                ? `revisada por ${faq.revisada_por} em ${dataCurta(faq.revisada_em)}`
+                : ""}
+            </p>
+          )}
           <p className="mt-3 text-[13px] text-muted-foreground">
             {faq.updated_by ? `Última alteração por ${faq.updated_by}` : "Sem registro de autor"}
             {faq.created_by ? ` · criada por ${faq.created_by}` : ""}
@@ -621,6 +779,7 @@ export function FaqLinha({ faq }: { faq: Faq }) {
             +{outros.length}
           </span>
         )}
+        <SeloRevisao faq={faq} />
         {/* No celular a data vai junto do assunto; a coluna própria some. */}
         {faq.updatedAt && (
           <span className="text-sm text-muted-foreground md:hidden">
