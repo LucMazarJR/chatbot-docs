@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditoriaRouteImport } from './routes/auditoria'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as ContaRouteImport } from './routes/conta'
 import { Route as CuradoriaRouteImport } from './routes/curadoria'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as LoginRouteImport } from './routes/login'
@@ -41,6 +42,11 @@ const AuditoriaRoute = AuditoriaRouteImport.update({
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContaRoute = ContaRouteImport.update({
+  id: '/conta',
+  path: '/conta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CuradoriaRoute = CuradoriaRouteImport.update({
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
@@ -186,6 +195,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auditoria'
     | '/configuracoes'
+    | '/conta'
     | '/curadoria'
     | '/importar'
     | '/login'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auditoria'
     | '/configuracoes'
+    | '/conta'
     | '/curadoria'
     | '/importar'
     | '/login'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auditoria'
     | '/configuracoes'
+    | '/conta'
     | '/curadoria'
     | '/importar'
     | '/login'
@@ -247,6 +259,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditoriaRoute: typeof AuditoriaRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ContaRoute: typeof ContaRoute
   CuradoriaRoute: typeof CuradoriaRoute
   ImportarRoute: typeof ImportarRoute
   LoginRoute: typeof LoginRoute
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conta': {
+      id: '/conta'
+      path: '/conta'
+      fullPath: '/conta'
+      preLoaderRoute: typeof ContaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/curadoria': {
@@ -399,6 +419,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditoriaRoute: AuditoriaRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  ContaRoute: ContaRoute,
   CuradoriaRoute: CuradoriaRoute,
   ImportarRoute: ImportarRoute,
   LoginRoute: LoginRoute,

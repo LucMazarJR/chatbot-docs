@@ -163,22 +163,30 @@ export function BarraLateral({ usuario, onSair }: { usuario: UsuarioDaBarra; onS
 
       <SidebarFooter>
         <SidebarMenu>
+          {/* O nome é a porta de Minha conta: é onde a pessoa procura o que é dela. */}
           <SidebarMenuItem>
-            <div className="flex min-w-0 items-center gap-3 px-2 py-1.5 group-data-[collapsible=icon]:hidden">
-              <span
-                aria-hidden="true"
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sm font-semibold"
-              >
-                {iniciais(usuario.name)}
-              </span>
-              <span className="min-w-0 text-sm leading-tight">
-                <span className="block truncate font-semibold">{usuario.name}</span>
-                <span className="block truncate text-sidebar-muted">
-                  {usuario.grupo.nome}
-                  {usuario.master && " · master"}
+            <SidebarMenuButton
+              asChild
+              size="lg"
+              tooltip="Minha conta"
+              isActive={caminho === "/conta"}
+            >
+              <Link to="/conta" onClick={aoEscolher} aria-label={`Minha conta: ${usuario.name}`}>
+                <span
+                  aria-hidden="true"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sm font-semibold"
+                >
+                  {iniciais(usuario.name)}
                 </span>
-              </span>
-            </div>
+                <span className="min-w-0 text-sm leading-tight">
+                  <span className="block truncate font-semibold">{usuario.name}</span>
+                  <span className="block truncate text-sidebar-muted">
+                    {usuario.grupo.nome}
+                    {usuario.master && " · master"}
+                  </span>
+                </span>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Sair" onClick={onSair}>
