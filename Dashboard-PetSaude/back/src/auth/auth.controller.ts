@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { AtualizarPerfilDto } from './dto/atualizar-perfil.dto';
 import { ChangePasswordDto, LoginDto } from './dto/login.dto';
 import type { AuthenticatedUser } from './types/authenticated-user';
 
@@ -31,6 +32,12 @@ export class AuthController {
     @Get('me')
     me(@CurrentUser() user: AuthenticatedUser) {
         return this.authService.perfil(user.id);
+    }
+
+    /** Minha conta: o nome e as preferências da própria pessoa. Qualquer conta. */
+    @Patch('me')
+    atualizarPerfil(@CurrentUser() user: AuthenticatedUser, @Body() body: AtualizarPerfilDto) {
+        return this.authService.atualizarPerfil(user.id, body);
     }
 
     // Mesma lógica do login: exige a senha atual, então também vale proteger
