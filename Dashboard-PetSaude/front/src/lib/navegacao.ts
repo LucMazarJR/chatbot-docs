@@ -2,6 +2,7 @@ import type { LinkProps } from "@tanstack/react-router";
 import {
   BellRing,
   Building2,
+  CalendarClock,
   FileBarChart,
   FolderOpen,
   History,
@@ -74,6 +75,14 @@ export const DESTINOS: Destino[] = [
     Icone: ListChecks,
     grupo: "conteudo",
     sinonimos: ["perguntas", "busca"],
+  },
+  {
+    para: "/revisoes",
+    area: "revisoes",
+    rotulo: "Revisões",
+    Icone: CalendarClock,
+    grupo: "conteudo",
+    sinonimos: ["revisar", "prazo", "vencidas", "sazonalidade", "temporária"],
   },
   {
     para: "/categorias",

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { listarGrupos, type Grupo } from "@/lib/grupos.functions";
 import { exigirMaster } from "@/lib/guardas";
 import { DESTINOS, GRUPOS } from "@/lib/navegacao";
-import { INFO_AREA } from "@/lib/permissoes";
+import { INFO_AREA, rotuloDoNivel } from "@/lib/permissoes";
 
 export const Route = createFileRoute("/grupos/")({
   beforeLoad: () => exigirMaster(),
@@ -105,7 +105,10 @@ function CartaoGrupo({ grupo }: { grupo: Grupo }) {
               <dt className="font-semibold">{secao.rotulo}:</dt>
               <dd className="text-muted-foreground">
                 {itens
-                  .map((d) => `${d.rotulo} (${d.area ? grupo.permissoes[d.area] : ""})`)
+                  .map((d) => {
+                    const nivel = d.area ? grupo.permissoes[d.area] : undefined;
+                    return `${d.rotulo} (${d.area && nivel ? rotuloDoNivel(d.area, nivel) : ""})`;
+                  })
                   .join(", ")}
               </dd>
             </div>

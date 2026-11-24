@@ -47,11 +47,18 @@ Cada pessoa tem a própria conta. Não existe senha compartilhada.
 * **Login individual:** e-mail e senha, com o hash guardado em bcrypt. A senha definida por um administrador é sempre provisória: a troca é exigida no primeiro acesso.
 * **Grupos, com permissão por item do menu.** Cada conta fica num grupo, e o grupo diz, para cada item do menu, se dá *sem acesso*, *ver* ou *editar*. Mudar um grupo vale para todos os membros na requisição seguinte, sem sair da conta: o back relê o grupo a cada chamada. Os grupos de partida são Administrador (tudo), Editor (escreve e importa FAQs) e Leitor (consulta FAQs e categorias), com o acesso dos antigos papéis de mesmo nome.
   * **FAQs para ver** vale para todo grupo: é a tela inicial.
+  * **Revisões** tem alcance, e não ler ou gravar: *Só as suas* revisa as FAQs com data de revisão que a pessoa criou, e *Todas* as de todo mundo. Nos dois, quem revisa pode editar o texto dessas FAQs, mesmo sem FAQs para editar; FAQ sem data de revisão continua só com quem edita FAQs. Os grupos que já escreviam FAQ começam revisando as próprias, e o Administrador revisa todas.
   * **O master** cria, muda e apaga os grupos, em `/grupos`, e passa o master adiante. Vale por cima do grupo. O painel nunca fica sem master ativo.
   * **Quem cuida das contas sem ser master** (Usuários para editar) só mexe em conta e só atribui grupo que não passem do próprio acesso, e não muda o próprio grupo. Sem isso, redefinir a senha de quem tem mais acesso seria entrar como ele.
   * As áreas que mostram o que cidadãos escreveram (Conversas, Unidades de saúde, Sem resposta, Relatório do dia e Avisos) só o Administrador recebe de partida. Dar uma delas a outro grupo é decisão do master, e fica no Histórico.
 * **Sessões revogáveis:** o JWT é sem estado, então cada sessão emitida fica registrada no Postgres. Desativar um usuário ou trocar uma senha derruba as sessões **na hora**, em vez de esperar o token expirar, o que daria até 8 horas de acesso a quem o administrador acabou de revogar.
 * **Logs de histórico:** toda alteração grava quem fez, com o id e o nome vindos do token verificado. Antes o nome vinha de um cabeçalho preenchido pelo front, ou seja, qualquer pessoa podia escrever qualquer nome; o histórico registrava ficção.
+
+## Revisão por data
+
+Parte da base vale por um tempo: um surto, uma campanha, um horário de férias. A FAQ ganha uma data de revisão e um motivo, no formulário de FAQ (criar, editar, aprovar sugestão) e na importação em lote, para o lote inteiro. Em **Minha conta** (pelo nome no rodapé do menu) cada pessoa pode deixar um padrão: toda FAQ que criar já vem com revisão em 1, 3, 6 ou 12 meses, e ela muda ou desmarca em cada uma.
+
+Na data, a FAQ **continua no chatbot**: ela entra na tela **Revisões** e no contador do menu. Tirar do ar deixaria perguntas sem resposta enquanto ninguém revisa. Em Revisões, *Continua valendo* marca a próxima data (ou tira a revisão) e *Editar* corrige o texto. As duas funcionam antes da data, com o aviso de que o prazo ainda não chegou.
 
 ## Rodando localmente
 

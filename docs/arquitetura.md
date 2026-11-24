@@ -317,6 +317,8 @@ Estas telas nasceram dos testes com participantes, e cada uma resolve um problem
 | **Conversas** (`/conversas`, área Conversas) | As conversas do protótipo, com os trechos que geraram cada resposta e o score de cada um. Clicar num trecho abre a FAQ que o produziu: é o caminho da resposta ruim até o documento que precisa de conserto. Cada conversa baixa em PDF, do jeito que a pessoa viu, para quem acompanha o teste sem usar o painel; quem baixou fica no histórico, sem conteúdo |
 | **Categorias** (`/categorias`) | A lista oficial de assuntos e a fila do que está fora dela |
 | **Sem resposta** (`/curadoria`, área Sem resposta) | As perguntas que o chatbot não soube responder, agrupadas por um modelo em sugestões de FAQ |
+| **Revisões** (`/revisoes`, área Revisões) | As FAQs com prazo, como as de um surto ou campanha: as que venceram, as dos próximos 30 dias e todas. Continua valendo marca a próxima data; Editar corrige o texto. O chatbot segue usando a FAQ depois da data, e o menu mostra quantas venceram |
+| **Minha conta** (`/conta`, qualquer conta) | O nome, o que o grupo abre e o padrão de revisão das FAQs que a pessoa cria |
 | **Testar a busca** (na home das FAQs) | Roda a busca do chatbot para uma pergunta digitada e mostra os scores, sem passar pelo chatbot |
 | **Relatório do dia** (`/relatorios`, área Relatório do dia) | O resumo de um dia de uso, com PDF para quem não usa o painel: números, áreas mais afetadas, pontos para revisar na base e a análise de cada pergunta |
 

@@ -5,7 +5,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileUp, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { GateShell, usePode } from "@/components/gate";
+import { GateShell, usePode, useSession } from "@/components/gate";
+import { CampoRevisao } from "@/components/faq-shared";
+import { hoje, somarDias } from "@/lib/revisao";
 import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoVazio } from "@/components/estado";
@@ -277,6 +279,14 @@ function PainelImportacao() {
   const [confirmando, setConfirmando] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [assuntoLote, setAssuntoLote] = useState("");
+  // Revisão para o lote inteiro: material de campanha costuma vencer junto. Já
+  // vem marcada quando a pessoa tem um padrão em Minha conta.
+  const padraoDias = useSession().usuario?.revisaoPadraoDias ?? null;
+  const [revisarLote, setRevisarLote] = useState(padraoDias !== null);
+  const [dataLote, setDataLote] = useState(
+    padraoDias !== null ? somarDias(hoje(), padraoDias) : "",
+  );
+  const [notaLote, setNotaLote] = useState("");
 
   // O job fica no backend enquanto a API estiver de pé. Guardar o id no
   // navegador permite reencontrar também um lote que terminou enquanto a
@@ -468,6 +478,8 @@ function PainelImportacao() {
           nomeArquivo: arquivo?.name ?? "importacao",
           scriptId: script.data.id,
           scriptVersion: script.data.version,
+          revisar_em: revisarLote ? dataLote : null,
+          revisao_nota: revisarLote ? notaLote.trim() || null : null,
         },
       });
     },
@@ -638,11 +650,25 @@ function PainelImportacao() {
               reaparece quando voltar.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <CampoRevisao
+            id="lote-revisao"
+            ativo={revisarLote}
+            aoAtivar={(ativo) => {
+              setRevisarLote(ativo);
+              if (ativo && !dataLote) setDataLote(somarDias(hoje(), padraoDias ?? 90));
+            }}
+            data={dataLote}
+            aoMudarData={setDataLote}
+            nota={notaLote}
+            aoMudarNota={setNotaLote}
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
+                // Sem data, o campo já diz o que falta; aqui só não envia.
+                if (revisarLote && !dataLote) return;
                 mutCommit.mutate();
               }}
               disabled={mutCommit.isPending}

@@ -21,6 +21,8 @@ Fica em `ministerio_saude.faq_medicamentos`, no MongoDB Atlas, e é **compartilh
 | `embedding_content_hash` | O `content_hash` que o vetor representa. Diferente do atual = vetor desatualizado |
 | `isActive` | `false` é exclusão suave. O fluxo filtra por isto |
 | `file_id`, `file_origin`, `line_reference` | De onde veio: arquivo do Drive, importação em lote, formulário manual ou curadoria |
+| `revisar_em`, `revisao_nota` | Quando alguém precisa conferir se a FAQ continua valendo, e por quê (um surto, uma campanha). Ausente ou `null`: sem prazo. Gravado no início do dia em Brasília. O chatbot continua usando a FAQ depois da data; ela só entra na lista de Revisões do painel |
+| `revisada_em`, `revisada_por` | A última revisão: quem marcou a próxima data, e quando |
 
 > `content_hash` é MD5 de pergunta + resposta e **ignora a categoria**, de propósito: mudar a fórmula faria a ingestão Python e a importação em lote deixarem de reconhecer o que já está na base. Como a categoria entra no texto embedado, quem decide se precisa regerar o vetor é a comparação do **texto**, não do hash.
 
@@ -70,6 +72,8 @@ Google Drive (.docx) → extração P/R → embeddings Gemini → MongoDB Atlas
 ```
 
 Os scripts ficam em [scripts/](../scripts/) e só são necessários quando entram arquivos novos no Drive.
+
+Quando um arquivo muda, o `enviar_dados.py` apaga e regrava todas as FAQs dele. O vetor e a revisão marcada no painel são copiados da versão anterior pelo `content_hash`: FAQ que não mudou de texto mantém os dois, e a que mudou perde a data de revisão, porque alguém mexeu nela no Drive.
 
 ### Configuração
 
@@ -148,6 +152,7 @@ O caminho do dia a dia, para quem não mexe em script:
 - **Categorias**: a lista oficial de assuntos, com chave canônica (minúsculo, sem acento) e índice único. Renomear um assunto reescreve o `category` e o `text` de todas as FAQs dele, e devolve quantas precisam ser reindexadas.
 - **Saúde dos vetores**: quantas FAQs estão sem vetor, com dimensão errada, com modelo divergente ou com vetor desatualizado, e um backfill por modo, com limite e parada.
 - **Testar a busca**: roda a mesma busca do chatbot para uma pergunta digitada e mostra os scores, marcando quais passariam do corte.
+- **Revisão por data**: criar, editar, aprovar sugestão e importar em lote aceitam uma data de revisão e o motivo. A tela de Revisões lista as vencidas, as dos próximos 30 dias e todas, com "Continua valendo" (próxima data ou nenhuma) e a edição do texto.
 
 Detalhes de uso e telas em [Dashboard-PetSaude/README.md](../Dashboard-PetSaude/README.md).
 

@@ -13,6 +13,8 @@ export type SessionUser = {
   permissoes: Permissoes;
   /** Cria e muda os grupos. Vale por cima das permissões do grupo. */
   master: boolean;
+  /** Minha conta: toda FAQ que a pessoa criar já vem com revisão em N dias. */
+  revisaoPadraoDias: number | null;
   isActive: boolean;
   mustChangePassword: boolean;
   lastLoginAt: string | null;
@@ -21,7 +23,10 @@ export type SessionUser = {
 
 export type SessionStatus = {
   authenticated: boolean;
-  user: Pick<SessionUser, "id" | "name" | "email" | "grupo" | "permissoes" | "master"> | null;
+  user: Pick<
+    SessionUser,
+    "id" | "name" | "email" | "grupo" | "permissoes" | "master" | "revisaoPadraoDias"
+  > | null;
   mustChangePassword: boolean;
 };
 
@@ -103,6 +108,7 @@ export const getSession = createServerFn({ method: "POST" }).handler(
           grupo: usuario.grupo,
           permissoes: usuario.permissoes ?? {},
           master: usuario.master ?? false,
+          revisaoPadraoDias: usuario.revisaoPadraoDias ?? null,
         },
         mustChangePassword: usuario.mustChangePassword,
       };
@@ -124,6 +130,21 @@ export const getSession = createServerFn({ method: "POST" }).handler(
     }
   },
 );
+
+/** Minha conta: o nome e as preferências da própria pessoa. */
+export const atualizarPerfil = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        name: z.string().trim().min(2, "O nome precisa de ao menos 2 letras").max(120).optional(),
+        revisaoPadraoDias: z.number().int().min(1).max(730).nullable().optional(),
+      })
+      .parse(data),
+  )
+  .handler(
+    async ({ data }: { data: { name?: string; revisaoPadraoDias?: number | null } }) =>
+      apiFetch<SessionUser>("/auth/me", { method: "PATCH", body: JSON.stringify(data) }),
+  );
 
 export const changePassword = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>

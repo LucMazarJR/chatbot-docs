@@ -392,7 +392,9 @@ function LinhaDeArea({
               className="peer sr-only"
             />
             <span className="flex min-h-11 cursor-pointer items-center whitespace-nowrap rounded-md px-3.5 text-[15px] font-semibold text-muted-foreground transition-colors hover:text-foreground peer-checked:bg-card peer-checked:text-foreground peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring">
-              {ROTULO_ESCOLHA[opcao]}
+              {opcao === "nada"
+                ? ROTULO_ESCOLHA.nada
+                : (info.rotulos?.[opcao] ?? ROTULO_ESCOLHA[opcao])}
             </span>
           </label>
         ))}

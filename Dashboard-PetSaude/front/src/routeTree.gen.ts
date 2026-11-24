@@ -12,11 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditoriaRouteImport } from './routes/auditoria'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as ContaRouteImport } from './routes/conta'
 import { Route as CuradoriaRouteImport } from './routes/curadoria'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotificacoesRouteImport } from './routes/notificacoes'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as RevisoesRouteImport } from './routes/revisoes'
 import { Route as UnidadesRouteImport } from './routes/unidades'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as CategoriasIndexRouteImport } from './routes/categorias.index'
@@ -42,6 +44,11 @@ const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
   path: '/configuracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContaRoute = ContaRouteImport.update({
+  id: '/conta',
+  path: '/conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CuradoriaRoute = CuradoriaRouteImport.update({
   id: '/curadoria',
   path: '/curadoria',
@@ -65,6 +72,11 @@ const NotificacoesRoute = NotificacoesRouteImport.update({
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RevisoesRoute = RevisoesRouteImport.update({
+  id: '/revisoes',
+  path: '/revisoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UnidadesRoute = UnidadesRouteImport.update({
@@ -117,11 +129,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/revisoes': typeof RevisoesRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -136,11 +150,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/revisoes': typeof RevisoesRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -156,11 +172,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/curadoria': typeof CuradoriaRoute
   '/importar': typeof ImportarRoute
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/revisoes': typeof RevisoesRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -177,11 +195,13 @@ export interface FileRouteTypes {
     | '/'
     | '/auditoria'
     | '/configuracoes'
+    | '/conta'
     | '/curadoria'
     | '/importar'
     | '/login'
     | '/notificacoes'
     | '/relatorios'
+    | '/revisoes'
     | '/unidades'
     | '/usuarios'
     | '/categorias/$categoria'
@@ -196,11 +216,13 @@ export interface FileRouteTypes {
     | '/'
     | '/auditoria'
     | '/configuracoes'
+    | '/conta'
     | '/curadoria'
     | '/importar'
     | '/login'
     | '/notificacoes'
     | '/relatorios'
+    | '/revisoes'
     | '/unidades'
     | '/usuarios'
     | '/categorias/$categoria'
@@ -215,11 +237,13 @@ export interface FileRouteTypes {
     | '/'
     | '/auditoria'
     | '/configuracoes'
+    | '/conta'
     | '/curadoria'
     | '/importar'
     | '/login'
     | '/notificacoes'
     | '/relatorios'
+    | '/revisoes'
     | '/unidades'
     | '/usuarios'
     | '/categorias/$categoria'
@@ -235,11 +259,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditoriaRoute: typeof AuditoriaRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ContaRoute: typeof ContaRoute
   CuradoriaRoute: typeof CuradoriaRoute
   ImportarRoute: typeof ImportarRoute
   LoginRoute: typeof LoginRoute
   NotificacoesRoute: typeof NotificacoesRoute
   RelatoriosRoute: typeof RelatoriosRoute
+  RevisoesRoute: typeof RevisoesRoute
   UnidadesRoute: typeof UnidadesRoute
   UsuariosRoute: typeof UsuariosRoute
   CategoriasCategoriaRoute: typeof CategoriasCategoriaRoute
@@ -272,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conta': {
+      id: '/conta'
+      path: '/conta'
+      fullPath: '/conta'
+      preLoaderRoute: typeof ContaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/curadoria': {
@@ -307,6 +340,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/revisoes': {
+      id: '/revisoes'
+      path: '/revisoes'
+      fullPath: '/revisoes'
+      preLoaderRoute: typeof RevisoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/unidades': {
@@ -379,11 +419,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditoriaRoute: AuditoriaRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  ContaRoute: ContaRoute,
   CuradoriaRoute: CuradoriaRoute,
   ImportarRoute: ImportarRoute,
   LoginRoute: LoginRoute,
   NotificacoesRoute: NotificacoesRoute,
   RelatoriosRoute: RelatoriosRoute,
+  RevisoesRoute: RevisoesRoute,
   UnidadesRoute: UnidadesRoute,
   UsuariosRoute: UsuariosRoute,
   CategoriasCategoriaRoute: CategoriasCategoriaRoute,

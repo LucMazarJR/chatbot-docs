@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogOut, Moon, Search, Sun } from "lucide-react";
 
 import { getFilaCuradoria } from "@/lib/curadoria.functions";
+import { contarRevisoesVencidas } from "@/lib/faq.functions";
 import { gruposDe } from "@/lib/navegacao";
 import { pode, type Permissoes } from "@/lib/permissoes";
 import { aplicarTema, temaAtual, type Tema } from "@/lib/tema";
@@ -76,6 +77,21 @@ export function BarraLateral({ usuario, onSair }: { usuario: UsuarioDaBarra; onS
   });
   const pendentes = fila.data?.pendentes ?? 0;
 
+  // O mesmo para as FAQs que passaram da data de revisão, no alcance da pessoa.
+  const revisoes = useQuery({
+    queryKey: ["revisoes-contagem"],
+    queryFn: () => contarRevisoesVencidas(),
+    enabled: pode(usuario, "revisoes"),
+    staleTime: 60_000,
+  });
+  const contadores: Partial<Record<string, { n: number; rotulo: string }>> = {
+    "/curadoria": { n: pendentes, rotulo: `${pendentes} esperando análise` },
+    "/revisoes": {
+      n: revisoes.data?.vencidas ?? 0,
+      rotulo: `${revisoes.data?.vencidas ?? 0} com a revisão vencida`,
+    },
+  };
+
   // No celular a barra é uma gaveta por cima do conteúdo: escolhida a tela, ela
   // precisa sair da frente.
   const aoEscolher = () => {
@@ -124,12 +140,12 @@ export function BarraLateral({ usuario, onSair }: { usuario: UsuarioDaBarra; onS
                         <span>{destino.rotulo}</span>
                       </Link>
                     </SidebarMenuButton>
-                    {destino.para === "/curadoria" && pendentes > 0 && (
+                    {(contadores[destino.para as string]?.n ?? 0) > 0 && (
                       <SidebarMenuBadge
-                        aria-label={`${pendentes} esperando análise`}
+                        aria-label={contadores[destino.para as string]?.rotulo}
                         className="peer-data-[size=default]/menu-button:top-3 h-5 min-w-6 rounded-full bg-sidebar-contador px-2 text-[13px] font-bold text-sidebar-contador-foreground peer-hover/menu-button:text-sidebar-contador-foreground peer-data-[active=true]/menu-button:text-sidebar-contador-foreground"
                       >
-                        {pendentes}
+                        {contadores[destino.para as string]?.n}
                       </SidebarMenuBadge>
                     )}
                     {destino.emTeste && (
@@ -147,22 +163,30 @@ export function BarraLateral({ usuario, onSair }: { usuario: UsuarioDaBarra; onS
 
       <SidebarFooter>
         <SidebarMenu>
+          {/* O nome é a porta de Minha conta: é onde a pessoa procura o que é dela. */}
           <SidebarMenuItem>
-            <div className="flex min-w-0 items-center gap-3 px-2 py-1.5 group-data-[collapsible=icon]:hidden">
-              <span
-                aria-hidden="true"
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sm font-semibold"
-              >
-                {iniciais(usuario.name)}
-              </span>
-              <span className="min-w-0 text-sm leading-tight">
-                <span className="block truncate font-semibold">{usuario.name}</span>
-                <span className="block truncate text-sidebar-muted">
-                  {usuario.grupo.nome}
-                  {usuario.master && " · master"}
+            <SidebarMenuButton
+              asChild
+              size="lg"
+              tooltip="Minha conta"
+              isActive={caminho === "/conta"}
+            >
+              <Link to="/conta" onClick={aoEscolher} aria-label={`Minha conta: ${usuario.name}`}>
+                <span
+                  aria-hidden="true"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sm font-semibold"
+                >
+                  {iniciais(usuario.name)}
                 </span>
-              </span>
-            </div>
+                <span className="min-w-0 text-sm leading-tight">
+                  <span className="block truncate font-semibold">{usuario.name}</span>
+                  <span className="block truncate text-sidebar-muted">
+                    {usuario.grupo.nome}
+                    {usuario.master && " · master"}
+                  </span>
+                </span>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Sair" onClick={onSair}>
