@@ -47,3 +47,7 @@ scripts/backups/
 # Gabarito, cache e relatórios do teste de conversas: têm frases de cidadão
 # ou texto derivado delas, e só existem na máquina de quem testa.
 n8n/.local/
+
+# Capturas, árvores de acessibilidade e logs do navegador de teste (Playwright
+# MCP). Mostram telas do painel com dados reais, e só servem na hora do teste.
+.playwright-mcp/
