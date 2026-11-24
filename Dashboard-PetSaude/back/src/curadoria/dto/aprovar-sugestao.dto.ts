@@ -1,6 +1,9 @@
 import { IsArray, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
-export class AprovarSugestaoDto {
+import { CamposDeRevisaoDto } from '../../faqs/dto/revisao.dto';
+
+// Os mesmos campos de revisão do formulário de FAQ, que é o mesmo formulário.
+export class AprovarSugestaoDto extends CamposDeRevisaoDto {
     @IsString()
     @MinLength(5)
     @MaxLength(300)
