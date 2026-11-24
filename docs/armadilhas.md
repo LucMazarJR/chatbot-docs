@@ -111,6 +111,8 @@ Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só
 
 **O back novo sem a migração no Neon derruba o login.** O Render não roda migração ao subir, e a entidade lê colunas que só a migração cria: sem ela, toda consulta de usuário falha, a começar pelo login. A migração vai à mão no editor SQL do Neon antes do push do back, e precisa ser compatível com o back que ainda está no ar (coluna velha só sai numa migração seguinte).
 
+**Sincronizar o Drive apagava o que o painel grava na FAQ.** O `enviar_dados.py` apaga e regrava o arquivo inteiro quando ele muda. Campo que só o painel conhece (como a data de revisão) some na sincronização seguinte se o script não o copiar da versão anterior. Ele copia pelo `content_hash`, junto com o vetor; campo novo que o painel grave na FAQ precisa entrar em `CAMPOS_DE_REVISAO`, ou numa lista igual.
+
 **Tela que chama rota de outra área volta 403 calada.** Um atalho ou contador de outra área (a fila de Sem resposta na tela de Conversas, a revisão de assuntos em Configurações) só funciona para quem tem as duas. A consulta precisa de `enabled: pode(...)` e o link, da mesma condição; senão a pessoa vê um número que nunca chega ou um link que devolve para a mesma página.
 
 **Aba aberta antes de um deploy pede arquivos que não existem mais.** Os arquivos de cada tela mudam de nome a cada build. O [versao-nova.ts](../Dashboard-PetSaude/front/src/lib/versao-nova.ts) recarrega a página quando isso acontece. Para testar localmente, reconstruir só o front (`docker compose up -d --build --no-deps dashboard-front`), em navegador sem cache: sem `--no-deps` a API reinicia junto, e com cache o arquivo antigo vem dele e a falha não aparece.
