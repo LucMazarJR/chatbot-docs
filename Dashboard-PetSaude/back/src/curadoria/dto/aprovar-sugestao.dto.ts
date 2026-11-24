@@ -20,6 +20,12 @@ export class AprovarSugestaoDto {
     @IsArray()
     @IsString({ each: true })
     tags?: string[];
+
+    // A mesma Referência do formulário de FAQ, e com o mesmo limite.
+    @IsOptional()
+    @IsString()
+    @MaxLength(300)
+    source?: string;
 }
 
 export class ListarSugestoesQueryDto {
