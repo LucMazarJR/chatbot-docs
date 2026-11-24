@@ -81,7 +81,13 @@ function Formularios({ usuario }: { usuario: Usuario }) {
         className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!nomeCurto) mutacao.mutate({ name: nome.trim() });
+          if (nomeCurto) return;
+          // O botão aceita o toque e diz o que houve: apagado, não explicaria nada.
+          if (nome.trim() === usuario.name) {
+            toast.info("O nome já está assim. Mude o texto para salvar outro.");
+            return;
+          }
+          mutacao.mutate({ name: nome.trim() });
         }}
       >
         <h2 className="text-base font-semibold">Nome</h2>
@@ -108,7 +114,7 @@ function Formularios({ usuario }: { usuario: Usuario }) {
         <p className="text-sm text-muted-foreground">
           E-mail: {usuario.email}. Para mudar o e-mail, peça a quem cuida das contas.
         </p>
-        <Button type="submit" disabled={mutacao.isPending || nome.trim() === usuario.name}>
+        <Button type="submit" disabled={mutacao.isPending}>
           {mutacao.isPending ? "Salvando…" : "Salvar o nome"}
         </Button>
       </form>

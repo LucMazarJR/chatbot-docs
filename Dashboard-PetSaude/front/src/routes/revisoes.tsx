@@ -68,13 +68,24 @@ function PainelRevisoes() {
   });
 
   const contagem = lista.data?.contagem;
-  const opcoes: { valor: FiltroRevisao; rotulo: string }[] = [
-    { valor: "vencidas", rotulo: contagem ? `Vencidas (${contagem.vencidas})` : "Vencidas" },
+  // Rótulos curtos de propósito: os três precisam caber lado a lado num celular
+  // de 390 px, sem esconder o último atrás de uma barra de rolagem.
+  const opcoes: { valor: FiltroRevisao; rotulo: string; titulo: string }[] = [
+    {
+      valor: "vencidas",
+      rotulo: contagem ? `Vencidas (${contagem.vencidas})` : "Vencidas",
+      titulo: "Passaram da data de revisão",
+    },
     {
       valor: "proximas",
-      rotulo: contagem ? `Próximos 30 dias (${contagem.proximas})` : "Próximos 30 dias",
+      rotulo: contagem ? `Próximas (${contagem.proximas})` : "Próximas",
+      titulo: "Vencem nos próximos 30 dias",
     },
-    { valor: "todas", rotulo: contagem ? `Todas com data (${contagem.todas})` : "Todas com data" },
+    {
+      valor: "todas",
+      rotulo: contagem ? `Todas (${contagem.todas})` : "Todas",
+      titulo: "Todas as FAQs com data de revisão",
+    },
   ];
 
   const mudarSituacao = (nova: FiltroRevisao) => {
@@ -150,7 +161,7 @@ function PainelRevisoes() {
         >
           {situacao === "todas"
             ? "Para uma FAQ aparecer aqui, marque Precisa de revisão em uma data ao criar ou editar a pergunta."
-            : "As outras FAQs com data estão em Todas com data."}
+            : "As outras FAQs com data estão em Todas."}
         </EstadoVazio>
       ) : (
         <>
