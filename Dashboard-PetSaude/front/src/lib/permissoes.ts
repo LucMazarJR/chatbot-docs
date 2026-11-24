@@ -10,6 +10,7 @@ export type Nivel = "ver" | "editar";
 
 export const AREAS = [
   "faqs",
+  "revisoes",
   "categorias",
   "importar",
   "conversas",
@@ -30,6 +31,11 @@ export type Permissoes = Partial<Record<Area, Nivel>>;
 type InfoArea = {
   /** O que cada nível faz, em frase curta, para quem monta o grupo. */
   niveis: Partial<Record<Nivel, string>>;
+  /**
+   * Nome do nível na grade, quando "Ver" e "Editar" não descrevem a área. Em
+   * Revisões o nível é o alcance: as FAQs da própria pessoa, ou as de todos.
+   */
+  rotulos?: Partial<Record<Nivel, string>>;
   /** Mostra o que cidadãos escreveram no chat: dar acesso é decisão de privacidade. */
   dadoDeCidadao?: boolean;
 };
@@ -41,6 +47,13 @@ type InfoArea = {
 export const INFO_AREA: Record<Area, InfoArea> = {
   faqs: {
     niveis: { ver: "Lê as perguntas e respostas", editar: "Cria, edita, exclui e testa a busca" },
+  },
+  revisoes: {
+    niveis: {
+      ver: "Revisa e edita as FAQs com data de revisão que a pessoa criou",
+      editar: "Revisa e edita as FAQs com data de revisão de todo mundo",
+    },
+    rotulos: { ver: "Só as suas", editar: "Todas" },
   },
   categorias: {
     niveis: { ver: "Vê a lista de assuntos", editar: "Cria, renomeia e junta assuntos" },
@@ -83,6 +96,11 @@ const PESO: Record<Nivel | "nada", number> = { nada: 0, ver: 1, editar: 2 };
 
 /** Quem tem acesso a quê. `null` enquanto a sessão não chegou. */
 export type ComAcesso = { master: boolean; permissoes: Permissoes } | null | undefined;
+
+/** O nome do nível como aparece na tela: "Todas" em Revisões, "editar" nas outras. */
+export function rotuloDoNivel(area: Area, nivel: Nivel): string {
+  return INFO_AREA[area].rotulos?.[nivel]?.toLowerCase() ?? nivel;
+}
 
 /** "Editar" inclui "ver", e o master pode tudo. */
 export function pode(usuario: ComAcesso, area: Area, nivel: Nivel = "ver"): boolean {

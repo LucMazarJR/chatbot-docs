@@ -68,6 +68,7 @@ describe('permissoesTotais', () => {
         const todas = permissoesTotais();
         expect(Object.keys(todas).sort()).toEqual([...AREAS].sort());
         expect(todas.historico).toBe('ver');
+        expect(todas.revisoes).toBe('editar');
         expect(todas.importar).toBe('editar');
         expect(todas.conversas).toBe('editar');
     });

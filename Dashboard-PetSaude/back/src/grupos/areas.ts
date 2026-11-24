@@ -10,6 +10,7 @@ export type Nivel = 'ver' | 'editar';
 
 export const AREAS = [
     'faqs',
+    'revisoes',
     'categorias',
     'importar',
     'conversas',
@@ -34,6 +35,10 @@ export type Permissoes = Partial<Record<Area, Nivel>>;
  */
 export const NIVEIS_DA_AREA: Record<Area, readonly Nivel[]> = {
     faqs: ['ver', 'editar'],
+    // Aqui o nível é o alcance, e não ler ou gravar: "ver" é revisar as FAQs que
+    // a própria pessoa criou, e "editar" é revisar as de todo mundo. Nos dois,
+    // quem revisa pode mudar o texto das FAQs que têm data de revisão.
+    revisoes: ['ver', 'editar'],
     categorias: ['ver', 'editar'],
     importar: ['editar'],
     conversas: ['ver', 'editar'],
