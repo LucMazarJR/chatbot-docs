@@ -1,4 +1,4 @@
-import { dataCurta, diaIso } from "./datas";
+import { diaIso } from "./datas";
 
 /**
  * Revisão por data das FAQs, do lado da tela.
@@ -35,15 +35,32 @@ export function diasEntre(de: string, ate: string): number {
   return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86_400_000);
 }
 
+/**
+ * O dia de Brasília de uma data que pode vir de dois lugares: o campo do
+ * formulário ("AAAA-MM-DD", já é o dia) ou a API (instante ISO). Passar o dia
+ * por `new Date` o leria como meia-noite de Greenwich, que aqui ainda é o dia
+ * anterior.
+ */
+export function diaDaRevisao(valor: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : diaIso(valor);
+}
+
+/** "21/02/2027", a partir do dia. */
+export function diaPorExtenso(dia: string): string {
+  const [ano, mes, d] = dia.split("-");
+  return `${d}/${mes}/${ano}`;
+}
+
 /** "Venceu há 3 dias", "Vence hoje", "Vence em 12 dias", ou a data quando está longe. */
 export function textoDaRevisao(revisarEm: string): string {
-  const faltam = diasEntre(hoje(), diaIso(revisarEm));
+  const dia = diaDaRevisao(revisarEm);
+  const faltam = diasEntre(hoje(), dia);
   if (faltam < -1) return `Venceu há ${-faltam} dias`;
   if (faltam === -1) return "Venceu ontem";
   if (faltam === 0) return "Vence hoje";
   if (faltam === 1) return "Vence amanhã";
   if (faltam <= 60) return `Vence em ${faltam} dias`;
-  return `Revisar em ${dataCurta(revisarEm)}`;
+  return `Revisar em ${diaPorExtenso(dia)}`;
 }
 
 /** O padrão de Minha conta, em palavras: "3 meses", "45 dias". */

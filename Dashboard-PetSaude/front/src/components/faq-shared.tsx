@@ -356,6 +356,7 @@ export function FaqFormDialog({
   onOpenChange,
   defaultCategory,
   aprovacao,
+  aviso,
 }: {
   mode: "create" | "edit";
   faq?: Faq;
@@ -373,6 +374,8 @@ export function FaqFormDialog({
     inicial: Partial<DadosFaq>;
     salvar: (dados: DadosFaq) => Promise<{ semEmbedding?: boolean }>;
   };
+  /** Frase no topo do formulário, como "esta FAQ ainda não venceu". */
+  aviso?: string;
 }) {
   const queryClient = useQueryClient();
   const create = useServerFn(createFaq);
@@ -488,6 +491,10 @@ export function FaqFormDialog({
                 : "Uma categoria e ao menos 3 tags. A revisão por data é opcional."}
             </DialogDescription>
           </DialogHeader>
+
+          {aviso && (
+            <p className="rounded-lg bg-warning-soft p-3 text-[15px] text-foreground">{aviso}</p>
+          )}
 
           <form
             id={idDe("form")}

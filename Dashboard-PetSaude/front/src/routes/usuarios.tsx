@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { exigirPermissao } from "@/lib/guardas";
 import { rotuloDaArea } from "@/lib/navegacao";
-import { AREAS, cabeEm, type Permissoes } from "@/lib/permissoes";
+import { AREAS, cabeEm, rotuloDoNivel, type Permissoes } from "@/lib/permissoes";
 import {
   Select,
   SelectContent,
@@ -102,7 +102,7 @@ function gruposAtribuiveis(grupos: Grupo[], eu: Eu): Grupo[] {
 /** "FAQs (editar), Sem resposta (ver)": o que o grupo abre, na ordem do menu. */
 function resumo(permissoes: Permissoes): string {
   return AREAS.filter((area) => permissoes[area])
-    .map((area) => `${rotuloDaArea(area)} (${permissoes[area]})`)
+    .map((area) => `${rotuloDaArea(area)} (${rotuloDoNivel(area, permissoes[area]!)})`)
     .join(", ");
 }
 

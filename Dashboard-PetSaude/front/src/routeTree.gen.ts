@@ -17,6 +17,7 @@ import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotificacoesRouteImport } from './routes/notificacoes'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as RevisoesRouteImport } from './routes/revisoes'
 import { Route as UnidadesRouteImport } from './routes/unidades'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as CategoriasIndexRouteImport } from './routes/categorias.index'
@@ -65,6 +66,11 @@ const NotificacoesRoute = NotificacoesRouteImport.update({
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RevisoesRoute = RevisoesRouteImport.update({
+  id: '/revisoes',
+  path: '/revisoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UnidadesRoute = UnidadesRouteImport.update({
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/revisoes': typeof RevisoesRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/revisoes': typeof RevisoesRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -161,6 +169,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/notificacoes': typeof NotificacoesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/revisoes': typeof RevisoesRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/categorias/$categoria': typeof CategoriasCategoriaRoute
@@ -182,6 +191,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/notificacoes'
     | '/relatorios'
+    | '/revisoes'
     | '/unidades'
     | '/usuarios'
     | '/categorias/$categoria'
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/notificacoes'
     | '/relatorios'
+    | '/revisoes'
     | '/unidades'
     | '/usuarios'
     | '/categorias/$categoria'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/notificacoes'
     | '/relatorios'
+    | '/revisoes'
     | '/unidades'
     | '/usuarios'
     | '/categorias/$categoria'
@@ -240,6 +252,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   NotificacoesRoute: typeof NotificacoesRoute
   RelatoriosRoute: typeof RelatoriosRoute
+  RevisoesRoute: typeof RevisoesRoute
   UnidadesRoute: typeof UnidadesRoute
   UsuariosRoute: typeof UsuariosRoute
   CategoriasCategoriaRoute: typeof CategoriasCategoriaRoute
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/revisoes': {
+      id: '/revisoes'
+      path: '/revisoes'
+      fullPath: '/revisoes'
+      preLoaderRoute: typeof RevisoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/unidades': {
@@ -384,6 +404,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   NotificacoesRoute: NotificacoesRoute,
   RelatoriosRoute: RelatoriosRoute,
+  RevisoesRoute: RevisoesRoute,
   UnidadesRoute: UnidadesRoute,
   UsuariosRoute: UsuariosRoute,
   CategoriasCategoriaRoute: CategoriasCategoriaRoute,

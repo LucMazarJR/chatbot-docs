@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogOut, Moon, Search, Sun } from "lucide-react";
 
 import { getFilaCuradoria } from "@/lib/curadoria.functions";
+import { contarRevisoesVencidas } from "@/lib/faq.functions";
 import { gruposDe } from "@/lib/navegacao";
 import { pode, type Permissoes } from "@/lib/permissoes";
 import { aplicarTema, temaAtual, type Tema } from "@/lib/tema";
@@ -76,6 +77,21 @@ export function BarraLateral({ usuario, onSair }: { usuario: UsuarioDaBarra; onS
   });
   const pendentes = fila.data?.pendentes ?? 0;
 
+  // O mesmo para as FAQs que passaram da data de revisão, no alcance da pessoa.
+  const revisoes = useQuery({
+    queryKey: ["revisoes-contagem"],
+    queryFn: () => contarRevisoesVencidas(),
+    enabled: pode(usuario, "revisoes"),
+    staleTime: 60_000,
+  });
+  const contadores: Partial<Record<string, { n: number; rotulo: string }>> = {
+    "/curadoria": { n: pendentes, rotulo: `${pendentes} esperando análise` },
+    "/revisoes": {
+      n: revisoes.data?.vencidas ?? 0,
+      rotulo: `${revisoes.data?.vencidas ?? 0} com a revisão vencida`,
+    },
+  };
+
   // No celular a barra é uma gaveta por cima do conteúdo: escolhida a tela, ela
   // precisa sair da frente.
   const aoEscolher = () => {
@@ -124,12 +140,12 @@ export function BarraLateral({ usuario, onSair }: { usuario: UsuarioDaBarra; onS
                         <span>{destino.rotulo}</span>
                       </Link>
                     </SidebarMenuButton>
-                    {destino.para === "/curadoria" && pendentes > 0 && (
+                    {(contadores[destino.para as string]?.n ?? 0) > 0 && (
                       <SidebarMenuBadge
-                        aria-label={`${pendentes} esperando análise`}
+                        aria-label={contadores[destino.para as string]?.rotulo}
                         className="peer-data-[size=default]/menu-button:top-3 h-5 min-w-6 rounded-full bg-sidebar-contador px-2 text-[13px] font-bold text-sidebar-contador-foreground peer-hover/menu-button:text-sidebar-contador-foreground peer-data-[active=true]/menu-button:text-sidebar-contador-foreground"
                       >
-                        {pendentes}
+                        {contadores[destino.para as string]?.n}
                       </SidebarMenuBadge>
                     )}
                     {destino.emTeste && (
