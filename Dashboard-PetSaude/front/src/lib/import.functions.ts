@@ -94,6 +94,9 @@ export const commitImportacao = createServerFn({ method: "POST" })
         scriptId: z.string().uuid(),
         scriptVersion: z.number().int().min(1),
         tipoArquivo: z.string().max(20).optional(),
+        // A mesma revisão para o lote inteiro, ou nenhuma.
+        revisar_em: z.string().trim().max(30).nullable().optional(),
+        revisao_nota: z.string().trim().max(200).nullable().optional(),
       })
       .parse(data),
   )
@@ -107,6 +110,8 @@ export const commitImportacao = createServerFn({ method: "POST" })
         scriptId: string;
         scriptVersion: number;
         tipoArquivo?: string;
+        revisar_em?: string | null;
+        revisao_nota?: string | null;
       };
     }): Promise<{ jobId: string; total: number }> =>
       apiFetch<{ jobId: string; total: number }>("/import/commit", {

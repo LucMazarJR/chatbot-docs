@@ -248,7 +248,7 @@ function CampoCategoria({
  * O chatbot continua respondendo depois da data: ela põe a FAQ na lista de
  * Revisões, e não tira do ar.
  */
-function CampoRevisao({
+export function CampoRevisao({
   id,
   ativo,
   aoAtivar,
