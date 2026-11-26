@@ -441,16 +441,21 @@ export class ConversasService {
 
     /** Uma linha por mensagem, para abrir em planilha. */
     async exportarCsv(): Promise<string> {
-        const linhas = await this.mensagemModel
-            .aggregate([
-                { $sort: ORDEM_DA_CONVERSA },
-                { $lookup: { from: 'sessoes', localField: 'sessaoId', foreignField: '_id', as: 'sessao' } },
-                { $unwind: { path: '$sessao', preserveNullAndEmptyArrays: true } },
-            ])
-            .exec();
+        const [linhas, nomeDaUbs] = await Promise.all([
+            this.mensagemModel
+                .aggregate([
+                    { $sort: ORDEM_DA_CONVERSA },
+                    { $lookup: { from: 'sessoes', localField: 'sessaoId', foreignField: '_id', as: 'sessao' } },
+                    { $unwind: { path: '$sessao', preserveNullAndEmptyArrays: true } },
+                ])
+                .exec(),
+            this.ubsService.nomeador(),
+        ]);
 
+        // A unidade reconhecida, e não o texto digitado: o texto é do cidadão e
+        // pode não ser nome de unidade nenhuma.
         const cabecalho = [
-            'sessaoId', 'versao', 'participante', 'em', 'papel', 'texto',
+            'sessaoId', 'versao', 'participante', 'unidade', 'em', 'papel', 'texto',
             'latenciaMs', 'temContexto', 'qtdTrechos', 'semResposta', 'erro',
             'motivoErro', 'feedback', 'feedbackComentario', 'estrelas', 'nps', 'comentario',
         ];
@@ -460,6 +465,7 @@ export class ConversasService {
                 l.sessaoId,
                 l.sessao?.versao ?? 'a',
                 l.sessao?.nome ?? '',
+                nomeDaUbs(l.sessao?.ubs) ?? '',
                 l.em instanceof Date ? l.em.toISOString() : '',
                 l.papel,
                 l.texto,

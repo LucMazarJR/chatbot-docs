@@ -4,10 +4,16 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Permite } from '../auth/decorators/permite.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { ListarConversasQueryDto } from '../conversas/dto/listar-conversas-query.dto';
-import { CorrigirGrafiaDto, DescartarGrafiaDto, SalvarUbsDto } from './dto/ubs.dto';
+import { CorrigirGrafiaDto, CriarUbsEmLoteDto, DescartarGrafiaDto, SalvarUbsDto } from './dto/ubs.dto';
 import { UbsService } from './ubs.service';
 
-/** Ver é permissão dada de propósito, como Conversas: a lista de grafias mostra o que cidadãos escreveram. */
+/**
+ * Unidades de saúde. A rota continua `/ubs` porque é nome interno: mudar quebraria
+ * o painel publicado antes do back.
+ *
+ * Ver é permissão dada de propósito, como Conversas: a lista de grafias mostra o
+ * que cidadãos escreveram.
+ */
 @Controller('ubs')
 @Permite('unidades:ver')
 export class UbsController {
@@ -28,6 +34,13 @@ export class UbsController {
     @Permite('unidades:editar')
     descartar(@Body() body: DescartarGrafiaDto, @CurrentUser() user: AuthenticatedUser) {
         return this.ubs.descartarGrafia(body.chave, { id: user.id, name: user.name });
+    }
+
+    // Antes de `:id`, senão o Nest leria "lote" como um id nas rotas com parâmetro.
+    @Post('lote')
+    @Permite('unidades:editar')
+    criarEmLote(@Body() body: CriarUbsEmLoteDto, @CurrentUser() user: AuthenticatedUser) {
+        return this.ubs.criarEmLote(body.nomes, { id: user.id, name: user.name });
     }
 
     @Post()
