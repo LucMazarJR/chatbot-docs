@@ -17,6 +17,7 @@ import {
     type UnidadeParaBusca,
 } from './identificar-ubs';
 import { Ubs, UbsDocument } from './schemas/ubs.schema';
+import { granularidadeDo, montarSerie } from './serie';
 import { UNIDADES_INICIAIS } from './unidades-iniciais';
 
 type Ator = { id?: string; name: string };
@@ -195,6 +196,8 @@ export class UbsService {
         let paraRevisar = 0;
         let naoInformaram = 0;
         let anteriores = 0;
+        /** A unidade de cada conversa contada, para a série e os temas. */
+        const unidadeDaSessao = new Map<string, string>();
 
         for (const sessao of noPeriodo) {
             // Sessão sem pergunta é visita, não conversa: a mesma regra das
@@ -214,11 +217,48 @@ export class UbsService {
                 if (linha) {
                     identificadas++;
                     somar(linha, daSessao, sessao);
+                    unidadeDaSessao.set(sessao._id, achada.id);
                 } else {
                     paraRevisar++;
                 }
             }
         }
+
+        const contadas = [...porSessao.keys()].filter((id) => porSessao.get(id)!.perguntas > 0);
+        const naData = intervalo ? { em: intervalo } : {};
+        const [perguntas, temas] = await Promise.all([
+            this.mensagemModel
+                .find({ sessaoId: { $in: contadas }, papel: 'user', ...naData })
+                .select('sessaoId em')
+                .lean()
+                .exec(),
+            this.temasPorSessao(contadas, naData),
+        ]);
+
+        const serie = montarSerie(
+            perguntas.map((p) => ({ sessaoId: p.sessaoId, em: p.em })),
+            (id) => unidadeDaSessao.get(id) ?? null,
+            granularidadeDo(periodo),
+            intervalo?.$gte ?? null,
+            intervalo?.$lt ? new Date(intervalo.$lt.getTime() - 1) : new Date(),
+        );
+
+        // Os assuntos de cada unidade: a categoria das FAQs que de fato
+        // entraram na resposta. Conta respostas, e cada resposta conta uma vez
+        // por categoria, mesmo usando duas FAQs dela.
+        const temasPorUnidade = new Map<string, Map<string, number>>();
+        for (const { sessaoId, categoria, respostas } of temas) {
+            const unidade = unidadeDaSessao.get(sessaoId);
+            if (!unidade) continue;
+            const daUnidade = temasPorUnidade.get(unidade) ?? new Map<string, number>();
+            daUnidade.set(categoria, (daUnidade.get(categoria) ?? 0) + respostas);
+            temasPorUnidade.set(unidade, daUnidade);
+        }
+        const principaisTemas = (id: string) =>
+            [...(temasPorUnidade.get(id) ?? new Map<string, number>()).entries()]
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))
+                .slice(0, 3)
+                .map(([categoria, respostas]) => ({ categoria, respostas }));
 
         return {
             conversas,
@@ -232,10 +272,61 @@ export class UbsService {
             // lado da taxa de todas as conversas do período.
             geral: resumir(geral, conversas),
             porUbs: unidades
-                .map((u) => ({ id: u.id, nome: u.nome, ...resumir(porUbs.get(u.id) ?? linhaVazia(), identificadas) }))
+                .map((u) => ({
+                    id: u.id,
+                    nome: u.nome,
+                    ...resumir(porUbs.get(u.id) ?? linhaVazia(), identificadas),
+                    temas: principaisTemas(u.id),
+                }))
                 .sort((a, b) => b.conversas - a.conversas || a.nome.localeCompare(b.nome, 'pt-BR')),
+            serie,
             grafias: await this.grafias(unidades),
         };
+    }
+
+    /** Quantas respostas de cada conversa usaram FAQs de cada categoria. */
+    private async temasPorSessao(
+        sessoes: string[],
+        naData: Record<string, unknown>,
+    ): Promise<{ sessaoId: string; categoria: string; respostas: number }[]> {
+        if (sessoes.length === 0) return [];
+        return this.mensagemModel
+            .aggregate<{ sessaoId: string; categoria: string; respostas: number }>([
+                { $match: { sessaoId: { $in: sessoes }, papel: 'bot', 'trechosDebug.0': { $exists: true }, ...naData } },
+                {
+                    $project: {
+                        sessaoId: 1,
+                        // As categorias dos trechos que entraram na resposta, sem
+                        // repetir: o que a busca trouxe e descartou não é o assunto.
+                        categorias: {
+                            $setUnion: [
+                                {
+                                    $map: {
+                                        input: {
+                                            $filter: {
+                                                input: '$trechosDebug',
+                                                cond: {
+                                                    $and: [
+                                                        { $eq: ['$$this.usado', true] },
+                                                        { $gt: ['$$this.category', null] },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                        in: '$$this.category',
+                                    },
+                                },
+                                [],
+                            ],
+                        },
+                    },
+                },
+                { $unwind: '$categorias' },
+                { $match: { categorias: { $nin: [''] } } },
+                { $group: { _id: { sessaoId: '$sessaoId', categoria: '$categorias' }, respostas: { $sum: 1 } } },
+                { $project: { _id: 0, sessaoId: '$_id.sessaoId', categoria: '$_id.categoria', respostas: 1 } },
+            ])
+            .exec();
     }
 
     /**
