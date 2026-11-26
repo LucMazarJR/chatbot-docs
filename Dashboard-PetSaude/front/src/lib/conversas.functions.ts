@@ -97,6 +97,8 @@ export type ConversaResumida = {
   nome: string;
   versao?: "a" | "b";
   iniciadaEm: string;
+  /** A última mensagem, ou o início quando não há nenhuma. A lista é ordenada por ela. */
+  ultimaEm: string;
   encerradaEm: string | null;
   avaliacao: Avaliacao | null;
   qtdMensagens: number;
