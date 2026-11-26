@@ -35,7 +35,7 @@ export function SeloUbs({ nome, texto }: { nome?: string | null; texto?: string 
       icone={<Building2 aria-hidden="true" />}
       title="Identifique em Unidades de saúde"
     >
-      UBS a identificar
+      Unidade a identificar
     </Selo>
   );
 }
