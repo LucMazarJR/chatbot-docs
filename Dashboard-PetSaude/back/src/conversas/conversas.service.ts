@@ -6,7 +6,7 @@ import { Sessao, SessaoDocument } from './schemas/sessao.schema';
 import { Mensagem, MensagemDocument } from './schemas/mensagem.schema';
 import { CONEXAO_PROTOTIPO } from './conexao';
 import { ActivityService } from '../activity/activity.service';
-import { intervaloDoPeriodo } from './periodo';
+import { filtroDeAtividade, intervaloDoPeriodo } from './periodo';
 import { UbsService } from '../ubs/ubs.service';
 import { Rodada, RodadaDocument } from '../curadoria/schemas/rodada.schema';
 import { Sugestao, SugestaoDocument } from '../curadoria/schemas/sugestao.schema';
@@ -63,27 +63,42 @@ export class ConversasService {
     ) { }
 
     /**
-     * Recorte de tempo e de interface.
-     *
      * Sessões antigas não têm o campo `versao`: são anteriores à existência
      * das duas interfaces. Contam como "a", que era a única que existia.
      */
-    private filtroDeSessao(periodo: Periodo, versao: FiltroVersao, dia?: string): Record<string, unknown> {
-        const filtro: Record<string, unknown> = {};
-
-        const intervalo = intervaloDoPeriodo(periodo, dia);
-        if (intervalo) filtro.iniciadaEm = intervalo;
-
-        if (versao === 'a') filtro.$or = [{ versao: 'a' }, { versao: { $exists: false } }];
-        else if (versao === 'b') filtro.versao = 'b';
-
-        return filtro;
+    private filtroDeVersao(versao: FiltroVersao): Record<string, unknown> | null {
+        if (versao === 'a') return { $or: [{ versao: 'a' }, { versao: { $exists: false } }] };
+        if (versao === 'b') return { versao: 'b' };
+        return null;
     }
 
-    /** Números do topo da tela, recortados por período e interface. */
+    /**
+     * Recorte de tempo e de interface: as sessões com atividade no período
+     * (ver filtroDeAtividade), e não só as que começaram nele.
+     */
+    private async filtroDeSessao(periodo: Periodo, versao: FiltroVersao, dia?: string): Promise<Record<string, unknown>> {
+        const condicoes = [
+            await filtroDeAtividade(this.mensagemModel, intervaloDoPeriodo(periodo, dia)),
+            this.filtroDeVersao(versao),
+        ].filter((c): c is Record<string, unknown> => c !== null);
+        return condicoes.length ? { $and: condicoes } : {};
+    }
+
+    /**
+     * Números do topo da tela, recortados por período e interface.
+     *
+     * Perguntas, respostas e votos contam pela data de cada mensagem: numa
+     * sessão retomada dias depois, "Hoje" mostra só o que aconteceu hoje.
+     */
     async estatisticas(periodo: Periodo = 'tudo', versao: FiltroVersao = 'todas', dia?: string) {
-        const base = this.filtroDeSessao(periodo, versao, dia);
-        const noRecorte = await this.sessaoModel.find(base).select('_id').lean().exec();
+        const intervalo = intervaloDoPeriodo(periodo, dia);
+        const naData = intervalo ? { em: intervalo } : {};
+
+        const noRecorte = await this.sessaoModel
+            .find(await this.filtroDeSessao(periodo, versao, dia))
+            .select('_id iniciadaEm')
+            .lean()
+            .exec();
         const idsNoRecorte = noRecorte.map((s) => s._id);
 
         // Sessão sem pergunta nenhuma é visita, não conversa. Contá-la afundaria
@@ -91,6 +106,18 @@ export class ConversasService {
         // pessoas conversaram".
         const comPergunta: string[] = await this.mensagemModel.distinct('sessaoId', {
             sessaoId: { $in: idsNoRecorte },
+            papel: 'user',
+            ...naData,
+        });
+
+        // Visita é a sessão que começou no período e nunca teve pergunta. Uma
+        // sessão aberta hoje que só vai receber pergunta amanhã também conta
+        // aqui, até lá.
+        const iniciadas = noRecorte
+            .filter((s) => !intervalo || (!!s.iniciadaEm && s.iniciadaEm >= intervalo.$gte && (!intervalo.$lt || s.iniciadaEm < intervalo.$lt)))
+            .map((s) => s._id);
+        const iniciadasComPergunta: string[] = await this.mensagemModel.distinct('sessaoId', {
+            sessaoId: { $in: iniciadas },
             papel: 'user',
         });
 
@@ -137,7 +164,7 @@ export class ConversasService {
 
             this.mensagemModel
                 .aggregate([
-                    { $match: { sessaoId: { $in: comPergunta } } },
+                    { $match: { sessaoId: { $in: comPergunta }, ...naData } },
                     {
                         $group: {
                             _id: null,
@@ -153,7 +180,7 @@ export class ConversasService {
                 .exec(),
 
             this.mensagemModel
-                .find({ sessaoId: { $in: comPergunta }, papel: 'bot', latenciaMs: { $gt: 0 } })
+                .find({ sessaoId: { $in: comPergunta }, papel: 'bot', latenciaMs: { $gt: 0 }, ...naData })
                 .select('latenciaMs')
                 .lean()
                 .exec(),
@@ -167,7 +194,7 @@ export class ConversasService {
             sessoes: s?.total ?? 0,
             // Quantas foram descartadas por não terem pergunta nenhuma. Fica à
             // vista para ninguém achar que sumiram sessões sem explicação.
-            sessoesVazias: Math.max(0, idsNoRecorte.length - (s?.total ?? 0)),
+            sessoesVazias: Math.max(0, iniciadas.length - iniciadasComPergunta.length),
             sessoesAvaliadas: s?.avaliadas ?? 0,
             mensagens: m?.total ?? 0,
             respostas: m?.doBot ?? 0,
@@ -205,8 +232,7 @@ export class ConversasService {
         limite = 200,
     ) {
         const pipeline: PipelineStage[] = [
-            { $match: this.filtroDeSessao(periodo, versao, dia) },
-            { $sort: { iniciadaEm: -1 } },
+            { $match: await this.filtroDeSessao(periodo, versao, dia) },
             {
                 $lookup: {
                     from: 'mensagens',
@@ -234,9 +260,14 @@ export class ConversasService {
                         $size: { $filter: { input: '$msgs', cond: { $eq: ['$$this.erro', true] } } },
                     },
                     latenciaMaxima: { $max: '$msgs.latenciaMs' },
+                    // A ordem é pela última coisa que aconteceu, e não pelo
+                    // início: a sessão retomada hoje vai para o topo (ver
+                    // filtroDeAtividade).
+                    ultimaEm: { $max: ['$iniciadaEm', { $max: '$msgs.em' }] },
                 },
             },
             { $project: { msgs: 0 } },
+            { $sort: { ultimaEm: -1, _id: -1 } },
         ];
 
         // "todas" é o único filtro que mostra as sessões vazias.

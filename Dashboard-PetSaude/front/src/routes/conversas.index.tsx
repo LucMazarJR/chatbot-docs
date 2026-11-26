@@ -23,7 +23,7 @@ import { SeloConta, SeloUbs } from "@/components/selos-conversa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { dataPorExtenso, diaEHora, diaIso } from "@/lib/datas";
+import { dataPorExtenso, diaEHora, diaEMes, diaIso } from "@/lib/datas";
 
 type Busca = { periodo?: Periodo; dia?: string; situacao?: Situacao };
 
@@ -240,7 +240,15 @@ function LinhaConversa({ conversa }: { conversa: ConversaResumida }) {
         />
         {/* No celular, quando, perguntas, nota e situação viram uma linha só. */}
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground lg:contents lg:text-[15px]">
-          <span>{diaEHora(conversa.iniciadaEm)}</span>
+          <span className="flex flex-col">
+            <span>{diaEHora(conversa.ultimaEm ?? conversa.iniciadaEm)}</span>
+            {/* O chat retoma a sessão em outro dia, e o nome do participante
+                guarda a data em que ela começou. Sem esta linha, "Participante 2
+                17/11" ao lado de uma pergunta de hoje parece erro. */}
+            {conversa.ultimaEm && diaIso(conversa.ultimaEm) !== diaIso(conversa.iniciadaEm) && (
+              <span className="text-[13px]">começou em {diaEMes(conversa.iniciadaEm)}</span>
+            )}
+          </span>
           <span className="text-foreground lg:text-[15px]">
             <span className="lg:hidden">{perguntas}</span>
             <span className="hidden lg:inline">{conversa.qtdPerguntas}</span>
