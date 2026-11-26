@@ -87,12 +87,16 @@ export type Sessao = {
   tutorial?: { escolha: 'visto' | 'pulado' | 'recusado' | 'ignorado'; em: Date };
 
   /**
-   * A UBS de onde a pessoa está falando, como ela escreveu.
+   * A unidade de saúde de onde a pessoa está falando.
    *
-   * `texto` nulo quer dizer que tocou em Pular. Ausente, a pergunta não foi
-   * feita: é conversa anterior a ela. Quem reconhece a unidade é o painel.
+   * `texto` nulo quer dizer que pulou. Ausente, a pergunta não foi feita: é
+   * conversa anterior a ela. `unidadeId` vem quando a pessoa tocou numa unidade
+   * da lista (`ubs_unidades`, no banco das FAQs), e então `texto` é o nome dela
+   * naquele momento. Sem id, `texto` é o que a pessoa escreveu, e quem
+   * reconhece a unidade é o painel. Espelhado em
+   * Dashboard-PetSaude/back/src/conversas/schemas/sessao.schema.ts.
    */
-  ubs?: { texto: string | null; em: Date };
+  ubs?: { texto: string | null; em: Date; unidadeId?: string | null };
 };
 
 export type Avaliacao = {

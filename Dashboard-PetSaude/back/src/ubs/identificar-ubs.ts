@@ -1,5 +1,8 @@
-/** Como o texto digitado chegou à unidade. */
-export type ComoIdentificou = 'nome' | 'corrigida' | 'aproximada';
+/**
+ * Como a conversa chegou à unidade. `lista`: a pessoa tocou nela na lista do
+ * chat, e não houve texto a reconhecer. Os outros vêm do texto digitado.
+ */
+export type ComoIdentificou = 'lista' | 'nome' | 'corrigida' | 'aproximada';
 
 export type UnidadeParaBusca = {
     id: string;

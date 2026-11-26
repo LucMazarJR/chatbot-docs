@@ -111,8 +111,11 @@ export type ConversaResumida = {
   latenciaMaxima: number | null;
   /** Presente quando a conversa foi feita com conta. O painel só mostra que existe. */
   usuarioId?: string;
-  /** O que a pessoa escreveu na pergunta da UBS. Nulo em `texto`: tocou em Pular. */
-  ubs?: { texto: string | null };
+  /**
+   * A resposta à pergunta da unidade de saúde. Nulo em `texto`: pulou. Com
+   * `unidadeId`, a pessoa tocou na unidade na lista do chat.
+   */
+  ubs?: { texto: string | null; unidadeId?: string | null };
   /** A unidade reconhecida a partir do texto. */
   ubsNome?: string | null;
 };

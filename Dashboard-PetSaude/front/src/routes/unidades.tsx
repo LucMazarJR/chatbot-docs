@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, ChevronDown, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ListPlus, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Carregando } from "@/components/carregando";
@@ -29,6 +29,7 @@ import { exigirPermissao } from "@/lib/guardas";
 import {
   corrigirGrafia,
   criarUbs,
+  criarUbsEmLote,
   descartarGrafia,
   obterPainelUbs,
   removerUbs,
@@ -38,6 +39,7 @@ import {
   type LinhaUbs,
   type PainelUbs,
   type PeriodoUbs,
+  type ResultadoDoLote,
 } from "@/lib/ubs.functions";
 
 export const Route = createFileRoute("/unidades")({
@@ -55,6 +57,7 @@ const PERIODOS: { valor: PeriodoUbs; rotulo: string }[] = [
 
 const COMO: Record<"revisar" | ComoIdentificou, { rotulo: string; tom: TomDoSelo }> = {
   revisar: { rotulo: "Não reconhecido", tom: "atencao" },
+  lista: { rotulo: "Escolhida na lista", tom: "sucesso" },
   aproximada: { rotulo: "Parecido", tom: "neutro" },
   corrigida: { rotulo: "Ensinado pela equipe", tom: "marca" },
   nome: { rotulo: "Nome certo", tom: "sucesso" },
@@ -65,10 +68,11 @@ const COMO: Record<"revisar" | ComoIdentificou, { rotulo: string; tom: TomDoSelo
  *
  * Um diálogo ou Select do Radix por linha trava o clique da página inteira (ver
  * Dashboard-PetSaude/CLAUDE.md). Por isso a linha só diz o que abrir, e a escolha
- * da UBS usa o select nativo, que no celular abre a lista do próprio aparelho.
+ * da unidade usa o select nativo, que no celular abre a lista do próprio aparelho.
  */
 type Acao =
   | { tipo: "nova" }
+  | { tipo: "varias" }
   | { tipo: "renomear"; ubs: LinhaUbs }
   | { tipo: "remover"; ubs: LinhaUbs }
   | { tipo: "corrigir"; grafia: Grafia }
@@ -98,12 +102,21 @@ function UbsPage() {
       <div className="space-y-6">
         <CabecalhoPagina
           titulo="Unidades de saúde"
-          frase="O chat pergunta em qual UBS a pessoa está, e o sistema reconhece o nome sozinho, mesmo com erro de digitação. Você só precisa agir quando ele não reconhecer."
+          frase="O chat pergunta em qual unidade de saúde a pessoa está e mostra a lista abaixo para ela escolher. Quem escreve um nome que não está na lista aparece em Para identificar, e o sistema reconhece sozinho os nomes parecidos, mesmo com erro de digitação."
           acoes={
             podeEditar && (
-              <Button className="min-h-11" onClick={() => setAcao({ tipo: "nova" })}>
-                <Plus aria-hidden="true" className="size-4" /> Nova UBS
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button className="min-h-11" onClick={() => setAcao({ tipo: "nova" })}>
+                  <Plus aria-hidden="true" className="size-4" /> Nova unidade
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => setAcao({ tipo: "varias" })}
+                >
+                  <ListPlus aria-hidden="true" className="size-4" /> Adicionar várias
+                </Button>
+              </div>
             )
           }
         />
@@ -112,10 +125,10 @@ function UbsPage() {
 
         {painel.isError ? (
           <EstadoFalha onTentarDeNovo={() => painel.refetch()} tentando={painel.isFetching}>
-            Não foi possível carregar os números das UBS. Confira a internet e tente de novo.
+            Não foi possível carregar os números das unidades. Confira a internet e tente de novo.
           </EstadoFalha>
         ) : !painel.data ? (
-          <Carregando texto="Carregando os números das UBS…" />
+          <Carregando texto="Carregando os números das unidades…" />
         ) : (
           <>
             <Numeros dados={painel.data} />
@@ -178,31 +191,32 @@ function Numeros({ dados }: { dados: PainelUbs }) {
           contexto={plural(dados.geral.perguntas, "pergunta feita", "perguntas feitas")}
         />
         <CartaoNumero
-          rotulo="UBS participando"
+          rotulo="Unidades participando"
           valor={`${numero(participando)} de ${numero(dados.porUbs.length)}`}
           contexto="com ao menos uma conversa"
         />
         <CartaoNumero
-          rotulo="Com UBS conhecida"
+          rotulo="Com unidade conhecida"
           valor={cobertura != null ? `${cobertura}%` : "sem conversas"}
           tom={dados.paraRevisar > 0 ? "warning" : undefined}
           contexto={
             dados.paraRevisar > 0
               ? `${plural(dados.paraRevisar, "espera", "esperam")} identificação · ${informaram(dados.naoInformaram)}`
-              : `${informaram(dados.naoInformaram)} a UBS`
+              : `${informaram(dados.naoInformaram)} a unidade`
           }
         />
         <CartaoNumero
           rotulo="Sem resposta"
           valor={semResposta != null ? porcento(semResposta) : "nenhuma"}
           tom={(semResposta ?? 0) >= 30 ? "warning" : undefined}
-          contexto="das perguntas, em todas as UBS"
+          contexto="das perguntas, em todas as unidades"
         />
       </div>
       {dados.anteriores > 0 && (
         <p className="text-sm text-muted-foreground">
           {plural(dados.anteriores, "conversa é anterior", "conversas são anteriores")} à pergunta
-          da UBS: {dados.anteriores === 1 ? "conta" : "contam"} no total, mas em nenhuma UBS.
+          da unidade: {dados.anteriores === 1 ? "conta" : "contam"} no total, mas em nenhuma
+          unidade.
         </p>
       )}
     </div>
@@ -212,7 +226,7 @@ function Numeros({ dados }: { dados: PainelUbs }) {
 /**
  * Taxa de sem resposta que pede atenção: bem acima da geral, e com perguntas
  * suficientes para não ser acaso. Duas perguntas sem resposta em três dão 67%,
- * e isso não diz nada sobre a UBS.
+ * e isso não diz nada sobre a unidade.
  */
 function acimaDaMedia(linha: LinhaUbs, geral: number | null) {
   return (
@@ -236,17 +250,17 @@ function Ranking({ dados }: { dados: PainelUbs }) {
     <section className="space-y-3" aria-labelledby="titulo-ranking">
       <div>
         <h2 id="titulo-ranking" className="text-lg font-semibold">
-          Conversas por UBS
+          Conversas por unidade
         </h2>
         <p className="text-sm text-muted-foreground">
           Sem resposta é a parte das perguntas em que o assistente não achou o que responder. Em
-          todas as UBS, ficou em {geral != null ? porcento(geral) : "zero"}.
+          todas as unidades, ficou em {geral != null ? porcento(geral) : "zero"}.
         </p>
       </div>
 
       {ativas.length === 0 ? (
-        <EstadoVazio titulo="Nenhuma conversa com UBS identificada neste período">
-          Quando alguém informar a UBS e fizer uma pergunta, a unidade aparece aqui.
+        <EstadoVazio titulo="Nenhuma conversa com unidade identificada neste período">
+          Quando alguém informar a unidade e fizer uma pergunta, ela aparece aqui.
         </EstadoVazio>
       ) : (
         <ol className="space-y-1 rounded-xl border border-border bg-card p-2 sm:p-3">
@@ -365,8 +379,8 @@ function ParaIdentificarLista({
           O sistema não reconheceu {plural(grafias.length, "nome", "nomes")}, de{" "}
           {plural(conversas, "conversa", "conversas")}.{" "}
           {aoEscolher
-            ? "Escolha a UBS certa e ele aprende aquele jeito de escrever: as conversas passam a contar, inclusive as antigas."
-            : "Quem tem Unidades para editar no grupo escolhe a UBS certa, e o sistema aprende aquele jeito de escrever."}
+            ? "Escolha a unidade certa e ele aprende aquele jeito de escrever: as conversas passam a contar, inclusive as antigas."
+            : "Quem tem Unidades para editar no grupo escolhe a unidade certa, e o sistema aprende aquele jeito de escrever."}
         </p>
       </div>
       <ul className="overflow-hidden rounded-lg border border-border bg-card">
@@ -405,7 +419,7 @@ function ComoFoiReconhecido({
           <span className="block text-sm text-muted-foreground">
             {plural(grafias.length, "jeito de escrever", "jeitos de escrever")}
             {aproximadas > 0 ? `, ${numero(aproximadas)} por semelhança.` : "."}
-            {aoEscolher && " Se algum foi para a UBS errada, corrija aqui."}
+            {aoEscolher && " Se algum foi para a unidade errada, corrija aqui."}
           </span>
         </span>
         <ChevronDown
@@ -462,14 +476,14 @@ function LinhaGrafia({
             className="min-h-11"
             onClick={() => aoEscolher({ tipo: "corrigir", grafia })}
           >
-            {grafia.ubsId ? "Corrigir" : "Escolher UBS"}
+            {grafia.ubsId ? "Corrigir" : "Escolher unidade"}
           </Button>
           <Button
             variant="ghost"
             className="min-h-11"
             onClick={() => aoEscolher({ tipo: "descartar", grafia })}
           >
-            Não é uma UBS
+            Não é uma unidade
           </Button>
         </div>
       )}
@@ -489,7 +503,7 @@ function ListaDeUbs({
     <details className="group rounded-xl border border-border bg-card">
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5">
         <span>
-          <span className="font-semibold">Lista de UBS</span>
+          <span className="font-semibold">Lista de unidades de saúde</span>
           <span className="block text-sm text-muted-foreground">
             {plural(linhas.length, "unidade reconhecida", "unidades reconhecidas")} pelo chat.
             {aoEscolher && " Renomeie ou remova aqui."}
@@ -503,7 +517,7 @@ function ListaDeUbs({
       {emOrdem.length === 0 ? (
         <p className="border-t border-border px-4 py-3 text-sm text-muted-foreground sm:px-5">
           {aoEscolher
-            ? "A lista está vazia. Use Nova UBS, no topo, para cadastrar as unidades."
+            ? "A lista está vazia. Use Adicionar várias, no topo, para cadastrar as unidades."
             : "A lista está vazia."}
         </p>
       ) : (
@@ -543,15 +557,17 @@ function ListaDeUbs({
 }
 
 const TITULOS: Record<Acao["tipo"], string> = {
-  nova: "Nova UBS",
-  renomear: "Renomear UBS",
-  remover: "Remover UBS",
-  corrigir: "Qual é a UBS certa?",
-  descartar: "Isto não é uma UBS?",
+  nova: "Nova unidade de saúde",
+  varias: "Adicionar várias unidades",
+  renomear: "Renomear unidade",
+  remover: "Remover unidade",
+  corrigir: "Qual é a unidade certa?",
+  descartar: "Isto não é uma unidade de saúde?",
 };
 
 const CONFIRMACOES: Record<Acao["tipo"], string> = {
   nova: "Adicionar",
+  varias: "Adicionar todas",
   renomear: "Salvar",
   remover: "Remover",
   corrigir: "Salvar",
@@ -571,9 +587,22 @@ function DialogoDaAcao({
   const [nome, setNome] = useState(acao.tipo === "renomear" ? acao.ubs.nome : "");
   const [ubsId, setUbsId] = useState(acao.tipo === "corrigir" ? (acao.grafia.ubsId ?? "") : "");
   const [aviso, setAviso] = useState("");
+  /** Adicionar várias: o texto colado, uma unidade por linha. */
+  const [linhas, setLinhas] = useState("");
+  /** O que o lote fez. O diálogo fica aberto para a pessoa ler o que não entrou. */
+  const [resultado, setResultado] = useState<ResultadoDoLote | null>(null);
+  const nomesDasLinhas = linhas
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   const salvar = useMutation({
     mutationFn: async () => {
+      if (acao.tipo === "varias") {
+        const feito = await criarUbsEmLote({ data: { nomes: nomesDasLinhas } });
+        setResultado(feito);
+        return;
+      }
       if (acao.tipo === "nova") await criarUbs({ data: { nome } });
       if (acao.tipo === "renomear") await renomearUbs({ data: { id: acao.ubs.id, nome } });
       if (acao.tipo === "remover") await removerUbs({ data: { id: acao.ubs.id } });
@@ -583,6 +612,9 @@ function DialogoDaAcao({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["ubs-painel"] });
+      // No lote, o resultado aparece no próprio diálogo: um aviso que some
+      // sozinho não daria tempo de ler quais linhas ficaram de fora.
+      if (acao.tipo === "varias") return;
       toast.success("Pronto, os números já foram atualizados.");
       aoFechar();
     },
@@ -592,14 +624,22 @@ function DialogoDaAcao({
 
   function confirmar() {
     // O botão fica sempre ativo: dizer o que falta é melhor que apagá-lo.
-    if (acao.tipo === "corrigir" && !ubsId) return setAviso("Escolha uma UBS da lista.");
+    if (acao.tipo === "corrigir" && !ubsId) return setAviso("Escolha uma unidade da lista.");
     if (acao.tipo === "corrigir" && ubsId === acao.grafia.ubsId) {
       return setAviso(
-        `"${acao.grafia.texto}" já conta para a ${acao.grafia.ubsNome}. Para mudar, escolha outra UBS.`,
+        `"${acao.grafia.texto}" já conta para a ${acao.grafia.ubsNome}. Para mudar, escolha outra unidade.`,
       );
     }
     if ((acao.tipo === "nova" || acao.tipo === "renomear") && nome.trim().length < 2) {
-      return setAviso("Escreva o nome da UBS.");
+      return setAviso("Escreva o nome da unidade.");
+    }
+    if (acao.tipo === "varias" && nomesDasLinhas.length === 0) {
+      return setAviso("Cole ou escreva os nomes, um por linha.");
+    }
+    if (acao.tipo === "varias" && nomesDasLinhas.length > 200) {
+      return setAviso(
+        `São ${nomesDasLinhas.length} linhas. Envie até 200 de cada vez: divida a lista em partes.`,
+      );
     }
     setAviso("");
     salvar.mutate();
@@ -612,15 +652,17 @@ function DialogoDaAcao({
           <DialogTitle>{TITULOS[acao.tipo]}</DialogTitle>
           <DialogDescription>
             {acao.tipo === "nova" &&
-              "O chat passa a reconhecer esta unidade também nas conversas antigas."}
+              "Ela entra na lista do chat, e o sistema passa a reconhecê-la também nas conversas antigas."}
+            {acao.tipo === "varias" &&
+              "Cole a lista com uma unidade por linha. As que já estão na lista são puladas, e as novas entram na lista do chat."}
             {acao.tipo === "renomear" &&
               "Quem escreveu o nome antigo continua contando nesta unidade."}
             {acao.tipo === "remover" &&
               `${acao.ubs.nome} sai da lista, e as conversas dela voltam para "Para identificar".`}
             {acao.tipo === "corrigir" &&
               (acao.grafia.ubsNome
-                ? `Alguém escreveu "${acao.grafia.texto}" no chat, e o sistema entendeu ${acao.grafia.ubsNome}. Escolha a UBS certa.`
-                : `Alguém escreveu "${acao.grafia.texto}" no chat. Escolha a UBS a que isso se refere.`)}
+                ? `Alguém escreveu "${acao.grafia.texto}" no chat, e o sistema entendeu ${acao.grafia.ubsNome}. Escolha a unidade certa.`
+                : `Alguém escreveu "${acao.grafia.texto}" no chat. Escolha a unidade a que isso se refere.`)}
             {acao.tipo === "descartar" &&
               `"${acao.grafia.texto}" será apagado de ${plural(acao.grafia.vezes, "conversa", "conversas")}, que passam a contar como não informadas. Não dá para desfazer.`}
           </DialogDescription>
@@ -628,7 +670,7 @@ function DialogoDaAcao({
 
         {(acao.tipo === "nova" || acao.tipo === "renomear") && (
           <div className="space-y-2">
-            <Label htmlFor="nome-ubs">Nome da UBS</Label>
+            <Label htmlFor="nome-ubs">Nome da unidade</Label>
             <Input
               id="nome-ubs"
               value={nome}
@@ -643,7 +685,7 @@ function DialogoDaAcao({
 
         {acao.tipo === "corrigir" && (
           <div className="space-y-2">
-            <Label htmlFor="escolha-ubs">UBS</Label>
+            <Label htmlFor="escolha-ubs">Unidade de saúde</Label>
             <select
               id="escolha-ubs"
               className="h-11 w-full rounded-md border border-input bg-background px-3 text-[15px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -653,7 +695,7 @@ function DialogoDaAcao({
                 setAviso("");
               }}
             >
-              <option value="">Escolha uma UBS</option>
+              <option value="">Escolha uma unidade</option>
               {[...unidades]
                 .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
                 .map((ubs) => (
@@ -665,28 +707,99 @@ function DialogoDaAcao({
           </div>
         )}
 
+        {acao.tipo === "varias" && !resultado && (
+          <div className="space-y-2">
+            <Label htmlFor="lista-de-unidades">Uma unidade por linha</Label>
+            <textarea
+              id="lista-de-unidades"
+              rows={10}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-[15px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder={"UBS Aeroporto I\nESF Palma\nUBS Santa Clara"}
+              value={linhas}
+              onChange={(e) => {
+                setLinhas(e.target.value);
+                setAviso("");
+              }}
+            />
+            <p className="text-sm text-muted-foreground">
+              {nomesDasLinhas.length === 0
+                ? "Nenhum nome ainda."
+                : `${plural(nomesDasLinhas.length, "nome", "nomes")} para adicionar.`}
+            </p>
+          </div>
+        )}
+
+        {resultado && <ResultadoDoLoteNaTela resultado={resultado} />}
+
         {aviso && (
           <p role="alert" className="text-sm text-destructive">
             {aviso}
           </p>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" className="min-h-11" onClick={aoFechar}>
-            Cancelar
-          </Button>
-          <Button
-            className="min-h-11"
-            variant={
-              acao.tipo === "remover" || acao.tipo === "descartar" ? "destructive" : "default"
-            }
-            disabled={salvar.isPending}
-            onClick={confirmar}
-          >
-            {salvar.isPending ? "Salvando…" : CONFIRMACOES[acao.tipo]}
-          </Button>
-        </DialogFooter>
+        {resultado ? (
+          <DialogFooter>
+            <Button className="min-h-11" onClick={aoFechar}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        ) : (
+          <DialogFooter>
+            <Button variant="outline" className="min-h-11" onClick={aoFechar}>
+              Cancelar
+            </Button>
+            <Button
+              className="min-h-11"
+              variant={
+                acao.tipo === "remover" || acao.tipo === "descartar" ? "destructive" : "default"
+              }
+              disabled={salvar.isPending}
+              onClick={confirmar}
+            >
+              {salvar.isPending ? "Salvando…" : CONFIRMACOES[acao.tipo]}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** O que entrou, o que já estava e o que ficou de fora, com o motivo de cada uma. */
+function ResultadoDoLoteNaTela({ resultado }: { resultado: ResultadoDoLote }) {
+  const { criadas, jaExistiam, recusadas } = resultado;
+  return (
+    <div className="space-y-3 text-[15px]" role="status">
+      <p className="flex items-center gap-2 font-semibold">
+        <CheckCircle2 aria-hidden="true" className="size-4 text-success" />
+        {criadas.length === 0
+          ? "Nenhuma unidade nova entrou."
+          : `${plural(criadas.length, "unidade entrou", "unidades entraram")} na lista do chat.`}
+      </p>
+      {jaExistiam.length > 0 && (
+        <div>
+          <p className="text-muted-foreground">
+            {plural(jaExistiam.length, "já estava", "já estavam")} na lista e{" "}
+            {jaExistiam.length === 1 ? "ficou" : "ficaram"} como estava:
+          </p>
+          <p>{jaExistiam.join(", ")}.</p>
+        </div>
+      )}
+      {recusadas.length > 0 && (
+        <div className="rounded-lg border border-border bg-warning-soft p-3">
+          <p className="font-medium">
+            {plural(recusadas.length, "linha ficou", "linhas ficaram")} de fora. Corrija o nome e
+            adicione de novo:
+          </p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {recusadas.map((r) => (
+              <li key={r.nome}>
+                “{r.nome}”: {r.motivo}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

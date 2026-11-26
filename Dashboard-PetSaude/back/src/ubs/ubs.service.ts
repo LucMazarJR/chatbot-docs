@@ -13,6 +13,7 @@ import {
     chaveDeUbs,
     identificarUbs,
     type ComoIdentificou,
+    type UbsIdentificada,
     type UnidadeParaBusca,
 } from './identificar-ubs';
 import { Ubs, UbsDocument } from './schemas/ubs.schema';
@@ -79,10 +80,32 @@ function resumir(linha: Acumulado, base: number) {
     };
 }
 
-const NAO_ENCONTRADA = 'UBS não encontrada. Ela pode ter sido removida: atualize a página e tente de novo.';
+const NAO_ENCONTRADA = 'Unidade não encontrada. Ela pode ter sido removida: atualize a página e tente de novo.';
+const JA_EXISTE = 'Já existe uma unidade com esse nome na lista.';
+
+type UbsDaSessao = { texto: string | null; unidadeId?: string | null } | null | undefined;
 
 /**
- * As UBS de onde vêm as conversas.
+ * Só as respostas escritas são grafias: a escolha na lista não tem o que
+ * reconhecer nem corrigir. `$in: [null]` pega também o campo ausente, que é o
+ * caso de toda conversa anterior à lista.
+ */
+const SO_DIGITADAS = { 'ubs.texto': { $type: 'string' }, 'ubs.unidadeId': { $in: [null] } };
+
+/**
+ * A unidade da conversa: pelo id, quando a pessoa tocou na lista; pelo texto,
+ * quando escreveu. O id vale mesmo depois de a unidade ser renomeada. Se ela
+ * foi removida, sobra o texto, que era o nome na hora, e cai no reconhecimento.
+ */
+function identificarSessao(ubs: UbsDaSessao, unidades: Unidade[]): UbsIdentificada | null {
+    if (ubs?.unidadeId && unidades.some((u) => u.id === ubs.unidadeId)) {
+        return { id: ubs.unidadeId, como: 'lista' };
+    }
+    return ubs?.texto ? identificarUbs(ubs.texto, unidades) : null;
+}
+
+/**
+ * As unidades de saúde de onde vêm as conversas.
  *
  * O PWA grava o texto como a pessoa escreveu, e a identificação acontece aqui,
  * na leitura. É o que faz uma grafia corrigida hoje valer também para as
@@ -126,12 +149,11 @@ export class UbsService {
         }));
     }
 
-    /** Para a lista de conversas: dá o nome da UBS de cada uma, sem consultar o banco a cada linha. */
-    async nomeador(): Promise<(ubs?: { texto: string | null } | null) => string | null> {
+    /** Para a lista de conversas: dá o nome da unidade de cada uma, sem consultar o banco a cada linha. */
+    async nomeador(): Promise<(ubs?: UbsDaSessao) => string | null> {
         const unidades = await this.unidades();
         return (ubs) => {
-            if (!ubs?.texto) return null;
-            const achada = identificarUbs(ubs.texto, unidades);
+            const achada = identificarSessao(ubs, unidades);
             return unidades.find((u) => u.id === achada?.id)?.nome ?? null;
         };
     }
@@ -187,7 +209,7 @@ export class UbsService {
             } else if (sessao.ubs.texto === null) {
                 naoInformaram++;
             } else {
-                const achada = identificarUbs(sessao.ubs.texto, unidades);
+                const achada = identificarSessao(sessao.ubs, unidades);
                 const linha = achada && porUbs.get(achada.id);
                 if (linha) {
                     identificadas++;
@@ -224,7 +246,7 @@ export class UbsService {
      */
     private async grafias(unidades: Unidade[]) {
         const comTexto = await this.sessaoModel
-            .find({ 'ubs.texto': { $type: 'string' } })
+            .find(SO_DIGITADAS)
             .select('ubs')
             .lean()
             .exec();
@@ -239,6 +261,7 @@ export class UbsService {
         }
 
         const prioridade = (como: ComoIdentificou | null) => (como === null ? 0 : como === 'aproximada' ? 1 : 2);
+        // As escolhas na lista ficam de fora (SO_DIGITADAS): `lista` nunca chega aqui.
 
         return [...grupos.entries()]
             .map(([chave, textos]) => {
@@ -278,7 +301,7 @@ export class UbsService {
         const limpo = nome.trim();
         const chave = this.chaveValida(limpo);
         if (await this.ubsModel.exists({ chave }).exec()) {
-            throw new ConflictException('Já existe uma UBS com esse nome na lista.');
+            throw new ConflictException(JA_EXISTE);
         }
 
         // Se alguém já tinha apontado essa grafia para outra unidade, agora ela é nome oficial.
@@ -286,6 +309,47 @@ export class UbsService {
         const criada = await this.ubsModel.create({ nome: limpo, chave, apelidos: [], criadaEm: new Date(), criadaPor: ator.name });
         this.registrar('inserir', limpo, ator, String(criada._id));
         return { id: String(criada._id), nome: limpo };
+    }
+
+    /**
+     * Várias unidades de uma vez, uma por linha: é como a lista oficial chega.
+     *
+     * Cada linha passa por criar(), com as mesmas regras e o mesmo registro no
+     * Histórico. Uma linha que já existe ou que não serve vira aviso, e as outras
+     * entram: recusar a lista inteira por uma linha obrigaria a achar a culpada
+     * no meio de trinta. Linhas repetidas na própria lista contam uma vez.
+     */
+    async criarEmLote(nomes: string[], ator: Ator) {
+        const criadas: string[] = [];
+        const jaExistiam: string[] = [];
+        const recusadas: { nome: string; motivo: string }[] = [];
+        const vistas = new Set<string>();
+
+        for (const bruto of nomes) {
+            const nome = bruto.trim().replace(/\s+/g, ' ');
+            if (!nome) continue;
+            if (nome.length < 2 || nome.length > 60) {
+                recusadas.push({ nome, motivo: 'O nome precisa ter de 2 a 60 letras.' });
+                continue;
+            }
+            const chave = chaveDeUbs(nome);
+            if (!chave) {
+                recusadas.push({ nome, motivo: 'Falta o nome da unidade, e não só "UBS" ou "ESF".' });
+                continue;
+            }
+            if (vistas.has(chave)) continue;
+            vistas.add(chave);
+
+            try {
+                await this.criar(nome, ator);
+                criadas.push(nome);
+            } catch (erro) {
+                if (erro instanceof ConflictException) jaExistiam.push(nome);
+                else if (erro instanceof BadRequestException) recusadas.push({ nome, motivo: erro.message });
+                else throw erro;
+            }
+        }
+        return { criadas, jaExistiam, recusadas };
     }
 
     async renomear(id: string, nome: string, ator: Ator) {
@@ -296,7 +360,7 @@ export class UbsService {
         const atual = await this.ubsModel.findById(id).exec();
         if (!atual) throw new NotFoundException(NAO_ENCONTRADA);
         if (chave !== atual.chave && (await this.ubsModel.exists({ chave }).exec())) {
-            throw new ConflictException('Já existe uma UBS com esse nome na lista.');
+            throw new ConflictException(JA_EXISTE);
         }
 
         // O nome antigo vira apelido: quem o digitou continua contando aqui.
@@ -353,7 +417,7 @@ export class UbsService {
      */
     async descartarGrafia(chave: string, ator: Ator) {
         const comTexto = await this.sessaoModel
-            .find({ 'ubs.texto': { $type: 'string' } })
+            .find(SO_DIGITADAS)
             .select('ubs')
             .lean()
             .exec();
@@ -363,7 +427,7 @@ export class UbsService {
             .updateMany({ _id: { $in: ids } }, { $set: { 'ubs.texto': null } })
             .exec();
 
-        this.registrar('descartar_grafia', 'Texto que não era nome de UBS', ator, undefined, { conversas: modifiedCount });
+        this.registrar('descartar_grafia', 'Texto que não era nome de unidade de saúde', ator, undefined, { conversas: modifiedCount });
         return { ok: true, conversas: modifiedCount };
     }
 }
