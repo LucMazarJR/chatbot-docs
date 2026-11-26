@@ -23,7 +23,23 @@ export type Resumo = {
   percentualSemResposta: number | null;
 };
 
-export type LinhaUbs = Resumo & { id: string; nome: string };
+export type Tema = { categoria: string; respostas: number };
+
+export type LinhaUbs = Resumo & {
+  id: string;
+  nome: string;
+  /** As três categorias de FAQ mais usadas nas respostas da unidade. */
+  temas: Tema[];
+};
+
+/** Conversas por intervalo de tempo, no total e por unidade. */
+export type SerieUbs = {
+  granularidade: "hora" | "dia" | "semana";
+  /** Começo de cada intervalo, no fuso da equipe: "2026-11-26" ou "2026-11-26T14". */
+  intervalos: string[];
+  total: number[];
+  porUnidade: Record<string, number[]>;
+};
 
 export type Grafia = {
   chave: string;
@@ -45,6 +61,7 @@ export type PainelUbs = {
   /** Todas as conversas do período, como referência para ler cada unidade. */
   geral: Resumo;
   porUbs: LinhaUbs[];
+  serie: SerieUbs;
   grafias: Grafia[];
 };
 
