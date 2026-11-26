@@ -45,7 +45,7 @@ export class CuradoriaController {
 
     @Get('sugestoes')
     sugestoes(@Query() query: ListarSugestoesQueryDto) {
-        return this.curadoria.listarSugestoes(query.estado ?? 'pendente');
+        return this.curadoria.listarSugestoes(query.estado ?? 'pendente', query.page, query.limit);
     }
 
     @Get('job')

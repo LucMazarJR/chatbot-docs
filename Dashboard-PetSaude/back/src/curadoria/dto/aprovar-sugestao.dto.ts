@@ -1,5 +1,6 @@
 import { IsArray, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
+import { PaginacaoQueryDto } from '../../comum/paginacao';
 import { CamposDeRevisaoDto } from '../../faqs/dto/revisao.dto';
 
 // Os mesmos campos de revisão do formulário de FAQ, que é o mesmo formulário.
@@ -31,7 +32,7 @@ export class AprovarSugestaoDto extends CamposDeRevisaoDto {
     source?: string;
 }
 
-export class ListarSugestoesQueryDto {
+export class ListarSugestoesQueryDto extends PaginacaoQueryDto {
     @IsOptional()
     @IsIn(['pendente', 'aprovada', 'descartada'])
     estado?: 'pendente' | 'aprovada' | 'descartada';

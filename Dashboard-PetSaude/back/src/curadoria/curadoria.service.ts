@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 
 import { ActivityService } from '../activity/activity.service';
+import { pagina, paginado } from '../comum/paginacao';
 import { CONEXAO_PROTOTIPO } from '../conversas/conexao';
 import { Mensagem, MensagemDocument } from '../conversas/schemas/mensagem.schema';
 import { FaqsService } from '../faqs/faqs.service';
@@ -750,16 +751,26 @@ export class CuradoriaService {
         ].join('\n');
     }
 
-    async listarSugestoes(estado: 'pendente' | 'aprovada' | 'descartada' = 'pendente') {
-        const docs = await this.sugestaoModel
-            .find({ estado })
-            .sort({ criadaEm: -1 })
-            .limit(200)
-            .lean()
-            .exec();
+    /**
+     * Paginada, com o total real: antes vinham as 200 mais recentes, e o número
+     * no título era o tamanho dessa página, não o da fila. O `_id` desempata a
+     * ordem para nenhuma sugestão repetir ou pular entre as páginas.
+     */
+    async listarSugestoes(estado: 'pendente' | 'aprovada' | 'descartada' = 'pendente', page?: number, limit?: number) {
+        const p = pagina(page, limit);
+        const [docs, total] = await Promise.all([
+            this.sugestaoModel
+                .find({ estado })
+                .sort({ criadaEm: -1, _id: -1 })
+                .skip(p.skip)
+                .limit(p.limit)
+                .lean()
+                .exec(),
+            this.sugestaoModel.countDocuments({ estado }).exec(),
+        ]);
 
-        return {
-            itens: docs.map((doc) => ({
+        return paginado(
+            docs.map((doc) => ({
                 id: String(doc._id),
                 estado: doc.estado,
                 tipo: doc.tipo,
@@ -782,8 +793,9 @@ export class CuradoriaService {
                 modelo: doc.modelo ?? null,
                 faqCriadaId: doc.faqCriadaId ?? null,
             })),
-            total: docs.length,
-        };
+            total,
+            p,
+        );
     }
 
     /**
