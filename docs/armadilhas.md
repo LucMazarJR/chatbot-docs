@@ -115,6 +115,8 @@ Confirme batendo no webhook: o token antigo deve devolver 403 e o novo, 200. Só
 
 **Tela que chama rota de outra área volta 403 calada.** Um atalho ou contador de outra área (a fila de Sem resposta na tela de Conversas, a revisão de assuntos em Configurações) só funciona para quem tem as duas. A consulta precisa de `enabled: pode(...)` e o link, da mesma condição; senão a pessoa vê um número que nunca chega ou um link que devolve para a mesma página.
 
+**Período de conversa filtrado pelo início da sessão esconde a conversa de hoje.** O chat anônimo retoma a sessão guardada no aparelho em qualquer dia, até a pessoa avaliar. Quem abriu o link num dia e só perguntou dias depois tem a conversa numa sessão antiga, com o nome do participante daquele dia. Filtrar ou ordenar por `iniciadaEm` a deixava fora de "Hoje" e enterrada na lista, e parecia que o chat não tinha gravado nada. O período vale pela atividade (`filtroDeAtividade` em [periodo.ts](../Dashboard-PetSaude/back/src/conversas/periodo.ts)), a lista é ordenada pela última mensagem, e os números contam pela data de cada mensagem.
+
 **Aba aberta antes de um deploy pede arquivos que não existem mais.** Os arquivos de cada tela mudam de nome a cada build. O [versao-nova.ts](../Dashboard-PetSaude/front/src/lib/versao-nova.ts) recarrega a página quando isso acontece. Para testar localmente, reconstruir só o front (`docker compose up -d --build --no-deps dashboard-front`), em navegador sem cache: sem `--no-deps` a API reinicia junto, e com cache o arquivo antigo vem dele e a falha não aparece.
 
 ---

@@ -5,7 +5,7 @@ import { Model, isValidObjectId } from 'mongoose';
 import { ActivityService } from '../activity/activity.service';
 import { CONEXAO_PROTOTIPO } from '../conversas/conexao';
 import type { Periodo } from '../conversas/conversas.service';
-import { intervaloDoPeriodo } from '../conversas/periodo';
+import { filtroDeAtividade, intervaloDoPeriodo } from '../conversas/periodo';
 import { Mensagem, MensagemDocument } from '../conversas/schemas/mensagem.schema';
 import { Sessao, SessaoDocument } from '../conversas/schemas/sessao.schema';
 import {
@@ -21,7 +21,14 @@ import { UNIDADES_INICIAIS } from './unidades-iniciais';
 type Ator = { id?: string; name: string };
 type Unidade = UnidadeParaBusca & { nome: string };
 
-type ContagemDaSessao = { _id: string; perguntas: number; semResposta: number; negativos: number; positivos: number };
+type ContagemDaSessao = {
+    _id: string;
+    ultimaEm: Date | null;
+    perguntas: number;
+    semResposta: number;
+    negativos: number;
+    positivos: number;
+};
 
 type Acumulado = {
     conversas: number;
@@ -38,11 +45,7 @@ const linhaVazia = (): Acumulado => ({
     conversas: 0, perguntas: 0, semResposta: 0, negativos: 0, positivos: 0, somaNotas: 0, notas: 0, ultimaEm: null,
 });
 
-function somar(
-    linha: Acumulado,
-    contagem: ContagemDaSessao,
-    sessao: { iniciadaEm?: Date; avaliacao?: { estrelas?: number | null } | null },
-) {
+function somar(linha: Acumulado, contagem: ContagemDaSessao, sessao: { avaliacao?: { estrelas?: number | null } | null }) {
     linha.conversas++;
     linha.perguntas += contagem.perguntas;
     linha.semResposta += contagem.semResposta;
@@ -53,7 +56,9 @@ function somar(
         linha.somaNotas += estrelas;
         linha.notas++;
     }
-    if (sessao.iniciadaEm && (!linha.ultimaEm || sessao.iniciadaEm > linha.ultimaEm)) linha.ultimaEm = sessao.iniciadaEm;
+    // A última pergunta, e não o início da sessão: uma sessão retomada dias
+    // depois diria que a unidade está parada há dias.
+    if (contagem.ultimaEm && (!linha.ultimaEm || contagem.ultimaEm > linha.ultimaEm)) linha.ultimaEm = contagem.ultimaEm;
 }
 
 const umaCasa = (valor: number) => Math.round(valor * 10) / 10;
@@ -136,18 +141,21 @@ export class UbsService {
         const unidades = await this.unidades();
         const intervalo = intervaloDoPeriodo(periodo, dia);
 
+        // A mesma regra de Conversas: atividade no período, e não só o início
+        // da sessão, para os dois totais baterem.
         const noPeriodo = await this.sessaoModel
-            .find(intervalo ? { iniciadaEm: intervalo } : {})
+            .find((await filtroDeAtividade(this.mensagemModel, intervalo)) ?? {})
             .select('_id ubs iniciadaEm avaliacao')
             .lean()
             .exec();
 
         const contagem: ContagemDaSessao[] = await this.mensagemModel
             .aggregate([
-                { $match: { sessaoId: { $in: noPeriodo.map((s) => s._id) } } },
+                { $match: { sessaoId: { $in: noPeriodo.map((s) => s._id) }, ...(intervalo ? { em: intervalo } : {}) } },
                 {
                     $group: {
                         _id: '$sessaoId',
+                        ultimaEm: { $max: '$em' },
                         perguntas: { $sum: { $cond: [{ $eq: ['$papel', 'user'] }, 1, 0] } },
                         semResposta: { $sum: { $cond: [{ $eq: ['$semResposta', true] }, 1, 0] } },
                         negativos: { $sum: { $cond: [{ $eq: ['$feedback', 'down'] }, 1, 0] } },
