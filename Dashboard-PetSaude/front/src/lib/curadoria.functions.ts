@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { apiFetch } from "./api.server";
 import type { Job } from "./import.functions";
+import { comoPagina, POR_PAGINA, type PaginaDe } from "./paginacao";
 
 export type FilaCuradoria = {
   pendentes: number;
@@ -74,16 +75,24 @@ export const listarLacunas = createServerFn({ method: "GET" }).handler(
 export const listarSugestoes = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     z
-      .object({ estado: z.enum(["pendente", "aprovada", "descartada"]).default("pendente") })
+      .object({
+        estado: z.enum(["pendente", "aprovada", "descartada"]).default("pendente"),
+        page: z.number().int().min(1).default(1),
+        limit: z.number().int().min(1).max(100).default(POR_PAGINA),
+      })
       .parse(data ?? {}),
   )
   .handler(
     async ({
       data,
     }: {
-      data: { estado: "pendente" | "aprovada" | "descartada" };
-    }): Promise<{ itens: Sugestao[]; total: number }> =>
-      apiFetch(`/curadoria/sugestoes?estado=${data.estado}`),
+      data: { estado: "pendente" | "aprovada" | "descartada"; page: number; limit: number };
+    }): Promise<PaginaDe<Sugestao>> =>
+      comoPagina(
+        await apiFetch<PaginaDe<Sugestao> | { itens: Sugestao[]; total: number }>(
+          `/curadoria/sugestoes?estado=${data.estado}&page=${data.page}&limit=${data.limit}`,
+        ),
+      ),
   );
 
 export type RodadaResumida = {

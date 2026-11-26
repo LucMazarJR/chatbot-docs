@@ -6,6 +6,7 @@ import { Sessao, SessaoDocument } from './schemas/sessao.schema';
 import { Mensagem, MensagemDocument } from './schemas/mensagem.schema';
 import { CONEXAO_PROTOTIPO } from './conexao';
 import { ActivityService } from '../activity/activity.service';
+import { pagina, paginado } from '../comum/paginacao';
 import { filtroDeAtividade, intervaloDoPeriodo } from './periodo';
 import { UbsService } from '../ubs/ubs.service';
 import { Rodada, RodadaDocument } from '../curadoria/schemas/rodada.schema';
@@ -41,9 +42,10 @@ export type FiltroSituacao =
  * PWA. A lógica de agregação foi portada de pwa/src/lib/revisao.ts: se um dos
  * dois mudar, o outro precisa acompanhar até o painel do PWA ser desligado.
  *
- * As agregações são deliberadamente simples e sem paginação no servidor: a
- * validação tem escala de dezenas a centenas de sessões, e um $lookup nesse
- * volume custa milissegundos.
+ * As agregações são deliberadamente simples: a validação tem escala de
+ * centenas de sessões, e um $lookup nesse volume custa milissegundos. A lista
+ * é paginada porque cada visita vira uma sessão, e "Tudo + Todas" cresce sem
+ * parar.
  */
 @Injectable()
 export class ConversasService {
@@ -229,8 +231,10 @@ export class ConversasService {
         periodo: Periodo = 'tudo',
         versao: FiltroVersao = 'todas',
         dia?: string,
-        limite = 200,
+        page?: number,
+        limit?: number,
     ) {
+        const p = pagina(page, limit);
         const pipeline: PipelineStage[] = [
             { $match: await this.filtroDeSessao(periodo, versao, dia) },
             {
@@ -278,16 +282,28 @@ export class ConversasService {
         else if (situacao === 'sem-resposta') pipeline.push({ $match: { semResposta: { $gt: 0 } } });
         else if (situacao === 'com-erro') pipeline.push({ $match: { erros: { $gt: 0 } } });
 
-        // O corte vem depois dos filtros, e não junto do $sort: cortando antes,
-        // um filtro estreito devolveria menos linhas do que existem só porque as
-        // 200 mais recentes não continham as que interessam.
-        pipeline.push({ $limit: limite });
+        // A página vem depois dos filtros de situação: cortando antes, um filtro
+        // estreito devolveria menos linhas do que existem. O total sai da mesma
+        // passada, para o "de Z" bater com o que a lista percorre.
+        pipeline.push({
+            $facet: {
+                itens: [{ $skip: p.skip }, { $limit: p.limit }],
+                total: [{ $count: 'n' }],
+            },
+        });
 
-        const [linhas, nomeDaUbs] = await Promise.all([
-            this.sessaoModel.aggregate<Sessao>(pipeline).exec(),
+        const [[resultado], nomeDaUbs] = await Promise.all([
+            this.sessaoModel
+                .aggregate<{ itens: Sessao[]; total: { n: number }[] }>(pipeline)
+                .allowDiskUse(true)
+                .exec(),
             this.ubsService.nomeador(),
         ]);
-        return linhas.map((linha) => ({ ...linha, ubsNome: nomeDaUbs(linha.ubs) }));
+        return paginado(
+            resultado.itens.map((linha) => ({ ...linha, ubsNome: nomeDaUbs(linha.ubs) })),
+            resultado.total[0]?.n ?? 0,
+            p,
+        );
     }
 
     /** Transcrição completa, com os metadados de cada resposta. */

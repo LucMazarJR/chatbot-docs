@@ -43,6 +43,8 @@ export class ConversasController {
             query.periodo ?? 'tudo',
             query.versao ?? 'todas',
             query.dia,
+            query.page,
+            query.limit,
         );
     }
 

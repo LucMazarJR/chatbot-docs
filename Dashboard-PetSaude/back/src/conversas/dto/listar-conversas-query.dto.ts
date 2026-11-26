@@ -1,5 +1,6 @@
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
+import { PaginacaoQueryDto } from '../../comum/paginacao';
 import type { FiltroSituacao, FiltroVersao, Periodo } from '../conversas.service';
 
 export const PERIODOS: Periodo[] = ['hoje', '7d', '30d', 'dia', 'tudo'];
@@ -13,7 +14,8 @@ export const SITUACOES: FiltroSituacao[] = [
     'com-erro',
 ];
 
-export class ListarConversasQueryDto {
+// A paginação só vale para a lista; as estatísticas ignoram `page` e `limit`.
+export class ListarConversasQueryDto extends PaginacaoQueryDto {
     // Valor desconhecido cai no padrão em vez de recusar a requisição: é uma
     // tela de leitura, e um filtro digitado errado na URL não deve virar 400.
     @IsOptional()

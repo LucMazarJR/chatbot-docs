@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ChevronRight, Star } from "lucide-react";
 
 import { GateShell, usePode } from "@/components/gate";
@@ -23,9 +23,11 @@ import { SeloConta, SeloUbs } from "@/components/selos-conversa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RodapeDaPagina } from "@/components/rodape-da-pagina";
 import { dataPorExtenso, diaEHora, diaEMes, diaIso } from "@/lib/datas";
+import { POR_PAGINA } from "@/lib/paginacao";
 
-type Busca = { periodo?: Periodo; dia?: string; situacao?: Situacao };
+type Busca = { periodo?: Periodo; dia?: string; situacao?: Situacao; page?: number };
 
 const FORMATO_DIA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -38,6 +40,9 @@ export const Route = createFileRoute("/conversas/")({
     ...(typeof search.dia === "string" && FORMATO_DIA.test(search.dia) ? { dia: search.dia } : {}),
     ...(search.situacao && search.situacao !== "validas"
       ? { situacao: search.situacao as Situacao }
+      : {}),
+    ...(Number.isInteger(Number(search.page)) && Number(search.page) > 1
+      ? { page: Number(search.page) }
       : {}),
   }),
   head: () => ({
@@ -83,12 +88,15 @@ function ConversasPage() {
     queryFn: () => getEstatisticasConversas({ data: { periodo, dia } }),
   });
 
+  const page = busca.page ?? 1;
   const conversas = useQuery({
-    queryKey: ["conversas", { periodo, dia, situacao }],
-    queryFn: () => listarConversas({ data: { periodo, dia, situacao } }),
+    queryKey: ["conversas", { periodo, dia, situacao, page }],
+    queryFn: () =>
+      listarConversas({ data: { periodo, dia, situacao, page, limit: POR_PAGINA } }),
+    placeholderData: keepPreviousData,
   });
 
-  const lista = conversas.data ?? [];
+  const lista = conversas.data?.itens ?? [];
 
   return (
     <GateShell>
@@ -120,8 +128,15 @@ function ConversasPage() {
             opcoes={PERIODOS}
             valor={periodo}
             aoMudar={(valor) =>
+              // Todo filtro novo volta para a página 1: a 5 de outro recorte
+              // pode nem existir.
               navigate({
-                search: (a) => ({ ...a, periodo: valor, dia: valor === "dia" ? a.dia : undefined }),
+                search: (a) => ({
+                  ...a,
+                  periodo: valor,
+                  dia: valor === "dia" ? a.dia : undefined,
+                  page: undefined,
+                }),
               })
             }
           />
@@ -138,7 +153,11 @@ function ConversasPage() {
                   // Apagar a data no campo volta para hoje, em vez de filtrar por nada.
                   const escolhido = e.target.value;
                   navigate({
-                    search: (a) => ({ ...a, dia: FORMATO_DIA.test(escolhido) ? escolhido : undefined }),
+                    search: (a) => ({
+                      ...a,
+                      dia: FORMATO_DIA.test(escolhido) ? escolhido : undefined,
+                      page: undefined,
+                    }),
                   });
                 }}
               />
@@ -148,7 +167,9 @@ function ConversasPage() {
             rotulo="Situação"
             opcoes={SITUACOES}
             valor={situacao}
-            aoMudar={(valor) => navigate({ search: (a) => ({ ...a, situacao: valor }) })}
+            aoMudar={(valor) =>
+              navigate({ search: (a) => ({ ...a, situacao: valor, page: undefined }) })
+            }
           />
         </div>
 
@@ -194,6 +215,20 @@ function ConversasPage() {
               ))}
             </ul>
           </div>
+        )}
+
+        {conversas.data && lista.length > 0 && (
+          <RodapeDaPagina
+            pagina={conversas.data.page}
+            porPagina={conversas.data.limit}
+            quantos={lista.length}
+            total={conversas.data.total}
+            totalPaginas={conversas.data.totalPages}
+            aoMudar={(destino) => {
+              navigate({ search: (a) => ({ ...a, page: destino > 1 ? destino : undefined }) });
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
         )}
       </div>
     </GateShell>

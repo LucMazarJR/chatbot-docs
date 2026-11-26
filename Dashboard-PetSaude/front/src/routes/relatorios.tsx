@@ -17,7 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { exigirPermissao } from "@/lib/guardas";
+import { RodapeDaPagina } from "@/components/rodape-da-pagina";
 import { dataEHora, dataPorExtenso, hora } from "@/lib/datas";
+import { POR_PAGINA, usePaginaLocal } from "@/lib/paginacao";
 import {
   COR_DA_BARRA,
   ROTULO_CAUSA,
@@ -618,13 +620,32 @@ function Perguntas({ relatorio }: { relatorio: RelatorioDoDia }) {
           Escolha outro filtro acima para ver as demais perguntas do dia.
         </EstadoVazio>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-          {visiveis.map((p) => (
-            <LinhaPergunta key={p.perguntaId} pergunta={p} />
-          ))}
-        </ul>
+        // A chave recomeça na página 1 quando o filtro muda.
+        <ListaDePerguntas key={filtro} perguntas={visiveis} />
       )}
     </section>
+  );
+}
+
+/** Um dia de teste presencial passa de centenas de perguntas: desenhar todas trava o celular. */
+function ListaDePerguntas({ perguntas }: { perguntas: PerguntaDoRelatorio[] }) {
+  const pagina = usePaginaLocal(perguntas);
+  return (
+    <>
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        {pagina.itens.map((p) => (
+          <LinhaPergunta key={p.perguntaId} pergunta={p} />
+        ))}
+      </ul>
+      <RodapeDaPagina
+        pagina={pagina.page}
+        porPagina={POR_PAGINA}
+        quantos={pagina.itens.length}
+        total={pagina.total}
+        totalPaginas={pagina.totalPages}
+        aoMudar={pagina.setPage}
+      />
+    </>
   );
 }
 

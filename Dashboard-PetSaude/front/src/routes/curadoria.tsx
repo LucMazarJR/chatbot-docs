@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
@@ -33,7 +33,9 @@ import { Carregando } from "@/components/carregando";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { EstadoFalha, EstadoVazio } from "@/components/estado";
 import { Selo } from "@/components/selo";
+import { RodapeDaPagina } from "@/components/rodape-da-pagina";
 import { dataEHora } from "@/lib/datas";
+import { POR_PAGINA } from "@/lib/paginacao";
 
 /**
  * A pergunta como chegou à curadoria. A frase solta de uma continuação ("como
@@ -90,10 +92,21 @@ function CuradoriaPage() {
   const [revisando, setRevisando] = useState<Sugestao | null>(null);
 
   const fila = useQuery({ queryKey: ["curadoria-fila"], queryFn: () => getFilaCuradoria() });
+  const [pagina, setPagina] = useState(1);
   const sugestoes = useQuery({
-    queryKey: ["curadoria-sugestoes", "pendente"],
-    queryFn: () => listarSugestoes({ data: { estado: "pendente" } }),
+    queryKey: ["curadoria-sugestoes", "pendente", pagina],
+    queryFn: () => listarSugestoes({ data: { estado: "pendente", page: pagina, limit: POR_PAGINA } }),
+    // Trocar de página mantém os cartões da anterior até os novos chegarem, em
+    // vez de piscar o "carregando" e jogar a tela para o topo.
+    placeholderData: keepPreviousData,
   });
+
+  // Aprovar ou descartar a última sugestão de uma página a deixa vazia: volta
+  // para a anterior em vez de mostrar "nenhuma sugestão" com outras esperando.
+  useEffect(() => {
+    const dados = sugestoes.data;
+    if (dados && dados.itens.length === 0 && dados.page > 1) setPagina(dados.totalPages);
+  }, [sugestoes.data]);
   const job = useQuery({
     queryKey: ["curadoria-job"],
     queryFn: () => getJobCuradoria(),
@@ -130,6 +143,7 @@ function CuradoriaPage() {
   const pendentes = fila.data?.pendentes ?? 0;
   const tamanho = fila.data?.tamanhoDaRodada ?? 10;
   const lista = sugestoes.data?.itens ?? [];
+  const totalSugestoes = sugestoes.data?.total ?? 0;
 
   return (
     <GateShell>
@@ -188,29 +202,44 @@ function CuradoriaPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">
-            Sugestões esperando decisão {lista.length > 0 && `(${lista.length})`}
+            Sugestões esperando decisão {totalSugestoes > 0 && `(${totalSugestoes})`}
           </h2>
 
           {sugestoes.isError ? (
             <EstadoFalha onTentarDeNovo={() => sugestoes.refetch()} tentando={sugestoes.isFetching}>
               Não foi possível carregar as sugestões. Confira a internet e tente de novo.
             </EstadoFalha>
-          ) : sugestoes.isLoading ? (
+          ) : sugestoes.isLoading || (lista.length === 0 && totalSugestoes > 0) ? (
+            // A segunda condição é a página que esvaziou: há sugestões, e o
+            // efeito acima já está voltando para uma página que as tem.
             <Carregando texto="Carregando as sugestões…" />
           ) : lista.length === 0 ? (
             <EstadoVazio titulo="Nenhuma sugestão esperando decisão">
               Quando houver perguntas na fila, rode a análise para receber sugestões de FAQ.
             </EstadoVazio>
           ) : (
-            <ul className="space-y-4">
-              {lista.map((sugestao) => (
-                <CartaoSugestao
-                  key={sugestao.id}
-                  sugestao={sugestao}
-                  aoRevisar={podeDecidir ? () => setRevisando(sugestao) : undefined}
-                />
-              ))}
-            </ul>
+            <>
+              <ul className="space-y-4">
+                {lista.map((sugestao) => (
+                  <CartaoSugestao
+                    key={sugestao.id}
+                    sugestao={sugestao}
+                    aoRevisar={podeDecidir ? () => setRevisando(sugestao) : undefined}
+                  />
+                ))}
+              </ul>
+              <RodapeDaPagina
+                pagina={sugestoes.data!.page}
+                porPagina={sugestoes.data!.limit}
+                quantos={lista.length}
+                total={totalSugestoes}
+                totalPaginas={sugestoes.data!.totalPages}
+                aoMudar={(destino) => {
+                  setPagina(destino);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              />
+            </>
           )}
         </section>
 

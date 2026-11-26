@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { apiFetch } from "./api.server";
+import { comoPagina, POR_PAGINA, type PaginaDe } from "./paginacao";
 
 /**
  * Conversas do protótipo PWA.
@@ -145,13 +146,15 @@ const recorte = z.object({
 
 const recorteComSituacao = recorte.extend({
   situacao: z.enum(SITUACOES).default("validas"),
+  page: z.number().int().min(1).default(1),
+  limit: z.number().int().min(1).max(100).default(POR_PAGINA),
 });
 
 /** Omite o que está no padrão, como em faq.functions.ts. */
-function montarQuery(dados: Record<string, string | undefined>) {
+function montarQuery(dados: Record<string, string | number | undefined>) {
   const p = new URLSearchParams();
   for (const [chave, valor] of Object.entries(dados)) {
-    if (valor) p.set(chave, valor);
+    if (valor !== undefined && valor !== "") p.set(chave, String(valor));
   }
   return p.toString();
 }
@@ -164,8 +167,12 @@ export const getEstatisticasConversas = createServerFn({ method: "GET" })
 
 export const listarConversas = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => recorteComSituacao.parse(data ?? {}))
-  .handler(async ({ data }): Promise<ConversaResumida[]> =>
-    apiFetch<ConversaResumida[]>(`/conversas?${montarQuery(data)}`),
+  .handler(async ({ data }): Promise<PaginaDe<ConversaResumida>> =>
+    comoPagina(
+      await apiFetch<PaginaDe<ConversaResumida> | ConversaResumida[]>(
+        `/conversas?${montarQuery(data)}`,
+      ),
+    ),
   );
 
 export const detalharConversa = createServerFn({ method: "GET" })
