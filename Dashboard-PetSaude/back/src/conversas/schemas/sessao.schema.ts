@@ -67,11 +67,13 @@ export class Sessao {
     tutorial?: { escolha: 'visto' | 'pulado' | 'recusado' | 'ignorado'; em: Date };
 
     /**
-     * A UBS como a pessoa escreveu. `texto` nulo: tocou em Pular. Ausente: a
-     * conversa é anterior à pergunta. Quem reconhece a unidade é o UbsService.
+     * A unidade de saúde. `texto` nulo: pulou. Ausente: a conversa é anterior à
+     * pergunta. Com `unidadeId`, a pessoa tocou numa unidade da lista, e `texto`
+     * é o nome dela naquele momento; sem id, é o que ela escreveu, e quem
+     * reconhece a unidade é o UbsService. Espelho de pwa/src/lib/tipos.ts.
      */
     @Prop({ type: Object, default: undefined })
-    ubs?: { texto: string | null; em: Date };
+    ubs?: { texto: string | null; em: Date; unidadeId?: string | null };
 
     /**
      * A conta dona da conversa, quando a conversa foi feita com login.

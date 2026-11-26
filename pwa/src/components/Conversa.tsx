@@ -39,6 +39,19 @@ import { lerLimiteDeTempo } from '@/lib/limite-de-tempo';
 import { TEXTO_DA_ETAPA, type EtapaDaResposta } from '@/lib/etapas-da-resposta';
 import { lembrarTutorial, tutorialJaOferecido, type EscolhaDoTutorial } from '@/lib/tutorial';
 import { pareceNomeDeUbs } from '@/lib/ubs';
+import {
+  chaveDeUnidade,
+  filtrarUnidades,
+  MAXIMO_DE_SUGESTOES,
+  unidadeSemDuvida,
+  type Unidade,
+} from '@/lib/unidades';
+import {
+  ID_DA_LISTA_DE_UNIDADES,
+  idDaOpcao,
+  SugestoesDeUnidade,
+  type OpcaoDeUnidade,
+} from '@/components/SugestoesDeUnidade';
 import { hora, rotuloDoDia } from '@/lib/datas';
 
 /**
@@ -122,28 +135,33 @@ const BOTAO_DE_ACEITE_DEPOIS: BotaoRapido[] = [{ rotulo: 'Aceitar', valor: 'acei
 /** A chave do pedido inicial e a da mensagem de recusa, que também aceita. */
 const CHAVES_DE_ACEITE = ['aceite', 'aceite-depois'];
 
-const PLACEHOLDER_UBS = 'Escreva o nome da UBS';
+const PLACEHOLDER_UBS = 'Escreva o nome da unidade';
 
 /**
- * De qual unidade vem a conversa.
+ * De qual unidade de saúde vem a conversa.
  *
- * LÓGICA DO LUCIANO: o teste acontece com profissionais dentro das UBS, e a
- * equipe precisa saber de onde veio cada conversa. É mensagem do assistente, e
- * não formulário, porque é onde a pessoa já está olhando.
+ * LÓGICA DO LUCIANO: o teste acontece com profissionais dentro das unidades, e
+ * a equipe precisa saber de onde veio cada conversa. É mensagem do assistente,
+ * e não formulário, porque é onde a pessoa já está olhando.
  *
  * Pular é enviar com o campo vazio, e não um botão no balão: com o botão, no
  * teste, pular ficava mais fácil do que escrever, e quase ninguém escrevia. Pular
  * continua possível e dito na mensagem: a pergunta serve à equipe, e não pode ser
  * a porta de quem veio tirar uma dúvida.
+ *
+ * Com a lista de unidades carregada, a mensagem aponta para ela; sem a lista
+ * (banco fora do ar), volta à instrução do campo livre, que continua valendo.
  */
-function pedidoDeUbs(quando?: Date): Item {
+function pedidoDeUbs(quando?: Date, comLista = true): Item {
   return {
     chave: 'ubs-pedido',
     papel: 'bot',
     texto: [
-      'Em qual UBS você está? 🏥',
+      'Em qual unidade de saúde você está? 🏥',
       '',
-      `Escreva o nome no campo *${PLACEHOLDER_UBS}* e toque no botão de enviar, ao lado dele.`,
+      comLista
+        ? `Toque nela na lista acima do campo. Para achar mais rápido, comece a escrever o nome no campo *${PLACEHOLDER_UBS}*. Se ela não estiver na lista, escreva o nome e toque em *Outra unidade*.`
+        : `Escreva o nome no campo *${PLACEHOLDER_UBS}* e toque no botão de enviar, ao lado dele.`,
       '',
       'Se preferir não dizer, toque no botão de enviar com o campo vazio.',
     ].join('\n'),
@@ -217,7 +235,7 @@ const PASSOS_DO_TUTORIAL: PassoDoTutorial[] = [
     exemplo: (
       <>
         <div className="amostra-balao amostra-com-canto">
-          Para marcar consulta, procure a UBS mais perto de casa.
+          Para marcar consulta, procure a unidade de saúde mais perto de casa.
           <span className="amostra-canto">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05A4.5 4.5 0 0 0 16.5 12ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77Z" />
@@ -364,8 +382,12 @@ export function Conversa({
   const [menuAberto, setMenuAberto] = useState(false);
   const [texto, setTexto] = useState('');
   const [aceitou, setAceitou] = useState(false);
-  /** A próxima mensagem da pessoa responde à pergunta da UBS. */
+  /** A próxima mensagem da pessoa responde à pergunta da unidade de saúde. */
   const [pedindoUbs, setPedindoUbs] = useState(false);
+  /** A lista de unidades do painel. Nula até chegar; vazia se não deu para buscar. */
+  const [unidades, setUnidades] = useState<Unidade[] | null>(null);
+  /** A linha da lista escolhida pelas setas do teclado, ou -1. */
+  const [opcaoDestacada, setOpcaoDestacada] = useState(-1);
   /** Logo depois do aceite: o campo pisca em destaque para mostrar onde escrever. */
   const [destacarCampo, setDestacarCampo] = useState(false);
   const [tutorialAberto, setTutorialAberto] = useState(false);
@@ -739,15 +761,49 @@ export function Conversa({
   // --- Pergunta da UBS ------------------------------------------------------
 
   /** Sem esperar e sem avisar se falhar: serve à equipe, e não pode travar a conversa. */
-  function registrarUbs(textoDaUbs: string | null) {
+  function registrarUbs(textoDaUbs: string | null, unidadeId?: string) {
     if (!sessaoId) return;
     void fetch(`/api/sessoes/${sessaoId}/ubs`, {
       method: 'POST',
       // A pessoa pode fechar a aba logo depois de responder.
       keepalive: true,
       headers: cabecalhosDaSessao({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ texto: textoDaUbs }),
+      body: JSON.stringify({ texto: textoDaUbs, ...(unidadeId ? { unidadeId } : {}) }),
     }).catch(() => {});
+  }
+
+  /** O balão da pessoa com a resposta à pergunta da unidade, como no WhatsApp. */
+  function mostrarRespostaDaUbs(mensagem: string, chaveExistente?: string) {
+    // Por áudio, o balão da pessoa já está na tela.
+    setItens((atuais) =>
+      chaveExistente
+        ? atuais.map((item) => (item.chave === chaveExistente ? { ...item, lida: true } : item))
+        : [...atuais, { chave: crypto.randomUUID(), papel: 'user', texto: mensagem, hora: horaAgora(), lida: true }],
+    );
+    veioDaVozRef.current = false;
+  }
+
+  function limparCampo() {
+    setTexto('');
+    setOpcaoDestacada(-1);
+    // Vazio, e não 'auto': devolve a altura ao CSS, que a prende em uma linha.
+    if (campoRef.current) campoRef.current.style.height = '';
+  }
+
+  /** Um toque numa linha da lista de unidades. */
+  function escolherOpcaoDeUnidade(opcao: OpcaoDeUnidade) {
+    if (!sessaoId || !aceitou || encerrada || !pedindoUbs) return;
+    limparCampo();
+    if (opcao.tipo === 'outra') {
+      setPedindoUbs(false);
+      mostrarRespostaDaUbs(opcao.texto);
+      registrarUbs(opcao.texto);
+    } else {
+      setPedindoUbs(false);
+      mostrarRespostaDaUbs(opcao.unidade.nome);
+      registrarUbs(opcao.unidade.nome, opcao.unidade.id);
+    }
+    concluirPedidoDeUbs();
   }
 
   /** A frase que diz que já pode perguntar, agora que a da UBS foi respondida. */
@@ -772,22 +828,75 @@ export function Conversa({
   function responderUbs(mensagem: string, chaveExistente?: string): boolean {
     setPedindoUbs(false);
 
+    // Escreveu e enviou sem tocar na lista: se o texto só pode ser uma
+    // unidade, ela vale como escolhida. Com dúvida, segue como texto e a equipe
+    // identifica no painel (ver unidadeSemDuvida).
+    const certa = unidades?.length ? unidadeSemDuvida(unidades, mensagem) : null;
+    if (certa) {
+      mostrarRespostaDaUbs(mensagem, chaveExistente);
+      registrarUbs(certa.nome, certa.id);
+      concluirPedidoDeUbs();
+      return true;
+    }
+
     if (!pareceNomeDeUbs(mensagem)) {
       registrarUbs(null);
       return false;
     }
 
-    // Por áudio, o balão da pessoa já está na tela.
-    setItens((atuais) =>
-      chaveExistente
-        ? atuais.map((item) => (item.chave === chaveExistente ? { ...item, lida: true } : item))
-        : [...atuais, { chave: crypto.randomUUID(), papel: 'user', texto: mensagem, hora: horaAgora(), lida: true }],
-    );
-    veioDaVozRef.current = false;
+    mostrarRespostaDaUbs(mensagem, chaveExistente);
     registrarUbs(mensagem);
     concluirPedidoDeUbs();
     return true;
   }
+
+  /**
+   * O que a lista acima do campo mostra agora.
+   *
+   * Vazia sem a lista do painel: aí a pergunta volta ao campo livre de antes.
+   * "Outra unidade" só aparece quando o texto parece nome de unidade e não é
+   * exatamente uma da lista; texto que parece pergunta segue como pergunta.
+   */
+  const opcoesDeUnidade: OpcaoDeUnidade[] = (() => {
+    if (!pedindoUbs || !aceitou || encerrada || !unidades?.length) return [];
+    const digitado = texto.trim();
+    const opcoes: OpcaoDeUnidade[] = filtrarUnidades(
+      unidades,
+      digitado,
+      digitado ? MAXIMO_DE_SUGESTOES : Infinity,
+    ).map((unidade) => ({ tipo: 'unidade', unidade }));
+    const chave = chaveDeUnidade(digitado);
+    const ehDaLista = Boolean(chave) && unidades.some((u) => chaveDeUnidade(u.nome) === chave);
+    if (digitado && pareceNomeDeUbs(digitado) && !ehDaLista) opcoes.push({ tipo: 'outra', texto: digitado });
+    return opcoes;
+  })();
+
+  // A lista vem quando a pergunta abre, uma vez por visita.
+  useEffect(() => {
+    if (!pedindoUbs || unidades !== null) return;
+    let cancelado = false;
+    fetch('/api/unidades')
+      .then((r) => (r.ok ? r.json() : { unidades: [] }))
+      .then((dados: { unidades?: Unidade[] }) => {
+        if (!cancelado) setUnidades(dados.unidades ?? []);
+      })
+      .catch(() => {
+        if (!cancelado) setUnidades([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [pedindoUbs, unidades]);
+
+  // Sem lista, a mensagem não pode mandar tocar numa lista que não existe.
+  useEffect(() => {
+    if (!unidades || unidades.length > 0) return;
+    setItens((atuais) =>
+      atuais.map((item) =>
+        item.chave === 'ubs-pedido' ? { ...item, texto: pedidoDeUbs(undefined, false).texto } : item,
+      ),
+    );
+  }, [unidades]);
 
   // --- Envio ---------------------------------------------------------------
 
@@ -801,9 +910,7 @@ export function Conversa({
     }
     if (!pergunta) return;
 
-    setTexto('');
-    // Vazio, e não 'auto': devolve a altura ao CSS, que a prende em uma linha.
-    if (campoRef.current) campoRef.current.style.height = '';
+    limparCampo();
     void enviarTexto(pergunta);
   }
 
@@ -1451,6 +1558,12 @@ export function Conversa({
           </p>
         )}
 
+        <SugestoesDeUnidade
+          opcoes={opcoesDeUnidade}
+          destacada={opcaoDestacada}
+          aoEscolher={escolherOpcaoDeUnidade}
+        />
+
         <footer className="barra-envio">
           {/* Encerrada, a barra oferece outra conversa no lugar do campo
               desligado, que deixava a pessoa diante de um chat que não envia.
@@ -1537,10 +1650,23 @@ export function Conversa({
                 // O placeholder não é anunciado de forma confiável, e é onde
                 // estava a explicação de por que o campo está desligado.
                 aria-describedby="dica-campo"
+                // Com a lista de unidades aberta, o campo a controla, como um
+                // campo de busca com sugestões: o leitor de tela anuncia a linha
+                // escolhida pelas setas.
+                {...(opcoesDeUnidade.length > 0
+                  ? {
+                      role: 'combobox',
+                      'aria-expanded': true,
+                      'aria-controls': ID_DA_LISTA_DE_UNIDADES,
+                      'aria-autocomplete': 'list' as const,
+                      'aria-activedescendant': opcaoDestacada >= 0 ? idDaOpcao(opcaoDestacada) : undefined,
+                    }
+                  : {})}
                 disabled={encerrada || !sessaoId || !aceitou}
                 value={texto}
                 onChange={(evento) => {
                   setTexto(evento.target.value);
+                  setOpcaoDestacada(-1);
                   // Cresce com o conteúdo, até o teto definido no CSS.
                   const campo = evento.target;
                   // Some com a altura inline para o CSS voltar a mandar quando o
@@ -1550,6 +1676,30 @@ export function Conversa({
                   if (campo.value) campo.style.height = `${campo.scrollHeight}px`;
                 }}
                 onKeyDown={(evento) => {
+                  if (opcoesDeUnidade.length > 0) {
+                    const total = opcoesDeUnidade.length;
+                    if (evento.key === 'ArrowDown' || evento.key === 'ArrowUp') {
+                      evento.preventDefault();
+                      // Dá a volta nas pontas, como a lista de sugestões do navegador.
+                      setOpcaoDestacada((atual) =>
+                        evento.key === 'ArrowDown'
+                          ? (atual + 1) % total
+                          : atual <= 0
+                            ? total - 1
+                            : atual - 1,
+                      );
+                      return;
+                    }
+                    if (evento.key === 'Escape') {
+                      setOpcaoDestacada(-1);
+                      return;
+                    }
+                    if (evento.key === 'Enter' && !evento.shiftKey && opcaoDestacada >= 0) {
+                      evento.preventDefault();
+                      escolherOpcaoDeUnidade(opcoesDeUnidade[opcaoDestacada]);
+                      return;
+                    }
+                  }
                   // Enter envia, Shift+Enter quebra linha, como no WhatsApp Web.
                   if (evento.key === 'Enter' && !evento.shiftKey) {
                     evento.preventDefault();
@@ -1576,7 +1726,9 @@ export function Conversa({
                 : !aceitou
                   ? 'Para começar, aceite os termos na primeira mensagem da conversa.'
                   : pedindoUbs
-                    ? 'Escreva o nome da UBS e envie. Enviar com o campo vazio pula a pergunta.'
+                    ? opcoesDeUnidade.length > 0
+                      ? 'Escreva para filtrar a lista de unidades de saúde e use as setas para escolher. Enviar com o campo vazio pula a pergunta.'
+                      : 'Escreva o nome da unidade de saúde e envie. Enviar com o campo vazio pula a pergunta.'
                     : 'Enter envia a mensagem. Shift mais Enter quebra a linha.'}
             </p>
 
@@ -1587,7 +1739,7 @@ export function Conversa({
                 {(texto.trim() || pedindoUbs) && !ditado.ouvindo ? (
                   <button
                     className="enviar"
-                    aria-label={texto.trim() ? 'Enviar' : 'Pular a pergunta da UBS'}
+                    aria-label={texto.trim() ? 'Enviar' : 'Pular a pergunta da unidade'}
                     disabled={digitando || encerrada || !sessaoId || !aceitou}
                     onClick={() => void enviar()}
                   >
