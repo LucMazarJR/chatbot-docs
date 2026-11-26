@@ -22,7 +22,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RodapeDaPagina } from "@/components/rodape-da-pagina";
 import { diaEHora } from "@/lib/datas";
+import { POR_PAGINA, usePaginaLocal } from "@/lib/paginacao";
 import { exigirPermissao } from "@/lib/guardas";
 import {
   corrigirGrafia,
@@ -336,7 +338,19 @@ function ParaIdentificar({
       </p>
     );
   }
+  return <ParaIdentificarLista grafias={grafias} aoEscolher={aoEscolher} />;
+}
+
+// Separado para o hook de página não ficar depois do retorno antecipado acima.
+function ParaIdentificarLista({
+  grafias,
+  aoEscolher,
+}: {
+  grafias: Grafia[];
+  aoEscolher?: (acao: Acao) => void;
+}) {
   const conversas = grafias.reduce((total, g) => total + g.vezes, 0);
+  const pagina = usePaginaLocal(grafias);
 
   return (
     <section
@@ -356,10 +370,18 @@ function ParaIdentificar({
         </p>
       </div>
       <ul className="overflow-hidden rounded-lg border border-border bg-card">
-        {grafias.map((grafia) => (
+        {pagina.itens.map((grafia) => (
           <LinhaGrafia key={grafia.chave} grafia={grafia} aoEscolher={aoEscolher} />
         ))}
       </ul>
+      <RodapeDaPagina
+        pagina={pagina.page}
+        porPagina={POR_PAGINA}
+        quantos={pagina.itens.length}
+        total={pagina.total}
+        totalPaginas={pagina.totalPages}
+        aoMudar={pagina.setPage}
+      />
     </section>
   );
 }
@@ -371,6 +393,7 @@ function ComoFoiReconhecido({
   grafias: Grafia[];
   aoEscolher?: (acao: Acao) => void;
 }) {
+  const pagina = usePaginaLocal(grafias);
   if (grafias.length === 0) return null;
   const aproximadas = grafias.filter((g) => g.como === "aproximada").length;
 
@@ -391,10 +414,22 @@ function ComoFoiReconhecido({
         />
       </summary>
       <ul className="border-t border-border">
-        {grafias.map((grafia) => (
+        {pagina.itens.map((grafia) => (
           <LinhaGrafia key={grafia.chave} grafia={grafia} aoEscolher={aoEscolher} />
         ))}
       </ul>
+      {pagina.totalPages > 1 && (
+        <div className="border-t border-border px-4 py-2 sm:px-5">
+          <RodapeDaPagina
+            pagina={pagina.page}
+            porPagina={POR_PAGINA}
+            quantos={pagina.itens.length}
+            total={pagina.total}
+            totalPaginas={pagina.totalPages}
+            aoMudar={pagina.setPage}
+          />
+        </div>
+      )}
     </details>
   );
 }

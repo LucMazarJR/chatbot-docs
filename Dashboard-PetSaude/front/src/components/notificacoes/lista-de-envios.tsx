@@ -29,6 +29,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Carregando } from "@/components/carregando";
+import { RodapeDaPagina } from "@/components/rodape-da-pagina";
+import { POR_PAGINA, usePaginaLocal } from "@/lib/paginacao";
 
 const ROTULO_ESTADO: Record<EstadoAviso, string> = {
   pendente: "Na fila",
@@ -292,6 +294,8 @@ function DetalheDoEnvio({ loteId, atualizando }: { loteId: string; atualizando: 
     queryFn: () => detalharEnvio({ data: { loteId } }),
     refetchInterval: atualizando ? 15_000 : false,
   });
+  // Antes dos retornos antecipados: hook não pode depender de qual caminho a tela tomou.
+  const porPessoa = usePaginaLocal(detalhe.data?.pessoas ?? []);
 
   if (detalhe.isLoading) {
     return <Carregando compacto texto="Carregando o detalhe do envio…" />;
@@ -304,7 +308,7 @@ function DetalheDoEnvio({ loteId, atualizando }: { loteId: string; atualizando: 
     );
   }
 
-  const { plataformas, pessoas } = detalhe.data;
+  const { plataformas } = detalhe.data;
 
   return (
     <div className="space-y-4">
@@ -362,8 +366,10 @@ function DetalheDoEnvio({ loteId, atualizando }: { loteId: string; atualizando: 
 
       <div>
         <h3 className="text-[15px] font-semibold">Por pessoa</h3>
+        {/* Um aviso para todos tem uma linha por conta: sem página, a lista
+            cresceria junto com o número de pessoas inscritas. */}
         <ul className="mt-2 divide-y divide-border text-sm">
-          {pessoas.map((pessoa, indice) => (
+          {porPessoa.itens.map((pessoa, indice) => (
             <li key={`${pessoa.email}-${indice}`} className="flex flex-wrap gap-x-3 gap-y-0.5 py-2">
               <span className="min-w-0 break-all font-medium">{pessoa.email}</span>
               <span className="text-muted-foreground">{ROTULO_ESTADO[pessoa.estado]}</span>
@@ -379,6 +385,14 @@ function DetalheDoEnvio({ loteId, atualizando }: { loteId: string; atualizando: 
             </li>
           ))}
         </ul>
+        <RodapeDaPagina
+          pagina={porPessoa.page}
+          porPagina={POR_PAGINA}
+          quantos={porPessoa.itens.length}
+          total={porPessoa.total}
+          totalPaginas={porPessoa.totalPages}
+          aoMudar={porPessoa.setPage}
+        />
       </div>
     </div>
   );
