@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EvolucaoConversas, Minilinha } from "@/components/evolucao-conversas";
+import { rotuloCompleto } from "@/lib/intervalos";
 import { RodapeDaPagina } from "@/components/rodape-da-pagina";
 import { diaEHora } from "@/lib/datas";
 import { POR_PAGINA, usePaginaLocal } from "@/lib/paginacao";
@@ -94,7 +96,12 @@ function UbsPage() {
     queryFn: () => obterPainelUbs({ data: { periodo } }),
     // O front publica antes do back: por alguns minutos o back antigo responde
     // sem estes números, e a tela não pode quebrar por isso.
-    select: (dados): PainelUbs => ({ ...dados, geral: dados.geral ?? GERAL_VAZIO }),
+    select: (dados): PainelUbs => ({
+      ...dados,
+      geral: dados.geral ?? GERAL_VAZIO,
+      serie: dados.serie ?? SERIE_VAZIA,
+      porUbs: dados.porUbs.map((u) => ({ ...u, temas: u.temas ?? [] })),
+    }),
   });
 
   return (
@@ -102,7 +109,7 @@ function UbsPage() {
       <div className="space-y-6">
         <CabecalhoPagina
           titulo="Unidades de saúde"
-          frase="O chat pergunta em qual unidade de saúde a pessoa está e mostra a lista abaixo para ela escolher. Quem escreve um nome que não está na lista aparece em Para identificar, e o sistema reconhece sozinho os nomes parecidos, mesmo com erro de digitação."
+          frase="O chat pergunta em qual unidade de saúde a pessoa está e mostra as unidades cadastradas aqui para ela escolher. Quem escreve um nome que não está na lista aparece em Para identificar, e o sistema reconhece sozinho os nomes parecidos, mesmo com erro de digitação."
           acoes={
             podeEditar && (
               <div className="flex flex-wrap gap-2">
@@ -136,6 +143,7 @@ function UbsPage() {
               grafias={painel.data.grafias.filter((g) => g.como === null)}
               aoEscolher={escolher}
             />
+            <EvolucaoConversas serie={painel.data.serie} />
             <Ranking dados={painel.data} />
             <ComoFoiReconhecido
               grafias={painel.data.grafias.filter((g) => g.como !== null)}
@@ -168,6 +176,13 @@ const GERAL_VAZIO: PainelUbs["geral"] = {
   ultimaEm: null,
   percentual: 0,
   percentualSemResposta: null,
+};
+
+const SERIE_VAZIA: PainelUbs["serie"] = {
+  granularidade: "dia",
+  intervalos: [],
+  total: [],
+  porUnidade: {},
 };
 
 const porcento = (valor: number) => `${valor.toLocaleString("pt-BR")}%`;
@@ -240,11 +255,43 @@ function acimaDaMedia(linha: LinhaUbs, geral: number | null) {
  * Uma série só, de magnitude: um tom, barra fina ancorada no zero e o valor
  * escrito na linha. A lista já é a tabela, então nada depende só da cor.
  */
+type OrdemDoRanking = "conversas" | "sem-resposta" | "nota";
+
+const ORDENS: { valor: OrdemDoRanking; rotulo: string }[] = [
+  { valor: "conversas", rotulo: "Mais conversas" },
+  { valor: "sem-resposta", rotulo: "Mais sem resposta" },
+  { valor: "nota", rotulo: "Menor nota" },
+];
+
+/**
+ * A ordem da lista. Sem resposta e nota deixam no fim quem não tem o dado
+ * (nenhuma pergunta, nenhuma avaliação): no topo, pareceriam a pior unidade.
+ * O empate fica com quem teve mais conversas, que é o número mais confiável.
+ */
+function ordenar(linhas: LinhaUbs[], ordem: OrdemDoRanking): LinhaUbs[] {
+  const porConversas = (a: LinhaUbs, b: LinhaUbs) => b.conversas - a.conversas;
+  if (ordem === "conversas") return [...linhas].sort(porConversas);
+  if (ordem === "sem-resposta") {
+    return [...linhas].sort(
+      (a, b) =>
+        (b.percentualSemResposta ?? -1) - (a.percentualSemResposta ?? -1) || porConversas(a, b),
+    );
+  }
+  return [...linhas].sort(
+    (a, b) => (a.notaMedia ?? Infinity) - (b.notaMedia ?? Infinity) || porConversas(a, b),
+  );
+}
+
 function Ranking({ dados }: { dados: PainelUbs }) {
-  const ativas = dados.porUbs.filter((u) => u.conversas > 0);
+  const [ordem, setOrdem] = useState<OrdemDoRanking>("conversas");
+  const ativas = ordenar(
+    dados.porUbs.filter((u) => u.conversas > 0),
+    ordem,
+  );
   const paradas = dados.porUbs.filter((u) => u.conversas === 0);
   const maior = Math.max(1, ...ativas.map((u) => u.conversas));
   const geral = dados.geral.percentualSemResposta;
+  const { serie } = dados;
 
   return (
     <section className="space-y-3" aria-labelledby="titulo-ranking">
@@ -254,9 +301,15 @@ function Ranking({ dados }: { dados: PainelUbs }) {
         </h2>
         <p className="text-sm text-muted-foreground">
           Sem resposta é a parte das perguntas em que o assistente não achou o que responder. Em
-          todas as unidades, ficou em {geral != null ? porcento(geral) : "zero"}.
+          todas as unidades, ficou em {geral != null ? porcento(geral) : "zero"}. Os temas são as
+          categorias das FAQs usadas nas respostas, e a linha ao lado do nome é a evolução da
+          unidade no período.
         </p>
       </div>
+
+      {ativas.length > 1 && (
+        <Segmentos rotulo="Ordenar unidades por" opcoes={ORDENS} valor={ordem} aoMudar={setOrdem} />
+      )}
 
       {ativas.length === 0 ? (
         <EstadoVazio titulo="Nenhuma conversa com unidade identificada neste período">
@@ -266,10 +319,22 @@ function Ranking({ dados }: { dados: PainelUbs }) {
         <ol className="space-y-1 rounded-xl border border-border bg-card p-2 sm:p-3">
           {ativas.map((ubs) => {
             const alerta = acimaDaMedia(ubs, geral);
+            const evolucao = serie.porUnidade[ubs.id] ?? [];
+            const picoIndice = evolucao.indexOf(Math.max(...evolucao, 0));
             return (
               <li key={ubs.id} className="space-y-1.5 rounded-lg px-2 py-2.5 sm:px-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <strong className="min-w-0 font-semibold">{ubs.nome}</strong>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                    <strong className="min-w-0 font-semibold">{ubs.nome}</strong>
+                    <Minilinha
+                      valores={evolucao}
+                      descricao={`Evolução de ${ubs.nome}: ${plural(ubs.conversas, "conversa", "conversas")} no período${
+                        picoIndice >= 0 && evolucao[picoIndice] > 0
+                          ? `, com mais movimento em ${rotuloCompleto(serie.intervalos[picoIndice], serie.granularidade)}`
+                          : ""
+                      }.`}
+                    />
+                  </span>
                   <span className="shrink-0 text-sm tabular-nums">
                     <strong className="text-base font-semibold">{numero(ubs.conversas)}</strong>{" "}
                     {ubs.conversas === 1 ? "conversa" : "conversas"}
@@ -317,6 +382,12 @@ function Ranking({ dados }: { dados: PainelUbs }) {
                     </>
                   )}
                 </p>
+                {ubs.temas.length > 0 && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Temas: </span>
+                    {ubs.temas.map((t) => `${t.categoria} (${numero(t.respostas)})`).join(", ")}
+                  </p>
+                )}
               </li>
             );
           })}
